@@ -1,17 +1,10 @@
 {
-  "name": "pkg-placeholder",
+  "name": "@easyink/shared",
   "type": "module",
   "version": "0.0.0",
-  "description": "_description_",
+  "description": "Shared types and utilities for EasyInk",
   "author": "hackycy <hackycy@outlook.com>",
   "license": "MIT",
-  "homepage": "https://github.com/hackycy/pkg-placeholder#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hackycy/pkg-placeholder.git"
-  },
-  "bugs": "https://github.com/hackycy/pkg-placeholder/issues",
-  "keywords": [],
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
@@ -26,10 +19,6 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "lint": "eslint",
-    "prepublishOnly": "nr build",
-    "release": "bumpp",
-    "start": "tsx src/index.ts",
     "test": "vitest",
     "typecheck": "tsc"
   }

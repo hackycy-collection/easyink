@@ -1,0 +1,30 @@
+{
+  "name": "@easyink/designer",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Visual template designer Vue components for EasyInk",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@easyink/core": "workspace:*",
+    "@easyink/renderer": "workspace:*",
+    "@easyink/shared": "workspace:*"
+  }
+}

@@ -5,12 +5,12 @@
   "packageManager": "pnpm@10.33.0",
   "author": "hackycy <hackycy@outlook.com>",
   "license": "MIT",
-  "homepage": "https://github.com/hackycy/pkg-placeholder#readme",
+  "homepage": "https://github.com/hackycy/easyink#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hackycy/pkg-placeholder.git"
+    "url": "git+https://github.com/hackycy/easyink.git"
   },
-  "bugs": "https://github.com/hackycy/pkg-placeholder/issues",
+  "bugs": "https://github.com/hackycy/easyink/issues",
   "keywords": [],
   "sideEffects": false,
   "scripts": {
