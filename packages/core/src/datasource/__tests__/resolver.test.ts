@@ -1,52 +1,39 @@
-import type { RepeatContext } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 import { DataResolver } from '../resolver'
 
-const sampleData = {
-  order: {
-    orderNo: 'ORD-001',
-    customer: {
-      name: '张三',
-      phone: '13800138000',
-    },
-    items: [
-      { name: '商品A', quantity: 2, price: 100 },
-      { name: '商品B', quantity: 1, price: 50 },
-    ],
-    total: 250,
-  },
-  company: {
-    name: 'ACME 公司',
-    address: '北京市朝阳区',
-  },
+const sampleData: Record<string, unknown> = {
+  orderNo: 'ORD-001',
+  customerName: '张三',
+  customerPhone: '13800138000',
+  companyName: 'ACME 公司',
+  companyAddress: '北京市朝阳区',
+  total: 250,
+  orderItems: [
+    { itemName: '商品A', itemQty: 2, itemPrice: 100, itemAmount: 200 },
+    { itemName: '商品B', itemQty: 1, itemPrice: 50, itemAmount: 50 },
+  ],
 }
 
 describe('dataResolver', () => {
-  describe('resolve', () => {
-    it('should resolve simple namespace path', () => {
+  describe('resolve — flat key', () => {
+    it('should resolve a flat scalar key', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('order.orderNo', sampleData)).toBe('ORD-001')
+      expect(resolver.resolve('orderNo', sampleData)).toBe('ORD-001')
     })
 
-    it('should resolve nested path', () => {
+    it('should resolve a flat numeric key', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('order.customer.name', sampleData)).toBe('张三')
+      expect(resolver.resolve('total', sampleData)).toBe(250)
     })
 
-    it('should resolve cross-namespace path', () => {
+    it('should resolve a flat array key', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('company.name', sampleData)).toBe('ACME 公司')
+      expect(resolver.resolve('orderItems', sampleData)).toBe(sampleData.orderItems)
     })
 
-    it('should resolve array by index', () => {
+    it('should return undefined for missing flat key', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('order.items[0].name', sampleData)).toBe('商品A')
-      expect(resolver.resolve('order.items[1].price', sampleData)).toBe(50)
-    })
-
-    it('should return undefined for missing path', () => {
-      const resolver = new DataResolver()
-      expect(resolver.resolve('order.nonexistent', sampleData)).toBeUndefined()
+      expect(resolver.resolve('nonexistent', sampleData)).toBeUndefined()
     })
 
     it('should return undefined for empty path', () => {
@@ -54,92 +41,128 @@ describe('dataResolver', () => {
       expect(resolver.resolve('', sampleData)).toBeUndefined()
     })
 
-    it('should return undefined for null/undefined in path chain', () => {
+    it('should prefer flat key over dot-path when key exists in data', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('order.customer.email.domain', sampleData)).toBeUndefined()
-    })
-
-    it('should return the whole namespace object', () => {
-      const resolver = new DataResolver()
-      expect(resolver.resolve('order', sampleData)).toBe(sampleData.order)
+      const data: Record<string, unknown> = {
+        'a.b': 'flat-value',
+        'a': [{ b: 'dot-value' }],
+      }
+      // Note: 'a.b' key contains dot — this is in user data, not in registration keys.
+      // Flat-first: 'a.b' in data → returns 'flat-value'
+      expect(resolver.resolve('a.b', data)).toBe('flat-value')
     })
   })
 
-  describe('resolve with repeat context', () => {
-    const repeatCtx: RepeatContext = {
-      item: { name: '商品A', quantity: 2, price: 100 },
-      index: 0,
-      itemAlias: 'item',
-      indexAlias: 'index',
-    }
-
-    it('should resolve item alias to current item', () => {
+  describe('resolve — dot-path (array.field)', () => {
+    it('should resolve array.field to mapped array', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('item', sampleData, repeatCtx)).toEqual({
-        name: '商品A',
-        quantity: 2,
-        price: 100,
-      })
+      expect(resolver.resolve('orderItems.itemName', sampleData)).toEqual(['商品A', '商品B'])
     })
 
-    it('should resolve index alias to current index', () => {
+    it('should resolve array.field for numeric fields', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('index', sampleData, repeatCtx)).toBe(0)
+      expect(resolver.resolve('orderItems.itemPrice', sampleData)).toEqual([100, 50])
     })
 
-    it('should resolve relative path from item alias', () => {
+    it('should return undefined for each item missing the field', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolve('item.name', sampleData, repeatCtx)).toBe('商品A')
-      expect(resolver.resolve('item.price', sampleData, repeatCtx)).toBe(100)
-    })
-
-    it('should still resolve global paths in repeat context', () => {
-      const resolver = new DataResolver()
-      expect(resolver.resolve('company.name', sampleData, repeatCtx)).toBe('ACME 公司')
-    })
-
-    it('should support custom alias names', () => {
-      const resolver = new DataResolver()
-      const ctx: RepeatContext = {
-        item: { name: 'Test' },
-        index: 5,
-        itemAlias: 'row',
-        indexAlias: 'rowIndex',
+      const data: Record<string, unknown> = {
+        items: [
+          { a: 1 },
+          { b: 2 },
+        ],
       }
-      expect(resolver.resolve('row.name', sampleData, ctx)).toBe('Test')
-      expect(resolver.resolve('rowIndex', sampleData, ctx)).toBe(5)
+      expect(resolver.resolve('items.a', data)).toEqual([1, undefined])
+    })
+
+    it('should handle null/undefined items in the array', () => {
+      const resolver = new DataResolver()
+      const data: Record<string, unknown> = {
+        items: [null, { name: 'test' }, undefined],
+      }
+      expect(resolver.resolve('items.name', data)).toEqual([undefined, 'test', undefined])
+    })
+
+    it('should handle primitive items in the array', () => {
+      const resolver = new DataResolver()
+      const data: Record<string, unknown> = {
+        items: [1, 2, 3],
+      }
+      expect(resolver.resolve('items.name', data)).toEqual([undefined, undefined, undefined])
+    })
+
+    it('should return empty array for empty source array', () => {
+      const resolver = new DataResolver()
+      const data: Record<string, unknown> = {
+        items: [],
+      }
+      expect(resolver.resolve('items.name', data)).toEqual([])
+    })
+
+    it('should return undefined when arrayKey not in data', () => {
+      const resolver = new DataResolver()
+      expect(resolver.resolve('missing.field', sampleData)).toBeUndefined()
+    })
+
+    it('should throw when arrayKey value is not an array', () => {
+      const resolver = new DataResolver()
+      expect(() => resolver.resolve('customerName.field', sampleData))
+        .toThrow('Expected data["customerName"] to be an array')
+    })
+
+    it('should throw when dot-path has more than 2 segments', () => {
+      const resolver = new DataResolver()
+      expect(() => resolver.resolve('a.b.c', sampleData))
+        .toThrow('more than 2 segments')
     })
   })
 
   describe('security — prototype pollution prevention', () => {
-    it('should block __proto__ access', () => {
+    it('should block __proto__ as flat key', () => {
       const resolver = new DataResolver()
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      expect(resolver.resolve('order.__proto__', sampleData)).toBeUndefined()
+      expect(resolver.resolve('__proto__', sampleData)).toBeUndefined()
       expect(spy).toHaveBeenCalledWith(expect.stringContaining('__proto__'))
       spy.mockRestore()
     })
 
-    it('should block constructor access', () => {
+    it('should block constructor as flat key', () => {
       const resolver = new DataResolver()
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      expect(resolver.resolve('order.constructor', sampleData)).toBeUndefined()
+      expect(resolver.resolve('constructor', sampleData)).toBeUndefined()
       expect(spy).toHaveBeenCalledWith(expect.stringContaining('constructor'))
       spy.mockRestore()
     })
 
-    it('should block prototype access', () => {
+    it('should block prototype as flat key', () => {
       const resolver = new DataResolver()
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      expect(resolver.resolve('order.prototype', sampleData)).toBeUndefined()
+      expect(resolver.resolve('prototype', sampleData)).toBeUndefined()
       expect(spy).toHaveBeenCalledWith(expect.stringContaining('prototype'))
       spy.mockRestore()
     })
 
-    it('should block __proto__ in nested path', () => {
+    it('should block __proto__ as arrayKey in dot-path', () => {
       const resolver = new DataResolver()
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      expect(resolver.resolve('order.customer.__proto__.polluted', sampleData)).toBeUndefined()
+      expect(resolver.resolve('__proto__.field', sampleData)).toBeUndefined()
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('__proto__'))
+      spy.mockRestore()
+    })
+
+    it('should block __proto__ as field in dot-path', () => {
+      const resolver = new DataResolver()
+      const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      expect(resolver.resolve('orderItems.__proto__', sampleData)).toBeUndefined()
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('__proto__'))
+      spy.mockRestore()
+    })
+
+    it('should block constructor as field in dot-path', () => {
+      const resolver = new DataResolver()
+      const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      expect(resolver.resolve('orderItems.constructor', sampleData)).toBeUndefined()
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('constructor'))
       spy.mockRestore()
     })
   })
@@ -171,18 +194,18 @@ describe('dataResolver', () => {
     it('should resolve and format in one call', () => {
       const resolver = new DataResolver()
       resolver.registerFormatter('uppercase', value => String(value ?? '').toUpperCase())
-      const result = resolver.resolveAndFormat('order.orderNo', sampleData, { type: 'uppercase' })
+      const result = resolver.resolveAndFormat('orderNo', sampleData, { type: 'uppercase' })
       expect(result).toBe('ORD-001')
     })
 
     it('should return string value without formatter', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolveAndFormat('order.total', sampleData)).toBe('250')
+      expect(resolver.resolveAndFormat('total', sampleData)).toBe('250')
     })
 
     it('should return empty string for undefined without formatter', () => {
       const resolver = new DataResolver()
-      expect(resolver.resolveAndFormat('order.nonexistent', sampleData)).toBe('')
+      expect(resolver.resolveAndFormat('nonexistent', sampleData)).toBe('')
     })
   })
 

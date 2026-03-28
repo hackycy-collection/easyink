@@ -175,28 +175,18 @@ export interface ElementStyle {
 
 /**
  * 数据绑定配置
+ *
+ * path 支持两种形式：
+ * - 扁平取值：`key` — 直接从 data[key] 取值（标量或数组均可）
+ * - 点路径取值：`arrayKey.field` — 从 data[arrayKey].map(item => item[field]) 取值
  */
 export interface DataBinding {
-  /** 数据路径表达式，使用命名空间隔离，如 "order.customer.name" */
+  /** 数据路径，支持 `key`（扁平取值）和 `arrayKey.field`（点路径取值） */
   path?: string
   /** 表达式（由表达式引擎插件解析） */
   expression?: string
   /** 格式化器 */
   formatter?: FormatterConfig
-  /** 循环绑定（用于表格，仅支持单层 repeat） */
-  repeat?: RepeatBinding
-}
-
-/**
- * 循环绑定
- */
-export interface RepeatBinding {
-  /** 数据源路径（必须指向数组，使用完整命名空间路径） */
-  source: string
-  /** 循环变量名，默认 "item" */
-  itemAlias?: string
-  /** 索引变量名，默认 "index" */
-  indexAlias?: string
 }
 
 /**

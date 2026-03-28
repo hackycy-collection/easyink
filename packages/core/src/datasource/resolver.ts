@@ -1,20 +1,24 @@
-import type { FormatterConfig, FormatterFunction, RepeatContext } from './types'
+import type { FormatterConfig, FormatterFunction } from './types'
 
 /** Properties that must never be accessed during path resolution (prototype pollution prevention) */
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 /**
- * DataResolver — resolves data values from namespace paths.
+ * DataResolver — resolves data values from flat data objects.
  *
- * Supports:
- * - Namespace paths: "order.customer.name" → data.order.customer.name
- * - Array index: "order.items[0].name"
- * - Repeat context: inside a repeat loop, the item alias resolves from current row data
- * - Security: blocks access to __proto__, constructor, prototype
+ * Resolution strategy:
+ * 1. Flat-first: check `path in data` → return `data[path]`
+ * 2. Dot-path fallback: split by '.' into [arrayKey, field] (only one level)
+ *    → `data[arrayKey].map(item => item[field])`
  *
  * Error strategy:
- * - Path to undefined → returns undefined
- * - Invalid path/exception → returns undefined, prints console warning
+ * - Flat + dot-path both miss → returns undefined
+ * - Dot-path arrayKey value is not an array → throws Error
+ * - Dot-path has more than 2 segments → throws Error
+ * - Path segment matches prototype property → returns undefined + warning
+ * - Format exception → returns empty string
+ *
+ * Security: each path segment is checked against __proto__, constructor, prototype.
  */
 export class DataResolver {
   private formatters = new Map<string, FormatterFunction>()
@@ -41,44 +45,75 @@ export class DataResolver {
   }
 
   /**
-   * Resolve a value from data by namespace path.
+   * Resolve a value from data by path.
    *
-   * @param path - Dot-separated path, e.g. "order.customer.name" or "order.items[0].name"
-   * @param data - The data object keyed by namespace
-   * @param context - Optional repeat context for resolving paths inside repeat loops
-   * @returns The resolved value, or undefined if not found
+   * @param path - Flat key (e.g. 'orderNo') or dot-path (e.g. 'orderItems.itemName')
+   * @param data - Flat data object, values can be scalars or object arrays
+   * @returns The resolved value (scalar, array, or undefined)
    */
-  resolve(
-    path: string,
-    data: Record<string, unknown>,
-    context?: RepeatContext,
-  ): unknown {
+  resolve(path: string, data: Record<string, unknown>): unknown {
     if (!path)
       return undefined
 
-    try {
-      // In repeat context, check if path matches the item/index alias
-      if (context) {
-        if (path === context.indexAlias) {
-          return context.index
-        }
-        if (path === context.itemAlias) {
-          return context.item
-        }
-        // If path starts with itemAlias, resolve relative to current item
-        if (path.startsWith(`${context.itemAlias}.`)) {
-          const relativePath = path.slice(context.itemAlias.length + 1)
-          return this.resolvePath(relativePath, context.item)
-        }
-      }
-
-      // Standard namespace resolution
-      return this.resolvePath(path, data)
-    }
-    catch {
-      console.warn(`[EasyInk] Failed to resolve data path: "${path}"`)
+    // Security check on the full path (for single-segment paths)
+    if (FORBIDDEN_KEYS.has(path)) {
+      console.warn(`[EasyInk] Blocked access to forbidden property: "${path}"`)
       return undefined
     }
+
+    // 1. Flat-first: exact key match
+    if (path in data) {
+      return data[path]
+    }
+
+    // 2. Dot-path fallback
+    const dotIndex = path.indexOf('.')
+    if (dotIndex === -1) {
+      // No dot, key not in data → undefined
+      return undefined
+    }
+
+    const arrayKey = path.slice(0, dotIndex)
+    const field = path.slice(dotIndex + 1)
+
+    // Validate: only one level of nesting
+    if (field.includes('.')) {
+      throw new Error(
+        `[EasyInk] Dot-path "${path}" has more than 2 segments. Only one level of nesting (arrayKey.field) is supported.`,
+      )
+    }
+
+    // Security check on each segment
+    if (FORBIDDEN_KEYS.has(arrayKey)) {
+      console.warn(`[EasyInk] Blocked access to forbidden property: "${arrayKey}"`)
+      return undefined
+    }
+    if (FORBIDDEN_KEYS.has(field)) {
+      console.warn(`[EasyInk] Blocked access to forbidden property: "${field}"`)
+      return undefined
+    }
+
+    const arrayData = data[arrayKey]
+
+    // arrayKey not in data → undefined
+    if (arrayData === undefined) {
+      return undefined
+    }
+
+    // arrayKey value must be an array
+    if (!Array.isArray(arrayData)) {
+      throw new TypeError(
+        `[EasyInk] Expected data["${arrayKey}"] to be an array for dot-path "${path}", but got ${typeof arrayData}.`,
+      )
+    }
+
+    return arrayData.map((item: unknown) => {
+      if (item == null)
+        return undefined
+      if (typeof item !== 'object')
+        return undefined
+      return (item as Record<string, unknown>)[field]
+    })
   }
 
   /**
@@ -104,9 +139,8 @@ export class DataResolver {
     path: string,
     data: Record<string, unknown>,
     formatter?: FormatterConfig,
-    context?: RepeatContext,
   ): string {
-    const value = this.resolve(path, data, context)
+    const value = this.resolve(path, data)
     if (formatter) {
       return this.format(value, formatter)
     }
@@ -118,70 +152,5 @@ export class DataResolver {
    */
   clear(): void {
     this.formatters.clear()
-  }
-
-  /**
-   * Walk a dot-separated path on an object, with array index support.
-   * Returns undefined for missing segments instead of throwing.
-   */
-  private resolvePath(path: string, obj: unknown): unknown {
-    if (obj == null)
-      return undefined
-
-    const segments = this.parsePath(path)
-    let current: unknown = obj
-
-    for (const segment of segments) {
-      if (current == null)
-        return undefined
-
-      // Security check
-      if (FORBIDDEN_KEYS.has(segment)) {
-        console.warn(`[EasyInk] Blocked access to forbidden property: "${segment}"`)
-        return undefined
-      }
-
-      if (typeof current !== 'object')
-        return undefined
-
-      current = (current as Record<string, unknown>)[segment]
-    }
-
-    return current
-  }
-
-  /**
-   * Parse a path string into segments, handling array index notation.
-   * "a.b[0].c" → ["a", "b", "0", "c"]
-   */
-  private parsePath(path: string): string[] {
-    const segments: string[] = []
-    let current = ''
-
-    for (let i = 0; i < path.length; i++) {
-      const ch = path[i]
-      if (ch === '.') {
-        if (current)
-          segments.push(current)
-        current = ''
-      }
-      else if (ch === '[') {
-        if (current)
-          segments.push(current)
-        current = ''
-      }
-      else if (ch === ']') {
-        if (current)
-          segments.push(current)
-        current = ''
-      }
-      else {
-        current += ch
-      }
-    }
-
-    if (current)
-      segments.push(current)
-    return segments
   }
 }

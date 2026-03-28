@@ -1,6 +1,5 @@
 import type {
-  DataFieldInfo,
-  DataFieldSchema,
+  DataFieldNode,
   DataSourceManagerEvents,
   DataSourceRegistration,
 } from './types'
@@ -9,7 +8,8 @@ import type {
  * DataSourceManager — manages registration and lookup of data sources.
  *
  * Data sources are registered by the integrating developer (not by template users).
- * Each data source has a unique name that serves as the namespace prefix for data paths.
+ * Each data source is keyed by its displayName. Keys are globally unique;
+ * re-registering the same name overwrites the previous entry.
  */
 export class DataSourceManager {
   private sources = new Map<string, DataSourceRegistration>()
@@ -17,14 +17,14 @@ export class DataSourceManager {
 
   /**
    * Register a data source.
-   * @throws If a data source with the same name is already registered
+   * Re-registering the same name overwrites the previous entry.
+   * Validates that all leaf-node keys do not contain '.'.
+   * @throws If any leaf key contains '.'
    */
-  register(registration: DataSourceRegistration): void {
-    if (this.sources.has(registration.name)) {
-      throw new Error(`Data source "${registration.name}" is already registered`)
-    }
-    this.sources.set(registration.name, registration)
-    this.emit('registered', registration)
+  register(name: string, registration: DataSourceRegistration): void {
+    this.validateFields(registration.fields)
+    this.sources.set(name, registration)
+    this.emit('registered', name, registration)
   }
 
   /**
@@ -54,74 +54,40 @@ export class DataSourceManager {
   }
 
   /**
-   * List all registered data sources.
+   * List all registered data source names with their registrations.
    */
-  list(): DataSourceRegistration[] {
-    return [...this.sources.values()]
+  list(): Array<{ name: string, registration: DataSourceRegistration }> {
+    return [...this.sources.entries()].map(([name, registration]) => ({ name, registration }))
   }
 
   /**
-   * Get flattened field list for a data source (used for field tree display).
-   * Recursively walks the field schema and returns all fields with full paths.
+   * Get the field tree for a specific data source.
+   * Returns the fields array as-is (recursive children structure).
    */
-  getFields(name: string): DataFieldInfo[] {
+  getFields(name: string): DataFieldNode[] {
     const source = this.sources.get(name)
     if (!source) {
       throw new Error(`Data source "${name}" is not registered`)
     }
-    const fields: DataFieldInfo[] = []
-    this.walkFields(source.fields, name, 0, fields)
-    return fields
+    return source.fields
   }
 
   /**
-   * Get flattened fields for all registered data sources.
+   * Get field trees for all registered data sources.
+   * Returns an array of { name, displayName, icon, fields }.
    */
-  getAllFields(): DataFieldInfo[] {
-    const fields: DataFieldInfo[] = []
-    for (const source of this.sources.values()) {
-      this.walkFields(source.fields, source.name, 0, fields)
-    }
-    return fields
-  }
-
-  /**
-   * Resolve a field schema by its full path (e.g., "order.customer.name").
-   * Returns undefined if the path is invalid.
-   */
-  resolveFieldSchema(path: string): DataFieldSchema | undefined {
-    const segments = path.split('.')
-    if (segments.length === 0)
-      return undefined
-
-    const source = this.sources.get(segments[0])
-    if (!source)
-      return undefined
-
-    let schema: DataFieldSchema = source.fields
-    for (let i = 1; i < segments.length; i++) {
-      if (schema.type === 'object' && schema.properties) {
-        schema = schema.properties[segments[i]]
-        if (!schema)
-          return undefined
-      }
-      else if (schema.type === 'array' && schema.items) {
-        // For array access, dive into items schema
-        schema = schema.items
-        if (schema.type === 'object' && schema.properties) {
-          schema = schema.properties[segments[i]]
-          if (!schema)
-            return undefined
-        }
-        else {
-          return undefined
-        }
-      }
-      else {
-        return undefined
-      }
-    }
-    return schema
+  getFieldTree(): Array<{
+    name: string
+    displayName: string
+    icon?: string
+    fields: DataFieldNode[]
+  }> {
+    return [...this.sources.entries()].map(([name, reg]) => ({
+      name,
+      displayName: reg.displayName,
+      icon: reg.icon,
+      fields: reg.fields,
+    }))
   }
 
   /**
@@ -169,25 +135,16 @@ export class DataSourceManager {
     }
   }
 
-  private walkFields(
-    schema: DataFieldSchema,
-    path: string,
-    depth: number,
-    result: DataFieldInfo[],
-  ): void {
-    result.push({ path, schema, depth })
-
-    if (schema.type === 'object' && schema.properties) {
-      for (const [key, childSchema] of Object.entries(schema.properties)) {
-        this.walkFields(childSchema, `${path}.${key}`, depth + 1, result)
+  /**
+   * Validate field tree: all leaf-node keys must not contain '.'.
+   */
+  private validateFields(fields: DataFieldNode[]): void {
+    for (const field of fields) {
+      if (field.key && field.key.includes('.')) {
+        throw new Error(`Data field key "${field.key}" must not contain '.'`)
       }
-    }
-    else if (schema.type === 'array' && schema.items) {
-      // For arrays, walk the items schema to expose nested fields
-      if (schema.items.type === 'object' && schema.items.properties) {
-        for (const [key, childSchema] of Object.entries(schema.items.properties)) {
-          this.walkFields(childSchema, `${path}.${key}`, depth + 1, result)
-        }
+      if (field.children) {
+        this.validateFields(field.children)
       }
     }
   }

@@ -3,10 +3,8 @@ export { DataSourceManager } from './manager'
 export { DataResolver } from './resolver'
 export type {
   BuiltinFormatterType,
-  DataFieldInfo,
-  DataFieldSchema,
+  DataFieldNode,
   DataSourceManagerEvents,
   DataSourceRegistration,
   FormatterFunction,
-  RepeatContext,
 } from './types'
