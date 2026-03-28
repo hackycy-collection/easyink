@@ -892,6 +892,8 @@ class DataResolver {
 
 核心只提供路径绑定（`key` 直接取值 + `arrayKey.field` 点路径解析），表达式引擎作为插件扩展：
 
+> **设计决策**：核心不内置 SimplePathEngine 默认实现——路径解析已由 `DataResolver.resolve()` 完成（扁平取值 + arrayKey.field 点路径）。`ExpressionEngine` 接口定义在 `@easyink/core` 中，实际引擎实现（如支持 `price * quantity` 的沙箱化引擎）由插件提供。核心仅导出接口类型 + `DEFAULT_SANDBOX_CONFIG` 默认值。
+
 ```typescript
 /**
  * 表达式引擎接口 — 由插件实现
@@ -926,7 +928,7 @@ interface ExpressionContext {
   /** 页面信息 */
   page: { number: number, total: number }
   /** 白名单工具函数 */
-  helpers: Record<string, Function>
+  helpers: Record<string, (...args: unknown[]) => unknown>
 }
 ```
 
