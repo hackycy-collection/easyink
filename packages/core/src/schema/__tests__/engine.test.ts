@@ -2,6 +2,7 @@ import type { PluginHooks } from '../../plugin'
 import type { ElementNode, TemplateSchema } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 import { ElementRegistry } from '../../elements'
+import { MigrationRegistry } from '../../migration'
 import { createPluginHooks } from '../../plugin/manager'
 import { createDefaultSchema, SCHEMA_VERSION } from '../defaults'
 import { SchemaEngine } from '../engine'
@@ -716,6 +717,12 @@ describe('schemaEngine', () => {
       engine.loadSchema(createDefaultSchema())
 
       expect(callback).toHaveBeenCalledOnce()
+    })
+
+    it('should accept migrationRegistry option', () => {
+      const migrationRegistry = new MigrationRegistry()
+      const engine = new SchemaEngine({ migrationRegistry })
+      expect(engine.schema.version).toBe(SCHEMA_VERSION)
     })
   })
 

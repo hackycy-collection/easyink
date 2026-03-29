@@ -1,5 +1,6 @@
 import type { SchemaOperations } from '../command'
 import type { ElementRegistry } from '../elements'
+import type { MigrationRegistry } from '../migration'
 import type { PluginHooks, SchemaChangeEvent } from '../plugin'
 import type {
   DataBinding,
@@ -23,6 +24,8 @@ export interface SchemaEngineOptions {
   hooks?: PluginHooks
   /** 元素类型注册中心，不传则 validate 跳过类型检查 */
   elementRegistry?: ElementRegistry
+  /** 迁移注册表，传入后 loadSchema 可自动迁移旧版 Schema */
+  migrationRegistry?: MigrationRegistry
 }
 
 /**
@@ -63,11 +66,13 @@ export class SchemaEngine {
   private _schema: TemplateSchema
   private _hooks?: PluginHooks
   private _elementRegistry?: ElementRegistry
+  private _migrationRegistry?: MigrationRegistry
 
   constructor(options?: SchemaEngineOptions) {
     this._schema = options?.schema ?? createDefaultSchema()
     this._hooks = options?.hooks
     this._elementRegistry = options?.elementRegistry
+    this._migrationRegistry = options?.migrationRegistry
   }
 
   // ── Schema 访问 ──
@@ -452,13 +457,37 @@ export class SchemaEngine {
 
   /**
    * 加载 Schema（替换当前状态）
-   * @throws {Error} 如果 schema 版本高于当前库版本
+   *
+   * 版本处理策略：
+   * 1. 版本高于当前 → throw
+   * 2. 同 major 版本 → 直接使用（minor/patch 向后兼容）
+   * 3. 低 major 版本 → 有 migrationRegistry 则自动迁移，否则 throw
+   *
+   * @throws {Error} 如果 schema 版本高于当前，或低 major 且无迁移路径
    */
   loadSchema(schema: TemplateSchema): void {
     if (schema.version && this._compareVersion(schema.version, SCHEMA_VERSION) > 0) {
       throw new Error(
         `Schema version ${schema.version} is newer than the supported version ${SCHEMA_VERSION}. Please upgrade the library.`,
       )
+    }
+
+    // 检查是否需要 major 版本迁移
+    if (schema.version) {
+      const schemaMajor = this._parseMajor(schema.version)
+      const currentMajor = this._parseMajor(SCHEMA_VERSION)
+
+      if (schemaMajor < currentMajor) {
+        if (!this._migrationRegistry) {
+          throw new Error(
+            `Schema version ${schema.version} requires migration to ${SCHEMA_VERSION}, but no MigrationRegistry is configured.`,
+          )
+        }
+        const migrated = this._migrationRegistry.migrate(schema as unknown as Record<string, unknown>)
+        this._schema = migrated
+        this._notifyChanged({ type: 'update' })
+        return
+      }
     }
 
     this._schema = schema
@@ -507,5 +536,10 @@ export class SchemaEngine {
         return diff
     }
     return 0
+  }
+
+  /** 解析版本字符串的 major 部分 */
+  private _parseMajor(version: string): number {
+    return Number.parseInt(version.split('.')[0], 10)
   }
 }

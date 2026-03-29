@@ -1,6 +1,7 @@
 import type { Command, SchemaOperations } from '../../command'
 import type { EasyInkPlugin, PluginContext, SchemaChangeEvent } from '../../plugin'
 import { describe, expect, it, vi } from 'vitest'
+import { MigrationRegistry } from '../../migration'
 import { createDefaultSchema } from '../../schema'
 import { EasyInkEngine } from '../facade'
 
@@ -470,6 +471,65 @@ describe('easyInkEngine', () => {
       engine.destroy()
 
       expect(() => engine.loadSchema(createDefaultSchema())).toThrow('destroyed')
+    })
+
+    it('should clear font cache on destroy', async () => {
+      const engine = new EasyInkEngine({
+        fontProvider: {
+          listFonts: async () => [],
+          loadFont: async () => 'url',
+        },
+      })
+      await engine.font.loadFont('Test')
+      expect(engine.font.isLoaded('Test')).toBe(true)
+
+      engine.destroy()
+
+      expect(engine.font.isLoaded('Test')).toBe(false)
+    })
+  })
+
+  describe('font', () => {
+    it('should create FontManager without provider', () => {
+      const engine = new EasyInkEngine()
+      expect(engine.font).toBeDefined()
+      expect(engine.font.provider).toBeUndefined()
+    })
+
+    it('should create FontManager with provider', () => {
+      const provider = {
+        listFonts: async () => [],
+        loadFont: async () => 'url' as const,
+      }
+      const engine = new EasyInkEngine({ fontProvider: provider })
+      expect(engine.font.provider).toBe(provider)
+    })
+
+    it('should load font via FontManager', async () => {
+      const engine = new EasyInkEngine({
+        fontProvider: {
+          listFonts: async () => [
+            { family: 'TestFont', displayName: '测试', weights: ['400'], styles: ['normal'] },
+          ],
+          loadFont: async () => 'https://cdn.example.com/test.woff2',
+        },
+      })
+      const fonts = await engine.font.listFonts()
+      expect(fonts).toHaveLength(1)
+      expect(fonts[0].family).toBe('TestFont')
+    })
+  })
+
+  describe('migration', () => {
+    it('should be undefined when no migrationRegistry provided', () => {
+      const engine = new EasyInkEngine()
+      expect(engine.migration).toBeUndefined()
+    })
+
+    it('should expose migrationRegistry when provided', () => {
+      const registry = new MigrationRegistry()
+      const engine = new EasyInkEngine({ migrationRegistry: registry })
+      expect(engine.migration).toBe(registry)
     })
   })
 })

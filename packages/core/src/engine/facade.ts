@@ -1,6 +1,8 @@
 import type { Command, SchemaOperations } from '../command'
 import type { DataSourceRegistration } from '../datasource'
+import type { FontProvider } from '../font'
 import type { LayoutResult } from '../layout'
+import type { MigrationRegistry } from '../migration'
 import type {
   EasyInkPlugin,
   PluginHooks,
@@ -9,6 +11,7 @@ import type { TemplateSchema } from '../schema'
 import { CommandManager } from '../command'
 import { DataResolver, DataSourceManager, registerBuiltinFormatters } from '../datasource'
 import { builtinElementTypes, ElementRegistry } from '../elements'
+import { FontManager } from '../font'
 import { LayoutEngine } from '../layout'
 import { createPluginHooks, PluginManager } from '../plugin'
 import { SchemaEngine } from '../schema'
@@ -39,6 +42,10 @@ export interface EasyInkEngineOptions {
   dataSources?: Array<{ name: string } & DataSourceRegistration>
   /** auto height 元素的默认估算高度 */
   defaultFlowHeight?: number
+  /** Schema 版本迁移注册表 */
+  migrationRegistry?: MigrationRegistry
+  /** 字体提供者 */
+  fontProvider?: FontProvider
 }
 
 // ─── EasyInkEngine ───
@@ -64,6 +71,8 @@ export class EasyInkEngine {
   readonly dataResolver: DataResolver
   readonly layout: LayoutEngine
   readonly elementRegistry: ElementRegistry
+  readonly font: FontManager
+  readonly migration: MigrationRegistry | undefined
 
   private _hooks: PluginHooks
   private _data: Record<string, unknown> = {}
@@ -77,17 +86,21 @@ export class EasyInkEngine {
     this.elementRegistry = new ElementRegistry()
     this.elementRegistry.registerAll(builtinElementTypes)
 
-    // 3. Schema 引擎
+    // 3. 迁移注册表
+    this.migration = options?.migrationRegistry
+
+    // 4. Schema 引擎
     this.schema = new SchemaEngine({
       schema: options?.schema,
       hooks: this._hooks,
       elementRegistry: this.elementRegistry,
+      migrationRegistry: this.migration,
     })
 
-    // 4. 命令管理器
+    // 5. 命令管理器
     this.commands = new CommandManager()
 
-    // 5. 数据源
+    // 6. 数据源
     this.dataSource = new DataSourceManager()
     this.dataResolver = new DataResolver()
     registerBuiltinFormatters(this.dataResolver)
@@ -102,12 +115,15 @@ export class EasyInkEngine {
       }
     }
 
-    // 6. 布局引擎
+    // 7. 布局引擎
     this.layout = new LayoutEngine({
       defaultFlowHeight: options?.defaultFlowHeight,
     })
 
-    // 7. 插件
+    // 8. 字体管理
+    this.font = new FontManager(options?.fontProvider)
+
+    // 9. 插件（最后安装，此时所有子系统就绪）
     this.plugins = new PluginManager(this._hooks)
 
     if (options?.plugins) {
@@ -277,6 +293,7 @@ export class EasyInkEngine {
     this.dataResolver.clear()
     this.commands.clear()
     this.elementRegistry.clear()
+    this.font.clear()
     this._data = {}
     this._destroyed = true
   }
