@@ -1,4 +1,4 @@
-import { createUpdateBindingCommand, toPixels } from '@easyink/core'
+import { createMoveElementCommand, createUpdateBindingCommand, toPixels } from '@easyink/core'
 import { defineComponent, h, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { DESIGNER_INJECTION_KEY } from '../types'
 import { AlignmentGuides } from './AlignmentGuides'
@@ -68,6 +68,52 @@ export const DesignCanvas = defineComponent({
         e.preventDefault()
         ctx.selection.selectAll()
       }
+      // Undo/Redo
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ') {
+        e.preventDefault()
+        ctx.undo()
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyZ') {
+        e.preventDefault()
+        ctx.redo()
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+        e.preventDefault()
+        ctx.redo()
+      }
+      // Escape: close context menu / deselect
+      if (e.code === 'Escape') {
+        if (ctx.contextMenu.visible.value) {
+          ctx.contextMenu.hide()
+        }
+        else {
+          ctx.selection.deselect()
+        }
+      }
+      // Arrow key nudge
+      if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        const ids = ctx.selection.selectedIds.value
+        if (ids.length === 0) {
+          return
+        }
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        let dx = 0
+        let dy = 0
+        if (e.code === 'ArrowLeft') {
+          dx = -step
+        }
+        if (e.code === 'ArrowRight') {
+          dx = step
+        }
+        if (e.code === 'ArrowUp') {
+          dy = -step
+        }
+        if (e.code === 'ArrowDown') {
+          dy = step
+        }
+        _nudgeElements(ids, dx, dy)
+      }
     }
 
     function onKeyup(e: KeyboardEvent): void {
@@ -75,6 +121,66 @@ export const DesignCanvas = defineComponent({
         spaceHeld = false
         ctx.canvas.isPanning.value = false
       }
+    }
+
+    // ── 方向键微调 ──
+
+    function _nudgeElements(ids: string[], dx: number, dy: number): void {
+      if (ids.length === 1) {
+        const el = ctx.engine.schema.getElementById(ids[0])
+        if (!el || el.locked || el.hidden) {
+          return
+        }
+        const oldX = el.layout.x ?? 0
+        const oldY = el.layout.y ?? 0
+        const cmd = createMoveElementCommand({
+          elementId: el.id,
+          newX: oldX + dx,
+          newY: oldY + dy,
+          oldX,
+          oldY,
+        }, ctx.engine.operations)
+        ctx.engine.execute(cmd)
+      }
+      else {
+        const movable = ids
+          .map(id => ctx.engine.schema.getElementById(id))
+          .filter((el): el is NonNullable<typeof el> => !!el && !el.locked && !el.hidden)
+        if (movable.length === 0) {
+          return
+        }
+        ctx.engine.commands.beginTransaction('批量微调')
+        for (const el of movable) {
+          const oldX = el.layout.x ?? 0
+          const oldY = el.layout.y ?? 0
+          const cmd = createMoveElementCommand({
+            elementId: el.id,
+            newX: oldX + dx,
+            newY: oldY + dy,
+            oldX,
+            oldY,
+          }, ctx.engine.operations)
+          ctx.engine.execute(cmd)
+        }
+        ctx.engine.commands.commitTransaction()
+      }
+    }
+
+    // ── 右键菜单 ──
+
+    function onContextmenu(e: MouseEvent): void {
+      // Walk up to find element id
+      let target = e.target as HTMLElement | null
+      let elementId: string | undefined
+      while (target && target !== pageWrapperRef.value) {
+        const id = target.dataset?.elementId
+        if (id) {
+          elementId = id
+          break
+        }
+        target = target.parentElement
+      }
+      ctx.contextMenu.show(e, elementId)
     }
 
     // ── 平移 ──
@@ -255,6 +361,7 @@ export const DesignCanvas = defineComponent({
               h('div', {
                 class: 'easyink-canvas-page-wrapper',
                 onClick: onCanvasClick,
+                onContextmenu,
                 onDragover: onPageDragover,
                 onDrop: onPageDrop,
                 onMousedown: onPageWrapperMousedown,

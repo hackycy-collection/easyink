@@ -2,6 +2,7 @@ import type { DesignerContext, DesignerOptions } from '../types'
 import { defineComponent, h, provide, watch } from 'vue'
 import { useDesigner } from '../composables/use-designer'
 import { DESIGNER_INJECTION_KEY } from '../types'
+import { ContextMenu } from './ContextMenu'
 import { DesignCanvas } from './DesignCanvas'
 import { PropertyPanel } from './PropertyPanel'
 import { SidebarPanel } from './SidebarPanel'
@@ -29,6 +30,7 @@ export const EasyInkDesigner = defineComponent({
       canRedo: designer.canRedo,
       canUndo: designer.canUndo,
       canvas: designer.canvas,
+      contextMenu: designer.contextMenu,
       elementTypes: designer.elementTypes,
       engine: designer.engine,
       guides: designer.guides,
@@ -60,6 +62,7 @@ export const EasyInkDesigner = defineComponent({
           h(PropertyPanel),
         ]),
         h(StatusBar),
+        h(ContextMenu),
       ])
     }
   },

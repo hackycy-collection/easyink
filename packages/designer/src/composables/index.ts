@@ -1,6 +1,8 @@
 export { useBatchOperations } from './use-batch-operations'
 export type { CanvasOptions } from './use-canvas'
 export { useCanvas } from './use-canvas'
+export type { ContextMenuItem } from './use-context-menu'
+export { useContextMenu } from './use-context-menu'
 export { useDesigner } from './use-designer'
 export { useGuides } from './use-guides'
 export { useInteraction } from './use-interaction'

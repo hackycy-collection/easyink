@@ -1,4 +1,5 @@
 export { AlignmentGuides } from './AlignmentGuides'
+export { ContextMenu } from './ContextMenu'
 export { DataSourcePanel } from './DataSourcePanel'
 export { DesignCanvas } from './DesignCanvas'
 export { EasyInkDesigner } from './EasyInkDesigner'

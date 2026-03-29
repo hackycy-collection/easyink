@@ -61,4 +61,15 @@ export const zhCN: LocaleMessages = {
     horizontal: '水平标尺',
     vertical: '垂直标尺',
   },
+  contextMenu: {
+    copy: '复制',
+    paste: '粘贴',
+    delete: '删除',
+    bringToFront: '置于顶层',
+    sendToBack: '置于底层',
+    bringForward: '上移一层',
+    sendBackward: '下移一层',
+    lock: '锁定',
+    unlock: '解锁',
+  },
 }

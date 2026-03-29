@@ -11,6 +11,7 @@ import { computed, onUnmounted, ref, shallowRef } from 'vue'
 import { useLocale } from '../locale/use-locale'
 import { useBatchOperations } from './use-batch-operations'
 import { useCanvas } from './use-canvas'
+import { useContextMenu } from './use-context-menu'
 import { useGuides } from './use-guides'
 import { useInteraction } from './use-interaction'
 import { useMarquee } from './use-marquee'
@@ -48,8 +49,6 @@ export function useDesigner(options?: DesignerOptions) {
   const marquee = useMarquee(engine, selection, canvas)
   const batchOperations = useBatchOperations(engine, selection)
   const guides = useGuides(engine)
-
-  // 5. undo/redo 状态
   const canUndo = ref(engine.commands.canUndo)
   const canRedo = ref(engine.commands.canRedo)
 
@@ -117,6 +116,9 @@ export function useDesigner(options?: DesignerOptions) {
 
   const elementTypes = computed<ElementTypeDefinition[]>(() => engine.elementRegistry.list())
 
+  // 7. 右键菜单
+  const contextMenu = useContextMenu(engine, selection, removeSelected)
+
   // 清理
   onUnmounted(() => {
     screenRenderer.destroy()
@@ -129,6 +131,7 @@ export function useDesigner(options?: DesignerOptions) {
     canRedo,
     canUndo,
     canvas,
+    contextMenu,
     elementTypes,
     engine,
     guides,

@@ -627,3 +627,55 @@
   font-size: 11px;
 }
 
+/* ── Context Menu ── */
+
+.easyink-context-menu {
+  position: fixed;
+  min-width: 160px;
+  padding: 4px 0;
+  background: var(--easyink-bg-panel);
+  border: 1px solid var(--easyink-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  font-size: var(--easyink-font-size-small);
+}
+
+.easyink-context-menu-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--easyink-text);
+  transition: background var(--easyink-transition);
+  white-space: nowrap;
+}
+
+.easyink-context-menu-item:hover {
+  background: var(--easyink-primary-light);
+}
+
+.easyink-context-menu-item--disabled {
+  color: var(--easyink-text-disabled);
+  cursor: not-allowed;
+}
+
+.easyink-context-menu-item--disabled:hover {
+  background: transparent;
+}
+
+.easyink-context-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--easyink-border);
+}
+
+/* ── Rotation Zone ── */
+
+.easyink-rotation-zone {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: auto;
+  z-index: 1000;
+  cursor: crosshair;
+}
+

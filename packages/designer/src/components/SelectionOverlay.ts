@@ -14,6 +14,13 @@ const HANDLES: ResizeHandlePosition[] = [
   'bottom-right',
 ]
 
+const CORNER_HANDLES: ResizeHandlePosition[] = [
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+]
+
 export const SelectionOverlay = defineComponent({
   name: 'SelectionOverlay',
   setup() {
@@ -33,6 +40,7 @@ export const SelectionOverlay = defineComponent({
       const layout = el.layout
       return {
         height: toPx(typeof layout.height === 'number' ? layout.height : 60),
+        rotation: layout.rotation ?? 0,
         width: toPx(typeof layout.width === 'number' ? layout.width : 100),
         x: toPx(layout.x ?? 0),
         y: toPx(layout.y ?? 0),
@@ -67,7 +75,7 @@ export const SelectionOverlay = defineComponent({
       }
     })
 
-    function handlePosition(handle: ResizeHandlePosition, box: { height: number, width: number, x: number, y: number }) {
+    function handlePosition(handle: ResizeHandlePosition, box: { height: number, width: number }) {
       const hs = 4 // half handle size
       const map: Record<ResizeHandlePosition, { left: number, top: number }> = {
         'bottom': { left: box.width / 2 - hs, top: box.height - hs },
@@ -80,6 +88,17 @@ export const SelectionOverlay = defineComponent({
         'top-right': { left: box.width - hs, top: -hs },
       }
       return map[handle]
+    }
+
+    function rotationZonePosition(corner: ResizeHandlePosition, box: { height: number, width: number }) {
+      const offset = -16 // zone completely outside the box edge
+      const map: Partial<Record<ResizeHandlePosition, { left: number, top: number }>> = {
+        'bottom-left': { left: offset, top: box.height },
+        'bottom-right': { left: box.width, top: box.height },
+        'top-left': { left: offset, top: offset },
+        'top-right': { left: box.width, top: offset },
+      }
+      return map[corner]!
     }
 
     function onBorderMousedown(e: MouseEvent): void {
@@ -101,15 +120,43 @@ export const SelectionOverlay = defineComponent({
       ctx.interaction.startResize(el.id, handle, e)
     }
 
+    function onRotateMousedown(e: MouseEvent): void {
+      e.stopPropagation()
+      const el = ctx.selection.selectedElement.value
+      const box = primaryBox.value
+      if (!el || !box) {
+        return
+      }
+      // Calculate the center of the element in screen coordinates.
+      // The selection box is positioned inside the page-wrapper (zoomed coordinate space).
+      // We need to find the page-wrapper's bounding rect and convert.
+      const overlay = (e.target as HTMLElement).closest('.easyink-selection-overlay')
+      if (!overlay) {
+        return
+      }
+      const overlayRect = overlay.getBoundingClientRect()
+      const zoom = ctx.canvas.zoom.value
+
+      // Box position within overlay (already in zoomed pixels from toPx)
+      // The overlay is inside the zoom transform, so its bounding rect is already scaled
+      const centerScreenX = overlayRect.left + (box.x + box.width / 2) * zoom
+      const centerScreenY = overlayRect.top + (box.y + box.height / 2) * zoom
+
+      ctx.interaction.startRotate(el.id, e, centerScreenX, centerScreenY)
+    }
+
     return () => {
       const children: ReturnType<typeof h>[] = []
 
-      // Single selection: box + handles
+      // Single selection: box + handles + rotation zones
       const box = primaryBox.value
       if (box) {
-        const handles = HANDLES.map((handle) => {
+        const boxChildren: ReturnType<typeof h>[] = []
+
+        // Resize handles
+        for (const handle of HANDLES) {
           const pos = handlePosition(handle, box)
-          return h('div', {
+          boxChildren.push(h('div', {
             class: `easyink-handle easyink-handle--${handle}`,
             key: handle,
             style: {
@@ -117,19 +164,41 @@ export const SelectionOverlay = defineComponent({
               top: `${pos.top}px`,
             },
             onMousedown: (e: MouseEvent) => onHandleMousedown(handle, e),
-          })
-        })
+          }))
+        }
+
+        // Rotation zones at corners
+        for (const corner of CORNER_HANDLES) {
+          const pos = rotationZonePosition(corner, box)
+          boxChildren.push(h('div', {
+            class: `easyink-rotation-zone easyink-rotation-zone--${corner}`,
+            key: `rotate-${corner}`,
+            style: {
+              left: `${pos.left}px`,
+              top: `${pos.top}px`,
+            },
+            onMousedown: onRotateMousedown,
+          }))
+        }
+
+        const boxStyle: Record<string, string> = {
+          height: `${box.height}px`,
+          left: `${box.x}px`,
+          top: `${box.y}px`,
+          width: `${box.width}px`,
+        }
+
+        // Apply rotation transform if element is rotated
+        if (box.rotation) {
+          boxStyle.transform = `rotate(${box.rotation}deg)`
+          boxStyle.transformOrigin = 'center center'
+        }
 
         children.push(h('div', {
           class: 'easyink-selection-box easyink-selection-box--draggable',
-          style: {
-            height: `${box.height}px`,
-            left: `${box.x}px`,
-            top: `${box.y}px`,
-            width: `${box.width}px`,
-          },
+          style: boxStyle,
           onMousedown: onBorderMousedown,
-        }, handles))
+        }, boxChildren))
       }
 
       // Multi selection: individual dashed boxes + bounding box

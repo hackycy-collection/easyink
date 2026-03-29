@@ -3,6 +3,7 @@ import type { ScreenRenderer } from '@easyink/renderer'
 import type { InjectionKey, Ref, ShallowRef } from 'vue'
 import type { useBatchOperations } from './composables/use-batch-operations'
 import type { useCanvas } from './composables/use-canvas'
+import type { useContextMenu } from './composables/use-context-menu'
 import type { useGuides } from './composables/use-guides'
 import type { useInteraction } from './composables/use-interaction'
 import type { useMarquee } from './composables/use-marquee'
@@ -65,6 +66,7 @@ export interface DesignerContext {
   batchOperations: ReturnType<typeof useBatchOperations>
   snapping: ReturnType<typeof useSnapping>
   guides: ReturnType<typeof useGuides>
+  contextMenu: ReturnType<typeof useContextMenu>
   canUndo: Ref<boolean>
   canRedo: Ref<boolean>
   elementTypes: Ref<ElementTypeDefinition[]>

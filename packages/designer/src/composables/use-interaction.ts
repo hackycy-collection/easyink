@@ -6,6 +6,7 @@ import type { useSnapping } from './use-snapping'
 import {
   createMoveElementCommand,
   createResizeElementCommand,
+  createRotateElementCommand,
   fromPixels,
 } from '@easyink/core'
 import { ref } from 'vue'
@@ -18,6 +19,7 @@ export function useInteraction(
 ) {
   const isDragging = ref(false)
   const isResizing = ref(false)
+  const isRotating = ref(false)
   const activeHandle = ref<ResizeHandlePosition | null>(null)
 
   let _startMouseX = 0
@@ -356,6 +358,99 @@ export function useInteraction(
     engine.execute(resizeCmd)
   }
 
+  // ── Rotate ──
+
+  let _rotateElementId = ''
+  let _origRotation = 0
+  let _startAngle = 0
+  let _rotateCenterX = 0
+  let _rotateCenterY = 0
+
+  function startRotate(elementId: string, e: MouseEvent, centerScreenX: number, centerScreenY: number): void {
+    const el = engine.schema.getElementById(elementId)
+    if (!el || el.locked) {
+      return
+    }
+
+    _rotateElementId = elementId
+    _origRotation = el.layout.rotation ?? 0
+    _rotateCenterX = centerScreenX
+    _rotateCenterY = centerScreenY
+    _startAngle = Math.atan2(
+      e.clientY - centerScreenY,
+      e.clientX - centerScreenX,
+    ) * 180 / Math.PI
+
+    isRotating.value = true
+    document.addEventListener('mousemove', _onRotateMove)
+    document.addEventListener('mouseup', _onRotateEnd)
+  }
+
+  function _onRotateMove(e: MouseEvent): void {
+    if (!isRotating.value) {
+      return
+    }
+
+    const currentAngle = Math.atan2(
+      e.clientY - _rotateCenterY,
+      e.clientX - _rotateCenterX,
+    ) * 180 / Math.PI
+
+    const delta = currentAngle - _startAngle
+    let newRotation = _origRotation + delta
+
+    // Normalize to 0-360
+    newRotation = ((newRotation % 360) + 360) % 360
+
+    // Shift key: snap to 15 degree increments
+    if (e.shiftKey) {
+      newRotation = Math.round(newRotation / 15) * 15
+    }
+
+    engine.schema.operations.updateElementLayout(_rotateElementId, {
+      rotation: newRotation,
+    })
+  }
+
+  function _onRotateEnd(e: MouseEvent): void {
+    document.removeEventListener('mousemove', _onRotateMove)
+    document.removeEventListener('mouseup', _onRotateEnd)
+
+    if (!isRotating.value) {
+      return
+    }
+    isRotating.value = false
+
+    const currentAngle = Math.atan2(
+      e.clientY - _rotateCenterY,
+      e.clientX - _rotateCenterX,
+    ) * 180 / Math.PI
+
+    const delta = currentAngle - _startAngle
+    let newRotation = _origRotation + delta
+    newRotation = ((newRotation % 360) + 360) % 360
+
+    if (e.shiftKey) {
+      newRotation = Math.round(newRotation / 15) * 15
+    }
+
+    if (newRotation === _origRotation) {
+      return
+    }
+
+    // Revert live change
+    engine.schema.operations.updateElementLayout(_rotateElementId, {
+      rotation: _origRotation,
+    })
+
+    const cmd = createRotateElementCommand({
+      elementId: _rotateElementId,
+      newRotation,
+      oldRotation: _origRotation,
+    }, engine.operations)
+    engine.execute(cmd)
+  }
+
   // ── Helpers ──
 
   function _getMultiBounds(starts: typeof _multiDragStarts) {
@@ -380,5 +475,5 @@ export function useInteraction(
     return { height: maxY - minY, width: maxX - minX, x: minX, y: minY }
   }
 
-  return { activeHandle, isDragging, isResizing, startDrag, startResize }
+  return { activeHandle, isDragging, isResizing, isRotating, startDrag, startResize, startRotate }
 }
