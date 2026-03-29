@@ -1,0 +1,19 @@
+{
+  "name": "easyink-playground",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@easyink/core": "workspace:*",
+    "@easyink/designer": "workspace:*",
+    "@easyink/renderer": "workspace:*",
+    "vue": "catalog:framework"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:cli",
+    "vite": "catalog:cli"
+  }
+}

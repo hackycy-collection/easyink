@@ -16,6 +16,7 @@
   "scripts": {
     "build": "nr -r build",
     "dev": "nr -r dev",
+    "play": "pnpm -F ./playground dev",
     "lint": "eslint --cache .",
     "prepublishOnly": "nr build",
     "release": "bumpp -r",
