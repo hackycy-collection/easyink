@@ -83,7 +83,7 @@ describe('buildPage', () => {
 
   it('should apply background color', () => {
     const { page } = buildPage(createPageSettings({
-      background: { color: '#f0f0f0' },
+      background: { layers: [{ type: 'color', color: '#f0f0f0' }] },
     }))
     expect(page.style.backgroundColor).toBe('#f0f0f0')
   })
@@ -91,15 +91,102 @@ describe('buildPage', () => {
   it('should apply background image', () => {
     const { page } = buildPage(createPageSettings({
       background: {
-        image: 'https://example.com/bg.png',
-        size: 'cover',
-        repeat: 'no-repeat',
+        layers: [{
+          type: 'image',
+          url: 'https://example.com/bg.png',
+          size: 'cover',
+          repeat: 'no-repeat',
+        }],
       },
     }))
     // happy-dom 可能在 url() 中添加引号
     expect(page.style.backgroundImage).toMatch(/url\(["']?https:\/\/example\.com\/bg\.png["']?\)/)
     expect(page.style.backgroundSize).toBe('cover')
     expect(page.style.backgroundRepeat).toBe('no-repeat')
+  })
+
+  it('should skip disabled background layers', () => {
+    const { page } = buildPage(createPageSettings({
+      background: {
+        layers: [
+          { type: 'color', color: '#ff0000', enabled: false },
+          { type: 'color', color: '#00ff00' },
+        ],
+      },
+    }))
+    expect(page.style.backgroundColor).toBe('#00ff00')
+  })
+
+  it('should handle empty background layers', () => {
+    const { page } = buildPage(createPageSettings({
+      background: { layers: [] },
+    }))
+    expect(page.style.backgroundColor).toBe('')
+    expect(page.style.backgroundImage).toBe('')
+  })
+
+  it('should apply multi-layer background (color + image)', () => {
+    const { page } = buildPage(createPageSettings({
+      background: {
+        layers: [
+          { type: 'color', color: '#ffffff' },
+          {
+            type: 'image',
+            url: 'https://example.com/bg.png',
+            size: 'cover',
+            repeat: 'no-repeat',
+            position: 'center',
+          },
+        ],
+      },
+    }))
+    // 底层颜色用 backgroundColor
+    expect(page.style.backgroundColor).toBe('#ffffff')
+    // 图片层用 backgroundImage
+    expect(page.style.backgroundImage).toMatch(/url\(["']?https:\/\/example\.com\/bg\.png["']?\)/)
+    expect(page.style.backgroundSize).toBe('cover')
+    expect(page.style.backgroundRepeat).toBe('no-repeat')
+  })
+
+  it('should apply color opacity via rgba', () => {
+    const { page } = buildPage(createPageSettings({
+      background: {
+        layers: [{ type: 'color', color: '#ff0000', opacity: 0.5 }],
+      },
+    }))
+    expect(page.style.backgroundColor).toMatch(/rgba\(255,\s*0,\s*0,\s*0\.5\)/)
+  })
+
+  it('should create overlay element for image with opacity', () => {
+    const { page } = buildPage(createPageSettings({
+      background: {
+        layers: [{
+          type: 'image',
+          url: 'https://example.com/bg.png',
+          opacity: 0.5,
+        }],
+      },
+    }))
+    // No CSS background (opacity image goes to overlay)
+    expect(page.style.backgroundImage).toBe('')
+    // Should have overlay child (before contentArea)
+    const overlay = page.children[0] as HTMLElement
+    expect(overlay.style.position).toBe('absolute')
+    expect(overlay.style.opacity).toBe('0.5')
+    expect(overlay.style.backgroundImage).toMatch(/url\(["']?https:\/\/example\.com\/bg\.png["']?\)/)
+  })
+
+  it('should map background position preset values', () => {
+    const { page } = buildPage(createPageSettings({
+      background: {
+        layers: [{
+          type: 'image',
+          url: 'https://example.com/bg.png',
+          position: 'top-left',
+        }],
+      },
+    }))
+    expect(page.style.backgroundPosition).toBe('left top')
   })
 
   it('should apply zoom factor', () => {

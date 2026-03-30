@@ -1,1 +1,10 @@
-export type { BackgroundStyle, BorderStyle, Spacing } from './common'
+export type {
+  BackgroundLayer,
+  BackgroundLayerBase,
+  BackgroundPosition,
+  BorderStyle,
+  ColorLayer,
+  ImageLayer,
+  PageBackground,
+  Spacing,
+} from './common'

@@ -1,4 +1,4 @@
-import type { BackgroundStyle, BorderStyle, Spacing } from '@easyink/shared'
+import type { BorderStyle, PageBackground, Spacing } from '@easyink/shared'
 
 // ─── 顶层 Schema ───
 
@@ -47,7 +47,7 @@ export interface PageSettings {
   /** 单位（用户选择的单位，内部存储即使用该单位） */
   unit: 'mm' | 'inch' | 'pt'
   /** 背景 */
-  background?: BackgroundStyle
+  background?: PageBackground
   /**
    * 内容溢出策略（默认 'clip'）
    * - 'clip'：固定纸张尺寸，超出部分裁切隐藏
