@@ -2,7 +2,6 @@
 import type { TemplateSchema } from '@easyink/core'
 import { ScreenRenderer } from '@easyink/renderer'
 import { EasyInkDesigner } from '@easyink/designer'
-import '../../packages/designer/src/theme/index.css'
 import { nextTick, ref, watch } from 'vue'
 import { presetTemplates } from './templates'
 

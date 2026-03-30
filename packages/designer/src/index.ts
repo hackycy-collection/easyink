@@ -1,3 +1,6 @@
+// Theme
+import './theme/index.scss'
+
 // ─── Components ───
 export { AlignmentGuides } from './components/AlignmentGuides'
 export { ContextMenu } from './components/ContextMenu'
