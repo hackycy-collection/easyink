@@ -172,13 +172,13 @@ export const lineElementType: ElementTypeDefinition = {
   },
 }
 
-// ─── Table 动态表格 ───
+// ─── DataTable 数据表格（动态，绑定数据源数组） ───
 
-export const tableElementType: ElementTypeDefinition = {
-  type: 'table',
-  name: '表格',
-  icon: 'table',
-  category: 'data',
+export const dataTableElementType: ElementTypeDefinition = {
+  type: 'data-table',
+  name: '数据表格',
+  icon: 'data-table',
+  category: 'table',
   propDefinitions: [
     { key: 'bordered', label: '显示边框', editor: 'switch', group: '表格', defaultValue: true },
     { key: 'striped', label: '斑马纹', editor: 'switch', group: '表格', defaultValue: false },
@@ -190,33 +190,14 @@ export const tableElementType: ElementTypeDefinition = {
       defaultValue: 'auto',
       editorOptions: { min: 0 },
     },
-    {
-      key: 'emptyBehavior',
-      label: '空数据行为',
-      editor: 'select',
-      group: '表格',
-      defaultValue: 'placeholder',
-      editorOptions: { options: ['placeholder', 'collapse', 'min-rows'] },
-    },
-    {
-      key: 'minRows',
-      label: '最小行数',
-      editor: 'number',
-      group: '表格',
-      defaultValue: 1,
-      editorOptions: { min: 1 },
-      visible: (props: Record<string, unknown>) => props.emptyBehavior === 'min-rows',
-    },
-    { key: 'emptyText', label: '空状态文本', editor: 'text', group: '表格', defaultValue: '暂无数据' },
+    { key: 'showHeader', label: '显示表头', editor: 'switch', group: '表格', defaultValue: true },
   ],
   defaultProps: {
     columns: [],
     bordered: true,
     striped: false,
     rowHeight: 'auto',
-    emptyBehavior: 'placeholder',
-    minRows: 1,
-    emptyText: '暂无数据',
+    showHeader: true,
   },
   defaultLayout: {
     position: 'flow',
@@ -225,6 +206,43 @@ export const tableElementType: ElementTypeDefinition = {
   },
   isContainer: true,
   supportsRepeat: true,
+}
+
+// ─── Table 静态表格（手动编辑数据） ───
+
+export const tableElementType: ElementTypeDefinition = {
+  type: 'table',
+  name: '表格',
+  icon: 'table',
+  category: 'table',
+  propDefinitions: [
+    { key: 'bordered', label: '显示边框', editor: 'switch', group: '表格', defaultValue: true },
+    {
+      key: 'borderStyle',
+      label: '边框样式',
+      editor: 'select',
+      group: '表格',
+      defaultValue: 'solid',
+      editorOptions: { options: ['solid', 'dashed', 'dotted'] },
+    },
+  ],
+  defaultProps: {
+    columns: [
+      { key: 'col-1', title: '列 1', width: 50 },
+      { key: 'col-2', title: '列 2', width: 50 },
+    ],
+    rowCount: 3,
+    cells: {},
+    bordered: true,
+    borderStyle: 'solid',
+  },
+  defaultLayout: {
+    position: 'flow',
+    width: 'auto',
+    height: 'auto',
+  },
+  isContainer: false,
+  supportsRepeat: false,
 }
 
 // ─── Barcode 条形码/二维码 ───
@@ -303,6 +321,7 @@ export const barcodeElementType: ElementTypeDefinition = {
  */
 export const builtinElementTypes: ElementTypeDefinition[] = [
   barcodeElementType,
+  dataTableElementType,
   imageElementType,
   lineElementType,
   rectElementType,

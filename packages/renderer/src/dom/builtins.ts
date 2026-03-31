@@ -1,5 +1,6 @@
 import type { ElementRenderRegistry } from './element-registry'
 import { renderBarcode } from './elements/barcode'
+import { renderDataTable } from './elements/data-table'
 import { renderImage } from './elements/image'
 import { renderLine } from './elements/line'
 import { renderRect } from './elements/rect'
@@ -11,6 +12,7 @@ import { renderText } from './elements/text'
  */
 export function registerBuiltinRenderers(registry: ElementRenderRegistry): void {
   registry.register('barcode', renderBarcode)
+  registry.register('data-table', renderDataTable)
   registry.register('image', renderImage)
   registry.register('line', renderLine)
   registry.register('rect', renderRect)

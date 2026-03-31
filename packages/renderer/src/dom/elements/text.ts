@@ -24,21 +24,29 @@ export const renderText: ElementRenderFunction = (node, context) => {
   let content: string = props.content ?? ''
 
   if (node.binding?.path) {
-    const resolved = context.resolver.resolve(node.binding.path, context.data)
-    if (resolved != null) {
-      if (Array.isArray(resolved)) {
-        // 数组降级：join
-        content = resolved.join(', ')
-      }
-      else {
-        content = String(resolved)
-      }
-      // 格式化
-      if (node.binding.formatter) {
-        content = context.resolver.format(
-          Array.isArray(resolved) ? resolved : resolved,
-          node.binding.formatter,
-        )
+    if (context.designMode) {
+      // 设计模式：显示占位符
+      content = `{{${node.binding.path}}}`
+      el.style.color = '#999'
+      el.style.borderBottom = '1px dashed #ccc'
+    }
+    else {
+      const resolved = context.resolver.resolve(node.binding.path, context.data)
+      if (resolved != null) {
+        if (Array.isArray(resolved)) {
+          // 数组降级：join
+          content = resolved.join(', ')
+        }
+        else {
+          content = String(resolved)
+        }
+        // 格式化
+        if (node.binding.formatter) {
+          content = context.resolver.format(
+            Array.isArray(resolved) ? resolved : resolved,
+            node.binding.formatter,
+          )
+        }
       }
     }
   }

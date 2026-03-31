@@ -107,7 +107,7 @@ function createReceiptTemplate(): PresetTemplate {
       // 商品明细表格
       {
         id: uid(),
-        type: 'table',
+        type: 'data-table',
         name: '商品明细',
         layout: { position: 'flow', width: 'auto', height: 'auto' },
         props: {
@@ -120,9 +120,7 @@ function createReceiptTemplate(): PresetTemplate {
           bordered: true,
           striped: false,
           rowHeight: 'auto',
-          emptyBehavior: 'placeholder',
-          minRows: 1,
-          emptyText: '暂无数据',
+          showHeader: true,
         },
         style: { fontSize: pxToMm(10) },
       },
@@ -388,7 +386,7 @@ function createDeliveryNoteTemplate(): PresetTemplate {
       // 商品明细表格
       {
         id: uid(),
-        type: 'table',
+        type: 'data-table',
         name: '商品明细',
         layout: { position: 'flow', width: 'auto', height: 'auto' },
         props: {
@@ -401,9 +399,7 @@ function createDeliveryNoteTemplate(): PresetTemplate {
           bordered: true,
           striped: true,
           rowHeight: 'auto',
-          emptyBehavior: 'placeholder',
-          minRows: 1,
-          emptyText: '暂无数据',
+          showHeader: true,
         },
         style: { fontSize: pxToMm(11) },
       },

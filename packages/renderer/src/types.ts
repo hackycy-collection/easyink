@@ -46,6 +46,8 @@ export interface DOMRendererOptions {
   zoom?: number
   /** 可选的插件钩子（支持 beforeRender/afterRender） */
   hooks?: PluginHooks
+  /** 设计模式：为 true 时渲染占位符而非实际数据（默认 false） */
+  designMode?: boolean
 }
 
 // ─── 元素渲染 ───
@@ -63,7 +65,7 @@ export type ElementRenderFunction = (
 ) => HTMLElement
 
 /**
- * 元素渲染上下文 — 传给每个元素渲染函数
+ * 元素渲染上下文 -- 传给每个元素渲染函数
  */
 export interface ElementRenderContext {
   /** 运行时数据 */
@@ -76,12 +78,14 @@ export interface ElementRenderContext {
   dpi: number
   /** 缩放倍率 */
   zoom: number
-  /** 预绑定的单位转换函数（模板单位 → CSS 像素） */
+  /** 预绑定的单位转换函数（模板单位 -> CSS 像素） */
   toPixels: (value: number) => number
   /** 当前元素的计算后布局 */
   computedLayout: ComputedLayout
   /** 渲染子元素（容器类型使用） */
   renderChild: (child: ElementNode) => HTMLElement
+  /** 设计模式：为 true 时渲染占位符而非实际数据 */
+  designMode?: boolean
 }
 
 // ─── ScreenRenderer 配置 ───
@@ -94,4 +98,6 @@ export interface ScreenRendererOptions {
   zoom?: number
   /** 可选的插件钩子 */
   hooks?: PluginHooks
+  /** 设计模式：为 true 时渲染占位符而非实际数据（默认 false） */
+  designMode?: boolean
 }

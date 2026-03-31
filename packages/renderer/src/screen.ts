@@ -20,6 +20,7 @@ export class ScreenRenderer implements Renderer {
       dpi: 96,
       zoom: this._zoom,
       hooks: options?.hooks,
+      designMode: options?.designMode,
     })
   }
 

@@ -1,54 +1,27 @@
-import type { DataBinding, FormatterConfig } from '@easyink/core'
-import type { ElementRenderFunction } from '../../types'
-
-interface TableColumn {
-  key: string
-  title: string
-  width: number
-  align?: 'left' | 'center' | 'right'
-  binding?: DataBinding
-  formatter?: FormatterConfig
-}
-
-interface TableSummaryCell {
-  columnKey: string
-  aggregate?: 'sum' | 'avg' | 'count' | 'max' | 'min'
-  text?: string
-  binding?: DataBinding
-  formatter?: FormatterConfig
-}
-
-interface TableProps {
-  columns: TableColumn[]
-  bordered?: boolean
-  header?: { height?: number, style?: Record<string, unknown> }
-  summary?: { height?: number, cells: TableSummaryCell[] }
-  rowHeight?: number | 'auto'
-  striped?: boolean
-  emptyBehavior?: 'placeholder' | 'collapse' | 'min-rows'
-  minRows?: number
-  emptyText?: string
-}
+import type { StaticTableCell, StaticTableProps } from '@easyink/core'
+import type { ElementRenderContext, ElementRenderFunction } from '../../types'
 
 /**
- * 动态表格元素渲染器
+ * 静态表格渲染器（type: 'table'）
  *
- * 同源约束：所有列 binding.path 的点路径前缀必须一致。
- * 行数 = 源数组.length。
+ * 稀疏 cells 模型 -> HTML <table>
+ * cells key 格式：`${row}-${col}`
+ * 支持 colspan/rowspan 合并单元格。
  */
 export const renderTable: ElementRenderFunction = (node, context) => {
   const wrapper = document.createElement('div')
   wrapper.className = 'easyink-element easyink-table'
   wrapper.dataset.elementId = node.id
 
-  const props = node.props as unknown as TableProps
+  const props = node.props as unknown as StaticTableProps
   const columns = props.columns ?? []
+  const rowCount = props.rowCount ?? 0
 
-  if (columns.length === 0)
+  if (columns.length === 0 || rowCount === 0)
     return wrapper
 
-  // ── 同源校验 + 数据解析 ──
-  const columnData = resolveColumns(columns, context)
+  const cells = props.cells ?? {}
+  const borderStyle = props.borderStyle ?? 'solid'
 
   const table = document.createElement('table')
   table.style.width = '100%'
@@ -56,7 +29,7 @@ export const renderTable: ElementRenderFunction = (node, context) => {
   table.style.tableLayout = 'fixed'
 
   if (props.bordered) {
-    table.style.border = '1px solid #000'
+    table.style.border = `1px ${borderStyle} #000`
   }
 
   // ── 列宽 ──
@@ -76,64 +49,51 @@ export const renderTable: ElementRenderFunction = (node, context) => {
     th.textContent = col.title
     th.style.textAlign = col.align ?? 'left'
     if (props.bordered)
-      th.style.border = '1px solid #000'
-    if (props.header?.height)
-      th.style.height = `${context.toPixels(props.header.height)}px`
+      th.style.border = `1px ${borderStyle} #000`
     headerRow.appendChild(th)
   }
   thead.appendChild(headerRow)
   table.appendChild(thead)
 
-  // ── 数据行 ──
-  const rowCount = columnData.rowCount
+  // ── 数据行（稀疏 cells） ──
+  // 追踪被合并覆盖的单元格
+  const covered = new Set<string>()
+  markCoveredCells(cells, rowCount, columns.length, covered)
+
   const tbody = document.createElement('tbody')
+  for (let r = 0; r < rowCount; r++) {
+    const tr = document.createElement('tr')
+    for (let c = 0; c < columns.length; c++) {
+      const cellKey = `${r}-${c}`
 
-  if (rowCount === 0) {
-    renderEmptyState(tbody, columns.length, props, context)
-  }
-  else {
-    for (let i = 0; i < rowCount; i++) {
-      const tr = document.createElement('tr')
-      if (props.striped && i % 2 === 1)
-        tr.style.backgroundColor = '#f9f9f9'
+      // 被其他单元格的 colspan/rowspan 覆盖
+      if (covered.has(cellKey))
+        continue
 
-      for (let c = 0; c < columns.length; c++) {
-        const td = document.createElement('td')
-        const cellValue = columnData.columns[c]?.[i]
-        td.textContent = cellValue != null ? formatCell(cellValue, columns[c], context) : ''
-        td.style.textAlign = columns[c].align ?? 'left'
-        if (props.bordered)
-          td.style.border = '1px solid #000'
-        if (props.rowHeight != null && props.rowHeight !== 'auto')
-          td.style.height = `${context.toPixels(props.rowHeight)}px`
-        tr.appendChild(td)
+      const cell = cells[cellKey]
+      const td = document.createElement('td')
+
+      if (cell) {
+        td.textContent = resolveCellContent(cell, context)
+        td.style.textAlign = cell.align ?? columns[c].align ?? 'left'
+        if (cell.colspan && cell.colspan > 1)
+          td.colSpan = cell.colspan
+        if (cell.rowspan && cell.rowspan > 1)
+          td.rowSpan = cell.rowspan
+        if (context.designMode && cell.binding?.path) {
+          td.style.color = '#999'
+          td.style.borderBottom = '1px dashed #ccc'
+        }
       }
-      tbody.appendChild(tr)
+
+      if (props.bordered)
+        td.style.border = `1px ${borderStyle} #000`
+
+      tr.appendChild(td)
     }
+    tbody.appendChild(tr)
   }
   table.appendChild(tbody)
-
-  // ── 汇总行 ──
-  if (props.summary?.cells) {
-    const tfoot = document.createElement('tfoot')
-    const footRow = document.createElement('tr')
-    for (let c = 0; c < columns.length; c++) {
-      const col = columns[c]
-      const td = document.createElement('td')
-      const cell = props.summary.cells.find(sc => sc.columnKey === col.key)
-      if (cell) {
-        td.textContent = resolveSummaryCell(cell, columnData.columns[c] ?? [], context)
-      }
-      td.style.textAlign = col.align ?? 'left'
-      if (props.bordered)
-        td.style.border = '1px solid #000'
-      if (props.summary.height)
-        td.style.height = `${context.toPixels(props.summary.height)}px`
-      footRow.appendChild(td)
-    }
-    tfoot.appendChild(footRow)
-    table.appendChild(tfoot)
-  }
 
   wrapper.appendChild(table)
   return wrapper
@@ -141,145 +101,50 @@ export const renderTable: ElementRenderFunction = (node, context) => {
 
 // ─── 辅助函数 ───
 
-interface ColumnDataResult {
-  rowCount: number
-  columns: unknown[][]
-}
-
-function resolveColumns(
-  columns: TableColumn[],
-  context: { resolver: { resolve: (path: string, data: Record<string, unknown>) => unknown }, data: Record<string, unknown> },
-): ColumnDataResult {
-  const result: unknown[][] = []
-  let rowCount = 0
-  const prefixes: string[] = []
-
-  for (const col of columns) {
-    if (!col.binding?.path) {
-      result.push([])
-      continue
-    }
-    const resolved = context.resolver.resolve(col.binding.path, context.data)
-    if (!Array.isArray(resolved)) {
-      // 数据未提供时（设计时/切换模板时）视为空列
-      result.push([])
-      continue
-    }
-    result.push(resolved)
-    rowCount = Math.max(rowCount, resolved.length)
-
-    // 同源校验：提取前缀
-    const dotIdx = col.binding.path.indexOf('.')
-    if (dotIdx > 0)
-      prefixes.push(col.binding.path.slice(0, dotIdx))
-  }
-
-  // 同源约束检查
-  if (prefixes.length > 1) {
-    const first = prefixes[0]
-    for (let i = 1; i < prefixes.length; i++) {
-      if (prefixes[i] !== first) {
-        throw new Error(`Table columns must share the same data source prefix. Found "${first}" and "${prefixes[i]}"`)
-      }
-    }
-  }
-
-  return { rowCount, columns: result }
-}
-
-function formatCell(
-  value: unknown,
-  col: TableColumn,
-  context: { resolver: { format: (value: unknown, formatter: FormatterConfig) => string } },
-): string {
-  if (col.formatter) {
-    return context.resolver.format(value, col.formatter)
-  }
-  return String(value)
-}
-
-function renderEmptyState(
-  tbody: HTMLElement,
+/**
+ * 标记被 colspan/rowspan 覆盖的单元格位置
+ */
+function markCoveredCells(
+  cells: Record<string, StaticTableCell>,
+  rowCount: number,
   colCount: number,
-  props: TableProps,
-  context: { toPixels: (v: number) => number },
+  covered: Set<string>,
 ): void {
-  const behavior = props.emptyBehavior ?? 'placeholder'
-
-  if (behavior === 'collapse')
-    return
-
-  if (behavior === 'min-rows') {
-    const minRows = props.minRows ?? 1
-    for (let i = 0; i < minRows; i++) {
-      const tr = document.createElement('tr')
-      for (let c = 0; c < colCount; c++) {
-        const td = document.createElement('td')
-        if (props.rowHeight != null && props.rowHeight !== 'auto')
-          td.style.height = `${context.toPixels(props.rowHeight)}px`
-        td.innerHTML = '&nbsp;'
-        tr.appendChild(td)
+  for (let r = 0; r < rowCount; r++) {
+    for (let c = 0; c < colCount; c++) {
+      const cell = cells[`${r}-${c}`]
+      if (!cell)
+        continue
+      const rs = cell.rowspan ?? 1
+      const cs = cell.colspan ?? 1
+      for (let dr = 0; dr < rs; dr++) {
+        for (let dc = 0; dc < cs; dc++) {
+          if (dr === 0 && dc === 0)
+            continue
+          covered.add(`${r + dr}-${c + dc}`)
+        }
       }
-      tbody.appendChild(tr)
     }
-    return
   }
-
-  // placeholder
-  const tr = document.createElement('tr')
-  const td = document.createElement('td')
-  td.colSpan = colCount
-  td.textContent = props.emptyText ?? '暂无数据'
-  td.style.textAlign = 'center'
-  td.style.color = '#999'
-  tr.appendChild(td)
-  tbody.appendChild(tr)
 }
 
-function resolveSummaryCell(
-  cell: TableSummaryCell,
-  colValues: unknown[],
-  context: { resolver: { resolve: (path: string, data: Record<string, unknown>) => unknown, format: (value: unknown, formatter: FormatterConfig) => string }, data: Record<string, unknown> },
+/**
+ * 解析单元格内容：binding 优先，其次 value
+ * 设计模式下 binding 显示占位符
+ */
+function resolveCellContent(
+  cell: StaticTableCell,
+  context: ElementRenderContext,
 ): string {
-  // 静态文本
-  if (cell.text != null)
-    return cell.text
-
-  // 独立数据源绑定（最高优先级）
   if (cell.binding?.path) {
+    if (context.designMode) {
+      return `{{${cell.binding.path}}}`
+    }
     const resolved = context.resolver.resolve(cell.binding.path, context.data)
-    if (cell.formatter)
-      return context.resolver.format(resolved, cell.formatter)
+    if (cell.binding.formatter) {
+      return context.resolver.format(resolved, cell.binding.formatter)
+    }
     return resolved != null ? String(resolved) : ''
   }
-
-  // 内置聚合
-  if (cell.aggregate) {
-    const values = colValues.map(Number).filter(v => !Number.isNaN(v))
-    const result = computeAggregate(cell.aggregate, values)
-    if (cell.formatter)
-      return context.resolver.format(result, cell.formatter)
-    return String(result)
-  }
-
-  return ''
-}
-
-function computeAggregate(type: string, values: number[]): number {
-  if (values.length === 0)
-    return 0
-  switch (type) {
-    case 'sum':
-      return values.reduce((a, b) => a + b, 0)
-    case 'avg':
-      return values.reduce((a, b) => a + b, 0) / values.length
-    case 'count':
-      return values.length
-    case 'max':
-      return Math.max(...values)
-    case 'min':
-      return Math.min(...values)
-    default:
-      return 0
-  }
+  return cell.value ?? ''
 }

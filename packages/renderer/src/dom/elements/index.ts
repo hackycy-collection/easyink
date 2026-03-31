@@ -1,4 +1,5 @@
 export { renderBarcode } from './barcode'
+export { renderDataTable } from './data-table'
 export { renderImage } from './image'
 export { renderLine } from './line'
 export { renderRect } from './rect'

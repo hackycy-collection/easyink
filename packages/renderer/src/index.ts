@@ -4,6 +4,7 @@ export { ElementRenderRegistry } from './dom/element-registry'
 // ─── Element Renderers ───
 export {
   renderBarcode,
+  renderDataTable,
   renderImage,
   renderLine,
   renderRect,

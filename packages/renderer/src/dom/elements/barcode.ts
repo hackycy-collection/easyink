@@ -25,9 +25,14 @@ export const renderBarcode: ElementRenderFunction = (node, context) => {
   // 解析编码值
   let value: string = props.value ?? ''
   if (node.binding?.path) {
-    const resolved = context.resolver.resolve(node.binding.path, context.data)
-    if (resolved != null)
-      value = String(resolved)
+    if (context.designMode) {
+      value = `{{${node.binding.path}}}`
+    }
+    else {
+      const resolved = context.resolver.resolve(node.binding.path, context.data)
+      if (resolved != null)
+        value = String(resolved)
+    }
   }
 
   // 存储到 data 属性，供外部库读取

@@ -28,10 +28,11 @@ export function useDesigner(options?: DesignerOptions) {
   })
   engine.setData(options?.data ?? {})
 
-  // 2. 创建渲染器
+  // 2. 创建渲染器（设计模式：显示占位符而非实际数据）
   const screenRenderer = new ScreenRenderer({
     hooks: engine.hooks,
     zoom: options?.zoom ?? 1,
+    designMode: true,
   })
 
   // 3. 响应式 Schema

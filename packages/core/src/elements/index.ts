@@ -1,6 +1,7 @@
 export {
   barcodeElementType,
   builtinElementTypes,
+  dataTableElementType,
   imageElementType,
   lineElementType,
   rectElementType,

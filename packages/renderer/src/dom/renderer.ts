@@ -22,11 +22,13 @@ export class DOMRenderer implements Renderer {
   private _layoutEngine: LayoutEngine
   private _resolver: DataResolver
   private _lastResult: RenderResult | null = null
+  private _designMode: boolean
 
   constructor(options?: DOMRendererOptions) {
     this._dpi = options?.dpi ?? 96
     this._zoom = options?.zoom ?? 1
     this._hooks = options?.hooks
+    this._designMode = options?.designMode ?? false
     this._registry = new ElementRenderRegistry()
     this._layoutEngine = new LayoutEngine()
     this._resolver = new DataResolver()
@@ -51,6 +53,17 @@ export class DOMRenderer implements Renderer {
 
   set zoom(value: number) {
     this._zoom = value
+  }
+
+  /**
+   * 设计模式：为 true 时渲染占位符而非实际数据
+   */
+  get designMode(): boolean {
+    return this._designMode
+  }
+
+  set designMode(value: boolean) {
+    this._designMode = value
   }
 
   /**
@@ -165,6 +178,7 @@ export class DOMRenderer implements Renderer {
       zoom: this._zoom,
       toPixels,
       computedLayout,
+      designMode: this._designMode,
       renderChild: (child: ElementNode) => {
         return this._renderElement(child, data, unit, toPixels, layouts) ?? document.createElement('div')
       },

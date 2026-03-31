@@ -1,5 +1,5 @@
 import type { BackgroundLayer } from '@easyink/shared'
-import type { DataBinding, ElementLayout, ElementNode, ElementStyle, PageSettings } from '../schema'
+import type { DataBinding, ElementLayout, ElementNode, ElementStyle, PageSettings, StaticTableCell } from '../schema'
 
 // ─── Command 接口 ───
 
@@ -183,6 +183,57 @@ export interface UpdateBackgroundLayerParams {
 export interface ReorderBackgroundLayerParams {
   fromIndex: number
   toIndex: number
+}
+
+// ─── 静态表格编辑命令参数 ───
+
+/**
+ * 插入表格行命令参数
+ */
+export interface InsertTableRowParams {
+  elementId: string
+  rowIndex: number
+}
+
+/**
+ * 删除表格行命令参数
+ */
+export interface DeleteTableRowParams {
+  elementId: string
+  rowIndex: number
+  /** undo 时恢复的该行 cells */
+  deletedCells: Record<string, StaticTableCell>
+}
+
+/**
+ * 插入表格列命令参数
+ */
+export interface InsertTableColumnParams {
+  elementId: string
+  colIndex: number
+  column: { key: string, title: string, width: number }
+}
+
+/**
+ * 删除表格列命令参数
+ */
+export interface DeleteTableColumnParams {
+  elementId: string
+  colIndex: number
+  /** undo 时恢复的列定义 */
+  deletedColumn: { key: string, title: string, width: number }
+  /** undo 时恢复的该列 cells */
+  deletedCells: Record<string, StaticTableCell>
+}
+
+/**
+ * 编辑表格单元格命令参数
+ */
+export interface EditTableCellParams {
+  elementId: string
+  cellKey: string
+  oldCell?: StaticTableCell
+  newCell?: StaticTableCell
 }
 
 // ─── Schema 操作回调（由 SchemaEngine 注入） ───

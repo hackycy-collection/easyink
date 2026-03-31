@@ -201,3 +201,77 @@ export interface ConditionConfig {
   /** 条件表达式 */
   expression: string
 }
+
+// ─── DataTable 数据表格类型 ───
+
+/**
+ * 数据表格列定义
+ *
+ * 每列绑定到同一数据源数组的字段，同源约束由渲染器校验。
+ */
+export interface DataTableColumn {
+  key: string
+  title: string
+  width: number
+  align?: 'left' | 'center' | 'right'
+  binding?: DataBinding
+  formatter?: FormatterConfig
+}
+
+/**
+ * 数据表格属性（type: 'data-table'）
+ *
+ * 动态表格，列绑定到数据源数组，行数由数据决定。
+ */
+export interface DataTableProps {
+  columns: DataTableColumn[]
+  bordered?: boolean
+  striped?: boolean
+  rowHeight?: number | 'auto'
+  showHeader?: boolean
+}
+
+// ─── StaticTable 静态表格类型 ───
+
+/**
+ * 静态表格列定义
+ */
+export interface StaticTableColumn {
+  key: string
+  title: string
+  width: number
+  align?: 'left' | 'center' | 'right'
+}
+
+/**
+ * 静态表格单元格
+ *
+ * 稀疏存储：cells 为 Record<`${row}-${col}`, StaticTableCell>
+ * 未填充的位置视为空单元格。
+ */
+export interface StaticTableCell {
+  /** 静态文本内容 */
+  value?: string
+  /** 数据绑定（优先级高于 value） */
+  binding?: DataBinding
+  /** 合并列数（默认 1） */
+  colspan?: number
+  /** 合并行数（默认 1） */
+  rowspan?: number
+  /** 对齐方式 */
+  align?: 'left' | 'center' | 'right'
+}
+
+/**
+ * 静态表格属性（type: 'table'）
+ *
+ * 手动编辑数据的静态表格。cells 采用稀疏 Record 存储。
+ */
+export interface StaticTableProps {
+  columns: StaticTableColumn[]
+  rowCount: number
+  /** 稀疏单元格映射，key 格式为 `${row}-${col}` */
+  cells: Record<string, StaticTableCell>
+  bordered?: boolean
+  borderStyle?: 'solid' | 'dashed' | 'dotted'
+}

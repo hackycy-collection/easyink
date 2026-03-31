@@ -233,7 +233,7 @@ describe('dOMRenderer', () => {
     const schema = createSchema({
       elements: [{
         id: 'table-1',
-        type: 'table',
+        type: 'data-table',
         layout: { position: 'flow', width: 'auto', height: 'auto' },
         props: {
           columns: [

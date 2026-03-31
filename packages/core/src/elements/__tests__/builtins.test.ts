@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   barcodeElementType,
   builtinElementTypes,
+  dataTableElementType,
   imageElementType,
   lineElementType,
   rectElementType,
@@ -12,8 +13,8 @@ import { ElementRegistry } from '../registry'
 
 describe('built-in element types', () => {
   describe('builtinElementTypes', () => {
-    it('should contain exactly 6 built-in types', () => {
-      expect(builtinElementTypes).toHaveLength(6)
+    it('should contain exactly 7 built-in types', () => {
+      expect(builtinElementTypes).toHaveLength(7)
     })
 
     it('should include all expected types', () => {
@@ -24,6 +25,7 @@ describe('built-in element types', () => {
       expect(types).toContain('rect')
       expect(types).toContain('line')
       expect(types).toContain('table')
+      expect(types).toContain('data-table')
       expect(types).toContain('barcode')
     })
 
@@ -31,7 +33,7 @@ describe('built-in element types', () => {
       const registry = new ElementRegistry()
 
       expect(() => registry.registerAll(builtinElementTypes)).not.toThrow()
-      expect(registry.list()).toHaveLength(6)
+      expect(registry.list()).toHaveLength(7)
     })
 
     it('should all have non-empty type and name', () => {
@@ -140,27 +142,68 @@ describe('built-in element types', () => {
       expect(tableElementType.name).toBe('表格')
     })
 
-    it('should be a container that supports repeat', () => {
-      expect(tableElementType.isContainer).toBe(true)
-      expect(tableElementType.supportsRepeat).toBe(true)
+    it('should be in table category', () => {
+      expect(tableElementType.category).toBe('table')
+    })
+
+    it('should not be a container and not support repeat', () => {
+      expect(tableElementType.isContainer).toBe(false)
+      expect(tableElementType.supportsRepeat).toBe(false)
     })
 
     it('should default to flow positioning', () => {
       expect(tableElementType.defaultLayout.position).toBe('flow')
     })
 
-    it('should have emptyBehavior prop with conditional minRows visibility', () => {
-      const emptyProp = tableElementType.propDefinitions.find(p => p.key === 'emptyBehavior')
-      const minRowsProp = tableElementType.propDefinitions.find(p => p.key === 'minRows')
+    it('should have default columns and rowCount', () => {
+      expect(tableElementType.defaultProps.columns).toBeDefined()
+      expect((tableElementType.defaultProps.columns as unknown[]).length).toBe(2)
+      expect(tableElementType.defaultProps.rowCount).toBe(3)
+      expect(tableElementType.defaultProps.cells).toEqual({})
+    })
 
-      expect(emptyProp).toBeDefined()
-      expect(minRowsProp?.visible).toBeDefined()
-      expect(minRowsProp!.visible!({ emptyBehavior: 'placeholder' })).toBe(false)
-      expect(minRowsProp!.visible!({ emptyBehavior: 'min-rows' })).toBe(true)
+    it('should have bordered and borderStyle props', () => {
+      const borderedProp = tableElementType.propDefinitions.find(p => p.key === 'bordered')
+      const borderStyleProp = tableElementType.propDefinitions.find(p => p.key === 'borderStyle')
+
+      expect(borderedProp).toBeDefined()
+      expect(borderStyleProp).toBeDefined()
+      expect(borderStyleProp!.defaultValue).toBe('solid')
+    })
+  })
+
+  describe('dataTableElementType', () => {
+    it('should have correct type and name', () => {
+      expect(dataTableElementType.type).toBe('data-table')
+      expect(dataTableElementType.name).toBe('数据表格')
+    })
+
+    it('should be in table category', () => {
+      expect(dataTableElementType.category).toBe('table')
+    })
+
+    it('should be a container that supports repeat', () => {
+      expect(dataTableElementType.isContainer).toBe(true)
+      expect(dataTableElementType.supportsRepeat).toBe(true)
+    })
+
+    it('should default to flow positioning', () => {
+      expect(dataTableElementType.defaultLayout.position).toBe('flow')
     })
 
     it('should default to empty columns array', () => {
-      expect(tableElementType.defaultProps.columns).toEqual([])
+      expect(dataTableElementType.defaultProps.columns).toEqual([])
+    })
+
+    it('should have showHeader prop defaulting to true', () => {
+      expect(dataTableElementType.defaultProps.showHeader).toBe(true)
+    })
+
+    it('should not have emptyBehavior or summary props', () => {
+      const emptyProp = dataTableElementType.propDefinitions.find(p => p.key === 'emptyBehavior')
+      const summaryProp = dataTableElementType.propDefinitions.find(p => p.key === 'summary')
+      expect(emptyProp).toBeUndefined()
+      expect(summaryProp).toBeUndefined()
     })
   })
 

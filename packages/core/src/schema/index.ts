@@ -9,6 +9,8 @@ export type {
   ConditionConfig,
   CustomPaper,
   DataBinding,
+  DataTableColumn,
+  DataTableProps,
   ElementLayout,
   ElementNode,
   ElementStyle,
@@ -16,6 +18,9 @@ export type {
   LabelPaper,
   PageSettings,
   PaperPreset,
+  StaticTableCell,
+  StaticTableColumn,
+  StaticTableProps,
   TemplateMeta,
   TemplateSchema,
 } from './types'

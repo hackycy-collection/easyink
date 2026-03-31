@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { registerBuiltinRenderers } from '../builtins'
 import { ElementRenderRegistry } from '../element-registry'
 import { renderBarcode } from '../elements/barcode'
+import { renderDataTable } from '../elements/data-table'
 import { renderImage } from '../elements/image'
 import { renderLine } from '../elements/line'
 import { renderRect } from '../elements/rect'
@@ -224,9 +225,9 @@ describe('renderBarcode', () => {
   })
 })
 
-// ─── Table ───
+// ─── DataTable ───
 
-describe('renderTable', () => {
+describe('renderDataTable', () => {
   const columns = [
     { key: 'name', title: '商品', width: 60, binding: { path: 'items.name' } },
     { key: 'qty', title: '数量', width: 40, align: 'right' as const, binding: { path: 'items.qty' } },
@@ -240,8 +241,8 @@ describe('renderTable', () => {
   }
 
   it('should render table with header and data rows', () => {
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns } }),
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns } }),
       createContext({ data }),
     )
     const table = el.querySelector('table')
@@ -258,8 +259,8 @@ describe('renderTable', () => {
   })
 
   it('should apply bordered style', () => {
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns, bordered: true } }),
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns, bordered: true } }),
       createContext({ data }),
     )
     const table = el.querySelector('table')
@@ -267,33 +268,13 @@ describe('renderTable', () => {
   })
 
   it('should apply striped style', () => {
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns, striped: true } }),
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns, striped: true } }),
       createContext({ data }),
     )
     const rows = el.querySelectorAll('tbody tr') as NodeListOf<HTMLElement>
-    // 第一行无 background
     expect(rows[0].style.backgroundColor).toBe('')
-    // 第二行（index 1）有 striped background
     expect(rows[1].style.backgroundColor).toBe('#f9f9f9')
-  })
-
-  it('should show placeholder when no data', () => {
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns: [{ key: 'a', title: 'A', width: 100, binding: { path: 'empty.a' } }], emptyBehavior: 'placeholder', emptyText: '无数据' } }),
-      createContext({ data: { empty: [] } }),
-    )
-    const td = el.querySelector('tbody td')
-    expect(td!.textContent).toBe('无数据')
-  })
-
-  it('should collapse when emptyBehavior is collapse', () => {
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns: [{ key: 'a', title: 'A', width: 100, binding: { path: 'empty.a' } }], emptyBehavior: 'collapse' } }),
-      createContext({ data: { empty: [] } }),
-    )
-    const tbodyRows = el.querySelectorAll('tbody tr')
-    expect(tbodyRows.length).toBe(0)
   })
 
   it('should throw on different data source prefixes', () => {
@@ -302,64 +283,264 @@ describe('renderTable', () => {
       { key: 'b', title: 'B', width: 50, binding: { path: 'other.qty' } },
     ]
     expect(() => {
-      renderTable(
-        createNode({ type: 'table', props: { columns: badColumns } }),
+      renderDataTable(
+        createNode({ type: 'data-table', props: { columns: badColumns } }),
         createContext({ data: { items: [{ name: 'x' }], other: [{ qty: 1 }] } }),
       )
     }).toThrow(/same data source prefix/)
   })
 
-  it('should treat non-array binding as empty column', () => {
-    const badColumns = [
-      { key: 'a', title: 'A', width: 100, binding: { path: 'scalar' } },
-    ]
-    const el = renderTable(
-      createNode({ type: 'table', props: { columns: badColumns } }),
+  it('should treat non-array binding as empty', () => {
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns: [{ key: 'a', title: 'A', width: 100, binding: { path: 'scalar' } }] } }),
       createContext({ data: { scalar: 'not-an-array' } }),
     )
-    const tbody = el.querySelector('tbody')!
-    // 无数据行，显示空状态占位
-    expect(tbody.querySelector('td')!.textContent).toBe('暂无数据')
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds.length).toBe(0)
   })
 
-  it('should render summary row with aggregate', () => {
+  it('should return empty wrapper when no columns', () => {
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns: [] } }),
+      createContext(),
+    )
+    expect(el.querySelector('table')).toBeNull()
+  })
+
+  it('should render placeholder rows in designMode', () => {
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns } }),
+      createContext({ designMode: true }),
+    )
+    const rows = el.querySelectorAll('tbody tr')
+    expect(rows.length).toBe(2)
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds[0].textContent).toBe('{{items.name}}')
+    expect((tds[0] as HTMLElement).style.color).toBe('#999')
+  })
+
+  it('should hide header when showHeader is false', () => {
+    const el = renderDataTable(
+      createNode({ type: 'data-table', props: { columns, showHeader: false } }),
+      createContext({ data }),
+    )
+    const thead = el.querySelector('thead')
+    expect(thead).toBeNull()
+  })
+})
+
+// ─── Table (Static) ───
+
+describe('renderTable', () => {
+  const columns = [
+    { title: '项目', width: 50, align: 'left' as const },
+    { title: '值', width: 50, align: 'right' as const },
+  ]
+
+  it('should render static table with header and cells', () => {
     const el = renderTable(
       createNode({
         type: 'table',
         props: {
           columns,
-          summary: {
-            cells: [
-              { columnKey: 'name', text: '合计' },
-              { columnKey: 'qty', aggregate: 'sum' },
-            ],
+          rowCount: 2,
+          cells: {
+            '0-0': { value: '姓名' },
+            '0-1': { value: '张三' },
+            '1-0': { value: '年龄' },
+            '1-1': { value: '25' },
           },
         },
       }),
-      createContext({ data }),
+      createContext(),
     )
-    const footCells = el.querySelectorAll('tfoot td')
-    expect(footCells.length).toBe(2)
-    expect(footCells[0].textContent).toBe('合计')
-    expect(footCells[1].textContent).toBe('8') // 2 + 5 + 1
+    const ths = el.querySelectorAll('th')
+    expect(ths.length).toBe(2)
+    expect(ths[0].textContent).toBe('项目')
+
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds.length).toBe(4)
+    expect(tds[0].textContent).toBe('姓名')
+    expect(tds[1].textContent).toBe('张三')
+    expect(tds[2].textContent).toBe('年龄')
+    expect(tds[3].textContent).toBe('25')
+  })
+
+  it('should handle empty cells in sparse model', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: {
+          columns,
+          rowCount: 1,
+          cells: {
+            '0-0': { value: '仅第一列' },
+          },
+        },
+      }),
+      createContext(),
+    )
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds.length).toBe(2)
+    expect(tds[0].textContent).toBe('仅第一列')
+    expect(tds[1].textContent).toBe('')
+  })
+
+  it('should apply bordered with custom borderStyle', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: { columns, rowCount: 1, cells: {}, bordered: true, borderStyle: 'dashed' },
+      }),
+      createContext(),
+    )
+    const table = el.querySelector('table')
+    expect(table!.style.border).toBe('1px dashed #000')
+  })
+
+  it('should handle colspan', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: {
+          columns,
+          rowCount: 1,
+          cells: {
+            '0-0': { value: '合并单元格', colspan: 2 },
+          },
+        },
+      }),
+      createContext(),
+    )
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds.length).toBe(1) // second cell covered by colspan
+    expect(tds[0].colSpan).toBe(2)
+    expect(tds[0].textContent).toBe('合并单元格')
+  })
+
+  it('should handle rowspan', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: {
+          columns,
+          rowCount: 2,
+          cells: {
+            '0-0': { value: '跨行', rowspan: 2 },
+            '0-1': { value: 'A' },
+            '1-1': { value: 'B' },
+          },
+        },
+      }),
+      createContext(),
+    )
+    const rows = el.querySelectorAll('tbody tr')
+    expect(rows.length).toBe(2)
+    // First row: 2 tds (one with rowspan)
+    expect(rows[0].querySelectorAll('td').length).toBe(2)
+    expect((rows[0].querySelector('td') as HTMLTableCellElement).rowSpan).toBe(2)
+    // Second row: 1 td (first column covered by rowspan)
+    expect(rows[1].querySelectorAll('td').length).toBe(1)
+  })
+
+  it('should resolve bound cell content', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: {
+          columns,
+          rowCount: 1,
+          cells: {
+            '0-0': { value: '', binding: { path: 'name' } },
+            '0-1': { value: 'static' },
+          },
+        },
+      }),
+      createContext({ data: { name: '李四' } }),
+    )
+    const tds = el.querySelectorAll('tbody td')
+    expect(tds[0].textContent).toBe('李四')
+    expect(tds[1].textContent).toBe('static')
+  })
+
+  it('should show binding placeholder in designMode', () => {
+    const el = renderTable(
+      createNode({
+        type: 'table',
+        props: {
+          columns,
+          rowCount: 1,
+          cells: {
+            '0-0': { value: '', binding: { path: 'name' } },
+            '0-1': { value: 'static' },
+          },
+        },
+      }),
+      createContext({ designMode: true }),
+    )
+    const tds = el.querySelectorAll('tbody td') as NodeListOf<HTMLElement>
+    expect(tds[0].textContent).toBe('{{name}}')
+    expect(tds[0].style.color).toBe('#999')
+    expect(tds[1].textContent).toBe('static')
   })
 
   it('should return empty wrapper when no columns', () => {
     const el = renderTable(
-      createNode({ type: 'table', props: { columns: [] } }),
+      createNode({ type: 'table', props: { columns: [], rowCount: 0, cells: {} } }),
+      createContext(),
+    )
+    expect(el.querySelector('table')).toBeNull()
+  })
+
+  it('should return empty wrapper when rowCount is 0', () => {
+    const el = renderTable(
+      createNode({ type: 'table', props: { columns, rowCount: 0, cells: {} } }),
       createContext(),
     )
     expect(el.querySelector('table')).toBeNull()
   })
 })
 
+// ─── DesignMode: Text, Image, Barcode ───
+
+describe('designMode placeholders', () => {
+  it('text should show binding placeholder', () => {
+    const el = renderText(
+      createNode({ type: 'text', props: { content: '' }, binding: { path: 'order.name' } }),
+      createContext({ designMode: true }),
+    )
+    expect(el.textContent).toBe('{{order.name}}')
+    expect(el.style.color).toBe('#999')
+  })
+
+  it('image should show placeholder div in designMode', () => {
+    const el = renderImage(
+      createNode({ type: 'image', props: { src: '', fit: 'cover' }, binding: { path: 'logo' } }),
+      createContext({ designMode: true }),
+    )
+    // Should NOT have an img tag in design mode
+    const img = el.querySelector('img')
+    expect(img).toBeNull()
+    expect(el.textContent).toContain('{{logo}}')
+  })
+
+  it('barcode should show binding placeholder', () => {
+    const el = renderBarcode(
+      createNode({ type: 'barcode', props: { format: 'QR', value: '' }, binding: { path: 'code' } }),
+      createContext({ designMode: true }),
+    )
+    expect(el.dataset.barcodeValue).toBe('{{code}}')
+  })
+})
+
 // ─── Builtins Registration ───
 
 describe('registerBuiltinRenderers', () => {
-  it('should register all 6 built-in element renderers', () => {
+  it('should register all 7 built-in element renderers', () => {
     const registry = new ElementRenderRegistry()
     registerBuiltinRenderers(registry)
     expect(registry.has('barcode')).toBe(true)
+    expect(registry.has('data-table')).toBe(true)
     expect(registry.has('image')).toBe(true)
     expect(registry.has('line')).toBe(true)
     expect(registry.has('rect')).toBe(true)

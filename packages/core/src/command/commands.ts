@@ -2,6 +2,11 @@ import type {
   AddBackgroundLayerParams,
   AddElementParams,
   Command,
+  DeleteTableColumnParams,
+  DeleteTableRowParams,
+  EditTableCellParams,
+  InsertTableColumnParams,
+  InsertTableRowParams,
   MoveElementParams,
   RemoveBackgroundLayerParams,
   RemoveElementParams,
@@ -424,4 +429,282 @@ export function createReorderBackgroundLayerCommand(
       ops.reorderBackgroundLayer(params.toIndex, params.fromIndex)
     },
   }
+}
+
+// ─── 静态表格编辑命令 ───
+
+/**
+ * 插入表格行命令
+ *
+ * 在 rowIndex 位置插入空行，将所有 >= rowIndex 的 cell key 行号 +1
+ */
+export function createInsertTableRowCommand(
+  params: InsertTableRowParams,
+  ops: SchemaOperations,
+): Command {
+  return {
+    id: generateId(),
+    type: 'insert-table-row',
+    description: `插入表格行 ${params.rowIndex}`,
+    execute() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      const rowCount = (el.props.rowCount as number) ?? 0
+      const shifted = shiftCellsForInsertRow(cells, params.rowIndex)
+      ops.updateElementProps(params.elementId, { cells: shifted, rowCount: rowCount + 1 })
+    },
+    undo() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      const rowCount = (el.props.rowCount as number) ?? 0
+      const shifted = shiftCellsForDeleteRow(cells, params.rowIndex)
+      ops.updateElementProps(params.elementId, { cells: shifted, rowCount: rowCount - 1 })
+    },
+  }
+}
+
+/**
+ * 删除表格行命令
+ */
+export function createDeleteTableRowCommand(
+  params: DeleteTableRowParams,
+  ops: SchemaOperations,
+): Command {
+  return {
+    id: generateId(),
+    type: 'delete-table-row',
+    description: `删除表格行 ${params.rowIndex}`,
+    execute() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      const rowCount = (el.props.rowCount as number) ?? 0
+      const shifted = shiftCellsForDeleteRow(cells, params.rowIndex)
+      ops.updateElementProps(params.elementId, { cells: shifted, rowCount: rowCount - 1 })
+    },
+    undo() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      const rowCount = (el.props.rowCount as number) ?? 0
+      const shifted = shiftCellsForInsertRow(cells, params.rowIndex)
+      // 恢复删除的 cells
+      for (const [key, cell] of Object.entries(params.deletedCells)) {
+        shifted[key] = cell
+      }
+      ops.updateElementProps(params.elementId, { cells: shifted, rowCount: rowCount + 1 })
+    },
+  }
+}
+
+/**
+ * 插入表格列命令
+ */
+export function createInsertTableColumnCommand(
+  params: InsertTableColumnParams,
+  ops: SchemaOperations,
+): Command {
+  return {
+    id: generateId(),
+    type: 'insert-table-column',
+    description: `插入表格列 ${params.colIndex}`,
+    execute() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const columns = [...(el.props.columns as Array<{ key: string, title: string, width: number }> ?? [])]
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      columns.splice(params.colIndex, 0, params.column)
+      const shifted = shiftCellsForInsertCol(cells, params.colIndex)
+      ops.updateElementProps(params.elementId, { columns, cells: shifted })
+    },
+    undo() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const columns = [...(el.props.columns as Array<{ key: string, title: string, width: number }> ?? [])]
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      columns.splice(params.colIndex, 1)
+      const shifted = shiftCellsForDeleteCol(cells, params.colIndex)
+      ops.updateElementProps(params.elementId, { columns, cells: shifted })
+    },
+  }
+}
+
+/**
+ * 删除表格列命令
+ */
+export function createDeleteTableColumnCommand(
+  params: DeleteTableColumnParams,
+  ops: SchemaOperations,
+): Command {
+  return {
+    id: generateId(),
+    type: 'delete-table-column',
+    description: `删除表格列 ${params.colIndex}`,
+    execute() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const columns = [...(el.props.columns as Array<{ key: string, title: string, width: number }> ?? [])]
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      columns.splice(params.colIndex, 1)
+      const shifted = shiftCellsForDeleteCol(cells, params.colIndex)
+      ops.updateElementProps(params.elementId, { columns, cells: shifted })
+    },
+    undo() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const columns = [...(el.props.columns as Array<{ key: string, title: string, width: number }> ?? [])]
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      columns.splice(params.colIndex, 0, params.deletedColumn)
+      const shifted = shiftCellsForInsertCol(cells, params.colIndex)
+      for (const [key, cell] of Object.entries(params.deletedCells)) {
+        shifted[key] = cell
+      }
+      ops.updateElementProps(params.elementId, { columns, cells: shifted })
+    },
+  }
+}
+
+/**
+ * 编辑表格单元格命令
+ */
+export function createEditTableCellCommand(
+  params: EditTableCellParams,
+  ops: SchemaOperations,
+): Command {
+  return {
+    id: generateId(),
+    type: 'edit-table-cell',
+    description: `编辑单元格 ${params.cellKey}`,
+    mergeable: true,
+    execute() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      if (params.newCell) {
+        cells[params.cellKey] = params.newCell
+      }
+      else {
+        delete cells[params.cellKey]
+      }
+      ops.updateElementProps(params.elementId, { cells })
+    },
+    undo() {
+      const el = ops.getElement(params.elementId)
+      if (!el)
+        return
+      const cells = { ...(el.props.cells as Record<string, unknown> ?? {}) }
+      if (params.oldCell) {
+        cells[params.cellKey] = params.oldCell
+      }
+      else {
+        delete cells[params.cellKey]
+      }
+      ops.updateElementProps(params.elementId, { cells })
+    },
+    merge(next: Command) {
+      if (next.type !== 'edit-table-cell')
+        return null
+      const nextParams = (next as any)._params as EditTableCellParams
+      if (nextParams.elementId !== params.elementId || nextParams.cellKey !== params.cellKey)
+        return null
+      return createEditTableCellCommand(
+        { ...params, newCell: nextParams.newCell },
+        ops,
+      )
+    },
+    get _params() { return params },
+  } as Command & { _params: EditTableCellParams }
+}
+
+// ─── 表格 cell shift 辅助 ───
+
+function shiftCellsForInsertRow(
+  cells: Record<string, unknown>,
+  rowIndex: number,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, val] of Object.entries(cells)) {
+    const [rStr, cStr] = key.split('-')
+    const r = Number(rStr)
+    const c = Number(cStr)
+    if (r >= rowIndex) {
+      result[`${r + 1}-${c}`] = val
+    }
+    else {
+      result[key] = val
+    }
+  }
+  return result
+}
+
+function shiftCellsForDeleteRow(
+  cells: Record<string, unknown>,
+  rowIndex: number,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, val] of Object.entries(cells)) {
+    const [rStr, cStr] = key.split('-')
+    const r = Number(rStr)
+    const c = Number(cStr)
+    if (r === rowIndex)
+      continue
+    if (r > rowIndex) {
+      result[`${r - 1}-${c}`] = val
+    }
+    else {
+      result[key] = val
+    }
+  }
+  return result
+}
+
+function shiftCellsForInsertCol(
+  cells: Record<string, unknown>,
+  colIndex: number,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, val] of Object.entries(cells)) {
+    const [rStr, cStr] = key.split('-')
+    const r = Number(rStr)
+    const c = Number(cStr)
+    if (c >= colIndex) {
+      result[`${r}-${c + 1}`] = val
+    }
+    else {
+      result[key] = val
+    }
+  }
+  return result
+}
+
+function shiftCellsForDeleteCol(
+  cells: Record<string, unknown>,
+  colIndex: number,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, val] of Object.entries(cells)) {
+    const [rStr, cStr] = key.split('-')
+    const r = Number(rStr)
+    const c = Number(cStr)
+    if (c === colIndex)
+      continue
+    if (c > colIndex) {
+      result[`${r}-${c - 1}`] = val
+    }
+    else {
+      result[key] = val
+    }
+  }
+  return result
 }
