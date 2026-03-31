@@ -194,6 +194,126 @@ importers:
         specifier: ^4.3.0
         version: 4.3.0(vue@3.5.31(typescript@5.9.3))
 
+  packages/materials/barcode:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/data-table:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/image:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/line:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/rect:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/rich-text:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/table:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/text:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/designer':
+        specifier: workspace:*
+        version: link:../../designer
+      '@easyink/renderer':
+        specifier: workspace:*
+        version: link:../../renderer
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
   packages/renderer:
     dependencies:
       '@easyink/core':

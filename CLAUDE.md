@@ -2,4 +2,4 @@
 
 禁止使用`structuredClone`
 禁止使用unicode字符表情
-确保项目lint通过
+确保项目pnpm lint通过
