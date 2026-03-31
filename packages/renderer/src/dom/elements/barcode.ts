@@ -1,4 +1,4 @@
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 interface BarcodeProps {
   format: string
@@ -15,10 +15,10 @@ interface BarcodeProps {
  * 这里提供基础的占位展示（显示编码值和格式），
  * 消费者可通过 afterRender 钩子或替换此渲染器来集成 JsBarcode/QRCode 等库。
  */
-export const renderBarcode: ElementRenderFunction = (node, context) => {
+export const renderBarcode: MaterialRenderFunction = (node, context) => {
   const el = document.createElement('div')
-  el.className = 'easyink-element easyink-barcode'
-  el.dataset.elementId = node.id
+  el.className = 'easyink-material easyink-barcode'
+  el.dataset.materialId = node.id
 
   const props = node.props as unknown as BarcodeProps
 

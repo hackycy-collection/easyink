@@ -1,9 +1,9 @@
-import type { ElementNode, PluginHooks, TemplateSchema } from '@easyink/core'
-import type { DOMRendererOptions, ElementRenderContext, Renderer, RenderResult } from '../types'
+import type { MaterialNode, PluginHooks, TemplateSchema } from '@easyink/core'
+import type { DOMRendererOptions, MaterialRenderContext, Renderer, RenderResult } from '../types'
 import { toPixels as coreToPixels, DataResolver, LayoutEngine } from '@easyink/core'
 import { registerBuiltinRenderers } from './builtins'
-import { ElementRenderRegistry } from './element-registry'
 import { buildPage } from './page-builder'
+import { MaterialRendererRegistry } from './renderer-registry'
 import { applyLayout, applyStyle } from './style-applier'
 
 /**
@@ -18,7 +18,7 @@ export class DOMRenderer implements Renderer {
   private _dpi: number
   private _zoom: number
   private _hooks?: PluginHooks
-  private _registry: ElementRenderRegistry
+  private _registry: MaterialRendererRegistry
   private _layoutEngine: LayoutEngine
   private _resolver: DataResolver
   private _lastResult: RenderResult | null = null
@@ -29,7 +29,7 @@ export class DOMRenderer implements Renderer {
     this._zoom = options?.zoom ?? 1
     this._hooks = options?.hooks
     this._designMode = options?.designMode ?? false
-    this._registry = new ElementRenderRegistry()
+    this._registry = new MaterialRendererRegistry()
     this._layoutEngine = new LayoutEngine()
     this._resolver = new DataResolver()
 
@@ -38,9 +38,9 @@ export class DOMRenderer implements Renderer {
   }
 
   /**
-   * 元素渲染注册表（供外部注册自定义渲染器）
+   * 物料渲染注册表（供外部注册自定义渲染器）
    */
-  get registry(): ElementRenderRegistry {
+  get registry(): MaterialRendererRegistry {
     return this._registry
   }
 
@@ -86,11 +86,11 @@ export class DOMRenderer implements Renderer {
     // 2. 构建页面容器
     const { page, contentArea } = buildPage(schema.page, this._dpi, this._zoom)
 
-    // 3. 渲染所有元素
-    for (const element of schema.elements) {
-      if (element.hidden)
+    // 3. 渲染所有物料
+    for (const material of schema.materials) {
+      if (material.hidden)
         continue
-      const domNode = this._renderElement(element, data, unit, toPixels, layoutResult.elements)
+      const domNode = this._renderMaterial(material, data, unit, toPixels, layoutResult.materials)
       if (domNode)
         contentArea.appendChild(domNode)
     }
@@ -108,7 +108,7 @@ export class DOMRenderer implements Renderer {
       actualHeight = extendedHeight
 
       // 绝对定位元素 y 偏移
-      this._applyAbsoluteDeltaOffset(contentArea, schema.elements, layoutResult.elements, delta, toPixels)
+      this._applyAbsoluteDeltaOffset(contentArea, schema.materials, layoutResult.materials, delta, toPixels)
     }
 
     // 5. 挂载到容器
@@ -137,10 +137,10 @@ export class DOMRenderer implements Renderer {
   }
 
   /**
-   * 渲染单个元素（递归处理 children）
+   * 渲染单个物料（递归处理 children）
    */
-  private _renderElement(
-    node: ElementNode,
+  private _renderMaterial(
+    node: MaterialNode,
     data: Record<string, unknown>,
     unit: string,
     toPixels: (value: number) => number,
@@ -159,18 +159,18 @@ export class DOMRenderer implements Renderer {
     // 查找渲染函数
     const renderFn = this._registry.get(processedNode.type)
     if (!renderFn) {
-      // 未注册的元素类型：渲染为占位 div
+      // 未注册的物料类型：渲染为占位 div
       const placeholder = document.createElement('div')
-      placeholder.className = 'easyink-element easyink-unknown'
-      placeholder.dataset.elementId = processedNode.id
-      placeholder.dataset.elementType = processedNode.type
+      placeholder.className = 'easyink-material easyink-unknown'
+      placeholder.dataset.materialId = processedNode.id
+      placeholder.dataset.materialType = processedNode.type
       placeholder.textContent = `[${processedNode.type}]`
       applyLayout(placeholder, computedLayout, toPixels, processedNode.layout.rotation)
       return placeholder
     }
 
     // 创建渲染上下文
-    const context: ElementRenderContext = {
+    const context: MaterialRenderContext = {
       data,
       resolver: this._resolver,
       unit: unit as any,
@@ -179,8 +179,8 @@ export class DOMRenderer implements Renderer {
       toPixels,
       computedLayout,
       designMode: this._designMode,
-      renderChild: (child: ElementNode) => {
-        return this._renderElement(child, data, unit, toPixels, layouts) ?? document.createElement('div')
+      renderChild: (child: MaterialNode) => {
+        return this._renderMaterial(child, data, unit, toPixels, layouts) ?? document.createElement('div')
       },
     }
 
@@ -193,12 +193,12 @@ export class DOMRenderer implements Renderer {
     // 应用布局定位
     applyLayout(el, computedLayout, toPixels, processedNode.layout.rotation)
 
-    // 渲染 children（容器元素）
+    // 渲染 children（容器物料）
     if (processedNode.children) {
       for (const child of processedNode.children) {
         if (child.hidden)
           continue
-        const childEl = this._renderElement(child, data, unit, toPixels, layouts)
+        const childEl = this._renderMaterial(child, data, unit, toPixels, layouts)
         if (childEl)
           el.appendChild(childEl)
       }
@@ -217,20 +217,20 @@ export class DOMRenderer implements Renderer {
    */
   private _applyAbsoluteDeltaOffset(
     contentArea: HTMLElement,
-    elements: ElementNode[],
+    materials: MaterialNode[],
     layouts: Map<string, import('@easyink/core').ComputedLayout>,
     delta: number,
     toPixels: (value: number) => number,
   ): void {
-    for (const element of elements) {
-      if (element.layout.position !== 'absolute')
+    for (const material of materials) {
+      if (material.layout.position !== 'absolute')
         continue
-      const computed = layouts.get(element.id)
+      const computed = layouts.get(material.id)
       if (!computed)
         continue
 
       // 在 DOM 中找到对应元素并调整 top
-      const domEl = contentArea.querySelector(`[data-element-id="${element.id}"]`) as HTMLElement
+      const domEl = contentArea.querySelector(`[data-material-id="${material.id}"]`) as HTMLElement
       if (domEl) {
         domEl.style.top = `${toPixels(computed.y + delta)}px`
       }

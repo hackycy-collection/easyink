@@ -1,4 +1,4 @@
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 interface ImageProps {
   src: string
@@ -11,10 +11,10 @@ interface ImageProps {
  *
  * 支持数据绑定（binding.path → 图片 URL）
  */
-export const renderImage: ElementRenderFunction = (node, context) => {
+export const renderImage: MaterialRenderFunction = (node, context) => {
   const wrapper = document.createElement('div')
-  wrapper.className = 'easyink-element easyink-image'
-  wrapper.dataset.elementId = node.id
+  wrapper.className = 'easyink-material easyink-image'
+  wrapper.dataset.materialId = node.id
   wrapper.style.overflow = 'hidden'
 
   const props = node.props as unknown as ImageProps

@@ -1,4 +1,4 @@
-import type { ComputedLayout, ElementStyle } from '@easyink/core'
+import type { ComputedLayout, MaterialStyle } from '@easyink/core'
 
 /**
  * 将 ElementStyle 应用到 DOM 元素
@@ -9,7 +9,7 @@ import type { ComputedLayout, ElementStyle } from '@easyink/core'
  */
 export function applyStyle(
   el: HTMLElement,
-  style: ElementStyle,
+  style: MaterialStyle,
   toPixels: (value: number) => number,
 ): void {
   const s = el.style

@@ -1,9 +1,8 @@
-import type { ElementNode } from '@easyink/core'
-import type { ElementRenderContext } from '../../types'
+import type { MaterialNode } from '@easyink/core'
+import type { MaterialRenderContext } from '../../types'
 import { DataResolver } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { registerBuiltinRenderers } from '../builtins'
-import { ElementRenderRegistry } from '../element-registry'
 import { renderBarcode } from '../elements/barcode'
 import { renderDataTable } from '../elements/data-table'
 import { renderImage } from '../elements/image'
@@ -11,8 +10,9 @@ import { renderLine } from '../elements/line'
 import { renderRect } from '../elements/rect'
 import { renderTable } from '../elements/table'
 import { renderText } from '../elements/text'
+import { MaterialRendererRegistry } from '../renderer-registry'
 
-function createNode(overrides: Partial<ElementNode>): ElementNode {
+function createNode(overrides: Partial<MaterialNode>): MaterialNode {
   return {
     id: 'test-1',
     type: 'text',
@@ -23,7 +23,7 @@ function createNode(overrides: Partial<ElementNode>): ElementNode {
   }
 }
 
-function createContext(overrides?: Partial<ElementRenderContext>): ElementRenderContext {
+function createContext(overrides?: Partial<MaterialRenderContext>): MaterialRenderContext {
   const resolver = new DataResolver()
   return {
     data: {},
@@ -45,7 +45,7 @@ describe('renderRect', () => {
     const el = renderRect(createNode({ type: 'rect', props: {} }), createContext())
     expect(el.tagName).toBe('DIV')
     expect(el.className).toContain('easyink-rect')
-    expect(el.dataset.elementId).toBe('test-1')
+    expect(el.dataset.materialId).toBe('test-1')
   })
 
   it('should apply fill color', () => {
@@ -536,8 +536,8 @@ describe('designMode placeholders', () => {
 // ─── Builtins Registration ───
 
 describe('registerBuiltinRenderers', () => {
-  it('should register all 7 built-in element renderers', () => {
-    const registry = new ElementRenderRegistry()
+  it('should register all 7 built-in material renderers', () => {
+    const registry = new MaterialRendererRegistry()
     registerBuiltinRenderers(registry)
     expect(registry.has('barcode')).toBe(true)
     expect(registry.has('data-table')).toBe(true)

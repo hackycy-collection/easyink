@@ -1,7 +1,6 @@
 export { registerBuiltinRenderers } from './dom/builtins'
 
-export { ElementRenderRegistry } from './dom/element-registry'
-// ─── Element Renderers ───
+// Material Renderers
 export {
   renderBarcode,
   renderDataTable,
@@ -15,6 +14,7 @@ export { buildPage } from './dom/page-builder'
 export type { PageBuildResult } from './dom/page-builder'
 // ─── DOM Renderer ───
 export { DOMRenderer } from './dom/renderer'
+export { MaterialRendererRegistry } from './dom/renderer-registry'
 export { applyLayout, applyStyle } from './dom/style-applier'
 
 // ─── Screen Renderer ───
@@ -23,8 +23,8 @@ export { ScreenRenderer } from './screen'
 // ─── Types ───
 export type {
   DOMRendererOptions,
-  ElementRenderContext,
-  ElementRenderFunction,
+  MaterialRenderContext,
+  MaterialRenderFunction,
   Renderer,
   RenderResult,
   ScreenRendererOptions,

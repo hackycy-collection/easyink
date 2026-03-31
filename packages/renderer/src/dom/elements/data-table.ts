@@ -1,5 +1,5 @@
 import type { DataTableColumn, DataTableProps, FormatterConfig } from '@easyink/core'
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 /**
  * 数据表格渲染器（type: 'data-table'）
@@ -7,10 +7,10 @@ import type { ElementRenderFunction } from '../../types'
  * 同源约束：所有列 binding.path 的点路径前缀必须一致。
  * 行数 = 源数组.length。
  */
-export const renderDataTable: ElementRenderFunction = (node, context) => {
+export const renderDataTable: MaterialRenderFunction = (node, context) => {
   const wrapper = document.createElement('div')
-  wrapper.className = 'easyink-element easyink-data-table'
-  wrapper.dataset.elementId = node.id
+  wrapper.className = 'easyink-material easyink-data-table'
+  wrapper.dataset.materialId = node.id
 
   const props = node.props as unknown as DataTableProps
   const columns = props.columns ?? []

@@ -1,4 +1,4 @@
-import type { ComputedLayout, DataResolver, ElementNode, PluginHooks, TemplateSchema, Unit } from '@easyink/core'
+import type { ComputedLayout, DataResolver, MaterialNode, PluginHooks, TemplateSchema, Unit } from '@easyink/core'
 
 // ─── 渲染器接口 ───
 
@@ -50,24 +50,24 @@ export interface DOMRendererOptions {
   designMode?: boolean
 }
 
-// ─── 元素渲染 ───
+// ─── 物料渲染 ───
 
 /**
- * 元素渲染函数
+ * 物料渲染函数
  *
- * 每种元素类型对应一个渲染函数，将 ElementNode 转为 HTMLElement。
+ * 每种物料类型对应一个渲染函数，将 MaterialNode 转为 HTMLElement。
  * 渲染函数不负责布局定位（由 DOMRenderer 统一处理），
- * 只负责元素内部内容的渲染。
+ * 只负责物料内部内容的渲染。
  */
-export type ElementRenderFunction = (
-  node: ElementNode,
-  context: ElementRenderContext,
+export type MaterialRenderFunction = (
+  node: MaterialNode,
+  context: MaterialRenderContext,
 ) => HTMLElement
 
 /**
- * 元素渲染上下文 -- 传给每个元素渲染函数
+ * 物料渲染上下文 -- 传给每个物料渲染函数
  */
-export interface ElementRenderContext {
+export interface MaterialRenderContext {
   /** 运行时数据 */
   data: Record<string, unknown>
   /** 数据解析器 */
@@ -80,10 +80,10 @@ export interface ElementRenderContext {
   zoom: number
   /** 预绑定的单位转换函数（模板单位 -> CSS 像素） */
   toPixels: (value: number) => number
-  /** 当前元素的计算后布局 */
+  /** 当前物料的计算后布局 */
   computedLayout: ComputedLayout
-  /** 渲染子元素（容器类型使用） */
-  renderChild: (child: ElementNode) => HTMLElement
+  /** 渲染子物料（容器类型使用） */
+  renderChild: (child: MaterialNode) => HTMLElement
   /** 设计模式：为 true 时渲染占位符而非实际数据 */
   designMode?: boolean
 }

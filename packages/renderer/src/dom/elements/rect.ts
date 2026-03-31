@@ -1,14 +1,14 @@
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 /**
  * 矩形元素渲染器
  *
  * props: borderRadius, fill
  */
-export const renderRect: ElementRenderFunction = (node, _context) => {
+export const renderRect: MaterialRenderFunction = (node, _context) => {
   const el = document.createElement('div')
-  el.className = 'easyink-element easyink-rect'
-  el.dataset.elementId = node.id
+  el.className = 'easyink-material easyink-rect'
+  el.dataset.materialId = node.id
 
   const props = node.props as unknown as { borderRadius?: number | number[], fill?: string }
 

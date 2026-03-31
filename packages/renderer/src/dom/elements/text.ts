@@ -1,4 +1,4 @@
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 interface TextProps {
   content: string
@@ -13,10 +13,10 @@ interface TextProps {
  * 支持数据绑定（binding.path → resolve 为标量显示文本）
  * 数组降级策略：join(', ')
  */
-export const renderText: ElementRenderFunction = (node, context) => {
+export const renderText: MaterialRenderFunction = (node, context) => {
   const el = document.createElement('div')
-  el.className = 'easyink-element easyink-text'
-  el.dataset.elementId = node.id
+  el.className = 'easyink-material easyink-text'
+  el.dataset.materialId = node.id
 
   const props = node.props as unknown as TextProps
 

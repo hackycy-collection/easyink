@@ -1,4 +1,4 @@
-import type { ElementRenderFunction } from '../../types'
+import type { MaterialRenderFunction } from '../../types'
 
 interface LineProps {
   direction: 'horizontal' | 'vertical' | 'custom'
@@ -15,7 +15,7 @@ interface LineProps {
  * horizontal/vertical → div with border
  * custom → SVG line
  */
-export const renderLine: ElementRenderFunction = (node, context) => {
+export const renderLine: MaterialRenderFunction = (node, context) => {
   const props = node.props as unknown as LineProps
 
   if (props.direction === 'custom') {
@@ -23,8 +23,8 @@ export const renderLine: ElementRenderFunction = (node, context) => {
   }
 
   const el = document.createElement('div')
-  el.className = 'easyink-element easyink-line'
-  el.dataset.elementId = node.id
+  el.className = 'easyink-material easyink-line'
+  el.dataset.materialId = node.id
 
   const widthPx = `${context.toPixels(props.strokeWidth)}px`
 
@@ -46,8 +46,8 @@ function renderCustomLine(
   toPixels: (v: number) => number,
 ): HTMLElement {
   const wrapper = document.createElement('div')
-  wrapper.className = 'easyink-element easyink-line easyink-line--custom'
-  wrapper.dataset.elementId = id
+  wrapper.className = 'easyink-material easyink-line easyink-line--custom'
+  wrapper.dataset.materialId = id
 
   const endX = toPixels(props.endX ?? 0)
   const endY = toPixels(props.endY ?? 0)

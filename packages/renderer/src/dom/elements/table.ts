@@ -1,5 +1,5 @@
 import type { StaticTableCell, StaticTableProps } from '@easyink/core'
-import type { ElementRenderContext, ElementRenderFunction } from '../../types'
+import type { MaterialRenderContext, MaterialRenderFunction } from '../../types'
 
 /**
  * 静态表格渲染器（type: 'table'）
@@ -8,10 +8,10 @@ import type { ElementRenderContext, ElementRenderFunction } from '../../types'
  * cells key 格式：`${row}-${col}`
  * 支持 colspan/rowspan 合并单元格。
  */
-export const renderTable: ElementRenderFunction = (node, context) => {
+export const renderTable: MaterialRenderFunction = (node, context) => {
   const wrapper = document.createElement('div')
-  wrapper.className = 'easyink-element easyink-table'
-  wrapper.dataset.elementId = node.id
+  wrapper.className = 'easyink-material easyink-table'
+  wrapper.dataset.materialId = node.id
 
   const props = node.props as unknown as StaticTableProps
   const columns = props.columns ?? []
@@ -134,7 +134,7 @@ function markCoveredCells(
  */
 function resolveCellContent(
   cell: StaticTableCell,
-  context: ElementRenderContext,
+  context: MaterialRenderContext,
 ): string {
   if (cell.binding?.path) {
     if (context.designMode) {

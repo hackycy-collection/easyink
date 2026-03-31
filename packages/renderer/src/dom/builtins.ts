@@ -1,4 +1,4 @@
-import type { ElementRenderRegistry } from './element-registry'
+import type { MaterialRendererRegistry } from './renderer-registry'
 import { renderBarcode } from './elements/barcode'
 import { renderDataTable } from './elements/data-table'
 import { renderImage } from './elements/image'
@@ -8,9 +8,9 @@ import { renderTable } from './elements/table'
 import { renderText } from './elements/text'
 
 /**
- * 注册所有内置元素渲染函数
+ * 注册所有内置物料渲染函数
  */
-export function registerBuiltinRenderers(registry: ElementRenderRegistry): void {
+export function registerBuiltinRenderers(registry: MaterialRendererRegistry): void {
   registry.register('barcode', renderBarcode)
   registry.register('data-table', renderDataTable)
   registry.register('image', renderImage)
