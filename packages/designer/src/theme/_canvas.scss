@@ -27,6 +27,8 @@
 }
 
 .easyink-canvas-page-wrapper {
-  padding: 40px;
+  --easyink-page-wrapper-padding: 40px;
+  padding: var(--easyink-page-wrapper-padding);
   display: inline-block;
+  position: relative;
 }

@@ -8,13 +8,38 @@ export const AlignmentGuides = defineComponent({
   setup() {
     const ctx = inject(DESIGNER_INJECTION_KEY) as DesignerContext
 
+    function toPx(value: number): number {
+      const unit = ctx.engine.schema.schema.page.unit
+      return toPixels(value, unit, 96, ctx.canvas.zoom.value)
+    }
+
+    function getPageWrapperPadding(): { x: number, y: number } {
+      const wrapper = document.querySelector('.easyink-canvas-page-wrapper')
+      if (!wrapper) {
+        return { x: 0, y: 0 }
+      }
+      const styles = getComputedStyle(wrapper)
+      return {
+        x: Number.parseFloat(styles.paddingLeft) || 0,
+        y: Number.parseFloat(styles.paddingTop) || 0,
+      }
+    }
+
     return () => {
       const lines = ctx.snapping.activeSnapLines.value
-      const unit = ctx.engine.schema.schema.page.unit
-      const zoom = ctx.canvas.zoom.value
+      const { margins } = ctx.engine.schema.schema.page
+      const padding = getPageWrapperPadding()
+      const offsetX = padding.x + toPx(margins.left)
+      const offsetY = padding.y + toPx(margins.top)
 
-      return h('div', { class: 'easyink-alignment-guides' }, lines.map((line, i) => {
-        const px = toPixels(line.position, unit, 96, zoom)
+      return h('div', {
+        class: 'easyink-alignment-guides',
+        style: {
+          left: `${offsetX}px`,
+          top: `${offsetY}px`,
+        },
+      }, lines.map((line, i) => {
+        const px = toPx(line.position)
         const style = line.orientation === 'vertical'
           ? {
               height: '100%',

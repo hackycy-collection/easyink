@@ -214,6 +214,14 @@ export const DesignCanvas = defineComponent({
       document.removeEventListener('mouseup', onPanEnd)
     }
 
+    function getPageWrapperPadding(wrapper: HTMLElement): { x: number, y: number } {
+      const styles = getComputedStyle(wrapper)
+      return {
+        x: Number.parseFloat(styles.paddingLeft) || 0,
+        y: Number.parseFloat(styles.paddingTop) || 0,
+      }
+    }
+
     // ── 元素选择（点击命中检测） ──
 
     function onCanvasClick(e: MouseEvent): void {
@@ -264,8 +272,16 @@ export const DesignCanvas = defineComponent({
       if (!wrapper) {
         return
       }
+      const unit = ctx.engine.schema.schema.page.unit
+      const zoom = ctx.canvas.zoom.value
+      const margins = ctx.engine.schema.schema.page.margins
+      const padding = getPageWrapperPadding(wrapper)
       const rect = wrapper.getBoundingClientRect()
-      ctx.marquee.startMarquee(e, rect.left, rect.top)
+      ctx.marquee.startMarquee(
+        e,
+        rect.left + padding.x + toPixels(margins.left, unit, 96, zoom),
+        rect.top + padding.y + toPixels(margins.top, unit, 96, zoom),
+      )
     }
 
     // ── 数据绑定拖放 ──
@@ -314,8 +330,12 @@ export const DesignCanvas = defineComponent({
 
     return () => {
       const marqueeRect = ctx.marquee.marqueeRect.value
-      const unit = ctx.engine.schema.schema.page.unit
+      const page = ctx.engine.schema.schema.page
+      const unit = page.unit
       const zoom = ctx.canvas.zoom.value
+      const wrapperPadding = pageWrapperRef.value ? getPageWrapperPadding(pageWrapperRef.value) : { x: 0, y: 0 }
+      const marginLeft = toPixels(page.margins.left, unit, 96, zoom)
+      const marginTop = toPixels(page.margins.top, unit, 96, zoom)
 
       // Marquee overlay (in page coordinates)
       const marqueeDiv = marqueeRect
@@ -323,8 +343,8 @@ export const DesignCanvas = defineComponent({
             class: 'easyink-marquee',
             style: {
               height: `${toPixels(marqueeRect.height, unit, 96, zoom)}px`,
-              left: `${toPixels(marqueeRect.x, unit, 96, zoom)}px`,
-              top: `${toPixels(marqueeRect.y, unit, 96, zoom)}px`,
+              left: `${wrapperPadding.x + marginLeft + toPixels(marqueeRect.x, unit, 96, zoom)}px`,
+              top: `${wrapperPadding.y + marginTop + toPixels(marqueeRect.y, unit, 96, zoom)}px`,
               width: `${toPixels(marqueeRect.width, unit, 96, zoom)}px`,
             },
           })

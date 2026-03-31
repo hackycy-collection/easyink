@@ -10,6 +10,23 @@ export const GuideLines = defineComponent({
     const draggingId = ref<string | null>(null)
     const isOverRuler = ref(false)
 
+    function toPx(value: number): number {
+      const unit = ctx.engine.schema.schema.page.unit
+      return toPixels(value, unit, 96, ctx.canvas.zoom.value)
+    }
+
+    function getPageWrapperPadding(): { x: number, y: number } {
+      const wrapper = document.querySelector('.easyink-canvas-page-wrapper')
+      if (!wrapper) {
+        return { x: 0, y: 0 }
+      }
+      const styles = getComputedStyle(wrapper)
+      return {
+        x: Number.parseFloat(styles.paddingLeft) || 0,
+        y: Number.parseFloat(styles.paddingTop) || 0,
+      }
+    }
+
     function onGuideMousedown(guide: GuideLineData, e: MouseEvent): void {
       e.stopPropagation()
       e.preventDefault()
@@ -85,8 +102,11 @@ export const GuideLines = defineComponent({
     return () => {
       const guides = ctx.guides.guides.value
       const preview = ctx.guides.previewGuide.value
-      const unit = ctx.engine.schema.schema.page.unit
       const zoom = ctx.canvas.zoom.value
+      const { margins } = ctx.engine.schema.schema.page
+      const padding = getPageWrapperPadding()
+      const offsetX = padding.x + toPx(margins.left)
+      const offsetY = padding.y + toPx(margins.top)
 
       // Use 1/zoom so the visual line is always 1 physical pixel
       const lineWidth = `${1 / zoom}px`
@@ -97,7 +117,7 @@ export const GuideLines = defineComponent({
       const fullSpan = '99999px'
 
       const children = guides.map((guide) => {
-        const px = toPixels(guide.position, unit, 96, zoom)
+        const px = toPx(guide.position)
         const isDragging = draggingId.value === guide.id
         const showDeleting = isDragging && isOverRuler.value
 
@@ -138,7 +158,7 @@ export const GuideLines = defineComponent({
 
       // Render preview guide line
       if (preview) {
-        const px = toPixels(preview.position, unit, 96, zoom)
+        const px = toPx(preview.position)
         const style = preview.orientation === 'vertical'
           ? {
               borderLeftStyle: 'dashed' as const,
@@ -165,7 +185,13 @@ export const GuideLines = defineComponent({
         }))
       }
 
-      return h('div', { class: 'easyink-guide-lines' }, children)
+      return h('div', {
+        class: 'easyink-guide-lines',
+        style: {
+          left: `${offsetX}px`,
+          top: `${offsetY}px`,
+        },
+      }, children)
     }
   },
 })

@@ -31,6 +31,27 @@ export const SelectionOverlay = defineComponent({
       return toPixels(v, unit, 96, ctx.canvas.zoom.value)
     }
 
+    function getPageWrapperPadding(): { x: number, y: number } {
+      const wrapper = document.querySelector('.easyink-canvas-page-wrapper')
+      if (!wrapper) {
+        return { x: 0, y: 0 }
+      }
+      const styles = getComputedStyle(wrapper)
+      return {
+        x: Number.parseFloat(styles.paddingLeft) || 0,
+        y: Number.parseFloat(styles.paddingTop) || 0,
+      }
+    }
+
+    const contentOffset = computed(() => {
+      const { margins } = ctx.engine.schema.schema.page
+      const padding = getPageWrapperPadding()
+      return {
+        x: padding.x + toPx(margins.left),
+        y: padding.y + toPx(margins.top),
+      }
+    })
+
     const primaryBox = computed(() => {
       const el = ctx.selection.selectedElement.value
       if (!el || ctx.selection.selectedIds.value.length !== 1) {
@@ -123,24 +144,16 @@ export const SelectionOverlay = defineComponent({
     function onRotateMousedown(e: MouseEvent): void {
       e.stopPropagation()
       const el = ctx.selection.selectedElement.value
-      const box = primaryBox.value
-      if (!el || !box) {
+      if (!el) {
         return
       }
-      // Calculate the center of the element in screen coordinates.
-      // The selection box is positioned inside the page-wrapper (zoomed coordinate space).
-      // We need to find the page-wrapper's bounding rect and convert.
-      const overlay = (e.target as HTMLElement).closest('.easyink-selection-overlay')
-      if (!overlay) {
+      const boxEl = (e.currentTarget as HTMLElement | null)?.closest('.easyink-selection-box') as HTMLElement | null
+      if (!boxEl) {
         return
       }
-      const overlayRect = overlay.getBoundingClientRect()
-      const zoom = ctx.canvas.zoom.value
-
-      // Box position within overlay (already in zoomed pixels from toPx)
-      // The overlay is inside the zoom transform, so its bounding rect is already scaled
-      const centerScreenX = overlayRect.left + (box.x + box.width / 2) * zoom
-      const centerScreenY = overlayRect.top + (box.y + box.height / 2) * zoom
+      const boxRect = boxEl.getBoundingClientRect()
+      const centerScreenX = boxRect.left + boxRect.width / 2
+      const centerScreenY = boxRect.top + boxRect.height / 2
 
       ctx.interaction.startRotate(el.id, e, centerScreenX, centerScreenY)
     }
@@ -236,7 +249,13 @@ export const SelectionOverlay = defineComponent({
         return null
       }
 
-      return h('div', { class: 'easyink-selection-overlay' }, children)
+      return h('div', {
+        class: 'easyink-selection-overlay',
+        style: {
+          left: `${contentOffset.value.x}px`,
+          top: `${contentOffset.value.y}px`,
+        },
+      }, children)
     }
   },
 })
