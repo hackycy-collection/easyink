@@ -12,3 +12,4 @@ temp
 cache
 .eslintcache
 .playwright-mcp
+.turbo
