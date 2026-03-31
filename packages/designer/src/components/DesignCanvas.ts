@@ -375,9 +375,6 @@ export const DesignCanvas = defineComponent({
           }, [
             h('div', {
               class: 'easyink-canvas-zoom',
-              style: {
-                transform: `scale(${ctx.canvas.zoom.value})`,
-              },
             }, [
               h('div', {
                 class: 'easyink-canvas-page-wrapper',

@@ -89,6 +89,47 @@ function mountOverlay() {
   return { container, ctx }
 }
 
+function mountOverlayAtZoom(zoom: number) {
+  const container = document.createElement('div')
+  container.className = 'easyink-canvas-page-wrapper'
+  container.style.position = 'relative'
+  container.style.padding = '40px'
+
+  const page = document.createElement('div')
+  page.className = 'easyink-page'
+  const content = document.createElement('div')
+  content.className = 'easyink-content'
+  content.style.left = '36px'
+  content.style.position = 'relative'
+  content.style.top = '52px'
+  const element = document.createElement('div')
+  element.className = 'easyink-element easyink-text'
+  element.dataset.elementId = 'el-1'
+  element.style.height = '100px'
+  element.style.left = '240px'
+  element.style.position = 'absolute'
+  element.style.top = '160px'
+  element.style.width = '400px'
+  content.appendChild(element)
+  page.appendChild(content)
+  container.appendChild(page)
+
+  document.body.appendChild(container)
+  const ctx = createContext()
+  ctx.canvas.zoom.value = zoom
+
+  const Root = defineComponent({
+    setup() {
+      provide(DESIGNER_INJECTION_KEY, ctx)
+      return () => h(SelectionOverlay)
+    },
+  })
+
+  render(h(Root), container)
+
+  return { container }
+}
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
@@ -130,5 +171,15 @@ describe('selectionOverlay', () => {
       250,
       400,
     )
+  })
+
+  it('keeps the overlay aligned with rendered DOM dimensions at non-default zoom', () => {
+    const { container } = mountOverlayAtZoom(2)
+    const box = container.querySelector('.easyink-selection-box') as HTMLElement
+
+    expect(Number.parseFloat(box.style.left)).toBeCloseTo(316)
+    expect(Number.parseFloat(box.style.top)).toBeCloseTo(252)
+    expect(Number.parseFloat(box.style.width)).toBeCloseTo(400)
+    expect(Number.parseFloat(box.style.height)).toBeCloseTo(100)
   })
 })

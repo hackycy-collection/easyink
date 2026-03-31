@@ -2,6 +2,7 @@ import type { DesignerContext, GuideLineData } from '../types'
 import { fromPixels, toPixels } from '@easyink/core'
 import { defineComponent, h, inject, ref } from 'vue'
 import { DESIGNER_INJECTION_KEY } from '../types'
+import { getCanvasContentMetrics } from '../utils/canvas-metrics'
 
 export const GuideLines = defineComponent({
   name: 'GuideLines',
@@ -15,16 +16,17 @@ export const GuideLines = defineComponent({
       return toPixels(value, unit, 96, ctx.canvas.zoom.value)
     }
 
-    function getPageWrapperPadding(): { x: number, y: number } {
-      const wrapper = document.querySelector('.easyink-canvas-page-wrapper')
-      if (!wrapper) {
-        return { x: 0, y: 0 }
-      }
-      const styles = getComputedStyle(wrapper)
-      return {
-        x: Number.parseFloat(styles.paddingLeft) || 0,
-        y: Number.parseFloat(styles.paddingTop) || 0,
-      }
+    function getContentMetrics() {
+      const page = ctx.engine.schema.schema.page
+      const unit = page.unit
+      const zoom = ctx.canvas.zoom.value
+      const dims = ctx.engine.layout.resolvePageDimensions(page)
+      return getCanvasContentMetrics({
+        contentHeight: toPixels(dims.height - page.margins.top - page.margins.bottom, unit, 96, zoom),
+        contentWidth: toPixels(dims.width - page.margins.left - page.margins.right, unit, 96, zoom),
+        marginOffsetX: toPixels(page.margins.left, unit, 96, zoom),
+        marginOffsetY: toPixels(page.margins.top, unit, 96, zoom),
+      })
     }
 
     function onGuideMousedown(guide: GuideLineData, e: MouseEvent): void {
@@ -102,19 +104,12 @@ export const GuideLines = defineComponent({
     return () => {
       const guides = ctx.guides.guides.value
       const preview = ctx.guides.previewGuide.value
-      const zoom = ctx.canvas.zoom.value
-      const { margins } = ctx.engine.schema.schema.page
-      const padding = getPageWrapperPadding()
-      const offsetX = padding.x + toPx(margins.left)
-      const offsetY = padding.y + toPx(margins.top)
+      const renderVersion = ctx.canvas.renderVersion.value
+      void renderVersion
+      const metrics = getContentMetrics()
 
-      // Use 1/zoom so the visual line is always 1 physical pixel
-      const lineWidth = `${1 / zoom}px`
-      // Hit area is wider for easy dragging (6 physical px)
-      const hitWidth = `${6 / zoom}px`
-
-      // Large enough to cover the full viewport regardless of zoom/pan
-      const fullSpan = '99999px'
+      const lineWidth = '1px'
+      const hitWidth = '6px'
 
       const children = guides.map((guide) => {
         const px = toPx(guide.position)
@@ -132,7 +127,7 @@ export const GuideLines = defineComponent({
               borderLeftStyle: 'solid' as const,
               borderLeftWidth: lineWidth,
               cursor: 'col-resize',
-              height: fullSpan,
+              height: '100%',
               left: `${px}px`,
               position: 'absolute' as const,
               top: '0',
@@ -146,7 +141,7 @@ export const GuideLines = defineComponent({
               left: '0',
               position: 'absolute' as const,
               top: `${px}px`,
-              width: fullSpan,
+              width: '100%',
             }
         return h('div', {
           class: classList,
@@ -163,7 +158,7 @@ export const GuideLines = defineComponent({
           ? {
               borderLeftStyle: 'dashed' as const,
               borderLeftWidth: lineWidth,
-              height: fullSpan,
+              height: '100%',
               left: `${px}px`,
               position: 'absolute' as const,
               top: '0',
@@ -176,7 +171,7 @@ export const GuideLines = defineComponent({
               left: '0',
               position: 'absolute' as const,
               top: `${px}px`,
-              width: fullSpan,
+              width: '100%',
             }
         children.push(h('div', {
           class: `easyink-guide-line easyink-guide-line--preview easyink-guide-line--${preview.orientation}`,
@@ -188,8 +183,10 @@ export const GuideLines = defineComponent({
       return h('div', {
         class: 'easyink-guide-lines',
         style: {
-          left: `${offsetX}px`,
-          top: `${offsetY}px`,
+          height: `${metrics.contentHeight}px`,
+          left: `${metrics.offsetX}px`,
+          top: `${metrics.offsetY}px`,
+          width: `${metrics.contentWidth}px`,
         },
       }, children)
     }

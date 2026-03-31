@@ -2,6 +2,7 @@ import type { DesignerContext } from '../types'
 import { toPixels } from '@easyink/core'
 import { defineComponent, h, inject } from 'vue'
 import { DESIGNER_INJECTION_KEY } from '../types'
+import { getCanvasContentMetrics } from '../utils/canvas-metrics'
 
 export const AlignmentGuides = defineComponent({
   name: 'AlignmentGuides',
@@ -13,30 +14,32 @@ export const AlignmentGuides = defineComponent({
       return toPixels(value, unit, 96, ctx.canvas.zoom.value)
     }
 
-    function getPageWrapperPadding(): { x: number, y: number } {
-      const wrapper = document.querySelector('.easyink-canvas-page-wrapper')
-      if (!wrapper) {
-        return { x: 0, y: 0 }
-      }
-      const styles = getComputedStyle(wrapper)
-      return {
-        x: Number.parseFloat(styles.paddingLeft) || 0,
-        y: Number.parseFloat(styles.paddingTop) || 0,
-      }
+    function getContentMetrics() {
+      const page = ctx.engine.schema.schema.page
+      const unit = page.unit
+      const zoom = ctx.canvas.zoom.value
+      const dims = ctx.engine.layout.resolvePageDimensions(page)
+      return getCanvasContentMetrics({
+        contentHeight: toPixels(dims.height - page.margins.top - page.margins.bottom, unit, 96, zoom),
+        contentWidth: toPixels(dims.width - page.margins.left - page.margins.right, unit, 96, zoom),
+        marginOffsetX: toPixels(page.margins.left, unit, 96, zoom),
+        marginOffsetY: toPixels(page.margins.top, unit, 96, zoom),
+      })
     }
 
     return () => {
+      const renderVersion = ctx.canvas.renderVersion.value
+      void renderVersion
       const lines = ctx.snapping.activeSnapLines.value
-      const { margins } = ctx.engine.schema.schema.page
-      const padding = getPageWrapperPadding()
-      const offsetX = padding.x + toPx(margins.left)
-      const offsetY = padding.y + toPx(margins.top)
+      const metrics = getContentMetrics()
 
       return h('div', {
         class: 'easyink-alignment-guides',
         style: {
-          left: `${offsetX}px`,
-          top: `${offsetY}px`,
+          height: `${metrics.contentHeight}px`,
+          left: `${metrics.offsetX}px`,
+          top: `${metrics.offsetY}px`,
+          width: `${metrics.contentWidth}px`,
         },
       }, lines.map((line, i) => {
         const px = toPx(line.position)

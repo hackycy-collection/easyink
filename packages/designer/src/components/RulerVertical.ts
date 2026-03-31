@@ -2,12 +2,26 @@ import type { DesignerContext } from '../types'
 import { fromPixels, toPixels } from '@easyink/core'
 import { defineComponent, h, inject, onMounted, ref, watch } from 'vue'
 import { DESIGNER_INJECTION_KEY } from '../types'
+import { getCanvasContentMetrics } from '../utils/canvas-metrics'
 
 export const RulerVertical = defineComponent({
   name: 'RulerVertical',
   setup() {
     const ctx = inject(DESIGNER_INJECTION_KEY) as DesignerContext
     const canvasRef = ref<HTMLCanvasElement | null>(null)
+
+    function getContentMetrics() {
+      const page = ctx.engine.schema.schema.page
+      const unit = page.unit
+      const zoom = ctx.canvas.zoom.value
+      const dims = ctx.engine.layout.resolvePageDimensions(page)
+      return getCanvasContentMetrics({
+        contentHeight: toPixels(dims.height - page.margins.top - page.margins.bottom, unit, 96, zoom),
+        contentWidth: toPixels(dims.width - page.margins.left - page.margins.right, unit, 96, zoom),
+        marginOffsetX: toPixels(page.margins.left, unit, 96, zoom),
+        marginOffsetY: toPixels(page.margins.top, unit, 96, zoom),
+      })
+    }
 
     function draw(): void {
       const canvas = canvasRef.value
@@ -31,7 +45,7 @@ export const RulerVertical = defineComponent({
 
       const unit = ctx.engine.schema.schema.page.unit
       const zoom = ctx.canvas.zoom.value
-      const panY = ctx.canvas.panY.value
+      const contentMetrics = getContentMetrics()
 
       let majorStep: number
       let minorStep: number
@@ -52,7 +66,7 @@ export const RulerVertical = defineComponent({
       const minorPx = toPixels(minorStep, unit, 96, zoom)
       const drawMinor = minorPx >= 3
 
-      const offset = panY
+      const offset = contentMetrics.originClientY - rect.top
 
       c.strokeStyle = '#999'
       c.fillStyle = '#666'
@@ -112,9 +126,8 @@ export const RulerVertical = defineComponent({
     })
 
     watch(() => [
-      ctx.canvas.zoom.value,
       ctx.canvas.panY.value,
-      ctx.schema.value,
+      ctx.canvas.renderVersion.value,
     ], () => {
       draw()
     })
@@ -124,11 +137,10 @@ export const RulerVertical = defineComponent({
       if (!canvas) {
         return 0
       }
-      const rect = canvas.getBoundingClientRect()
       const unit = ctx.engine.schema.schema.page.unit
       const zoom = ctx.canvas.zoom.value
-      const panY = ctx.canvas.panY.value
-      return fromPixels(clientY - rect.top - panY, unit, 96, zoom)
+      const contentMetrics = getContentMetrics()
+      return fromPixels(clientY - contentMetrics.originClientY, unit, 96, zoom)
     }
 
     function onMousemove(e: MouseEvent): void {
