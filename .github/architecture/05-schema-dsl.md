@@ -33,19 +33,6 @@ interface PageSettings {
   unit: 'mm' | 'inch' | 'pt'
   /** 背景（多层复合模型） */
   background?: PageBackground
-  /**
-   * 内容溢出策略（默认 'clip'）
-   * - 'clip'：固定纸张尺寸，超出部分裁切隐藏
-   * - 'auto-extend'：纸张高度随内容自动延长（适用于热敏纸连续打印）
-   *
-   * Schema 中的纸张声明（paper.height）始终不变，
-   * auto-extend 仅在渲染层按实际内容高度输出。
-   * 设计器画布始终显示声明高度。
-   *
-   * auto-extend 模式下，所有绝对定位元素的 y 坐标
-   * 会在渲染时加上流式内容实际高度与声明高度的 delta 值。
-   */
-  overflow?: 'clip' | 'auto-extend'
 }
 
 interface CustomPaper {
@@ -137,8 +124,8 @@ type BackgroundPosition =
 | **图片来源** | 仅 URL / base64 data URI（同 image 物料的 src 属性） |
 | **图片定位** | 9 宫格预设值（center / top / bottom / left / right / 四角） |
 | **渲染范围** | 全纸张（含 margin 区域），背景绘制在整个页面节点上 |
-| **auto-extend** | 颜色层自动延伸填充整个延长后的纸张；图片层也随纸张高度拉伸延长 |
-| **输出一致性** | 所有输出目标（屏幕预览 / iframe 打印 / PDF / 图片导出）行为完全一致 |
+| **纸张高度语义** | 纸张高度固定为声明值，不做 auto-extend |
+| **输出一致性** | 所有基于 DOM 的消费方共享相同背景语义 |
 | **图片加载失败** | 穿透到下层（自然降级），设计器中额外显示断裂图标提示用户 |
 | **物料级背景** | v1 不统一，MaterialStyle.backgroundColor 保持 `string` 类型不变。新 BackgroundLayer 仅用于 PageSettings |
 | **Undo 粒度** | 每个层操作（增/删/改属性/调序）独立 Command |
@@ -152,12 +139,12 @@ type BackgroundPosition =
 3. **多层叠加**：利用 CSS 多背景特性，按层级逆序组装 `background` 简写属性（CSS 多背景第一个在最上层，与 layers 数组方向相反）。
 4. **opacity**：每层单独设 opacity 时用伪元素或多 div 叠加实现。简单场景（全色不透明 + 一层图片）可直接用 `background` 合并。
 5. **enabled: false**：渲染时跳过该层。
-6. **auto-extend 拉伸**：颜色层天然跟随容器尺寸；图片层在 auto-extend 时需将 `background-size` 的高度设为 `100%`（跟随容器拉伸）。
+6. **固定纸张高度**：背景始终绘制在声明纸张尺寸内，不承担连续纸延长语义。
 7. **position 映射**：`'top-left'` -> CSS `left top`，`'center'` -> CSS `center center`，以此类推。
 
 #### 设计器 UI
 
-纸张背景设置入口位于 **SidebarPanel 新增的「页面」标签页**（与图层/数据源并列），内部为单一页面设置面板，包含纸张尺寸、方向、边距、单位、背景、溢出策略等所有 PageSettings 字段。
+纸张背景设置入口位于 **SidebarPanel 新增的「页面」标签页**（与图层/数据源并列），内部为单一页面设置面板，包含纸张尺寸、方向、边距、单位、背景等所有 PageSettings 字段。
 
 背景部分采用 **Figma 风格垂直列表**：
 - 每层一行：颜色预览方块 / 缩略图 + 类型标签 + 眼睛（enabled）开关 + 拖拽排序手柄
@@ -184,8 +171,6 @@ interface MaterialNode {
   style: MaterialStyle
   /** 数据绑定配置 */
   binding?: DataBinding
-  /** 条件渲染（由表达式插件提供） */
-  condition?: ConditionConfig
   /** 子物料（仅容器类型） */
   children?: MaterialNode[]
   /** 锁定/隐藏状态 */
@@ -196,11 +181,9 @@ interface MaterialNode {
 }
 
 interface MaterialLayout {
-  /** 定位模式 */
-  position: 'absolute' | 'flow'
-  /** absolute 模式下的坐标（使用页面单位） */
-  x?: number
-  y?: number
+  /** 基础坐标（使用页面单位） */
+  x: number
+  y: number
   /** 尺寸 */
   width: number | 'auto'
   height: number | 'auto'
@@ -208,6 +191,8 @@ interface MaterialLayout {
   rotation?: number
   /** 层级 */
   zIndex?: number
+  /** 位置锁定：true 时不参与布局引擎的整体下推 */
+  lockedPosition?: boolean
 }
 
 interface MaterialStyle {
@@ -233,6 +218,13 @@ interface MaterialStyle {
 }
 ```
 
+### 5.3.1 坐标推移语义
+
+- 所有物料都以坐标形式存储，不再在 DSL 中区分传统 `absolute` / `flow` 两种布局模式。
+- 布局引擎会按 `y` 坐标升序处理物料；若前序物料实际高度超出估算值，则默认把后续未锁定物料整体向下推。
+- `layout.lockedPosition = true` 表示该物料保持声明坐标，不受前序动态高度影响。
+- `MaterialNode.locked` 仍表示设计器中的编辑锁定，不复用为布局语义。
+
 ## 5.4 数据绑定
 
 ```typescript
@@ -246,16 +238,11 @@ interface DataBinding {
    * 解析策略：扁平优先（先查 key in data），fallback 到点路径拆解
    * 仅支持一层嵌套（arrayKey.field），不支持更深路径
    *
-   * 绑定统一：文本物料和 data-table 列都使用 binding.path，
-   * 运行时由数据类型决定行为（标量 vs 数组）。
+   * 绑定统一：文本物料和 data-table 列都使用 binding.path。
+   * 运行时数据必须已经是业务方预装配好的展示值。
    * data-table 列绑定的路径 resolve 后必须为数组，否则抛出错误。
-   * 文本物料 resolve 到数组时，由渲染器定义降级展示策略。
    */
-  path?: string
-  /** 表达式（由表达式引擎插件解析） */
-  expression?: string
-  /** 格式化器 */
-  formatter?: FormatterConfig
+  path: string
 }
 ```
 
@@ -277,10 +264,8 @@ interface DataBinding {
 - 删除绑定后，恢复显示 `props` 中的静态值（静态值始终保留不丢失）
 - 多次拖入不同数据源字段时，仅替换 `binding.path`，`props` 中的静态值不变
 
-```typescript
-  /** 格式化器类型（内置或插件注册） */
-  type: string
-  /** 格式化参数 */
-  options?: Record<string, unknown>
-}
-```
+### 5.4.1 运行时边界
+
+- Schema 只记录字段来源，不记录表达式、格式化器和条件计算。
+- 日期、金额、条码值清洗、地址拼接等展示值由业务方在渲染前准备。
+- 不支持模板层动态块展开；设计器里有多少物料，运行时就渲染多少物料。

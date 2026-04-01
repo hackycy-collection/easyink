@@ -1,78 +1,43 @@
-# 16. PDF 生成管线
+# 16. 输出链路边界
 
-## 16.1 可插拔 PDF 管线
+## 16.1 当前结论
 
-核心定义 `PDFGenerator` 接口，内置提供客户端和服务端两种实现：
+EasyInk 当前不内建打印、PDF 生成和图片导出管线。架构层只承诺把模板稳定渲染为 DOM，后续输出链路由业务方或未来扩展层自行组合。
 
-```typescript
-interface PDFGenerator {
-  /** 生成器标识 */
-  readonly name: string
+这个调整的原因是：
 
-  /**
-   * 从渲染结果生成 PDF
-   * @param pages - DOM 渲染产生的页面列表
-   * @param options - PDF 选项
-   */
-  generate(pages: HTMLElement[], options: PDFOptions): Promise<Blob | ArrayBuffer>
-}
+- 不同业务部署环境对打印和导出链路差异很大。
+- 当前阶段更重要的是先把 DSL、布局和设计器语义做稳定。
+- 过早把 PDF/image 做成核心公共 API，会放大维护面并稀释主线。
 
-interface PDFOptions {
-  /** 页面尺寸 */
-  width: number
-  height: number
-  /** 单位 */
-  unit: 'mm' | 'inch' | 'pt'
-  /** DPI */
-  dpi?: number
-  /** 是否嵌入字体 */
-  embedFonts?: boolean
-  /** 文件元信息 */
-  meta?: {
-    title?: string
-    author?: string
-    subject?: string
-  }
-}
-```
+## 16.2 EasyInk 负责什么
 
-## 16.2 内置实现
+- 提供 DOM 页面节点和测量结果。
+- 告知是否超出纸张高度。
+- 保证设计器静态预览与运行时 DOM 渲染语义尽量一致。
 
-**客户端 PDF 生成器**（基于 jsPDF + html2canvas 或 pdf-lib）：
+## 16.3 EasyInk 不负责什么
+
+- iframe 打印适配
+- PDF 生成器封装
+- 图片导出器封装
+- 物理打印设备精度和缩放校准
+
+## 16.4 业务侧推荐组合方式
 
 ```typescript
-import { ClientPDFGenerator } from '@easyink/renderer/pdf'
+const result = renderer.render(schema, preparedDisplayData, container)
 
-const pdfGenerator = new ClientPDFGenerator({
-  /** html-to-canvas 的质量配置 */
-  scale: 2,
-  /** 是否使用 pdf-lib 做矢量文本（精度更高但不支持复杂布局） */
-  vectorText: false,
-})
+// 业务侧按自己的部署环境组合：
+// 1. 浏览器打印：window.print / iframe / print-js
+// 2. 服务端 PDF：Puppeteer / Playwright
+// 3. 图片导出：html-to-image / dom-to-image
 ```
 
-**服务端 PDF 生成器**（通过 API 调用后端 Puppeteer/Playwright）：
+## 16.5 后续演进原则
 
-```typescript
-import { ServerPDFGenerator } from '@easyink/renderer/pdf'
+如果未来重新引入输出适配层，也必须满足：
 
-const pdfGenerator = new ServerPDFGenerator({
-  /** 服务端渲染 API 地址 */
-  endpoint: 'https://api.example.com/render/pdf',
-  /** 请求超时 */
-  timeout: 30000,
-})
-```
-
-**自定义 PDF 生成器**：
-
-```typescript
-// 消费者可完全自定义 PDF 生成逻辑
-const customGenerator: PDFGenerator = {
-  name: 'my-pdf-generator',
-  async generate(pages, options) {
-    // 自定义实现...
-    return pdfBlob
-  },
-}
-```
+- 不反向污染 `@easyink/core` 的数据和布局模型
+- 不要求模板层重新引入表达式或导出专用 DSL
+- 输出适配器可以独立发布和独立演进

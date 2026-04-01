@@ -1,6 +1,6 @@
 # 3. Monorepo 包结构
 
-采用**基础包粗粒度 + 物料包细粒度**的混合拆分策略。基础设施包（core/renderer/designer/ui/shared）保持粗粒度，每种物料类型独立成包，实现物料的独立开发、按需引入和第三方扩展。
+采用**基础包粗粒度 + 物料包细粒度**的混合拆分策略。基础设施包（core/renderer/designer/ui/shared）保持粗粒度；物料包作为内部抽象单元独立组织，先服务仓库内实现，暂不把第三方物料包契约视为稳定公共 API。
 
 ```
 easyink/
@@ -8,22 +8,19 @@ easyink/
 │   ├── core/                  # @easyink/core — 框架无关的核心引擎
 │   │   ├── src/
 │   │   │   ├── schema/        # Schema 定义、校验、操作
-│   │   │   ├── engine/        # 布局引擎
-│   │   │   ├── expression/    # 表达式沙箱、可插拔引擎接口
-│   │   │   ├── plugin/        # 插件系统、钩子体系
+│   │   │   ├── engine/        # 布局引擎（坐标推移）
+│   │   │   ├── datasource/    # 字段树注册、路径解析
+│   │   │   ├── plugin/        # 内部扩展点、钩子体系
 │   │   │   ├── command/       # Command 模式、撤销/重做栈
-│   │   │   ├── datasource/    # 数据源注册、扁平字段解析
 │   │   │   ├── units/         # 单位系统、转换工具
 │   │   │   ├── materials/     # MaterialRegistry + 基础类型（不含内置物料定义）
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── renderer/              # @easyink/renderer — DOM 渲染器 + 输出适配
+│   ├── renderer/              # @easyink/renderer — DOM 渲染器
 │   │   ├── src/
 │   │   │   ├── dom/           # DOM 渲染核心 + MaterialRendererRegistry
-│   │   │   ├── print/         # iframe 隔离打印
-│   │   │   ├── pdf/           # PDF 生成管线（可插拔）
-│   │   │   ├── image/         # 图片导出
+│   │   │   ├── measure/       # 文本/表格测量、溢出诊断
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
@@ -38,23 +35,15 @@ easyink/
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── materials/             # 物料独立包目录（每种物料一个包）
-│   │   ├── text/              # @easyink/material-text
-│   │   │   ├── src/
-│   │   │   │   ├── index.ts          # 统一导出
-│   │   │   │   ├── definition.ts     # MaterialTypeDefinition（框架无关）
-│   │   │   │   ├── props.ts          # PropSchema[]
-│   │   │   │   ├── render.ts         # MaterialRenderFunction（DOM 层）
-│   │   │   │   └── interaction.ts    # InteractionStrategy（Vue/Designer 层）
-│   │   │   ├── package.json
-│   │   │   └── tsconfig.json
-│   │   ├── rich-text/         # @easyink/material-rich-text
-│   │   ├── image/             # @easyink/material-image
-│   │   ├── rect/              # @easyink/material-rect
-│   │   ├── line/              # @easyink/material-line
-│   │   ├── barcode/           # @easyink/material-barcode
-│   │   ├── data-table/        # @easyink/material-data-table
-│   │   └── table/             # @easyink/material-table
+│   ├── materials/             # 物料独立包目录（仓库内抽象）
+│   │   ├── text/
+│   │   ├── rich-text/
+│   │   ├── image/
+│   │   ├── rect/
+│   │   ├── line/
+│   │   ├── barcode/
+│   │   ├── data-table/
+│   │   └── table/
 │   │
 │   ├── ui/                    # @easyink/ui — 内部 UI 组件库
 │   │   ├── src/
@@ -68,15 +57,15 @@ easyink/
 │   │
 │   └── shared/                # @easyink/shared — 共享工具与类型
 │       ├── src/
-│       │   ├── types/         # 公共 TypeScript 类型
-│       │   ├── utils/         # 通用工具函数
+│       │   ├── types/
+│       │   ├── utils/
 │       │   └── index.ts
 │       └── package.json
 │
-├── playground/                # 开发 playground（Vite 应用）
-├── examples/                  # 使用示例
-├── docs/                      # 文档站点
-└── e2e/                       # E2E 测试
+├── playground/
+├── examples/
+├── docs/
+└── e2e/
 ```
 
 ### 物料包内部结构（以 `@easyink/material-text` 为例）
@@ -135,7 +124,7 @@ packages/materials/text/
 | 导出路径 | 内容 | 依赖 | 使用场景 |
 |---------|------|------|---------|
 | `@easyink/material-text` | MaterialTypeDefinition + PropSchema[] | core + shared | 只需 Schema 操作 |
-| `@easyink/material-text/render` | MaterialRenderFunction | core + shared + renderer | 需要渲染/打印 |
+| `@easyink/material-text/render` | MaterialRenderFunction | core + shared + renderer | 需要 DOM 渲染 |
 | `@easyink/material-text/designer` | InteractionStrategy | core + shared + designer + ui | 设计器交互 |
 
 ### pnpm-workspace.yaml
@@ -156,7 +145,7 @@ packages:
     ↑
 @easyink/core             ← 依赖 shared；核心逻辑层（含 MaterialRegistry，不含内置物料）
     ↑
-@easyink/renderer         ← 依赖 core + shared；渲染输出层（含 MaterialRendererRegistry）
+@easyink/renderer         ← 依赖 core + shared；DOM 渲染层（含 MaterialRendererRegistry）
     ↑
 @easyink/ui               ← 依赖 shared；内部 UI 组件库（不对外导出）
     ↑
@@ -187,7 +176,7 @@ packages:
 ## 消费方式
 
 ```typescript
-// 1. 只需渲染/打印（按需引入物料）
+// 1. 只需 DOM 渲染（按需引入物料）
 import { createRenderer } from '@easyink/renderer'
 import { textDefinition } from '@easyink/material-text'
 import { textRender } from '@easyink/material-text/render'
@@ -204,4 +193,4 @@ import { textDefinition } from '@easyink/material-text'
 ```
 
 - `@easyink/ui` 和 `@easyink/icons` 为内部包，对外发布但不公开文档
-- 物料包对外发布，支持第三方按需安装
+- `@easyink/material-*` 当前首先服务仓库内实现；第三方物料开放能力后续再稳定契约

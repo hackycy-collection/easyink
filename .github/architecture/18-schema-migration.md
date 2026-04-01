@@ -68,21 +68,20 @@ class MigrationRegistry {
 ```typescript
 const registry = new MigrationRegistry()
 
-// 从 major 1 迁移到 v2：元素布局结构变更
+// 从 major 1 迁移到 v2：物料布局结构变更
 registry.register(1, '2.0.0', (oldSchema) => {
   return {
     ...oldSchema,
     version: '2.0.0',
-    elements: oldSchema.elements.map((el: any) => ({
-      ...el,
-      // v1 中 x/y/width/height 在元素顶层，v2 移入 layout 对象
+    materials: oldSchema.materials.map((material: any) => ({
+      ...material,
+      // v1 中 x/y/width/height 在物料顶层，v2 移入 layout 对象
       layout: {
-        position: el.position ?? 'absolute',
-        x: el.x,
-        y: el.y,
-        width: el.width,
-        height: el.height,
-        rotation: el.rotation ?? 0,
+        x: material.x,
+        y: material.y,
+        width: material.width,
+        height: material.height,
+        rotation: material.rotation ?? 0,
       },
     })),
   }

@@ -12,8 +12,8 @@
     paper: { type: 'custom', width: 210, height: 297 },  // 值的单位是 mm
     margins: { top: 10, right: 10, bottom: 10, left: 10 }, // 值的单位是 mm
   },
-  elements: [{
-    layout: { position: 'absolute', x: 15, y: 20, width: 50, height: 10 }, // 值的单位是 mm
+  materials: [{
+    layout: { x: 15, y: 20, width: 50, height: 10 }, // 值的单位是 mm
   }]
 }
 ```
@@ -70,5 +70,5 @@ DOM 渲染时需要将模板单位转换为 CSS 像素：
   pt → px:   value * (DPI / 72) * zoom
 
 设计器画布中 DPI 固定为 96（CSS 标准），zoom 由缩放控制。
-打印/PDF 时 DPI 为目标精度（通常 300）。
+业务侧若继续做打印或导出，可自行选择目标 DPI（例如 300）。
 ```

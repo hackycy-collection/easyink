@@ -15,20 +15,19 @@
 
 ```
 packages/core/dist/
-  ├── index.mjs          # ESM bundle
-  ├── index.d.mts        # TypeScript 声明
-  └── chunks/            # 代码分割（如有）
+  ├── index.mjs
+  ├── index.d.mts
+  └── chunks/
 
 packages/renderer/dist/
   ├── index.mjs
   ├── index.d.mts
-  ├── pdf/index.mjs      # PDF 子路径导出
-  └── pdf/index.d.mts
+  └── chunks/
 
 packages/designer/dist/
   ├── index.mjs
   ├── index.d.mts
-  └── style.css          # 设计器样式
+  └── style.css
 ```
 
 ## 19.3 Package.json 导出配置
@@ -55,11 +54,15 @@ packages/designer/dist/
     ".": {
       "import": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
-    },
-    "./pdf": {
-      "import": "./dist/pdf/index.mjs",
-      "types": "./dist/pdf/index.d.mts"
     }
   }
 }
 ```
+
+## 19.4 当前不导出的能力
+
+- `@easyink/renderer/pdf`
+- `@easyink/renderer/print`
+- `@easyink/renderer/image`
+
+这些子路径若未来重新引入，应作为独立扩展包或独立入口，而不是默认核心产物的一部分。

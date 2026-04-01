@@ -41,8 +41,6 @@ interface MaterialTypeDefinition {
   defaultStyle?: Partial<MaterialStyle>
   /** 该物料类型是否支持子元素 */
   isContainer?: boolean
-  /** 该物料类型是否支持数据循环 */
-  supportsRepeat?: boolean
 }
 
 /**
@@ -58,7 +56,7 @@ interface MaterialTypeDefinition {
 
 ## 12.3 属性 Schema 定义（PropSchema）
 
-> **设计决策**：采用受 JSON Schema 启发的自定义轻量规范，内置类型校验、嵌套结构、条件联动能力，不引入外部校验库。
+> **设计决策**：采用受 JSON Schema 启发的自定义轻量规范，聚焦属性编辑器渲染、嵌套结构和字段联动，不引入外部校验库，也不承载异步校验、草稿和提交态。
 
 ```typescript
 /**
@@ -385,17 +383,9 @@ class InteractionStrategyRegistry {
 /**
  * 物料拖拽进画布的定位策略（智能定位）
  *
- * 1. absolute 布局物料（文本、图片、矩形等）：
- *    - 以鼠标释放点的画布坐标作为物料左上角
- *    - 释放时自动吸附到最近的参考线/网格
- *
- * 2. flow 布局物料（表格等）：
- *    - 自动追加到流式内容区域末尾
- *    - 忽略鼠标释放的精确坐标
- *
- * 3. 拖拽进入画布区域时显示视觉反馈：
- *    - absolute 物料：显示虚线定位框 + 吸附线
- *    - flow 物料：在流式区域末尾显示插入指示线
+ * 1. 所有物料都以鼠标释放点作为基础坐标
+ * 2. 释放时自动吸附到最近的参考线/网格
+ * 3. 拖拽进入画布区域时显示虚线定位框 + 吸附线
  */
 ```
 
@@ -567,8 +557,6 @@ interface DataTableColumn {
   cellProps?: Record<string, unknown>
   /** 数据绑定（每列独立绑定） */
   binding?: DataBinding
-  /** 格式化器 */
-  formatter?: FormatterConfig
 }
 ```
 
@@ -658,7 +646,7 @@ interface StaticTableCell {
 | 行列增删 | 属性面板增删列 | 右键菜单插入/删除行列 |
 | 列宽 | 百分比 + 拖拽联动 | 百分比 + 拖拽联动 |
 | 列宽手柄 | 表格 DOM 上 | 表格 DOM 上 |
-| 布局模式 | absolute / flow | absolute / flow |
+| 布局模式 | 坐标驱动 + 整体下推 | 坐标驱动 + 整体下推 |
 | 物料分类 | table 分组 | table 分组 |
 
 ## 12.9 物料分层架构
@@ -753,17 +741,9 @@ interactionRegistry.register(dataTableInteraction)
 
 ### 第三方物料扩展
 
-第三方物料包与内置物料完全对等，遵循相同的包结构和导出规范：
+当前阶段不把第三方物料包定义为稳定公共契约。`@easyink/material-*` 先服务仓库内实现；未来若开放第三方物料，需要在版本、注册时机和设计器依赖上重新收敛 API。
 
 ```typescript
-// 第三方物料示例：签名物料
-// npm install @my-org/material-signature
-
-import { signatureDefinition } from '@my-org/material-signature'
-import { signatureRender } from '@my-org/material-signature/render'
-import { signatureInteraction } from '@my-org/material-signature/designer'
-
-materialRegistry.register(signatureDefinition)
-rendererRegistry.register('signature', signatureRender)
-interactionRegistry.register(signatureInteraction)
+// 未来若开放第三方物料，预期仍会遵循 definition / render / designer 三层拆分，
+// 但当前不对外承诺该结构已经稳定。
 ```

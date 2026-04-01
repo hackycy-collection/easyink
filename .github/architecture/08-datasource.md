@@ -2,28 +2,25 @@
 
 ## 8.1 开发方注册驱动
 
-数据源结构由集成方（开发者）在初始化时注册，而非模板设计用户定义。`TemplateSchema` 中不存储 `dataSource`，物料仅通过 `binding.path` 引用数据字段。
+数据源结构由集成方在初始化时注册，而非模板设计用户定义。`TemplateSchema` 中不存储 `dataSource`，物料仅通过 `binding.path` 记录“这个值来自哪个字段”。
 
 **核心流程：**
 
-1. 开发方通过 `registerDataSource()` 注册字段树（递归 children 结构，仅做设计器展示分组）
-2. 设计器左侧展示字段树，按树形结构分组
-3. 用户从字段树拖拽叶子字段到画布物料上完成绑定
-4. 设计器中先创建空 data-table，再通过属性面板逐列绑定源
-5. 运行时通过 `engine.setData()` 一次性传入数据（支持标量值 + 对象数组）
+1. 开发方通过 `registerDataSource()` 注册字段树，仅用于设计器展示与拖放。
+2. 设计器左侧展示字段树，用户把叶子字段拖到物料上完成绑定。
+3. 运行时业务方准备好展示值数据对象。
+4. 渲染器读取 `binding.path`，按简单路径解析规则取值并装填 DOM。
 
 **关键设计决策：**
 
-- **扁平 + 对象数组共存**：setData 接收 `Record<string, unknown>`，值可以是标量或对象数组（仅一层嵌套）
-- **点路径绑定**：`binding.path` 支持 `key`（标量/直接取值）和 `arrayKey.field`（从对象数组 map 出属性列）两种形式
-- **扁平优先解析**：resolve 时先检查 `key in data`，不存在则 fallback 到点路径拆解（`data[arrayKey].map(item => item.field)`）
-- **禁止 key 含点号**：注册字段的 key 不允许包含 `.`，避免扁平 key 与点路径歧义
-- **无命名空间**：所有字段名全局唯一，后注册的同名字段覆盖先注册的
-- **统一绑定**：文本物料和 data-table 列都使用 `binding.path`，运行时由数据类型决定行为
-- **运行时推断维度**：注册时不声明字段是标量还是列表，运行时自动判断
-- **同 data-table 同源约束**：同一个 data-table 的所有列必须来自同一个对象数组前缀，设计时 + 运行时双重校验（Schema 中不存储 sourceKey，data-table 仍为纯列容器）
-- **列间完全隔离**：data-table 各列独立绑定，表达式不能跨列引用同行数据
-- **渲染器负责降级**：文本物料 resolve 到数组时，由渲染器定义降级展示策略（如 join、取首元素等）
+- **字段树只服务设计器**：注册结构不进入 Schema，也不参与运行时复杂计算。
+- **运行时数据必须是展示值**：金额、日期、地址拼接、条件分支等在业务层完成。
+- **扁平 + 对象数组共存**：运行时数据接受 `Record<string, unknown>`，值可以是标量或对象数组（仅一层嵌套）。
+- **点路径绑定**：`binding.path` 支持 `key` 和 `arrayKey.field` 两种形式。
+- **扁平优先解析**：先查 `key in data`，miss 后再尝试点路径拆解。
+- **禁止 key 含点号**：避免扁平 key 与点路径歧义。
+- **同 data-table 同源约束**：同一个 data-table 的所有列必须来自同一个对象数组前缀。
+- **不支持深层对象直绑**：复杂结构由业务方先拍平或预生成展示字段。
 
 ## 8.2 数据源注册接口
 
@@ -66,10 +63,10 @@ interface DataSourceRegistration {
 }
 ```
 
-## 8.3 注册 API
+## 8.2 数据源注册接口
 
 ```typescript
-// --- 初始化时注册 ---
+// --- 初始化时注册字段树 ---
 const engine = new EasyInkEngine({
   dataSources: [
     {
@@ -107,7 +104,7 @@ const engine = new EasyInkEngine({
   ],
 })
 
-// --- 运行时替换数据源（如业务模块切换） ---
+// --- 设计器运行期间可替换字段树（如业务模块切换） ---
 engine.unregisterDataSource('订单数据')
 engine.registerDataSource({
   displayName: '发票数据',
@@ -115,12 +112,12 @@ engine.registerDataSource({
 })
 ```
 
-## 8.4 数据填充
+## 8.3 运行时数据契约
 
-`setData()` 接收 `Record<string, unknown>`，值可以是标量或对象数组（仅一层嵌套）：
+运行时传给渲染器的数据必须已经是展示值：
 
 ```typescript
-// 元素绑定示例
+// 绑定示例
 {
   binding: { path: 'customerName' }         // 文本元素 → 标量（直接取值）
 }
@@ -128,34 +125,34 @@ engine.registerDataSource({
   binding: { path: 'companyLogo' }          // 图片元素 → 标量
 }
 {
-  binding: { path: 'orderItems.itemName' }  // 文本元素绑定点路径 → resolve 得到数组 → 渲染器降级展示
+  binding: { path: 'orderItems.itemName' }  // data-table 列绑定点路径
 }
-// data-table 不持有 binding，每列独立绑定（同 data-table 所有列的点路径前缀必须一致）
-// columns: [
-//   { key: 'name', title: '商品', binding: { path: 'orderItems.itemName' } },
-//   { key: 'qty',  title: '数量', binding: { path: 'orderItems.itemQty' } },
-// ]
 
-// --- 运行时数据填充 ---
-engine.setData({
-  // 标量字段
+const preparedDisplayData = {
   orderNo: 'ORD-2024-001',
   customerName: '张三',
   customerPhone: '13800138000',
   companyName: 'ACME 公司',
   companyAddress: '北京市朝阳区xxx',
   companyLogo: 'https://example.com/logo.png',
-  // 对象数组字段（data-table 列通过 orderItems.xxx 点路径绑定）
+  amountText: '¥250.00',
+  fullAddress: '北京市朝阳区xxx',
   orderItems: [
     { itemName: '商品A', itemQty: 2, itemPrice: 100, itemAmount: 200 },
     { itemName: '商品B', itemQty: 1, itemPrice: 50, itemAmount: 50 },
   ],
-})
+}
+
+renderer.render(schema, preparedDisplayData, container)
 ```
 
-**解析优先级：** `resolve(path, data)` 先检查 `path in data`（扁平 key 精确匹配），如果存在则直接返回 `data[path]`；不存在则尝试按 `.` 拆解为 `[arrayKey, field]`，返回 `data[arrayKey].map(item => item[field])`。
+不再支持：
 
-## 8.5 数据解析器
+- 在模板中编写表达式
+- 在绑定上声明格式化器
+- 依赖运行时把深层业务对象变换成展示值
+
+## 8.4 数据解析器
 
 ```typescript
 /**
@@ -181,22 +178,16 @@ class DataResolver {
   resolve(path: string, data: Record<string, unknown>): unknown
 
   /**
-   * 格式化输出值
-   */
-  format(value: unknown, formatter: FormatterConfig): string
-
-  /**
    * 容错策略：
    * - 字段不存在（扁平 + 点路径都 miss）：返回 undefined
    * - 点路径的 arrayKey 对应值不是数组：抛出 Error
    * - 点路径段数 > 2：抛出 Error（仅支持一层嵌套）
    * - 路径段匹配原型链属性：返回 undefined + 警告
-   * - 格式化异常：返回空字符串
    */
 }
 ```
 
-## 8.6 data-table 数据解析流程
+## 8.5 data-table 数据解析流程
 
 ```
 同源校验（设计时 + 运行时双重保障）：

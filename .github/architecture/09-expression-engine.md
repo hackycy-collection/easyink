@@ -1,82 +1,53 @@
-# 9. 表达式引擎
+# 9. 运行时数据预装配
 
-## 9.1 可插拔架构
+## 9.1 结论
 
-核心只提供路径绑定（`key` 直接取值 + `arrayKey.field` 点路径解析），表达式引擎作为插件扩展：
+EasyInk 不再提供表达式引擎。运行时的所有派生值都必须在进入渲染器之前由业务方准备好。
 
-> **设计决策**：核心不内置 SimplePathEngine 默认实现--路径解析已由 `DataResolver.resolve()` 完成（扁平取值 + arrayKey.field 点路径）。`ExpressionEngine` 接口定义在 `@easyink/core` 中，实际引擎实现（如支持 `price * quantity` 的沙箱化引擎）由插件提供。核心仅导出接口类型 + `DEFAULT_SANDBOX_CONFIG` 默认值。
+这意味着模板层只保留：
 
-```typescript
-/**
- * 表达式引擎接口 -- 由插件实现
- */
-interface ExpressionEngine {
-  /** 引擎标识 */
-  readonly name: string
+- 绑定哪个字段
+- 静态默认值是什么
+- data-table 列从哪个对象数组读取
 
-  /**
-   * 编译表达式为可执行函数
-   * @param expression - 表达式字符串，如 "price * quantity"
-   * @returns 编译后的执行函数
-   */
-  compile(expression: string): CompiledExpression
+这意味着模板层不再承担：
 
-  /**
-   * 执行已编译的表达式
-   * @param compiled - 编译结果
-   * @param context - 数据上下文（沙箱化）
-   */
-  execute(compiled: CompiledExpression, context: ExpressionContext): unknown
+- 金额、日期、编号等格式化
+- 地址、姓名等字段拼接
+- 条件显示表达式
+- 派生字段计算
+- 容器级循环或动态块展开
 
-  /**
-   * 校验表达式语法
-   */
-  validate(expression: string): ValidationResult
-}
-
-interface ExpressionContext {
-  /** 数据源数据（标量 + 对象数组混合） */
-  data: Record<string, unknown>
-  /** 白名单工具函数 */
-  helpers: Record<string, (...args: unknown[]) => unknown>
-}
-```
-
-## 9.2 沙箱化执行
-
-默认的表达式引擎必须在受限沙箱中执行，安全策略：
+## 9.2 推荐数据准备方式
 
 ```typescript
-interface SandboxConfig {
-  /** 允许访问的全局对象白名单 */
-  allowedGlobals: string[]  // 默认: ['Math', 'Date', 'Number', 'String', 'Array', 'Object', 'JSON']
-
-  /** 禁止的语法结构 */
-  disallowedSyntax: string[]  // 默认: ['FunctionExpression', 'ArrowFunctionExpression', 'NewExpression', 'ImportExpression']
-
-  /** 最大执行时间（ms） */
-  timeout: number  // 默认: 100
-
-  /** 最大递归深度 */
-  maxDepth: number  // 默认: 10
+const preparedDisplayData = {
+  orderNo: 'ORD-2024-001',
+  amountText: '¥250.00',
+  fullAddress: '北京市朝阳区朝阳路 1 号',
+  barcodeValue: 'ORD2024001',
+  orderItems: [
+    { itemName: '商品A', itemQty: '2', itemAmount: '¥200.00' },
+    { itemName: '商品B', itemQty: '1', itemAmount: '¥50.00' },
+  ],
 }
+
+renderer.render(schema, preparedDisplayData, container)
 ```
 
-实现策略：
-- 使用 AST 解析表达式，拦截危险语法
-- 在 `new Function()` 的受限作用域中执行，不暴露 `window`/`globalThis`
-- 表达式只能访问数据上下文和白名单 helper 函数
-- 对无限循环/深递归设置执行超时
+## 9.3 数据契约边界
 
-## 9.3 内置格式化器
+- 只接受扁平字段和一层对象数组。
+- 不支持深层对象直接绑定。
+- 如果业务原始数据复杂，应在接入前拍平或转成展示值对象。
+- 如果业务需要动态块数量变化，应在进入引擎前生成完整 Schema 或完整 materials 列表，而不是要求引擎在渲染期展开。
 
-```typescript
-// 内置格式化器类型
-type BuiltinFormatters =
-  | { type: 'currency', options: { locale?: string, currency?: string, decimals?: number } }
-  | { type: 'date', options: { format: string } }  // e.g. 'YYYY-MM-DD'
-  | { type: 'number', options: { decimals?: number, thousandsSeparator?: boolean } }
-  | { type: 'uppercase' }
-  | { type: 'lowercase' }
-  | { type: 'pad', options: { length: number, char?: string, direction?: 'left' | 'right' } }
-```
+## 9.4 非目标
+
+以下能力明确不是当前架构目标：
+
+- 沙箱表达式
+- helper 函数注入
+- 模板级格式化器注册
+- 运行时条件渲染脚本
+- 在渲染器内部做业务数据清洗
