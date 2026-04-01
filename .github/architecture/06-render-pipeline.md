@@ -34,7 +34,7 @@ interface Renderer {
 
   /**
    * 将 Schema 渲染到目标容器。
-   * data 必须已经是展示值数据，不在渲染期做表达式、格式化和条件计算。
+  * data 必须已经是展示值数据，不在渲染期做模板动态计算、格式化和条件计算。
    */
   render(schema: TemplateSchema, data: Record<string, unknown>, container: HTMLElement): RenderResult
 
@@ -59,7 +59,31 @@ interface RenderResult {
 - 渲染器不负责业务数据装配，只消费已经准备好的展示值对象。
 - 渲染器会暴露 `overflowed` 和测量结果，帮助业务方决定是否阻止打印或走自定义导出流程。
 
-## 6.4 业务侧组合方式
+## 6.4 渲染前数据准备
+
+业务方应在调用渲染器前把原始业务数据转换为“可直接展示”的对象：
+
+- 日期、金额、编号等先格式化成最终字符串
+- 地址、姓名等先完成拼接
+- 条码/二维码值先完成清洗
+- 复杂对象先拍平成扁平字段或一层对象数组
+
+```typescript
+const preparedDisplayData = {
+  orderNo: 'ORD-2024-001',
+  amountText: '¥250.00',
+  fullAddress: '北京市朝阳区朝阳路 1 号',
+  barcodeValue: 'ORD2024001',
+  orderItems: [
+    { itemName: '商品A', itemQty: '2', itemAmount: '¥200.00' },
+    { itemName: '商品B', itemQty: '1', itemAmount: '¥50.00' },
+  ],
+}
+
+renderer.render(schema, preparedDisplayData, container)
+```
+
+## 6.5 业务侧组合方式
 
 ```typescript
 const result = renderer.render(schema, preparedDisplayData, container)

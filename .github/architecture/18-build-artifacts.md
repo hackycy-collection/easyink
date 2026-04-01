@@ -1,6 +1,6 @@
-# 19. 构建与产物
+# 18. 构建与产物
 
-## 19.1 构建工具链
+## 18.1 构建工具链
 
 | 工具 | 用途 |
 |------|------|
@@ -9,7 +9,7 @@
 | **Vite** | playground/examples 的开发服务器 |
 | **TypeScript** | 类型检查（noEmit，声明文件由 tsdown 生成） |
 
-## 19.2 产物格式
+## 18.2 产物格式
 
 仅输出 **ESM** 格式：
 
@@ -30,7 +30,7 @@ packages/designer/dist/
   └── style.css
 ```
 
-## 19.3 Package.json 导出配置
+## 18.3 Package.json 导出配置
 
 ```jsonc
 // packages/core/package.json
@@ -59,7 +59,7 @@ packages/designer/dist/
 }
 ```
 
-## 19.4 当前不导出的能力
+## 18.4 当前不导出的能力
 
 - `@easyink/renderer/pdf`
 - `@easyink/renderer/print`

@@ -1,6 +1,6 @@
-# 13. Command 与撤销/重做
+# 12. Command 与撤销/重做
 
-## 13.1 Command 模式
+## 12.1 Command 模式
 
 每个用户操作封装为 Command 对象，包含 execute 和 undo 两个方法：
 
@@ -23,7 +23,7 @@ interface Command {
 }
 ```
 
-## 13.2 命令管理器
+## 12.2 命令管理器
 
 ```typescript
 class CommandManager {
@@ -64,7 +64,7 @@ class CommandManager {
 }
 ```
 
-## 13.3 内置命令类型
+## 12.3 内置命令类型
 
 | 命令 | 说明 | 合并策略 |
 |------|------|----------|

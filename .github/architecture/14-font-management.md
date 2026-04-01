@@ -1,6 +1,6 @@
-# 15. 字体管理
+# 14. 字体管理
 
-## 15.1 FontProvider 接口
+## 14.1 FontProvider 接口
 
 核心不关心字体的存储和加载细节，通过 FontProvider 接口解耦。当前字体管理只服务 DOM 渲染和设计器预览，不承担 PDF 嵌入相关职责。
 
@@ -28,7 +28,7 @@ interface FontDescriptor {
 type FontSource = string | ArrayBuffer
 ```
 
-## 15.2 FontManager
+## 14.2 FontManager
 
 FontManager 是 core 层的字体管理器，提供缓存和批量预加载能力。**不含 DOM 操作**，`@font-face` 注入留给 renderer 层。
 
@@ -47,7 +47,7 @@ class FontManager {
 }
 ```
 
-## 15.3 使用方式
+## 14.3 使用方式
 
 ```typescript
 const myFontProvider: FontProvider = {

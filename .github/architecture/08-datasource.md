@@ -22,7 +22,7 @@
 - **同 data-table 同源约束**：同一个 data-table 的所有列必须来自同一个对象数组前缀。
 - **不支持深层对象直绑**：复杂结构由业务方先拍平或预生成展示字段。
 
-## 8.2 数据源注册接口
+## 8.3 注册 API
 
 ```typescript
 /**
@@ -112,7 +112,7 @@ engine.registerDataSource({
 })
 ```
 
-## 8.3 运行时数据契约
+## 8.4 运行时数据契约
 
 运行时传给渲染器的数据必须已经是展示值：
 
@@ -146,13 +146,20 @@ const preparedDisplayData = {
 renderer.render(schema, preparedDisplayData, container)
 ```
 
+### 渲染前数据准备建议
+
+- 标量物料直接绑定最终展示字段，例如 `amountText`、`fullAddress`、`barcodeValue`
+- data-table 的对象数组也应提前完成列级格式化，避免渲染期再做金额或日期转换
+- 如果业务原始数据来自深层对象，应先在适配层拍平成渲染数据
+- 如果同一模板有多套业务上下文，应在进入 renderer 前完成统一字段映射
+
 不再支持：
 
-- 在模板中编写表达式
+- 在模板中编写动态计算规则
 - 在绑定上声明格式化器
 - 依赖运行时把深层业务对象变换成展示值
 
-## 8.4 数据解析器
+## 8.5 数据解析器
 
 ```typescript
 /**
@@ -187,7 +194,7 @@ class DataResolver {
 }
 ```
 
-## 8.5 data-table 数据解析流程
+## 8.6 data-table 数据解析流程
 
 ```
 同源校验（设计时 + 运行时双重保障）：

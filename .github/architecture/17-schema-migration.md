@@ -1,12 +1,12 @@
-# 18. Schema 版本迁移
+# 17. Schema 版本迁移
 
-## 18.1 SemVer 语义
+## 17.1 SemVer 语义
 
 - **Patch**（0.0.x）：bug fix，Schema 完全兼容
 - **Minor**（0.x.0）：新增功能，Schema 向后兼容（additive only）
 - **Major**（x.0.0）：可能存在 breaking change，提供迁移函数
 
-## 18.2 迁移注册表
+## 17.2 迁移注册表
 
 ```typescript
 /**
@@ -63,7 +63,7 @@ class MigrationRegistry {
 
 > **设计决策**：`fromMajor` 使用 `number` 类型精确匹配 major 版本号，不引入 semver 库，保持 @easyink/core 零外部依赖。
 
-## 18.3 迁移示例
+## 17.3 迁移示例
 
 ```typescript
 const registry = new MigrationRegistry()

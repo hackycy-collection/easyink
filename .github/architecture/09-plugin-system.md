@@ -1,12 +1,12 @@
-# 10. 内部扩展机制
+# 9. 内部扩展机制
 
-## 10.1 当前定位
+## 9.1 当前定位
 
 EasyInk 仍然保留扩展抽象，但当前阶段**不把它定义为稳定的第三方插件系统**。这些机制主要服务仓库内的物料包、设计器面板和内部钩子编排。
 
 因此本节描述的是**内部扩展契约**，而不是对外承诺的公共插件 API。
 
-## 10.2 内部扩展上下文
+## 9.2 内部扩展上下文
 
 ```typescript
 interface InternalExtensionContext {
@@ -42,7 +42,7 @@ interface InternalExtensionContext {
 }
 ```
 
-## 10.3 内部钩子体系
+## 9.3 内部钩子体系
 
 ```typescript
 interface InternalHooks {
@@ -63,7 +63,7 @@ interface InternalHooks {
 }
 ```
 
-## 10.4 明确不在当前扩展面中的能力
+## 9.4 明确不在当前扩展面中的能力
 
 - 模板动态计算能力注入
 - 格式化器注册
@@ -73,7 +73,7 @@ interface InternalHooks {
 
 以上能力若未来重新引入，也应作为独立扩展主题另立文档，而不是恢复单独的运行时动态计算主架构章节。
 
-## 10.5 钩子类型定义
+## 9.5 钩子类型定义
 
 ```typescript
 interface SyncWaterfallHook<Args extends unknown[]> {

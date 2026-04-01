@@ -34,7 +34,7 @@
 
 ## 职责切分
 
-- `@easyink/core` 负责描述模板、解析绑定、计算布局，不承担表达式求值和导出链路。
+- `@easyink/core` 负责描述模板、解析绑定、计算布局，不承担模板动态计算和导出链路。
 - `@easyink/renderer` 只负责把 Schema 渲染为 DOM，并报告测量结果与溢出状态。
 - `Consumer Application` 负责准备展示值数据，并基于 DOM 自行决定打印、导出 PDF 或图片。
 - `@easyink/designer` 负责让设计器记录字段来源和静态属性，不在设计时填充真实数据。
