@@ -1,6 +1,6 @@
 import type { MaterialNode } from '@easyink/core'
 import type { CanvasEvent } from '@easyink/designer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { dataTableInteractionStrategy } from '../src/interaction'
 
 function createDataTableNode(overrides: Partial<MaterialNode> = {}): MaterialNode {
@@ -37,6 +37,46 @@ function createMouseEventWithTarget(): MouseEvent {
   const event = new MouseEvent('mousedown', { bubbles: true })
   Object.defineProperty(event, 'target', { value: target })
   return event
+}
+
+function createDropEvent(target: HTMLElement, path?: string): DragEvent {
+  const event = new Event('drop') as DragEvent
+  Object.defineProperty(event, 'target', { value: target })
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      getData(type: string) {
+        if (!path) {
+          return ''
+        }
+
+        if (type === 'application/easyink-binding') {
+          return JSON.stringify({ path })
+        }
+
+        if (type === 'text/plain') {
+          return path
+        }
+
+        return ''
+      },
+    },
+  })
+  return event
+}
+
+function createDropContext() {
+  const updateMaterialProps = vi.fn()
+  const executeCommand = vi.fn((command: { execute: () => void }) => command.execute())
+
+  return {
+    context: {
+      executeCommand,
+      getEngine: () => ({ operations: { updateMaterialProps } }) as any,
+      getSelectedMaterial: () => undefined,
+    },
+    executeCommand,
+    updateMaterialProps,
+  }
 }
 
 describe('dataTableInteractionStrategy', () => {
@@ -140,6 +180,65 @@ describe('dataTableInteractionStrategy', () => {
         {} as any,
       )
       expect(result).toBe(false)
+    })
+
+    it('should bind the target column when payload is valid', () => {
+      const material = createDataTableNode({
+        props: {
+          columns: [
+            { key: 'col1', title: 'Name', width: 50, binding: { path: 'users.name' } },
+            { key: 'col2', title: 'Age', width: 50 },
+          ],
+          showHeader: true,
+        },
+      })
+      const row = document.createElement('tr')
+      const firstCell = document.createElement('td')
+      const secondCell = document.createElement('td')
+      row.append(firstCell, secondCell)
+      const { context, executeCommand, updateMaterialProps } = createDropContext()
+
+      const result = dataTableInteractionStrategy.onDrop!(
+        createDropEvent(secondCell, 'users.age'),
+        material,
+        context as any,
+      )
+
+      expect(result).toBe(true)
+      expect(executeCommand).toHaveBeenCalledTimes(1)
+      expect(updateMaterialProps).toHaveBeenCalledWith('dt-1', {
+        columns: [
+          { key: 'col1', title: 'Name', width: 50, binding: { path: 'users.name' } },
+          { key: 'col2', title: 'Age', width: 50, binding: { path: 'users.age' } },
+        ],
+      })
+    })
+
+    it('should reject bindings that break the shared data source prefix', () => {
+      const material = createDataTableNode({
+        props: {
+          columns: [
+            { key: 'col1', title: 'Name', width: 50, binding: { path: 'users.name' } },
+            { key: 'col2', title: 'Amount', width: 50 },
+          ],
+          showHeader: true,
+        },
+      })
+      const row = document.createElement('tr')
+      const firstCell = document.createElement('td')
+      const secondCell = document.createElement('td')
+      row.append(firstCell, secondCell)
+      const { context, executeCommand, updateMaterialProps } = createDropContext()
+
+      const result = dataTableInteractionStrategy.onDrop!(
+        createDropEvent(secondCell, 'orders.amount'),
+        material,
+        context as any,
+      )
+
+      expect(result).toBe(false)
+      expect(executeCommand).not.toHaveBeenCalled()
+      expect(updateMaterialProps).not.toHaveBeenCalled()
     })
   })
 

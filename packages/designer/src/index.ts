@@ -47,8 +47,8 @@ export {
 } from './editors/index'
 
 // ─── Interaction ───
-export type { CanvasEvent, InteractionContext, InteractionState, InteractionStrategy } from './interaction'
-export { InteractionStrategyRegistry, useStrategyManager } from './interaction'
+export type { BindingDragData, CanvasEvent, InteractionContext, InteractionState, InteractionStrategy } from './interaction'
+export { createBindingDragData, InteractionStrategyRegistry, readBindingDragData, useStrategyManager, writeBindingDragData } from './interaction'
 export type { StrategyManager } from './interaction'
 
 export type { LocaleMessages } from './locale/types'

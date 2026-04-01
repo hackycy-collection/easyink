@@ -2,6 +2,7 @@ import type { MaterialNode } from '@easyink/core'
 import { createMoveMaterialCommand, createUpdateBindingCommand, toPixels } from '@easyink/core'
 import { generateId } from '@easyink/shared'
 import { defineComponent, h, inject, nextTick, onMounted, ref, watch } from 'vue'
+import { readBindingDragData } from '../interaction'
 import { DESIGNER_INJECTION_KEY } from '../types'
 import { AlignmentGuides } from './AlignmentGuides'
 import { GuideLines } from './GuideLines'
@@ -232,20 +233,15 @@ export const DesignCanvas = defineComponent({
         return
       }
 
-      // 从目标往上遍历查找 data-element-id
-      let target = e.target as HTMLElement | null
-      while (target && target !== renderTargetRef.value) {
-        const id = target.dataset?.elementId
-        if (id) {
-          if (e.shiftKey) {
-            ctx.selection.toggleSelect(id)
-          }
-          else {
-            ctx.selection.select(id)
-          }
-          return
+      const targetMaterial = findMaterialFromEventTarget(e.target as HTMLElement | null)
+      if (targetMaterial) {
+        if (e.shiftKey) {
+          ctx.selection.toggleSelect(targetMaterial.id)
         }
-        target = target.parentElement
+        else {
+          ctx.selection.select(targetMaterial.id)
+        }
+        return
       }
 
       // 点击空白区域取消选择
@@ -307,38 +303,41 @@ export const DesignCanvas = defineComponent({
       }
 
       // 处理数据绑定拖放
-      const raw = e.dataTransfer?.getData('application/easyink-binding')
-      if (!raw) {
+      const binding = readBindingDragData(e.dataTransfer)
+      if (!binding) {
         return
       }
       e.preventDefault()
 
-      let binding: { path: string }
-      try {
-        binding = JSON.parse(raw)
-      }
-      catch {
+      const targetMaterial = findMaterialFromEventTarget(e.target as HTMLElement | null)
+      if (!targetMaterial) {
         return
       }
 
-      // Find target material
-      let target = e.target as HTMLElement | null
-      while (target && target !== renderTargetRef.value) {
-        const id = target.dataset?.elementId
-        if (id) {
-          const el = ctx.engine.schema.getMaterialById(id)
-          if (el) {
-            const cmd = createUpdateBindingCommand({
-              materialId: id,
-              newBinding: { path: binding.path },
-              oldBinding: el.binding,
-            }, ctx.engine.operations)
-            ctx.engine.execute(cmd)
-          }
-          return
-        }
-        target = target.parentElement
+      const strategy = ctx.strategyManager?.getRegistry().get(targetMaterial.type)
+      if (strategy?.onDrop && ctx.strategyManager) {
+        strategy.onDrop(e, targetMaterial, ctx.strategyManager.getContext())
+        return
       }
+
+      const cmd = createUpdateBindingCommand({
+        materialId: targetMaterial.id,
+        newBinding: { path: binding.path },
+        oldBinding: targetMaterial.binding ? { ...targetMaterial.binding } : undefined,
+      }, ctx.engine.operations)
+      ctx.engine.execute(cmd)
+    }
+
+    function findMaterialFromEventTarget(target: HTMLElement | null): MaterialNode | undefined {
+      let current = target
+      while (current && current !== renderTargetRef.value) {
+        const id = current.dataset?.materialId
+        if (id) {
+          return ctx.engine.schema.getMaterialById(id)
+        }
+        current = current.parentElement
+      }
+      return undefined
     }
 
     function _handleMaterialDrop(raw: string, e: DragEvent): void {

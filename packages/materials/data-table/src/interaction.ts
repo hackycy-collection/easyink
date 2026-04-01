@@ -149,8 +149,8 @@ export const dataTableInteractionStrategy: InteractionStrategy = {
   },
 
   onDrop(event, material, context) {
-    const transferData = event.dataTransfer?.getData('text/plain')
-    if (!transferData) {
+    const bindingPath = readBindingPath(event.dataTransfer)
+    if (!bindingPath) {
       return false
     }
 
@@ -175,9 +175,9 @@ export const dataTableInteractionStrategy: InteractionStrategy = {
     }
 
     // 同源约束校验
-    const dotIdx = transferData.indexOf('.')
+    const dotIdx = bindingPath.indexOf('.')
     if (dotIdx > 0) {
-      const newPrefix = transferData.slice(0, dotIdx)
+      const newPrefix = bindingPath.slice(0, dotIdx)
       for (const col of columns) {
         if (col.binding?.path) {
           const existingDotIdx = col.binding.path.indexOf('.')
@@ -194,7 +194,7 @@ export const dataTableInteractionStrategy: InteractionStrategy = {
     // 更新列绑定
     const updatedColumns = columns.map((col, idx) => {
       if (idx === cellIndex) {
-        return { ...col, binding: { path: transferData } }
+        return { ...col, binding: { path: bindingPath } }
       }
       return col
     })
@@ -214,6 +214,31 @@ export const dataTableInteractionStrategy: InteractionStrategy = {
 }
 
 // ─── 辅助函数 ───
+
+function readBindingPath(dataTransfer: Pick<DataTransfer, 'getData'> | null | undefined): string | null {
+  if (!dataTransfer) {
+    return null
+  }
+
+  const raw = dataTransfer.getData('application/easyink-binding').trim()
+  if (raw) {
+    try {
+      const payload = JSON.parse(raw) as { path?: unknown }
+      if (typeof payload.path === 'string') {
+        const normalizedPath = payload.path.trim()
+        if (normalizedPath) {
+          return normalizedPath
+        }
+      }
+    }
+    catch {
+      return null
+    }
+  }
+
+  const plainText = dataTransfer.getData('text/plain').trim()
+  return plainText || null
+}
 
 function startColumnResize(
   materialId: string,

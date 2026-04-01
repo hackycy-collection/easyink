@@ -1,5 +1,6 @@
 import { createUpdateBindingCommand } from '@easyink/core'
 import { computed, defineComponent, h, inject } from 'vue'
+import { readBindingDragData } from '../interaction'
 import { DESIGNER_INJECTION_KEY } from '../types'
 
 export const DataBindingLayer = defineComponent({
@@ -19,8 +20,7 @@ export const DataBindingLayer = defineComponent({
         return null
       }
 
-      const element = Array.from(wrapper.querySelectorAll('.easyink-element'))
-        .find(node => (node as HTMLElement).dataset.materialId === id) as HTMLElement | undefined
+      const element = wrapper.querySelector(`[data-material-id="${id}"]`) as HTMLElement | null
       if (!element) {
         return null
       }
@@ -59,20 +59,12 @@ export const DataBindingLayer = defineComponent({
     }
 
     function onDrop(materialId: string, e: DragEvent): void {
-      const raw = e.dataTransfer?.getData('application/easyink-binding')
-      if (!raw) {
+      const binding = readBindingDragData(e.dataTransfer)
+      if (!binding) {
         return
       }
       e.preventDefault()
       e.stopPropagation()
-
-      let binding: { path: string }
-      try {
-        binding = JSON.parse(raw)
-      }
-      catch {
-        return
-      }
 
       const el = ctx.engine.schema.getMaterialById(materialId)
       if (!el) {

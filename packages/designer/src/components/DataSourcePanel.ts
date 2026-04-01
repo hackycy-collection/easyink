@@ -1,6 +1,7 @@
 import type { DataFieldNode } from '@easyink/core'
 import type { DesignerContext } from '../types'
 import { defineComponent, h, inject, reactive } from 'vue'
+import { createBindingDragData, writeBindingDragData } from '../interaction'
 import { DESIGNER_INJECTION_KEY } from '../types'
 
 export const DataSourcePanel = defineComponent({
@@ -18,13 +19,27 @@ export const DataSourcePanel = defineComponent({
       }
     }
 
-    function onLeafDragStart(node: DataFieldNode, e: DragEvent): void {
-      const path = node.fullPath ?? node.key ?? ''
-      e.dataTransfer?.setData('application/easyink-binding', JSON.stringify({ path }))
-      e.dataTransfer!.effectAllowed = 'link'
+    function onLeafDragStart(
+      sourceName: string,
+      sourceDisplayName: string,
+      node: DataFieldNode,
+      e: DragEvent,
+    ): void {
+      const payload = createBindingDragData(node, { sourceDisplayName, sourceName })
+      if (!payload) {
+        return
+      }
+
+      writeBindingDragData(e.dataTransfer, payload)
     }
 
-    function renderNode(node: DataFieldNode, parentPath: string, depth: number): ReturnType<typeof h> {
+    function renderNode(
+      node: DataFieldNode,
+      parentPath: string,
+      depth: number,
+      sourceName: string,
+      sourceDisplayName: string,
+    ): ReturnType<typeof h> {
       const nodePath = parentPath ? `${parentPath}.${node.key ?? node.title}` : (node.key ?? node.title)
       const hasChildren = node.children && node.children.length > 0
       const isExpanded = expandedNodes.has(nodePath)
@@ -43,7 +58,7 @@ export const DataSourcePanel = defineComponent({
             ? h(
                 'div',
                 { class: 'easyink-datasource-node__children' },
-                node.children!.map(child => renderNode(child, nodePath, depth + 1)),
+                node.children!.map(child => renderNode(child, nodePath, depth + 1, sourceName, sourceDisplayName)),
               )
             : null,
         ])
@@ -54,7 +69,7 @@ export const DataSourcePanel = defineComponent({
         class: 'easyink-datasource-leaf',
         draggable: true,
         key: nodePath,
-        onDragstart: (e: DragEvent) => onLeafDragStart(node, e),
+        onDragstart: (e: DragEvent) => onLeafDragStart(sourceName, sourceDisplayName, node, e),
         style: { paddingLeft: `${depth * 16}px` },
       }, [
         h('span', { class: 'easyink-datasource-leaf__key' }, node.key ?? ''),
@@ -91,7 +106,7 @@ export const DataSourcePanel = defineComponent({
               ? h(
                   'div',
                   { class: 'easyink-datasource-group__fields' },
-                  source.fields.map(field => renderNode(field, source.name, 1)),
+                  source.fields.map(field => renderNode(field, source.name, 1, source.name, source.displayName)),
                 )
               : null,
           ]),
