@@ -26,10 +26,11 @@ easyink/
 │   │
 │   ├── designer/              # @easyink/designer — 可视化设计器 Vue 组件
 │   │   ├── src/
-│   │   │   ├── components/    # 设计器 Vue 组件（画布、物料栏、属性面板...）
+│   │   │   ├── components/    # 设计器 Vue 组件（顶部栏、画布、窗口壳层...）
 │   │   │   ├── composables/   # Vue Composable 封装
 │   │   │   ├── interaction/   # InteractionStrategyRegistry + 基础设施
-│   │   │   ├── panels/        # 属性面板、图层面板、数据源面板
+│   │   │   ├── workspace/     # WorkspaceLayout、WindowManager、偏好持久化
+│   │   │   ├── windows/       # 属性/页面/结构树/数据源/历史等窗口内容
 │   │   │   ├── locale/        # 默认中文语言包
 │   │   │   ├── theme/         # CSS 变量主题
 │   │   │   └── index.ts
@@ -149,7 +150,7 @@ packages:
     ↑
 @easyink/ui               ← 依赖 shared；内部 UI 组件库（不对外导出）
     ↑
-@easyink/designer         ← 依赖 core + renderer + ui + shared；设计器 UI（含 InteractionStrategyRegistry）
+@easyink/designer         ← 依赖 core + renderer + ui + icons + shared；设计器 UI（含 InteractionStrategyRegistry）
 
 @easyink/icons            ← 独立包；Iconify 离线图标数据
 

@@ -144,7 +144,7 @@ type BackgroundPosition =
 
 #### 设计器 UI
 
-纸张背景设置入口位于 **SidebarPanel 新增的「页面」标签页**（与图层/数据源并列），内部为单一页面设置面板，包含纸张尺寸、方向、边距、单位、背景等所有 PageSettings 字段。
+纸张背景设置入口位于 **Page WorkspaceWindow**，通过顶部右栏的页面设置 Icon 打开；窗口内部承载单一页面设置面板，包含纸张尺寸、方向、边距、单位、背景等所有 PageSettings 字段。
 
 背景部分采用 **Figma 风格垂直列表**：
 - 每层一行：颜色预览方块 / 缩略图 + 类型标签 + 眼睛（enabled）开关 + 拖拽排序手柄

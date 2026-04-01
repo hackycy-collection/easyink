@@ -22,7 +22,7 @@
 | 7 | [布局引擎](./07-layout-engine.md) | 坐标推移布局模型、计算流程 |
 | 8 | [数据源系统](./08-datasource.md) | 开发方注册、字段树、运行时数据契约 |
 | 9 | [内部扩展机制](./09-plugin-system.md) | 仓库内扩展点、上下文 API、钩子体系 |
-| 10 | [设计器交互层](./10-designer-interaction.md) | 组件结构、交互特性、画布预览、属性面板 |
+| 10 | [设计器交互层](./10-designer-interaction.md) | 工作台布局、窗口系统、画布预览、属性编辑 |
 | 11 | [物料体系](./11-element-system.md) | 物料类型定义、PropSchema、交互策略、内置物料 |
 | 12 | [Command 与撤销/重做](./12-command-undo-redo.md) | Command 模式、命令管理器、内置命令 |
 | 13 | [单位系统](./13-unit-system.md) | 单位存储、转换、渲染时转换公式 |
