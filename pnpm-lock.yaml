@@ -147,6 +147,8 @@ importers:
         specifier: catalog:testing
         version: 2.8.1
 
+  packages/pkg-placeholder: {}
+
 packages:
 
   '@antfu/eslint-config@6.2.0':
