@@ -9,8 +9,6 @@ easyink/
 │   │   ├── src/
 │   │   │   ├── schema/        # Schema 定义、校验、操作
 │   │   │   ├── engine/        # 布局引擎（坐标推移）
-│   │   │   ├── datasource/    # 字段树注册、路径解析
-│   │   │   ├── plugin/        # 内部扩展点、钩子体系
 │   │   │   ├── command/       # Command 模式、撤销/重做栈
 │   │   │   ├── units/         # 单位系统、转换工具
 │   │   │   ├── materials/     # MaterialRegistry + 基础类型（不含内置物料定义）
@@ -29,6 +27,7 @@ easyink/
 │   │   │   ├── components/    # 设计器 Vue 组件（顶部栏、画布、窗口壳层...）
 │   │   │   ├── composables/   # Vue Composable 封装
 │   │   │   ├── interaction/   # InteractionStrategyRegistry + 基础设施
+│   │   │   ├── datasource/    # 数据源字段树管理、拖拽绑定
 │   │   │   ├── workspace/     # WorkspaceLayout、WindowManager、偏好持久化
 │   │   │   ├── windows/       # 属性/页面/结构树/数据源/历史等窗口内容
 │   │   │   ├── locale/        # 默认中文语言包
@@ -108,17 +107,11 @@ packages/materials/text/
   "dependencies": {
     "@easyink/core": "workspace:*",
     "@easyink/shared": "workspace:*"
-  },
-  "peerDependencies": {
-    "@easyink/renderer": "workspace:*",
-    "@easyink/designer": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@easyink/renderer": { "optional": true },
-    "@easyink/designer": { "optional": true }
   }
 }
 ```
+
+> **2026-04-02 变化**：物料包不再声明 renderer/designer 为 peerDependency。renderer 和 designer 直接依赖物料包并内部导入渲染函数/交互策略。
 
 **三层导出说明：**
 
@@ -144,20 +137,19 @@ packages:
 ```
 @easyink/shared           ← 无依赖，纯工具与类型
     ↑
-@easyink/core             ← 依赖 shared；核心逻辑层（含 MaterialRegistry，不含内置物料）
+@easyink/core             ← 依赖 shared；核心逻辑层（含 MaterialRegistry，不含内置物料，不含 DataSourceManager）
     ↑
-@easyink/renderer         ← 依赖 core + shared；DOM 渲染层（含 MaterialRendererRegistry）
+@easyink/material-*       ← 物料独立包（每种物料一个包）
+    依赖: core + shared
+    内部代码组织单元，保留三层子路径导出，不推荐消费者直接使用
+    ↑
+@easyink/renderer         ← 依赖 core + shared + 所有 material-*；DOM 渲染层（内置所有物料渲染函数）
     ↑
 @easyink/ui               ← 依赖 shared；内部 UI 组件库（不对外导出）
     ↑
-@easyink/designer         ← 依赖 core + renderer + ui + icons + shared；设计器 UI（含 InteractionStrategyRegistry）
+@easyink/designer         ← 依赖 core + renderer + ui + icons + shared + 所有 material-*；设计器 UI（含数据源管理、交互策略）
 
 @easyink/icons            ← 独立包；Iconify 离线图标数据
-
-@easyink/material-*       ← 物料独立包（每种物料一个包）
-    依赖: core + shared
-    可选 peer: renderer（render 子路径）、designer（designer 子路径）
-    注意: core/renderer/designer 不依赖 material-*，避免循环依赖
 ```
 
 **依赖方向（单向，无循环）：**
@@ -165,33 +157,37 @@ packages:
 ```
             shared
               ↑
-            core  ←────────────── material-* (definition + props)
-              ↑                         ↑ (render 子路径 peer dep)
-           renderer ←──────────── material-*/render
-              ↑                         ↑ (designer 子路径 peer dep)
-  ui ──→ designer ←──────────── material-*/designer
+            core  ←───────── material-* (definition + props)
+              ↑                   ↑
+           renderer ←─────── material-*/render
+              ↑                   ↑
+  ui ──→ designer ←─────── material-*/designer
               ↑
            icons
 ```
 
+**关键变化（2026-04-02 收敛）：**
+
+- renderer 和 designer 直接依赖所有内置物料包，消费者无需手动注册
+- material-* 的 render 子路径不再 peer dep renderer（消除循环依赖风险）
+- DataSourceManager 从 core 移入 designer
+- v1 不支持自定义物料扩展
+
 ## 消费方式
 
 ```typescript
-// 1. 只需 DOM 渲染（按需引入物料）
+// 1. 只需 DOM 渲染（所有内置物料自动包含，无需手动注册）
 import { createRenderer } from '@easyink/renderer'
-import { textDefinition } from '@easyink/material-text'
-import { textRender } from '@easyink/material-text/render'
 
-// 2. 需要设计器（按需引入物料 + 交互策略）
-import { createDesigner } from '@easyink/designer'
-import { textDefinition } from '@easyink/material-text'
-import { textRender } from '@easyink/material-text/render'
-import { textInteraction } from '@easyink/material-text/designer'
+const renderer = createRenderer({ fontProvider: myFontProvider })
+const result = await renderer.render(schema, data, container)
 
-// 3. 只需操作 Schema
-import { MaterialRegistry } from '@easyink/core'
-import { textDefinition } from '@easyink/material-text'
+// 2. 需要设计器（所有内置物料自动包含）
+import { EasyInkDesigner } from '@easyink/designer'
+// 在 Vue 模板中：
+// <EasyInkDesigner v-model:schema="schema" :data-sources="dataSources" />
 ```
 
 - `@easyink/ui` 和 `@easyink/icons` 为内部包，对外发布但不公开文档
-- `@easyink/material-*` 当前首先服务仓库内实现；第三方物料开放能力后续再稳定契约
+- `@easyink/material-*` 为内部代码组织单元，保留三层子路径导出，不推荐消费者直接使用
+- v1 不支持自定义物料扩展；第三方物料开放能力后续再稳定契约

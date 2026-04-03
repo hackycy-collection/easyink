@@ -180,3 +180,51 @@
 | 169 | renderer 独立消费 | 依赖 designer / 轻量耦合 / 完全独立 | **完全独立** | 直接打印场景只需要 schema + data + DOM，不应承担设计器依赖 |
 | 170 | 浏览器分发策略 | ESM only / ESM + IIFE 补充 / 多格式全面覆盖 | **ESM + IIFE 补充** | ESM 作为主路径，IIFE 只为 CDN 直接嵌入兼容；renderer 优先级高于 designer |
 | 171 | 运行时未知物料降级 | 静默跳过 / DOM 占位 / 整页中止 | **DOM 占位** | 继续渲染整页，同时在结果中保留明显问题痕迹，避免错误产物被当作正常打印 |
+
+---
+
+### 2026-04-02 收敛增补
+
+> 以下决策基于第二轮架构深度访谈，若与上方早期条目冲突，以此为准。
+
+| # | 决策 | 选项 | 结论 | 理由 |
+|---|------|------|------|------|
+| 172 | render() 同步/异步 | 同步返回 / async 等待全部资源 | **async Promise\<RenderResult\>** | 需等待字体、图片等外部资源加载完毕才能保证打印一致性；逐资源独立容错，单资源失败不中止整页 |
+| 173 | 样式隔离策略 | Shadow DOM / scoped style / iframe | **渲染器 scoped style + hash 前缀 + inline; 设计器 Shadow DOM** | 渲染器需兼容 Puppeteer 打印（Shadow DOM 打印支持不稳定）；设计器作为嵌入组件需防宿主样式泄漏 |
+| 174 | 两阶段渲染 | 单次直出 / 离屏测量 + 最终渲染 | **两阶段（离屏 DOM 测量 + 一次性最终渲染）** | auto height 物料需先拿到实际高度才能计算推移 delta；visibility:hidden 离屏测量避免用户看到中间态 |
+| 175 | AABB 推移 delta 基准 | AABB height vs 原始矩形 height | **AABB height** | 旋转后物料的视觉占用面积由 AABB 决定，用原始矩形会低估推移量导致重叠 |
+| 176 | causesPush 模式 | 默认 true 黑名单排除 / 默认 false 白名单声明 | **白名单模式（默认 false）** | 装饰性物料多于内容物料的场景下，白名单更安全；text/rich-text/image/barcode/data-table/table = true, rect/line = false |
+| 177 | canRotate 物料类型声明 | 全部可旋转 / 物料类型定义层声明 | **物料类型定义层声明（默认 false）** | 表格类物料旋转无意义且破坏布局；在 MaterialTypeDefinition 中声明比运行时检查更清晰 |
+| 178 | 渲染器工厂函数形态 | new Renderer() / createRenderer() | **createRenderer(options).render()** | 工厂函数更灵活，options 包含 onDiagnostic 回调等配置 |
+| 179 | 渲染器物料注册 | 消费者手动注册 / 渲染器内置全部 | **渲染器内置全部物料** | 消费者只关心 schema + data + 配置，不需要了解内部物料实现 |
+| 180 | 设计器物料注册 | 消费者手动注册 / 设计器内置全部 | **设计器内置全部物料** | 同上，降低接入成本 |
+| 181 | 物料包依赖方向 | material-* peerDep renderer / renderer 直接依赖 material-* | **renderer/designer 直接依赖 material-\*** | material-* 保持轻量仅依赖 core+shared；renderer 作为聚合层知道所有物料 |
+| 182 | 设计器 Vue 组件形态 | Vue Plugin 注册 / 独立组件 | **\<EasyInkDesigner v-model:schema\>** | 单组件入口最简洁；v-model:schema 提供双向绑定 |
+| 183 | 数据源注册层级 | core Engine 层 / designer 层 | **designer 层（Vue props 传入）** | 数据源仅设计时展示字段树用，core 和 renderer 不需要知道数据源定义 |
+| 184 | 设计器是否做推移布局 | 做推移 / 纯坐标定位 | **纯坐标定位** | 设计器以所见即所得坐标编辑为主；推移仅在运行时渲染执行，设计器不模拟 |
+| 185 | CSS 单位策略 | px + DPI 换算 / CSS 物理单位直出 | **根据 page.unit 直出对应 CSS 物理单位（mm/pt/in）** | 浏览器打印时 CSS 物理单位直接映射到物理尺寸，无需手动 DPI 换算；屏幕预览不做补偿 |
+| 186 | 设计器画布单位 | px + zoom / page.unit + scale transform | **page.unit + scale transform** | 画布元素直接用 page.unit 对应值定位，通过 CSS transform: scale() 控制缩放比；切换单位时所有值批量换算 |
+| 187 | 渲染器打印样式 | 消费者自行注入 / 渲染器注入 @page | **渲染器注入 @page 打印样式** | 纸张尺寸、方向、边距由 schema 决定，渲染器自动生成对应 @page 规则 |
+| 188 | diagnostic 通道 | EventEmitter / render() 参数回调 | **render() 参数中的 onDiagnostic 回调** | 比 EventEmitter 更简洁，无需管理订阅生命周期 |
+| 189 | 偏好持久化接口 | localStorage 直写 / PreferenceProvider 接口 | **PreferenceProvider 异步 load/save 接口** | 设计器不假设存储方式；集成方可实现 localStorage/IndexedDB/服务端等任意方案 |
+| 190 | MaterialNode.id 生成 | UUID / nanoid / 自增 | **nanoid** | 短且 URL 安全，无中划线碰撞 CSS 选择器，性能好 |
+| 191 | 跨模板粘贴 ID 策略 | 保留原 ID / 重新生成 | **重新生成 ID + 保留绑定路径** | 同一模板内 ID 必须唯一；绑定路径是数据源语义，跨模板仍有效 |
+| 192 | 数据源绑定拖入判定 | 精确物料边界 / bounding box 命中 | **bounding box 命中测试** | AABB 比精确形状判定简单且符合用户预期 |
+| 193 | 多选操作范围 | 全属性批改 / 仅位置调整 | **仅位置调整（移动/对齐/分布）** | 异构物料属性差异大，批量改属性容易出意外；v1 保守策略 |
+| 194 | 数据源 key 唯一性 | key 全局唯一 / fullPath 全局唯一 | **fullPath 全局唯一（key 可重复）** | 不同 DataSourceRegistration 间 key 可重名，通过 fullPath 消歧 |
+| 195 | 对齐操作与推移关系 | 对齐直接改坐标 / 对齐改声明值 + 推移运行时叠加 | **对齐改声明坐标值，推移运行时叠加** | 设计器不做推移，对齐结果立即反映；运行时推移基于声明坐标再算 delta |
+| 196 | 富文本存储格式 | Delta / HTML / Markdown | **HTML 字符串** | 渲染器可直接 innerHTML（sanitize 由业务方负责），不依赖特定编辑器格式 |
+| 197 | 富文本编辑方式 | 内嵌所见即所得 / 属性面板源码编辑 | **仅属性面板 textarea 源码编辑** | v1 不引入富文本编辑器依赖，降低复杂度 |
+| 198 | 富文本 sanitize 职责 | 库内置 sanitize / 业务方负责 | **业务方负责** | 库不引入 sanitize 依赖；渲染器透传 HTML，安全边界由集成方把控 |
+| 199 | 表格单元格溢出 | 截断 / 换行撑高 | **换行撑高** | word-break: break-all + 自然撑高，打印场景信息完整性优先 |
+| 200 | 表格列宽策略 | auto / fixed + % | **table-layout: fixed + 百分比宽度，尾列吸收舍入误差** | 固定布局保证列宽可控，百分比避免绝对值在不同纸张下溢出 |
+| 201 | 静态表格行高 | 固定行高 / 内容撑开 | **完全由内容撑开** | 文字行数不可预测，固定行高会截断内容 |
+| 202 | data-table 表头编辑 | 属性面板 / 画布行内编辑 | **画布行内编辑（双击进入）** | 表头编辑高频，行内编辑效率高；Editing 级交互状态下生效 |
+| 203 | Vue 依赖位置 | 全包依赖 / 仅 designer peerDep | **Vue 仅 designer peerDep；core/renderer 无 Vue 依赖** | renderer 需在无 Vue 环境（Puppeteer/Node）运行 |
+| 204 | 渲染器并发安全 | 有状态单例 / 无状态可并发 | **无状态可并发** | createRenderer() 每次创建独立实例，Puppeteer 可并行调用多个 render() |
+| 205 | Schema 未知字段处理 | 丢弃 / 保留 | **全层 spread + 透明截取，保留未知字段** | 避免导入导出丢失业务附加信息和插件扩展数据 |
+| 206 | 自定义物料支持 | v1 支持 / v1 不支持 | **v1 不支持自定义物料** | 先稳定内置物料体系，自定义物料 API 留到 v2 |
+| 207 | CSS 物理单位屏幕预览补偿 | 做 DPI 补偿 / 不补偿 | **不补偿** | 屏幕预览仅供参考，打印保真是唯一硬目标；补偿逻辑复杂且跨设备不一致 |
+| 208 | 渲染器 CSS 单位跟随策略 | 固定 mm / 跟随 page.unit | **跟随 page.unit** | mm 模板输出 CSS mm、pt 模板输出 CSS pt、inch 模板输出 CSS in；schema 值直接用作 CSS 数值不截断 |
+| 209 | 单位切换精度 | 不限制 / 保留 N 位小数 | **保留小数后 3 位** | 切换单位时写入 schema；两阶段渲染反算（px->unit）也保留 3 位；CSS 输出不截断 |
+| 210 | 两阶段渲染测量单位 | 测量用 px / 测量用 page.unit | **测量和最终渲染都用 page.unit** | 离屏 DOM 也用 page.unit CSS 单位定位，getBoundingClientRect 取 px 后反算回 unit，统一流程避免单位混乱 |

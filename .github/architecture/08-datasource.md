@@ -4,16 +4,18 @@
 
 数据源结构由集成方在初始化时注册，而非模板设计用户定义。`TemplateSchema` 中不存储 `dataSource`，物料仅通过 `binding.path` 记录“这个值来自哪个字段”。
 
+**数据源注册在 designer 层完成**，core 层不包含 DataSourceManager。渲染器只需要消费已准备好的展示值数据对象，不关心字段树结构。
+
 **核心流程：**
 
-1. 开发方通过 `registerDataSource()` 注册字段树，仅用于设计器展示与拖放。
+1. 开发方通过 `<EasyInkDesigner :data-sources="[...]" />` 传入字段树，仅用于设计器展示与拖放。
 2. 设计器左侧展示字段树，用户把叶子字段拖到物料上完成绑定。
 3. 运行时业务方准备好展示值数据对象。
 4. 渲染器读取 `binding.path`，按简单路径解析规则取值并装填 DOM。
 
 **关键设计决策：**
 
-- **字段树只服务设计器**：注册结构不进入 Schema，也不参与运行时复杂计算。
+- **字段树只服务设计器**：注册结构不进入 Schema，也不参与运行时复杂计算。注册在 designer 层（通过 props 传入），不在 core 层。
 - **运行时数据必须是展示值**：金额、日期、地址拼接、条件分支等在业务层完成。
 - **扁平 + 对象数组共存**：运行时数据接受 `Record<string, unknown>`，值可以是标量或对象数组（仅一层嵌套）。
 - **点路径绑定**：`binding.path` 支持 `key` 和 `arrayKey.field` 两种形式。
@@ -21,7 +23,8 @@
 - **禁止 key 含点号**：避免扁平 key 与点路径歧义。
 - **同 data-table 同源约束**：同一个 data-table 的所有列必须来自同一个对象数组前缀。
 - **不支持深层对象直绑**：复杂结构由业务方先拍平或预生成展示字段。
-- **字段冲突仅告警，不覆盖先注册项**：同名字段注册冲突时保留首个定义，避免历史模板绑定语义漂移。
+- **fullPath 唯一性**：字段唯一性以 `fullPath`（或默认 `key`）为标识。不同 DataSourceRegistration 中的叶子 key 允许重复，但最终 fullPath 必须全局唯一。
+- **字段冲突仅告警，不覆盖先注册项**：同名 fullPath 注册冲突时保留首个定义，避免历史模板绑定语义漂移。
 
 ## 8.3 注册 API
 
@@ -66,52 +69,57 @@ interface DataSourceRegistration {
 
 ## 8.2 数据源注册接口
 
-```typescript
-// --- 初始化时注册字段树 ---
-const engine = new EasyInkEngine({
-  dataSources: [
-    {
-      displayName: '订单数据',
-      icon: 'order-icon',
-      fields: [
-        { key: 'orderNo', title: '订单号' },
-        {
-          title: '客户信息',   // 纯展示分组节点，无 key
-          children: [
-            { key: 'customerName', title: '客户名称' },
-            { key: 'customerPhone', title: '联系电话' },
-          ],
-        },
-        {
-          title: '订单明细',   // 分组节点（实际对应对象数组，但注册时不做区分）
-          children: [
-            { key: 'itemName', title: '商品名称', fullPath: 'orderItems.itemName' },
-            { key: 'itemQty', title: '数量', fullPath: 'orderItems.itemQty' },
-            { key: 'itemPrice', title: '单价', fullPath: 'orderItems.itemPrice' },
-            { key: 'itemAmount', title: '金额', fullPath: 'orderItems.itemAmount' },
-          ],
-        },
-      ],
-    },
-    {
-      displayName: '公司信息',
-      icon: 'company-icon',
-      fields: [
-        { key: 'companyName', title: '公司名称' },
-        { key: 'companyAddress', title: '公司地址' },
-        { key: 'companyLogo', title: '公司Logo' },
-      ],
-    },
-  ],
-})
+数据源通过设计器 Vue 组件的 `dataSources` prop 传入：
 
-// --- 设计器运行期间可替换字段树（如业务模块切换） ---
-engine.unregisterDataSource('订单数据')
-engine.registerDataSource({
-  displayName: '发票数据',
-  fields: [ /* ... */ ],
-})
+```vue
+<template>
+  <EasyInkDesigner
+    v-model:schema="schema"
+    :data-sources="dataSources"
+  />
+</template>
+
+<script setup>
+import { EasyInkDesigner } from '@easyink/designer'
+
+const dataSources = [
+  {
+    displayName: '订单数据',
+    icon: 'order-icon',
+    fields: [
+      { key: 'orderNo', title: '订单号' },
+      {
+        title: '客户信息',   // 纯展示分组节点，无 key
+        children: [
+          { key: 'customerName', title: '客户名称' },
+          { key: 'customerPhone', title: '联系电话' },
+        ],
+      },
+      {
+        title: '订单明细',   // 分组节点（实际对应对象数组，但注册时不做区分）
+        children: [
+          { key: 'itemName', title: '商品名称', fullPath: 'orderItems.itemName' },
+          { key: 'itemQty', title: '数量', fullPath: 'orderItems.itemQty' },
+          { key: 'itemPrice', title: '单价', fullPath: 'orderItems.itemPrice' },
+          { key: 'itemAmount', title: '金额', fullPath: 'orderItems.itemAmount' },
+        ],
+      },
+    ],
+  },
+  {
+    displayName: '公司信息',
+    icon: 'company-icon',
+    fields: [
+      { key: 'companyName', title: '公司名称' },
+      { key: 'companyAddress', title: '公司地址' },
+      { key: 'companyLogo', title: '公司Logo' },
+    ],
+  },
+]
+</script>
 ```
+
+数据源通过 Vue 响应式 prop 传入，修改 `dataSources` 数组即可动态更新字段树（如业务模块切换时替换数据源）。
 
 ### 8.2.1 字段冲突策略
 

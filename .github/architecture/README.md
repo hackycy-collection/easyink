@@ -7,7 +7,10 @@
 - 运行时只保留 DOM 渲染与简单字段绑定
 - 动态计算、内建打印/PDF/图片导出不再属于核心承诺
 - 复杂展示值由业务方在渲染前预装配
-- 布局采用坐标驱动 + 按 y 排序的整体推移模型
+- 布局采用坐标驱动 + 按 y 排序的整体推移模型（设计器不做推移，纯坐标定位）
+- 渲染器根据 `page.unit` 直出对应 CSS 物理单位（mm/pt/in）DOM，async render 等待全部资源后返回
+- renderer/designer 内置所有内置物料，消费者无需手动注册
+- 数据源注册从 core 层移入 designer 层
 
 ## 目录
 
@@ -46,10 +49,26 @@
 - 外部图片、背景图、字体等资源只保存引用；上传、缓存、离线和失效恢复不属于框架职责
 - Schema 加载默认最大化可打开；仅顶层结构损坏或恶意路径触发拒绝加载
 - 高于当前库版本的 Schema 采用 best-effort 打开并给出诊断，而不是直接拒绝
-- 运行时 diagnostics 以逐条事件流为主通道；`render()` 返回值保持 DOM 与测量结果导向
+- 运行时 diagnostics 通过 `render()` 参数中的 `onDiagnostic` 回调逐条发出；`render()` 返回值保持 DOM 与测量结果导向
 - 设计器优先充当容错打开器；未知物料、缺失编辑器、资源失效等问题在画布上以明显占位块直接可见
 - 近两版仅稳定最小消费面；`@easyink/renderer` 必须可脱离 `@easyink/designer` 单独使用
 - 构建产物以 ESM 为主，额外提供 CDN 用 IIFE 兼容包，且以 renderer 为更高优先级
+- `render()` 为 async 方法，等待所有资源（字体、图片）加载后返回；单个资源加载失败不阻断，通过诊断回调通知
+- 渲染器根据 `page.unit` 直出对应 CSS 物理单位（mm -> `mm`、pt -> `pt`、inch -> `in`），并自动注入 `@page { size }` 打印样式，单位同样跟随 `page.unit`
+- 设计器使用 Shadow DOM 做样式隔离；渲染器使用局部 `<style>` + 哈希前缀 + 内联样式
+- 两阶段渲染：先在隐藏 DOM 容器中测量 auto-height 物料，再一次性渲染最终 DOM
+- renderer/designer 直接依赖所有内置物料包，消费者无需手动注册
+- 物料包作为独立 npm 内部包组织代码，保留三层子路径导出，但不推荐消费者直接使用
+- 设计器画布不做推移布局，纯坐标定位，也不做溢出诊断；运行时推移是运行时语义
+- 数据源字段树注册移入 designer 层，core 不再包含 DataSourceManager
+- 物料类型定义新增 `causesPush`（是否触发推移）和 `canRotate`（是否可旋转）声明
+- MaterialNode.id 使用 nanoid 生成
+- 跨模板复制粘贴时重新生成 ID，保留绑定路径
+- 设计器对外暴露为 Vue 组件 `<EasyInkDesigner />`，支持 v-model:schema
+- 工作台偏好持久化通过 PreferenceProvider 接口由消费者实现（异步 load/save）
+- 富文本物料 props.content 存储纯 HTML 字符串，属性面板中以源码编辑方式编辑
+- 富文本 sanitize 由业务方负责，框架不内置 sanitizer
+- 对齐/分布操作修改声明坐标，推移是运行时叠加效果
 
 ## 快速导航
 

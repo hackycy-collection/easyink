@@ -164,7 +164,7 @@ type BackgroundPosition =
 
 ```typescript
 interface MaterialNode {
-  /** 全局唯一 ID */
+  /** 全局唯一 ID（nanoid 生成，短且 URL 安全） */
   id: string
   /** 物料类型标识（可被插件扩展） */
   type: string
@@ -225,7 +225,14 @@ interface MaterialStyle {
 }
 ```
 
-### 5.3.1 坐标推移语义
+### 5.3.1 MaterialNode.id 生成与跨模板粘贴
+
+- `MaterialNode.id` 使用 `nanoid` 生成，短且 URL 安全（无中划线，不与 CSS 选择器冲突）。
+- 同一模板内 ID 必须唯一。
+- **跨模板粘贴**：粘贴时重新生成所有节点 ID，但保留 `binding.path`（绑定路径是数据源语义，跨模板仍可能有效）。
+- **同模板内复制粘贴**：同样重新生成 ID，避免重复。
+
+### 5.3.2 坐标推移语义
 
 - 所有物料都以坐标形式存储，不再在 DSL 中区分传统 `absolute` / `flow` 两种布局模式。
 - 布局引擎会按 `y` 坐标升序处理物料；若前序物料实际高度超出估算值，则默认把后续未锁定物料整体向下推。

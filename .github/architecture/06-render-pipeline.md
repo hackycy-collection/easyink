@@ -29,18 +29,43 @@ Schema JSON
 ## 6.2 渲染器接口
 
 ```typescript
+/**
+ * 创建渲染器实例
+ * 所有内置物料渲染函数已自动包含，消费者无需手动注册。
+ */
+function createRenderer(options?: RendererOptions): Renderer
+
+interface RendererOptions {
+  /** 字体提供者（可选） */
+  fontProvider?: FontProvider
+}
+
 interface Renderer {
   readonly name: string
 
-  on(event: 'diagnostic', listener: (event: RenderDiagnosticEvent) => void): () => void
-
   /**
    * 将 Schema 渲染到目标容器。
-  * data 必须已经是展示值数据，不在渲染期做模板动态计算、格式化和条件计算。
+   * data 必须已经是展示值数据，不在渲染期做模板动态计算、格式化和条件计算。
+   *
+   * 内部流程：
+   * 1. 加载字体和图片资源（单个失败不阻断，通过 onDiagnostic 通知）
+   * 2. 离屏 DOM 测量（获取 auto-height 物料的真实尺寸）
+   * 3. 布局计算（基于真实尺寸做推移）
+   * 4. 最终 DOM 渲染（一次性生成）
    */
-  render(schema: TemplateSchema, data: Record<string, unknown>, container: HTMLElement): RenderResult
+  render(
+    schema: TemplateSchema,
+    data: Record<string, unknown>,
+    container: HTMLElement,
+    options?: RenderCallOptions,
+  ): Promise<RenderResult>
 
   destroy(): void
+}
+
+interface RenderCallOptions {
+  /** 诊断回调，渲染过程中逐条发出 */
+  onDiagnostic?: (event: RenderDiagnosticEvent) => void
 }
 
 interface RenderResult {
@@ -67,10 +92,77 @@ interface RenderDiagnosticEvent {
 
 ### 6.2.1 诊断通道
 
-- diagnostics 的主通道是 `diagnostic` 事件流，而不是 `render()` 返回值中的汇总数组。
+- diagnostics 通过 `render()` 参数中的 `onDiagnostic` 回调逐条发出。
 - 事件按渲染过程逐条发出，便于上层应用实时写日志、在打印前阻断或映射为 UI 提示。
 - `render()` 返回值继续聚焦 DOM 页面节点与测量结果，避免把可观测性和 DOM 结果耦合成一个大对象。
-- 上层应用如需批量收集，可自行在一次 `render()` 周期内订阅并缓存事件。
+- 上层应用如需批量收集，可自行在 onDiagnostic 回调中缓存事件。
+
+### 6.2.2 两阶段渲染流程
+
+render() 内部采用两阶段流程解决 auto-height 估算偏差问题：
+
+```
+第一阶段（离屏测量）：
+1. 创建 visibility:hidden + position:absolute 的隶屏容器
+2. 将所有 auto-height 物料渲染到隶屏容器中
+3. 读取真实 DOM 尺寸
+4. 移除隶屏容器
+
+第二阶段（最终渲染）：
+1. 用真实尺寸执行 LayoutEngine.calculate()
+2. 基于最终布局结果一次性生成最终 DOM
+3. 插入目标 container
+```
+
+此流程避免了两趟全量 DOM 操作，第一阶段只渲染需要测量的物料。
+
+### 6.2.3 样式隔离策略
+
+渲染器采用局部 `<style>` + 哈希前缀 + 内联样式的混合策略，不使用 Shadow DOM（因为 Shadow DOM 在 html-to-image、Puppeteer 和 window.print 场景下存在兼容性问题）：
+
+- **布局相关属性**（position/transform/width/height）：通过 inline style 实现
+- **基线规则**（border-collapse、word-wrap 等）：在 container 内插入一段带哈希前缀的 `<style>` 标签
+- **打印样式**：自动注入 `@page { size: X{unit} Y{unit}; margin: 0 }` 规则，单位跟随 `page.unit`
+
+设计器则使用 Shadow DOM 做样式隔离，因为设计器不需要支持打印场景。
+
+### 6.2.4 CSS 单位策略
+
+渲染器根据 `page.unit` 直出对应的 CSS 物理单位（mm -> `mm`、pt -> `pt`、inch -> `in`）：
+
+```css
+/* mm 模板的渲染产物 */
+.ei-page-abc123 {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+}
+.ei-material-abc123 {
+  position: absolute;
+  left: 15mm;
+  top: 20mm;
+  width: 50mm;
+}
+
+/* pt 模板的渲染产物 */
+.ei-page-abc123 {
+  width: 595.276pt;
+  height: 841.89pt;
+  position: relative;
+}
+.ei-material-abc123 {
+  position: absolute;
+  left: 42.52pt;
+  top: 56.693pt;
+  width: 141.732pt;
+}
+```
+
+- CSS 物理单位让浏览器打印引擎直接处理物理尺寸映射，无需手动 DPI 换算
+- CSS 值直接使用 schema 中存储的数值 + 单位后缀，不截断小数
+- 屏幕预览的视觉尺寸可能与物理尺寸不一致，但打印精度是准确的；框架不做屏幕预览补偿
+- 消费者使用 Puppeteer/Playwright 时需确保工具正确处理 CSS 物理单位
+- 详细单位策略参见 [13-单位系统](./13-unit-system.md)
 
 ## 6.3 运行时边界
 
@@ -109,23 +201,24 @@ renderer.render(schema, preparedDisplayData, container)
 ## 6.5 业务侧组合方式
 
 ```typescript
-const result = renderer.render(schema, preparedDisplayData, container)
+import { createRenderer } from '@easyink/renderer'
+
+const renderer = createRenderer({ fontProvider: myFontProvider })
+
+const diagnostics: RenderDiagnosticEvent[] = []
+const result = await renderer.render(schema, preparedDisplayData, container, {
+  onDiagnostic: (event) => {
+    diagnostics.push(event)
+    console.warn(`[${event.phase}] ${event.code}`, event)
+  },
+})
 
 if (result.overflowed) {
   // 业务侧自行决定：告警、阻止提交、允许打印、另走导出链路
 }
 
 // 业务侧如需 PDF / image：基于 result.page 自行组合 Puppeteer、Playwright、html-to-image 等方案
-```
 
-```typescript
-const stopListen = renderer.on('diagnostic', (event) => {
-  console.warn(`[${event.phase}] ${event.code}`, event)
-})
-
-const result = renderer.render(schema, preparedDisplayData, container)
-
-// 打印或导出完成后释放监听
-stopListen()
 result.dispose()
+renderer.destroy()
 ```
