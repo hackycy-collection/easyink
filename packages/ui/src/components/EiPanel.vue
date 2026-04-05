@@ -5,6 +5,7 @@ const props = defineProps<{
   title: string
   collapsible?: boolean
   closable?: boolean
+  flat?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +16,7 @@ const collapsed = ref(false)
 </script>
 
 <template>
-  <div class="ei-panel" :class="{ 'ei-panel--collapsed': collapsed }">
+  <div class="ei-panel" :class="{ 'ei-panel--collapsed': collapsed, 'ei-panel--flat': flat }">
     <div class="ei-panel__header">
       <span class="ei-panel__title">{{ title }}</span>
       <div class="ei-panel__actions">
@@ -57,7 +58,6 @@ const collapsed = ref(false)
   justify-content: space-between;
   padding: 6px 10px;
   background: var(--ei-panel-header-bg, #fafafa);
-  border-bottom: 1px solid var(--ei-border-color, #d0d0d0);
   user-select: none;
 }
 
@@ -99,5 +99,20 @@ const collapsed = ref(false)
 
 .ei-panel--collapsed .ei-panel__header {
   border-bottom: none;
+}
+
+.ei-panel--flat {
+  border: none;
+  border-radius: 0;
+}
+
+.ei-panel--flat .ei-panel__header {
+  padding: 6px 0;
+  background: transparent;
+  border-bottom-color: var(--ei-border-color, #d0d0d0);
+}
+
+.ei-panel--flat .ei-panel__body {
+  padding: 8px 0;
 }
 </style>

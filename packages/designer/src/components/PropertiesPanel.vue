@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import type { PropSchema } from '../types'
+import { ClearBindingCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
+import { EiCheckbox, EiInput, EiPanel, EiSelect } from '@easyink/ui'
+import { computed, shallowRef, watchEffect } from 'vue'
 import { useDesignerStore } from '../composables'
+import { getPropSchemas, groupPropSchemas } from '../materials/prop-schemas'
+import BindingSection from './BindingSection.vue'
+import PropSchemaEditor from './PropSchemaEditor.vue'
 
 const store = useDesignerStore()
 
@@ -15,135 +21,228 @@ const selectedElement = computed(() =>
 
 const page = computed(() => store.schema.page)
 
+// PropSchema for current material type
+const materialSchemas = computed<PropSchema[]>(() => {
+  if (!selectedElement.value)
+    return []
+  // Check registered MaterialDefinition first
+  const def = store.getMaterial(selectedElement.value.type)
+  if (def && def.props.length > 0)
+    return def.props
+  // Fallback to built-in registry
+  return getPropSchemas(selectedElement.value.type)
+})
+
+// Visible schemas (evaluate visible() predicates)
+const visibleSchemas = computed(() => {
+  const el = selectedElement.value
+  if (!el)
+    return []
+  const elProps = el.props as Record<string, unknown>
+  return materialSchemas.value.filter(s => !s.visible || s.visible(elProps))
+})
+
+// Group visible schemas
+const groupedSchemas = computed(() => groupPropSchemas(visibleSchemas.value))
+
+// Font list from FontManager (async)
+const fontList = shallowRef<Array<{ family: string, displayName: string }>>([])
+const fontManager = (store as unknown as Record<string, unknown>).fontManager
+watchEffect(async () => {
+  // Check if designer store exposes a font manager
+  if (fontManager && typeof (fontManager as { listFonts?: () => Promise<unknown> }).listFonts === 'function') {
+    try {
+      const fonts = await (fontManager as { listFonts: () => Promise<Array<{ family: string, displayName: string }>> }).listFonts()
+      fontList.value = fonts
+    }
+    catch {
+      fontList.value = []
+    }
+  }
+})
+
+// Group label i18n
+const GROUP_LABELS: Record<string, string> = {
+  content: 'designer.property.content',
+  typography: 'designer.property.typography',
+  appearance: 'designer.property.appearance',
+  border: 'designer.property.border',
+  layout: 'designer.property.layout',
+  general: 'designer.property.style',
+}
+
+function groupLabel(group: string): string {
+  const key = GROUP_LABELS[group]
+  return key ? store.t(key) : group
+}
+
+// ─── Command-wrapped updates ────────────────────────────────────────
+
 function updateGeometry(key: string, value: number) {
-  if (!selectedElement.value) return
+  if (!selectedElement.value)
+    return
   store.updateElement(selectedElement.value.id, { [key]: value })
 }
 
-function updatePage(key: string, value: unknown) {
-  Object.assign(store.schema.page, { [key]: value })
+function updateElementMeta(key: string, value: unknown) {
+  if (!selectedElement.value)
+    return
+  store.updateElement(selectedElement.value.id, { [key]: value })
 }
+
+function updateProp(key: string, value: unknown) {
+  const el = selectedElement.value
+  if (!el)
+    return
+  const cmd = new UpdateMaterialPropsCommand(
+    store.schema.elements,
+    el.id,
+    { [key]: value },
+  )
+  store.commands.execute(cmd)
+}
+
+function updatePage(key: string, value: unknown) {
+  const cmd = new UpdatePageCommand(
+    store.schema.page,
+    { [key]: value } as never,
+  )
+  store.commands.execute(cmd)
+}
+
+function clearBinding(nodeId: string) {
+  const cmd = new ClearBindingCommand(store.schema.elements, nodeId)
+  store.commands.execute(cmd)
+}
+
+// ─── Page mode options ──────────────────────────────────────────────
+
+const pageModeOptions = [
+  { label: store.t('designer.page.fixed'), value: 'fixed' },
+  { label: store.t('designer.page.stack'), value: 'stack' },
+  { label: store.t('designer.page.label'), value: 'label' },
+]
 </script>
 
 <template>
   <div class="ei-properties-panel">
     <!-- Element properties: only when a single element is selected -->
     <template v-if="selectedElement">
-      <div class="ei-properties-panel__section">
-        <div class="ei-properties-panel__section-title">
-          {{ store.t('designer.property.position') }} / {{ store.t('designer.property.size') }}
-        </div>
+      <!-- Geometry -->
+      <EiPanel :title="`${store.t('designer.property.position')} / ${store.t('designer.property.size')}`" collapsible flat>
         <div class="ei-properties-panel__grid">
-          <label>X</label>
-          <input
+          <EiInput
+            label="X"
             type="number"
-            :value="selectedElement.x"
-            @change="updateGeometry('x', Number(($event.target as HTMLInputElement).value))"
-          >
-          <label>Y</label>
-          <input
+            :model-value="selectedElement.x"
+            @update:model-value="updateGeometry('x', Number($event))"
+          />
+          <EiInput
+            label="Y"
             type="number"
-            :value="selectedElement.y"
-            @change="updateGeometry('y', Number(($event.target as HTMLInputElement).value))"
-          >
-          <label>W</label>
-          <input
+            :model-value="selectedElement.y"
+            @update:model-value="updateGeometry('y', Number($event))"
+          />
+          <EiInput
+            :label="'W'"
             type="number"
-            :value="selectedElement.width"
-            @change="updateGeometry('width', Number(($event.target as HTMLInputElement).value))"
-          >
-          <label>H</label>
-          <input
+            :model-value="selectedElement.width"
+            @update:model-value="updateGeometry('width', Number($event))"
+          />
+          <EiInput
+            :label="'H'"
             type="number"
-            :value="selectedElement.height"
-            @change="updateGeometry('height', Number(($event.target as HTMLInputElement).value))"
-          >
+            :model-value="selectedElement.height"
+            @update:model-value="updateGeometry('height', Number($event))"
+          />
+          <EiInput
+            :label="store.t('designer.property.rotation')"
+            type="number"
+            :model-value="selectedElement.rotation ?? 0"
+            @update:model-value="updateGeometry('rotation', Number($event))"
+          />
+          <EiInput
+            :label="store.t('designer.property.opacity')"
+            type="number"
+            :model-value="selectedElement.alpha ?? 1"
+            @update:model-value="updateGeometry('alpha', Number($event))"
+          />
         </div>
-      </div>
+      </EiPanel>
 
-      <div class="ei-properties-panel__section">
-        <div class="ei-properties-panel__section-title">
-          {{ store.t('designer.property.rotation') }} / {{ store.t('designer.property.opacity') }}
-        </div>
-        <div class="ei-properties-panel__grid">
-          <label>{{ store.t('designer.property.rotation') }}</label>
-          <input
-            type="number"
-            :value="selectedElement.rotation ?? 0"
-            @change="updateGeometry('rotation', Number(($event.target as HTMLInputElement).value))"
-          >
-          <label>{{ store.t('designer.property.opacity') }}</label>
-          <input
-            type="number"
-            :value="selectedElement.alpha ?? 1"
-            min="0"
-            max="1"
-            step="0.1"
-            @change="updateGeometry('alpha', Number(($event.target as HTMLInputElement).value))"
-          >
-        </div>
-      </div>
-
-      <div class="ei-properties-panel__section">
-        <div class="ei-properties-panel__section-title">
-          {{ store.t('designer.property.style') }}
-        </div>
+      <!-- Material-specific properties (PropSchema-driven) -->
+      <EiPanel
+        v-for="[group, schemas] in groupedSchemas"
+        :key="group"
+        :title="groupLabel(group)"
+        collapsible
+        flat
+      >
         <div class="ei-properties-panel__fields">
-          <label>
-            <input
-              type="checkbox"
-              :checked="selectedElement.hidden"
-              @change="store.updateElement(selectedElement!.id, { hidden: ($event.target as HTMLInputElement).checked })"
-            >
-            {{ store.t('designer.property.hidden') }}
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              :checked="selectedElement.locked"
-              @change="store.updateElement(selectedElement!.id, { locked: ($event.target as HTMLInputElement).checked })"
-            >
-            {{ store.t('designer.property.locked') }}
-          </label>
+          <PropSchemaEditor
+            v-for="schema in schemas"
+            :key="schema.key"
+            :schema="schema"
+            :value="(selectedElement.props as Record<string, unknown>)[schema.key]"
+            :disabled="schema.disabled ? schema.disabled(selectedElement.props as Record<string, unknown>) : false"
+            :fonts="fontList"
+            :t="store.t.bind(store)"
+            @change="updateProp"
+          />
         </div>
-      </div>
+      </EiPanel>
+
+      <!-- Data binding -->
+      <EiPanel :title="store.t('designer.property.dataBinding')" collapsible flat>
+        <BindingSection
+          :element="selectedElement"
+          :t="store.t.bind(store)"
+          @clear-binding="clearBinding"
+        />
+      </EiPanel>
+
+      <!-- Visibility / Lock -->
+      <EiPanel :title="store.t('designer.property.style')" collapsible flat>
+        <div class="ei-properties-panel__fields">
+          <EiCheckbox
+            :label="store.t('designer.property.hidden')"
+            :model-value="selectedElement.hidden ?? false"
+            @update:model-value="updateElementMeta('hidden', $event)"
+          />
+          <EiCheckbox
+            :label="store.t('designer.property.locked')"
+            :model-value="selectedElement.locked ?? false"
+            @update:model-value="updateElementMeta('locked', $event)"
+          />
+        </div>
+      </EiPanel>
     </template>
 
-    <!-- Page properties: always visible -->
-    <div class="ei-properties-panel__section">
-      <div class="ei-properties-panel__section-title">
-        {{ store.t('designer.page.title') }}
-      </div>
-      <div class="ei-properties-panel__grid">
-        <label>{{ store.t('designer.page.width') }}</label>
-        <input
+    <!-- Page properties: only when no element is selected -->
+    <template v-if="!selectedElement">
+      <EiPanel :title="store.t('designer.page.title')" collapsible flat>
+      <div class="ei-properties-panel__fields">
+        <EiInput
+          :label="store.t('designer.page.width')"
           type="number"
-          :value="page.width"
-          @change="updatePage('width', Number(($event.target as HTMLInputElement).value))"
-        >
-        <label>{{ store.t('designer.page.height') }}</label>
-        <input
+          :model-value="page.width"
+          @update:model-value="updatePage('width', Number($event))"
+        />
+        <EiInput
+          :label="store.t('designer.page.height')"
           type="number"
-          :value="page.height"
-          @change="updatePage('height', Number(($event.target as HTMLInputElement).value))"
-        >
-        <label>{{ store.t('designer.page.mode') }}</label>
-        <select
-          :value="page.mode"
-          @change="updatePage('mode', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="fixed">
-            {{ store.t('designer.page.fixed') }}
-          </option>
-          <option value="stack">
-            {{ store.t('designer.page.stack') }}
-          </option>
-          <option value="label">
-            {{ store.t('designer.page.label') }}
-          </option>
-        </select>
+          :model-value="page.height"
+          @update:model-value="updatePage('height', Number($event))"
+        />
+        <EiSelect
+          :label="store.t('designer.page.mode')"
+          :model-value="page.mode"
+          :options="pageModeOptions"
+          @update:model-value="updatePage('mode', $event)"
+        />
       </div>
-    </div>
+    </EiPanel>
+    </template>
   </div>
 </template>
 
@@ -151,61 +250,20 @@ function updatePage(key: string, value: unknown) {
 .ei-properties-panel {
   width: 100%;
   font-size: 13px;
-}
-
-.ei-properties-panel__section {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--ei-border-color, #eee);
-}
-
-.ei-properties-panel__section-title {
-  font-weight: 500;
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.ei-properties-panel__grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 8px;
-  align-items: center;
-}
-
-.ei-properties-panel__grid label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
-}
-
-.ei-properties-panel__grid input,
-.ei-properties-panel__grid select {
-  padding: 3px 6px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 3px;
-  font-size: 12px;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.ei-properties-panel__grid input:focus,
-.ei-properties-panel__grid select:focus {
-  border-color: var(--ei-primary, #1890ff);
-}
-
-.ei-properties-panel__fields {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.ei-properties-panel__fields label {
+.ei-properties-panel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.ei-properties-panel__fields {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  cursor: pointer;
+  flex-direction: column;
+  gap: 6px;
 }
 </style>

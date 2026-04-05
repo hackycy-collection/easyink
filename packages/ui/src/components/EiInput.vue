@@ -31,6 +31,7 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .ei-input__label {
@@ -46,6 +47,9 @@ defineEmits<{
   outline: none;
   background: var(--ei-input-bg, #fff);
   color: var(--ei-text, #333);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ei-input:focus {
