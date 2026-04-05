@@ -48,6 +48,7 @@
     "vite": "catalog:cli",
     "vitest": "catalog:testing",
     "vitest-package-exports": "catalog:testing",
+    "vue-tsc": "catalog:cli",
     "yaml": "catalog:testing"
   },
   "simple-git-hooks": {

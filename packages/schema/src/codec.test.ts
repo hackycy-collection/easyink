@@ -1,0 +1,85 @@
+import type { BenchmarkDocumentInput } from './codec'
+import { describe, expect, it } from 'vitest'
+import { decodeBenchmarkInput, encodeToBenchmark } from './codec'
+
+describe('decodeBenchmarkInput', () => {
+  it('maps page fields from benchmark to canonical', () => {
+    const input: BenchmarkDocumentInput = {
+      page: { viewer: 'fixed', width: 100, height: 200 },
+      elements: [],
+    }
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.page.mode).toBe('fixed')
+    expect(schema.page.width).toBe(100)
+    expect(schema.page.height).toBe(200)
+  })
+
+  it('maps guides from x/y arrays', () => {
+    const input: BenchmarkDocumentInput = {
+      x: [10, 20],
+      y: [30],
+      page: {},
+      elements: [],
+    }
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.guides.x).toEqual([10, 20])
+    expect(schema.guides.y).toEqual([30])
+  })
+
+  it('maps element fields', () => {
+    const input: BenchmarkDocumentInput = {
+      page: {},
+      elements: [
+        { id: 'el1', type: 'text', x: 5, y: 10, width: 50, height: 20 },
+      ],
+    }
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.elements).toHaveLength(1)
+    const el = schema.elements[0]!
+    expect(el.id).toBe('el1')
+    expect(el.type).toBe('text')
+    expect(el.x).toBe(5)
+    expect(el.y).toBe(10)
+    expect(el.width).toBe(50)
+    expect(el.height).toBe(20)
+  })
+
+  it('sets default unit to mm', () => {
+    const input: BenchmarkDocumentInput = { page: {}, elements: [] }
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.unit).toBe('mm')
+  })
+
+  it('uses provided unit', () => {
+    const input: BenchmarkDocumentInput = { unit: 'pt', page: {}, elements: [] }
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.unit).toBe('pt')
+  })
+})
+
+describe('encodeToBenchmark', () => {
+  it('round-trips a basic schema', () => {
+    const input: BenchmarkDocumentInput = {
+      unit: 'mm',
+      x: [10],
+      y: [20],
+      page: { viewer: 'fixed', width: 210, height: 297 },
+      elements: [
+        { id: 'e1', type: 'text', x: 0, y: 0, width: 100, height: 50 },
+      ],
+    }
+
+    const schema = decodeBenchmarkInput(input)
+    const output = encodeToBenchmark(schema)
+
+    expect(output.unit).toBe('mm')
+    expect(output.x).toEqual([10])
+    expect(output.y).toEqual([20])
+    expect(output.page.viewer).toBe('fixed')
+    expect(output.page.width).toBe(210)
+    expect(output.page.height).toBe(297)
+    expect(output.elements).toHaveLength(1)
+    expect(output.elements[0]!.id).toBe('e1')
+    expect(output.elements[0]!.type).toBe('text')
+  })
+})

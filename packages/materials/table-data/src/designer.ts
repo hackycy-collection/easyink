@@ -1,0 +1,11 @@
+import type { MaterialNode } from '@easyink/schema'
+
+export function getTableDataContextActions(_node: MaterialNode) {
+  return [
+    { id: 'insert-row', label: 'Insert Row' },
+    { id: 'insert-col', label: 'Insert Column' },
+    { id: 'delete-row', label: 'Delete Row' },
+    { id: 'delete-col', label: 'Delete Column' },
+    { id: 'bind-datasource', label: 'Bind Data Source' },
+  ]
+}

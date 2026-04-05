@@ -1,0 +1,27 @@
+{
+  "name": "@easyink/ui",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "UI components for EasyInk designer workbench",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json",
+    "./index.css": "./dist/index.css"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@easyink/icons": "workspace:*",
+    "@easyink/shared": "workspace:*",
+    "vue": "catalog:framework"
+  }
+}

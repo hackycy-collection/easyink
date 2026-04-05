@@ -1,0 +1,230 @@
+<script setup lang="ts">
+import { useDesignerStore } from '../composables'
+import { createDefaultWorkbenchState } from '../store/workbench'
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+const store = useDesignerStore()
+const toolbar = store.workbench.toolbar
+
+function setAlign(align: 'start' | 'center' | 'end') {
+  toolbar.align = align
+}
+
+function toggleGroup(id: string) {
+  const group = toolbar.groups.find(g => g.id === id)
+  if (group) group.hidden = !group.hidden
+}
+
+function toggleDivider(id: string) {
+  const group = toolbar.groups.find(g => g.id === id)
+  if (group) group.hideDivider = !group.hideDivider
+}
+
+function restoreDefault() {
+  const defaults = createDefaultWorkbenchState().toolbar
+  toolbar.align = defaults.align
+  toolbar.groups.splice(0, toolbar.groups.length, ...defaults.groups)
+}
+
+function groupLabel(id: string): string {
+  return store.t(`designer.toolbar.${groupLabelKey(id)}`)
+}
+
+function groupLabelKey(id: string): string {
+  const map: Record<string, string> = {
+    'undo-redo': 'undo',
+    'new-clear': 'newTemplate',
+    'font': 'bold',
+    'rotation': 'rotation',
+    'visibility': 'snapToGrid',
+    'select': 'selectAll',
+    'distribute': 'distribute',
+    'align': 'alignLeft',
+    'layer': 'layerUp',
+    'group': 'group',
+    'lock': 'lock',
+    'clipboard': 'copy',
+    'snap': 'snapToGrid',
+  }
+  return map[id] || id
+}
+</script>
+
+<template>
+  <div class="ei-toolbar-manager" @click.stop>
+    <div class="ei-toolbar-manager__header">
+      <span>{{ store.t('designer.toolbar.manager') }}</span>
+      <button class="ei-toolbar-manager__close" @click="emit('close')">
+        x
+      </button>
+    </div>
+
+    <div class="ei-toolbar-manager__section">
+      <span class="ei-toolbar-manager__label">{{ store.t('designer.toolbar.alignLeft') }}</span>
+      <div class="ei-toolbar-manager__align-group">
+        <button
+          :class="{ 'ei-toolbar-manager__align--active': toolbar.align === 'start' }"
+          @click="setAlign('start')"
+        >
+          L
+        </button>
+        <button
+          :class="{ 'ei-toolbar-manager__align--active': toolbar.align === 'center' }"
+          @click="setAlign('center')"
+        >
+          C
+        </button>
+        <button
+          :class="{ 'ei-toolbar-manager__align--active': toolbar.align === 'end' }"
+          @click="setAlign('end')"
+        >
+          R
+        </button>
+      </div>
+    </div>
+
+    <div class="ei-toolbar-manager__list">
+      <div
+        v-for="group in toolbar.groups"
+        :key="group.id"
+        class="ei-toolbar-manager__item"
+      >
+        <label class="ei-toolbar-manager__checkbox">
+          <input
+            type="checkbox"
+            :checked="!group.hidden"
+            @change="toggleGroup(group.id)"
+          >
+          {{ groupLabel(group.id) }}
+        </label>
+        <label class="ei-toolbar-manager__checkbox ei-toolbar-manager__checkbox--secondary">
+          <input
+            type="checkbox"
+            :checked="!group.hideDivider"
+            @change="toggleDivider(group.id)"
+          >
+          |
+        </label>
+      </div>
+    </div>
+
+    <div class="ei-toolbar-manager__footer">
+      <button class="ei-toolbar-manager__restore" @click="restoreDefault">
+        {{ store.t('designer.toolbar.restoreDefault') }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.ei-toolbar-manager {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  width: 240px;
+  background: var(--ei-panel-bg, #fff);
+  border: 1px solid var(--ei-border-color, #e0e0e0);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+}
+
+.ei-toolbar-manager__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--ei-border-color, #e0e0e0);
+}
+
+.ei-toolbar-manager__close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ei-text-secondary, #999);
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.ei-toolbar-manager__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--ei-border-color, #eee);
+}
+
+.ei-toolbar-manager__label {
+  color: var(--ei-text-secondary, #666);
+}
+
+.ei-toolbar-manager__align-group {
+  display: flex;
+  gap: 2px;
+}
+
+.ei-toolbar-manager__align-group button {
+  padding: 2px 8px;
+  border: 1px solid var(--ei-border-color, #d0d0d0);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.ei-toolbar-manager__align--active {
+  background: var(--ei-primary, #1890ff) !important;
+  color: #fff;
+  border-color: var(--ei-primary, #1890ff) !important;
+}
+
+.ei-toolbar-manager__list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.ei-toolbar-manager__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 10px;
+}
+
+.ei-toolbar-manager__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.ei-toolbar-manager__checkbox--secondary {
+  color: var(--ei-text-secondary, #999);
+  font-size: 11px;
+}
+
+.ei-toolbar-manager__footer {
+  padding: 6px 10px;
+  border-top: 1px solid var(--ei-border-color, #eee);
+}
+
+.ei-toolbar-manager__restore {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--ei-border-color, #d0d0d0);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ei-text, #333);
+}
+
+.ei-toolbar-manager__restore:hover {
+  background: var(--ei-hover-bg, #f0f0f0);
+}
+</style>

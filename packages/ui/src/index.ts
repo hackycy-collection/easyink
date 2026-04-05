@@ -1,0 +1,8 @@
+export { default as EiButton } from './components/EiButton.vue'
+export { default as EiCheckbox } from './components/EiCheckbox.vue'
+export { default as EiColorPicker } from './components/EiColorPicker.vue'
+export { default as EiIcon } from './components/EiIcon.vue'
+export { default as EiInput } from './components/EiInput.vue'
+export { default as EiPanel } from './components/EiPanel.vue'
+export { default as EiSelect } from './components/EiSelect.vue'
+export { default as EiTree } from './components/EiTree.vue'

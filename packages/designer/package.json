@@ -1,0 +1,32 @@
+{
+  "name": "@easyink/designer",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "EasyInk document/report designer workbench",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./locale/zh-CN": "./dist/locale/zh-CN.mjs",
+    "./package.json": "./package.json",
+    "./index.css": "./dist/index.css"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@easyink/core": "workspace:*",
+    "@easyink/datasource": "workspace:*",
+    "@easyink/icons": "workspace:*",
+    "@easyink/schema": "workspace:*",
+    "@easyink/shared": "workspace:*",
+    "@easyink/ui": "workspace:*",
+    "vue": "catalog:framework"
+  }
+}

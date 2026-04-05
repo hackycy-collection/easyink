@@ -1,0 +1,320 @@
+import type { DocumentSchema } from './types'
+import { isObject } from '@easyink/shared'
+
+/**
+ * Benchmark (report-designer) compatibility input format.
+ */
+export interface BenchmarkDocumentInput {
+  unit?: string
+  x?: number[]
+  y?: number[]
+  g?: unknown[]
+  page: Record<string, unknown>
+  elements: BenchmarkElementInput[]
+  [key: string]: unknown
+}
+
+export interface BenchmarkElementInput {
+  id?: string
+  type?: string
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  [key: string]: unknown
+}
+
+/**
+ * Page field mapping from benchmark -> canonical.
+ */
+const PAGE_FIELD_MAP: Record<string, string> = {
+  viewer: 'mode',
+  width: 'width',
+  height: 'height',
+  pages: 'pages',
+  scale: 'scale',
+  radius: 'radius',
+  xOffset: 'offsetX',
+  yOffset: 'offsetY',
+  copies: 'copies',
+  blank: 'blankPolicy',
+  font: 'font',
+}
+
+/**
+ * Decode a benchmark-format document into canonical DocumentSchema.
+ */
+export function decodeBenchmarkInput(input: BenchmarkDocumentInput): DocumentSchema {
+  const passthrough: Record<string, unknown> = {}
+
+  // Guides
+  const guidesX = Array.isArray(input.x) ? input.x : []
+  const guidesY = Array.isArray(input.y) ? input.y : []
+
+  // Page
+  const rawPage = isObject(input.page) ? input.page : {}
+  const page: Record<string, unknown> = {}
+
+  for (const [rawKey, canonicalKey] of Object.entries(PAGE_FIELD_MAP)) {
+    if (rawKey in rawPage) {
+      page[canonicalKey] = rawPage[rawKey]
+    }
+  }
+
+  // Label config
+  if ('labelCol' in rawPage || 'labelGap' in rawPage) {
+    page.label = {
+      columns: rawPage.labelCol ?? 1,
+      gap: rawPage.labelGap ?? 0,
+    }
+  }
+
+  // Grid config
+  if ('gridWidth' in rawPage || 'gridHeight' in rawPage) {
+    page.grid = {
+      enabled: true,
+      width: rawPage.gridWidth ?? 10,
+      height: rawPage.gridHeight ?? 10,
+    }
+  }
+
+  // Background
+  const bg: Record<string, unknown> = {}
+  if ('background' in rawPage) {
+    const bgVal = rawPage.background
+    if (typeof bgVal === 'string') {
+      if (bgVal.startsWith('http') || bgVal.startsWith('data:')) {
+        bg.image = bgVal
+      }
+      else {
+        bg.color = bgVal
+      }
+    }
+  }
+  if ('backgroundRepeat' in rawPage)
+    bg.repeat = rawPage.backgroundRepeat
+  if ('backgroundWidth' in rawPage)
+    bg.width = rawPage.backgroundWidth
+  if ('backgroundHeight' in rawPage)
+    bg.height = rawPage.backgroundHeight
+  if ('backgroundXOffset' in rawPage)
+    bg.offsetX = rawPage.backgroundXOffset
+  if ('backgroundYOffset' in rawPage)
+    bg.offsetY = rawPage.backgroundYOffset
+  if (Object.keys(bg).length > 0) {
+    page.background = bg
+  }
+
+  // Collect passthrough
+  const knownPageKeys = new Set([
+    ...Object.keys(PAGE_FIELD_MAP),
+    'labelCol',
+    'labelGap',
+    'gridWidth',
+    'gridHeight',
+    'background',
+    'backgroundRepeat',
+    'backgroundWidth',
+    'backgroundHeight',
+    'backgroundXOffset',
+    'backgroundYOffset',
+  ])
+  for (const key of Object.keys(rawPage)) {
+    if (!knownPageKeys.has(key)) {
+      passthrough[`page.${key}`] = rawPage[key]
+    }
+  }
+
+  // Top-level passthrough
+  const knownTopKeys = new Set(['unit', 'x', 'y', 'g', 'page', 'elements'])
+  for (const key of Object.keys(input)) {
+    if (!knownTopKeys.has(key)) {
+      passthrough[key] = input[key]
+    }
+  }
+
+  // Elements
+  const elements = Array.isArray(input.elements)
+    ? input.elements.map(decodeBenchmarkElement)
+    : []
+
+  const schema: DocumentSchema = {
+    version: '1.0.0',
+    unit: (input.unit as DocumentSchema['unit']) || 'mm',
+    page: {
+      mode: 'fixed',
+      width: 210,
+      height: 297,
+      ...page,
+    } as DocumentSchema['page'],
+    guides: {
+      x: guidesX,
+      y: guidesY,
+      groups: Array.isArray(input.g)
+        ? input.g.map((g, i) => ({
+          id: `g_${i}`,
+          x: [],
+          y: [],
+          ...(isObject(g) ? g : {}),
+        })) as DocumentSchema['guides']['groups']
+        : undefined,
+    },
+    elements,
+  }
+
+  if (Object.keys(passthrough).length > 0) {
+    schema.compat = { passthrough }
+  }
+
+  if (input.g) {
+    schema.compat = { ...schema.compat, rawGuideGroupKey: 'g' }
+  }
+
+  return schema
+}
+
+function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['elements'][number] {
+  const { id, type, x = 0, y = 0, width = 100, height = 50, ...rest } = input
+
+  const knownKeys = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'alpha', 'hidden', 'locked', 'zIndex', 'name', 'print'])
+  const props: Record<string, unknown> = {}
+  const passthroughProps: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(rest)) {
+    if (knownKeys.has(key))
+      continue
+    props[key] = value
+  }
+
+  const node: DocumentSchema['elements'][number] = {
+    id: id || `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    type: type || 'unknown',
+    x,
+    y,
+    width,
+    height,
+    props,
+  }
+
+  if (rest.rotation != null)
+    node.rotation = rest.rotation as number
+  if (rest.alpha != null)
+    node.alpha = rest.alpha as number
+  if (rest.hidden != null)
+    node.hidden = rest.hidden as boolean
+  if (rest.locked != null)
+    node.locked = rest.locked as boolean
+  if (rest.zIndex != null)
+    node.zIndex = rest.zIndex as number
+  if (rest.name != null)
+    node.name = rest.name as string
+  if (rest.print != null)
+    node.print = rest.print as DocumentSchema['elements'][number]['print']
+
+  if (Object.keys(passthroughProps).length > 0) {
+    node.compat = { rawProps: passthroughProps }
+  }
+
+  return node
+}
+
+/**
+ * Encode canonical DocumentSchema back to benchmark format.
+ */
+export function encodeToBenchmark(schema: DocumentSchema): BenchmarkDocumentInput {
+  const page: Record<string, unknown> = {}
+
+  // Reverse page field mapping
+  const reversePageMap: Record<string, string> = {}
+  for (const [rawKey, canonicalKey] of Object.entries(PAGE_FIELD_MAP)) {
+    reversePageMap[canonicalKey] = rawKey
+  }
+
+  for (const [canKey, rawKey] of Object.entries(reversePageMap)) {
+    const value = (schema.page as unknown as Record<string, unknown>)[canKey]
+    if (value !== undefined) {
+      page[rawKey] = value
+    }
+  }
+
+  // Label
+  if (schema.page.label) {
+    page.labelCol = schema.page.label.columns
+    page.labelGap = schema.page.label.gap
+  }
+
+  // Grid
+  if (schema.page.grid) {
+    page.gridWidth = schema.page.grid.width
+    page.gridHeight = schema.page.grid.height
+  }
+
+  // Background
+  if (schema.page.background) {
+    const bg = schema.page.background
+    page.background = bg.image || bg.color
+    if (bg.repeat)
+      page.backgroundRepeat = bg.repeat
+    if (bg.width)
+      page.backgroundWidth = bg.width
+    if (bg.height)
+      page.backgroundHeight = bg.height
+    if (bg.offsetX)
+      page.backgroundXOffset = bg.offsetX
+    if (bg.offsetY)
+      page.backgroundYOffset = bg.offsetY
+  }
+
+  const result: BenchmarkDocumentInput = {
+    unit: schema.unit,
+    x: schema.guides.x,
+    y: schema.guides.y,
+    page,
+    elements: schema.elements.map(encodeBenchmarkElement),
+  }
+
+  if (schema.guides.groups) {
+    result.g = schema.guides.groups
+  }
+
+  // Restore passthrough
+  if (schema.compat?.passthrough) {
+    for (const [key, value] of Object.entries(schema.compat.passthrough)) {
+      if (!key.startsWith('page.')) {
+        result[key] = value
+      }
+    }
+  }
+
+  return result
+}
+
+function encodeBenchmarkElement(node: DocumentSchema['elements'][number]): BenchmarkElementInput {
+  const result: BenchmarkElementInput = {
+    id: node.id,
+    type: node.type,
+    x: node.x,
+    y: node.y,
+    width: node.width,
+    height: node.height,
+    ...node.props,
+  }
+  if (node.rotation != null)
+    result.rotation = node.rotation
+  if (node.alpha != null)
+    result.alpha = node.alpha
+  if (node.hidden != null)
+    result.hidden = node.hidden
+  if (node.locked != null)
+    result.locked = node.locked
+  if (node.zIndex != null)
+    result.zIndex = node.zIndex
+  if (node.name)
+    result.name = node.name
+
+  if (node.compat?.rawProps) {
+    Object.assign(result, node.compat.rawProps)
+  }
+
+  return result
+}
