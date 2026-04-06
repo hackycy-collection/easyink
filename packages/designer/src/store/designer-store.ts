@@ -1,9 +1,10 @@
 import type { DocumentSchema, MaterialNode } from '@easyink/schema'
-import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension } from '../types'
+import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, PreferenceProvider } from '../types'
 import { CommandManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
 import { createDefaultSchema } from '@easyink/schema'
 import { markRaw } from 'vue'
+import { applyPersistedWorkbench, loadWorkbenchPreferences } from './preference-persistence'
 import { createDefaultSaveBranchMenu, createDefaultTableEditing, createDefaultWorkbenchState } from './workbench'
 
 /**
@@ -35,11 +36,19 @@ export class DesignerStore {
   // ─── Locale ───────────────────────────────────────────────────
   private _locale?: LocaleMessages
 
-  constructor(schema?: DocumentSchema) {
+  constructor(schema?: DocumentSchema, preferenceProvider?: PreferenceProvider) {
     this._schema = schema || createDefaultSchema()
     markRaw(this._materials)
     markRaw(this._materialDesignerExtensions)
     markRaw(this.dataSourceRegistry)
+
+    // Apply persisted workbench state if available
+    if (preferenceProvider) {
+      const persisted = loadWorkbenchPreferences(preferenceProvider)
+      if (persisted) {
+        applyPersistedWorkbench(this.workbench, persisted)
+      }
+    }
   }
 
   // ─── Schema access ────────────────────────────────────────────

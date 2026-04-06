@@ -4,6 +4,7 @@ import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { LocaleMessages, SampleLibraryProvider, ViewerAdapter, PreferenceProvider } from '../types'
 import { onBeforeUnmount, reactive, watch } from 'vue'
 import { provideDesignerStore } from '../composables'
+import { useWorkbenchPersistence } from '../composables/use-workbench-persistence'
 import { DesignerStore } from '../store/designer-store'
 import { registerBuiltinMaterials } from '../materials/registry'
 import TopBarB from './TopBarB.vue'
@@ -24,9 +25,14 @@ const emit = defineEmits<{
   'update:schema': [schema: DocumentSchema]
 }>()
 
-const store = reactive(new DesignerStore(props.schema)) as DesignerStore
+const store = reactive(new DesignerStore(props.schema, props.preferenceProvider)) as DesignerStore
 provideDesignerStore(store)
 registerBuiltinMaterials(store)
+
+// Wire workbench persistence (debounced save on state changes + flush on unmount)
+if (props.preferenceProvider) {
+  useWorkbenchPersistence(store.workbench, props.preferenceProvider)
+}
 
 if (props.locale) {
   store.setLocale(props.locale)
