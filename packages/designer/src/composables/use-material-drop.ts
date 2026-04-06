@@ -15,7 +15,7 @@ export interface MaterialDropContext {
  * Creates drag-and-drop handlers for adding materials from the toolbar onto the canvas.
  *
  * Architecture ref (10.2 / 11.1):
- * 1. User drags a material button from TopBarA onto the canvas page.
+ * 1. User drags a material button from the materials panel onto the canvas page.
  * 2. On drop, the material type is read from the dataTransfer.
  * 3. A new node is created via the material's factory at the drop position.
  * 4. An AddMaterialCommand is executed so the operation is undoable.

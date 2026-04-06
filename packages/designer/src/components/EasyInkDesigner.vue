@@ -6,7 +6,6 @@ import { onBeforeUnmount, reactive, watch } from 'vue'
 import { provideDesignerStore } from '../composables'
 import { DesignerStore } from '../store/designer-store'
 import { registerBuiltinMaterials } from '../materials/registry'
-import TopBarA from './TopBarA.vue'
 import TopBarB from './TopBarB.vue'
 import CanvasWorkspace from './CanvasWorkspace.vue'
 import StatusBar from './StatusBar.vue'
@@ -56,7 +55,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="ei-designer">
-    <TopBarA />
+    <slot name="topbar" />
     <TopBarB />
     <CanvasWorkspace />
     <StatusBar />

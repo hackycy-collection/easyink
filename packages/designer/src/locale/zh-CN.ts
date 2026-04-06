@@ -58,6 +58,7 @@ const zhCN: LocaleMessages = {
       snapToGuide: '吸附参考线',
       manager: '工具栏管理',
       restoreDefault: '恢复默认编排',
+      windowToggles: '浮动窗口',
     },
     property: {
       position: '位置',
