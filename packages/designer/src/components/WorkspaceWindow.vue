@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { WorkspaceWindowState } from '../types'
+import { IconClose, IconMaximize, IconMinimize } from '@easyink/icons'
 import { inject } from 'vue'
 import { useWindowDrag } from '../composables/use-window-drag'
 import { useDesignerStore } from '../composables/use-designer-store'
@@ -65,15 +66,18 @@ function onResizeStart(e: PointerEvent) {
       <div class="ei-workspace-window__actions">
         <button
           class="ei-workspace-window__action"
+          @pointerdown.stop
           @click="windowState.collapsed = !windowState.collapsed"
         >
-          {{ windowState.collapsed ? '+' : '-' }}
+          <IconMaximize v-if="windowState.collapsed" :size="12" />
+          <IconMinimize v-else :size="12" />
         </button>
         <button
           class="ei-workspace-window__action"
+          @pointerdown.stop
           @click="windowState.visible = false"
         >
-          x
+          <IconClose :size="12" />
         </button>
       </div>
     </div>
