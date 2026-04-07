@@ -216,3 +216,33 @@ export function createBatchCommand(description: string, commands: Command[]): Co
     },
   }
 }
+
+/**
+ * CompositeCommand wraps multiple child commands into a single atomic operation.
+ * Children are executed in order and undone in reverse order.
+ * Used for table batch operations (insert column = modify columns + per-row cells + merge cell colSpan adjustments).
+ */
+export class CompositeCommand implements Command {
+  id: string
+  type = 'composite'
+  description: string
+  private children: Command[]
+
+  constructor(description: string, children: Command[]) {
+    this.id = `composite_${Date.now().toString(36)}`
+    this.description = description
+    this.children = children
+  }
+
+  execute(): void {
+    for (const child of this.children) {
+      child.execute()
+    }
+  }
+
+  undo(): void {
+    for (let i = this.children.length - 1; i >= 0; i--) {
+      this.children[i]!.undo()
+    }
+  }
+}

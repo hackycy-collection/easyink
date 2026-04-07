@@ -1,24 +1,30 @@
-export { CommandManager, createBatchCommand } from './command'
+export { CommandManager, CompositeCommand, createBatchCommand } from './command'
 export type { Command, HistoryEntry } from './command'
 export {
   AddMaterialCommand,
   BindFieldCommand,
   ClearBindingCommand,
   ImportTemplateCommand,
+  InsertTableColumnCommand,
   InsertTableRowCommand,
+  MergeTableCellsCommand,
   MoveMaterialCommand,
   RemoveMaterialCommand,
+  RemoveTableColumnCommand,
   RemoveTableRowCommand,
   ResizeMaterialCommand,
   ResizeTableColumnCommand,
+  ResizeTableRowCommand,
   RotateMaterialCommand,
+  SplitTableCellCommand,
   UnionDropCommand,
   UpdateDocumentCommand,
   UpdateGuidesCommand,
   UpdateMaterialPropsCommand,
   UpdatePageCommand,
+  UpdateTableBandCommand,
+  UpdateTableCellBorderCommand,
   UpdateTableCellCommand,
-  UpdateTableSectionCommand,
   UpdateUsageCommand,
 } from './commands'
 

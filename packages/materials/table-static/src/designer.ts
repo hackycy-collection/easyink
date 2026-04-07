@@ -1,5 +1,6 @@
-import type { MaterialNode, TableSchema } from '@easyink/schema'
+import type { MaterialNode } from '@easyink/schema'
 import type { TableStaticProps } from './schema'
+import { isTableNode } from '@easyink/schema'
 
 function escapeAttr(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -7,30 +8,36 @@ function escapeAttr(str: string): string {
 
 export function renderTableStaticContent(node: MaterialNode): { html: string } {
   const p = node.props as unknown as TableStaticProps
-  const table = (node.extensions?.table) as TableSchema | undefined
-  if (!table) {
+  if (!isTableNode(node)) {
     return { html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px">table-static</div>` }
   }
 
+  const { topology } = node.table
   const bw = p.borderWidth || 1
   const bc = escapeAttr(p.borderColor || '#000')
   const bt = p.borderType || 'solid'
   const pad = p.cellPadding ?? 4
 
+  // Build colgroup for column widths based on ratio
+  let colgroup = '<colgroup>'
+  for (const col of topology.columns) {
+    colgroup += `<col style="width:${(col.ratio * 100).toFixed(2)}%">`
+  }
+  colgroup += '</colgroup>'
+
   let rows = ''
-  for (const section of table.sections) {
-    for (const row of section.rows) {
-      let cells = ''
-      for (const cell of row.cells) {
-        const rs = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
-        const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
-        cells += `<td${rs}${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;font-size:${p.fontSize}pt;color:${p.color}"></td>`
-      }
-      rows += `<tr style="height:${row.height || 24}px">${cells}</tr>`
+  for (const row of topology.rows) {
+    let cells = ''
+    for (const cell of row.cells) {
+      const rs = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
+      const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
+      const text = cell.content?.text || ''
+      cells += `<td${rs}${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;font-size:${p.fontSize}pt;color:${p.color}">${text}</td>`
     }
+    rows += `<tr style="height:${row.height}px">${cells}</tr>`
   }
 
-  const html = `<table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">${rows}</table>`
+  const html = `<table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">${colgroup}${rows}</table>`
   return { html }
 }
 

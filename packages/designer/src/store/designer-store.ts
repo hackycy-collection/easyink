@@ -1,8 +1,9 @@
-import type { DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
+import type { TableSectionKind } from '@easyink/shared'
 import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, PreferenceProvider } from '../types'
 import { CommandManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
-import { createDefaultSchema } from '@easyink/schema'
+import { createDefaultSchema, isTableNode } from '@easyink/schema'
 import { markRaw } from 'vue'
 import { applyPersistedWorkbench, loadWorkbenchPreferences } from './preference-persistence'
 import { createDefaultSaveBranchMenu, createDefaultTableEditing, createDefaultWorkbenchState } from './workbench'
@@ -146,6 +147,74 @@ export class DesignerStore {
     return typeof current === 'string' ? current : key
   }
 
+  // ─── Deep Editing ───────────────────────────────────────────────
+
+  get isInDeepEditing(): boolean {
+    return this.tableEditing.phase !== 'idle'
+  }
+
+  get deepEditingNodeId(): string | undefined {
+    return this.tableEditing.tableId
+  }
+
+  /** Enter deep editing for a table element. Validates capability, clears multi-selection. */
+  enterDeepEditing(nodeId: string): boolean {
+    const node = this.getElementById(nodeId)
+    if (!node)
+      return false
+
+    const def = this.getMaterial(node.type)
+    if (!def?.capabilities.hasDeepEditing)
+      return false
+
+    // Deep editing and multi-selection are mutually exclusive
+    this.selection.clear()
+    this.selection.add(nodeId)
+
+    this.tableEditing.phase = 'table-selected'
+    this.tableEditing.tableId = nodeId
+    this.tableEditing.sectionKind = undefined
+    this.tableEditing.cellPath = undefined
+    return true
+  }
+
+  /** Exit deep editing, reset to idle. */
+  exitDeepEditing(): void {
+    this.tableEditing.phase = 'idle'
+    this.tableEditing.tableId = undefined
+    this.tableEditing.sectionKind = undefined
+    this.tableEditing.cellPath = undefined
+  }
+
+  /** Select a cell in the current deep-editing table. */
+  selectCell(row: number, col: number): void {
+    if (!this.tableEditing.tableId)
+      return
+
+    this.tableEditing.phase = 'cell-selected'
+    this.tableEditing.cellPath = { row, col }
+
+    // Infer section kind from bands
+    const node = this.getElementById(this.tableEditing.tableId)
+    if (node && isTableNode(node)) {
+      this.tableEditing.sectionKind = inferSectionKind(node, row)
+    }
+  }
+
+  /** Enter content editing mode for the currently selected cell. */
+  enterContentEditing(): void {
+    if (this.tableEditing.phase !== 'cell-selected' || !this.tableEditing.cellPath)
+      return
+    this.tableEditing.phase = 'content-editing'
+  }
+
+  /** Exit content editing back to cell-selected. */
+  exitContentEditing(): void {
+    if (this.tableEditing.phase !== 'content-editing')
+      return
+    this.tableEditing.phase = 'cell-selected'
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────
 
   destroy(): void {
@@ -157,4 +226,14 @@ export class DesignerStore {
     this._catalog = []
     this.clipboard = []
   }
+}
+
+/** Infer which band/section a row belongs to based on bands[].rowRange. */
+export function inferSectionKind(node: TableNode, rowIndex: number): TableSectionKind | undefined {
+  for (const band of node.table.bands) {
+    if (rowIndex >= band.rowRange.start && rowIndex < band.rowRange.end) {
+      return band.kind
+    }
+  }
+  return undefined
 }

@@ -186,9 +186,48 @@ export interface TableNode extends MaterialNode {
 }
 
 export interface TableSchema {
+  topology: TableTopologySchema
+  bands: TableBandSchema[]
   layout: TableLayoutConfig
-  sections: TableSectionSchema[]
+  data?: TableDataSemantics
   diagnostics?: LayoutDiagnostic[]
+}
+
+export interface TableTopologySchema {
+  /**
+   * Normalized column ratios (0-1), sum must equal 1.
+   * Actual pixel width = element.width * ratio.
+   */
+  columns: TableColumnSchema[]
+  rows: TableRowSchema[]
+}
+
+export interface TableColumnSchema {
+  /**
+   * Normalized ratio (0-1). All column ratios sum to 1.
+   * Actual width = element.width * ratio.
+   * Resizing the table element scales all columns proportionally.
+   */
+  ratio: number
+}
+
+export interface TableBandSchema {
+  kind: TableSectionKind
+  rowRange: {
+    start: number
+    end: number
+  }
+  repeatOnEachPage?: boolean
+  hidden?: boolean
+}
+
+export interface TableDataSemantics {
+  source?: BindingRef
+  rowBinding?: BindingRef
+  fillBlankRows?: boolean
+  keepPlaceholderSpace?: boolean
+  repeatHeader?: boolean
+  showSummaryOnLastPage?: boolean
 }
 
 export interface TableLayoutConfig {
@@ -200,28 +239,37 @@ export interface TableLayoutConfig {
   borderColor?: string
 }
 
-export interface TableSectionSchema {
-  kind: TableSectionKind
-  repeatOnEachPage?: boolean
-  hidden?: boolean
-  rows: TableRowSchema[]
-}
-
 export interface TableRowSchema {
-  height?: number
+  /**
+   * Row height in absolute document units (not ratio).
+   * Rows belong to bands; table-data data rows change dynamically at runtime,
+   * making ratio-based row height semantically unsound.
+   */
+  height: number
   cells: TableCellSchema[]
 }
 
 export interface TableCellSchema {
   rowSpan?: number
   colSpan?: number
-  width: number
-  height?: number
+  /**
+   * Cell width is derived from columns[].ratio, not stored per-cell.
+   * Merged cell width = sum of spanned column ratios * element.width.
+   */
   border?: CellBorderSchema
   padding?: BoxSpacing
+  content?: TableCellContentSlot
   props?: Record<string, unknown>
   binding?: BindingRef | BindingRef[]
+}
+
+export interface TableCellContentSlot {
+  /**
+   * v1: pure text only. Architecture reserves MaterialNode[] for future nested materials.
+   */
+  text?: string
   elements?: MaterialNode[]
+  editMode?: 'inline-text' | 'rich-text' | 'hosted'
 }
 
 export interface CellBorderSchema {
@@ -249,4 +297,13 @@ export interface LayoutDiagnostic {
   severity: 'error' | 'warning' | 'info'
   message: string
   location?: { pageIndex?: number, rowIndex?: number }
+}
+
+// ─── Type Guards ──────────────────────────────────────────────────
+
+/** Runtime discriminator for TableNode. Checks that node.type is a table type and node.table exists. */
+export function isTableNode(node: MaterialNode): node is TableNode {
+  return (node.type === 'table-static' || node.type === 'table-data' || node.type === 'table-flex')
+    && 'table' in node
+    && node.table != null
 }

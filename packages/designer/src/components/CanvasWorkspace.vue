@@ -3,6 +3,7 @@ import type { DesignerRenderContext, DesignerRenderOutput } from '../types'
 import type { MarqueeRect } from '../composables/use-marquee-select'
 import type { ResizeHandle } from '../composables/use-element-resize'
 import type { BindingRef, MaterialNode } from '@easyink/schema'
+import { isTableNode } from '@easyink/schema'
 import { computed, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { useElementDrag } from '../composables/use-element-drag'
@@ -11,6 +12,7 @@ import { useElementRotate } from '../composables/use-element-rotate'
 import { useMarqueeSelect } from '../composables/use-marquee-select'
 import { useDatasourceDrop } from '../composables/use-datasource-drop'
 import { useMaterialDrop } from '../composables/use-material-drop'
+import { useTableInteraction } from '../composables/use-table-interaction'
 import { CANVAS_CONTAINER_KEY } from './canvas-container'
 import GridOverlay from './GridOverlay.vue'
 import SnapLineOverlay from './SnapLineOverlay.vue'
@@ -26,6 +28,10 @@ import MinimapPanel from './MinimapPanel.vue'
 import DebugPanel from './DebugPanel.vue'
 import ToolbarManager from './ToolbarManager.vue'
 import MaterialPanel from './MaterialPanel.vue'
+import TableOverlay from './TableOverlay.vue'
+import DeepEditDragHandle from './DeepEditDragHandle.vue'
+import TableToolbar from './TableToolbar.vue'
+import TableCellEditor from './TableCellEditor.vue'
 
 const store = useDesignerStore()
 const containerRef = ref<HTMLElement | null>(null)
@@ -72,6 +78,16 @@ const { onDragOver: onPageDragOver, onDrop: onPageDrop } = useDatasourceDrop({
 })
 
 const { onDragOver: onMaterialDragOver, onDrop: onMaterialDrop } = useMaterialDrop({
+  store,
+  getPageEl: () => pageRef.value,
+})
+
+const {
+  onTableCellClick,
+  onTableCellDoubleClick,
+  onTableKeyDown,
+  onOutsideClick,
+} = useTableInteraction({
   store,
   getPageEl: () => pageRef.value,
 })
@@ -154,25 +170,65 @@ function isResizable(kind: string): boolean {
 function handleScrollPointerDown(e: PointerEvent) {
   // Only trigger marquee on empty space (the scroll area or page background)
   if (e.target === scrollRef.value || e.target === pageRef.value) {
+    // Exit deep editing if active
+    if (store.isInDeepEditing) {
+      onOutsideClick()
+    }
     onCanvasPointerDown(e)
   }
 }
 
 function handleElementPointerDown(e: PointerEvent, elementId: string) {
   e.stopPropagation()
+  // During deep editing, don't start element drag for the edited element
+  if (store.isInDeepEditing && store.deepEditingNodeId === elementId) {
+    return
+  }
+  // If deep editing another element, exit deep editing first
+  if (store.isInDeepEditing && store.deepEditingNodeId !== elementId) {
+    onOutsideClick()
+  }
   onElementPointerDown(e, elementId)
 }
 
 function handleElementClick(e: MouseEvent, elementId: string) {
   e.stopPropagation()
-  // Selection is handled inside onElementPointerDown already.
-  // This is kept for cases where pointer was not captured (e.g., right-click).
+
+  // If already in deep editing for this element, route to cell selection
+  if (store.isInDeepEditing && store.deepEditingNodeId === elementId) {
+    const node = store.getElementById(elementId)
+    if (node && isTableNode(node)) {
+      const elementEl = (e.currentTarget as HTMLElement)
+      onTableCellClick(e as unknown as PointerEvent, node, elementEl)
+    }
+    return
+  }
+
+  // If element is already selected and has deep editing capability, enter deep editing on second click
+  if (store.selection.has(elementId) && store.selection.count === 1) {
+    const def = store.getMaterial(store.getElementById(elementId)?.type ?? '')
+    if (def?.capabilities.hasDeepEditing) {
+      store.enterDeepEditing(elementId)
+      return
+    }
+  }
+
+  // Normal selection logic
   if (!store.selection.has(elementId)) {
     if (e.ctrlKey || e.metaKey) {
       store.selection.toggle(elementId)
     }
     else {
       store.selection.select(elementId)
+    }
+  }
+}
+
+function handleElementDblClick(e: MouseEvent, elementId: string) {
+  if (store.isInDeepEditing && store.deepEditingNodeId === elementId) {
+    const node = store.getElementById(elementId)
+    if (node && isTableNode(node)) {
+      onTableCellDoubleClick(e as unknown as PointerEvent, node)
     }
   }
 }
@@ -284,7 +340,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="ei-canvas-workspace" @contextmenu="handleContextMenu" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+  <div ref="containerRef" class="ei-canvas-workspace" tabindex="-1" @contextmenu="handleContextMenu" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave" @keydown="onTableKeyDown">
     <!-- Rulers -->
     <CanvasRuler ref="rulerRef" :cursor-pos="cursorPos" @guide-drag-start="handleGuideDragStart" @guide-create="handleGuideCreate" @ruler-hover="handleRulerHover" />
 
@@ -316,6 +372,7 @@ onUnmounted(() => {
             'ei-canvas-element--selected': store.selection.has(el.id),
             'ei-canvas-element--locked': el.locked,
             'ei-canvas-element--hidden': el.hidden,
+            'ei-canvas-element--deep-editing': store.deepEditingNodeId === el.id,
           }"
           :style="{
             left: `${el.x}${store.schema.unit}`,
@@ -328,6 +385,7 @@ onUnmounted(() => {
           }"
           @pointerdown="handleElementPointerDown($event, el.id)"
           @click="handleElementClick($event, el.id)"
+          @dblclick="handleElementDblClick($event, el.id)"
         >
           <div class="ei-canvas-element__content">
             <!-- Binding badge -->
@@ -346,8 +404,8 @@ onUnmounted(() => {
             <span v-else class="ei-canvas-element__type-label">{{ el.type }}</span>
           </div>
 
-          <!-- Selection border, resize handles & rotation handle -->
-          <template v-if="store.selection.has(el.id)">
+          <!-- Selection border, resize handles & rotation handle (hidden during deep editing) -->
+          <template v-if="store.selection.has(el.id) && store.deepEditingNodeId !== el.id">
             <div class="ei-canvas-element__selection-border" />
 
             <!-- 8 resize handles -->
@@ -373,6 +431,14 @@ onUnmounted(() => {
 
         <!-- Snap line overlay -->
         <SnapLineOverlay />
+
+        <!-- Table deep editing overlays -->
+        <template v-if="store.isInDeepEditing">
+          <TableOverlay :get-page-el="() => pageRef" />
+          <DeepEditDragHandle :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
+          <TableToolbar />
+          <TableCellEditor v-if="store.tableEditing.phase === 'content-editing'" />
+        </template>
 
         <!-- Marquee selection rectangle -->
         <div
@@ -450,6 +516,11 @@ onUnmounted(() => {
 
 .ei-canvas-element--hidden {
   opacity: 0.3;
+}
+
+.ei-canvas-element--deep-editing {
+  z-index: 5 !important;
+  cursor: default;
 }
 
 .ei-canvas-element__content {

@@ -191,7 +191,12 @@ const MATERIALS: MaterialEntry[] = [
     category: 'data',
     capabilities: TABLE_STATIC_CAPABILITIES,
     createDefaultNode: createTableStaticNode,
-    extension: { renderContent: renderTableStaticContent, getContextActions: getTableStaticContextActions },
+    extension: {
+      renderContent: renderTableStaticContent,
+      getContextActions: getTableStaticContextActions,
+      renderOverlay: () => null,
+      enterEditMode: () => true,
+    },
   },
   {
     type: TABLE_DATA_TYPE,
@@ -200,7 +205,12 @@ const MATERIALS: MaterialEntry[] = [
     category: 'data',
     capabilities: TABLE_DATA_CAPABILITIES,
     createDefaultNode: createTableDataNode,
-    extension: { renderContent: renderTableDataContent, getContextActions: getTableDataContextActions },
+    extension: {
+      renderContent: renderTableDataContent,
+      getContextActions: getTableDataContextActions,
+      renderOverlay: () => null,
+      enterEditMode: () => true,
+    },
   },
   {
     type: CHART_TYPE,

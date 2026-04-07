@@ -184,36 +184,44 @@ const RELATION_PROP_SCHEMAS: PropSchema[] = [
 
 // ─── Table Static ────────────────────────────────────────────────────
 
-const TABLE_STATIC_PROP_SCHEMAS: PropSchema[] = [
-  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 10, step: 1 },
-  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
-  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+const TABLE_STATIC_TABLE_PROPS: PropSchema[] = [
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'table-border', min: 0, max: 10, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'table-border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'table-border', enum: [
     { label: 'Solid', value: 'solid' },
     { label: 'Dashed', value: 'dashed' },
     { label: 'Dotted', value: 'dotted' },
   ] },
-  { key: 'cellPadding', label: 'designer.property.padding', type: 'number', group: 'layout', min: 0, max: 20, step: 1 },
-  { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'typography', min: 1, max: 100, step: 1 },
-  { key: 'color', label: 'designer.property.color', type: 'color', group: 'typography' },
+  { key: 'cellPadding', label: 'designer.property.padding', type: 'number', group: 'table-layout', min: 0, max: 20, step: 1 },
+  { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'table-typography', min: 1, max: 100, step: 1 },
+  { key: 'color', label: 'designer.property.color', type: 'color', group: 'table-typography' },
+]
+
+const TABLE_STATIC_PROP_SCHEMAS: PropSchema[] = [
+  ...TABLE_STATIC_TABLE_PROPS,
 ]
 
 // ─── Table Data ──────────────────────────────────────────────────────
 
-const TABLE_DATA_PROP_SCHEMAS: PropSchema[] = [
-  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 10, step: 1 },
-  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
-  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+const TABLE_DATA_TABLE_PROPS: PropSchema[] = [
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'table-border', min: 0, max: 10, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'table-border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'table-border', enum: [
     { label: 'Solid', value: 'solid' },
     { label: 'Dashed', value: 'dashed' },
     { label: 'Dotted', value: 'dotted' },
   ] },
-  { key: 'cellPadding', label: 'designer.property.padding', type: 'number', group: 'layout', min: 0, max: 20, step: 1 },
-  { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'typography', min: 1, max: 100, step: 1 },
-  { key: 'color', label: 'designer.property.color', type: 'color', group: 'typography' },
-  { key: 'headerBackground', label: 'designer.property.headerBackground', type: 'color', group: 'appearance' },
-  { key: 'totalBackground', label: 'designer.property.totalBackground', type: 'color', group: 'appearance' },
-  { key: 'stripedRows', label: 'designer.property.stripedRows', type: 'boolean', group: 'appearance' },
-  { key: 'stripedColor', label: 'designer.property.stripedColor', type: 'color', group: 'appearance', visible: props => !!props.stripedRows },
+  { key: 'cellPadding', label: 'designer.property.padding', type: 'number', group: 'table-layout', min: 0, max: 20, step: 1 },
+  { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'table-typography', min: 1, max: 100, step: 1 },
+  { key: 'color', label: 'designer.property.color', type: 'color', group: 'table-typography' },
+  { key: 'headerBackground', label: 'designer.property.headerBackground', type: 'color', group: 'table-appearance' },
+  { key: 'summaryBackground', label: 'designer.property.summaryBackground', type: 'color', group: 'table-appearance' },
+  { key: 'stripedRows', label: 'designer.property.stripedRows', type: 'boolean', group: 'table-appearance' },
+  { key: 'stripedColor', label: 'designer.property.stripedColor', type: 'color', group: 'table-appearance', visible: props => !!props.stripedRows },
+]
+
+const TABLE_DATA_PROP_SCHEMAS: PropSchema[] = [
+  ...TABLE_DATA_TABLE_PROPS,
 ]
 
 // ─── Registry ────────────────────────────────────────────────────────

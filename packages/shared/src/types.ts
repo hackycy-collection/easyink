@@ -69,7 +69,7 @@ export type UsageRule
 /**
  * Table section kind.
  */
-export type TableSectionKind = 'title' | 'header' | 'data' | 'total' | 'footer'
+export type TableSectionKind = 'title' | 'header' | 'data' | 'summary' | 'footer' | 'blank' | 'body'
 
 /**
  * Border appearance style for tables.
@@ -160,10 +160,6 @@ export type TemplateLibraryPhase
 
 /**
  * Table editing phases in designer.
+ * idle -> table-selected -> cell-selected -> content-editing
  */
-export type TableEditingPhase = 'idle' | 'table-selected' | 'band-selected' | 'cell-selected'
-
-/**
- * Table band types for editing selection.
- */
-export type TableBandType = 'header' | 'title' | 'data' | 'summary' | 'footer' | 'blank'
+export type TableEditingPhase = 'idle' | 'table-selected' | 'cell-selected' | 'content-editing'

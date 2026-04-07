@@ -1,4 +1,4 @@
-import type { MaterialNode, TableSchema } from '@easyink/schema'
+import type { MaterialNode, TableNode, TableSchema } from '@easyink/schema'
 import { generateId } from '@easyink/shared'
 
 export const TABLE_STATIC_TYPE = 'table-static'
@@ -22,47 +22,49 @@ export const TABLE_STATIC_DEFAULTS: TableStaticProps = {
 }
 
 function createDefaultTable(): TableSchema {
-  const cellWidth = 60
+  const cols = 3
+  const rowCount = 3
   const rowHeight = 24
-  const rows = Array.from({ length: 3 }, () => ({
-    height: rowHeight,
-    cells: Array.from({ length: 3 }, () => ({
-      width: cellWidth,
-      height: rowHeight,
-    })),
-  }))
+  const ratio = 1 / cols
 
   return {
+    topology: {
+      columns: Array.from({ length: cols }, () => ({ ratio })),
+      rows: Array.from({ length: rowCount }, () => ({
+        height: rowHeight,
+        cells: Array.from({ length: cols }, () => ({})),
+      })),
+    },
+    bands: [
+      {
+        kind: 'body',
+        rowRange: { start: 0, end: rowCount },
+      },
+    ],
     layout: {
       borderAppearance: 'all',
       borderWidth: 1,
       borderType: 'solid',
       borderColor: '#000000',
     },
-    sections: [
-      {
-        kind: 'data',
-        rows,
-      },
-    ],
   }
 }
 
 export function createTableStaticNode(partial?: Partial<MaterialNode>): MaterialNode {
-  return {
+  const table = createDefaultTable()
+  const { type: _type, ...rest } = partial || {} as Partial<MaterialNode>
+  const node: TableNode = {
     id: generateId('ts'),
-    type: TABLE_STATIC_TYPE,
     x: 0,
     y: 0,
     width: 180,
     height: 72,
     props: { ...TABLE_STATIC_DEFAULTS },
-    ...partial,
-    extensions: {
-      table: createDefaultTable(),
-      ...partial?.extensions,
-    },
+    ...rest,
+    type: 'table-static',
+    table,
   }
+  return node
 }
 
 export const TABLE_STATIC_CAPABILITIES = {
@@ -73,4 +75,7 @@ export const TABLE_STATIC_CAPABILITIES = {
   supportsAnimation: false,
   supportsUnionDrop: false,
   multiBinding: false,
+  hasDeepEditing: true,
+  hasOverlay: true,
+  hasContentEditing: true,
 }

@@ -2,6 +2,7 @@
 import type { PropSchema } from '../types'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
 import { ClearBindingCommand, UpdateDocumentCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
+import { isTableNode } from '@easyink/schema'
 import { PAPER_PRESETS } from '@easyink/shared'
 import { EiCheckbox, EiInput, EiPanel } from '@easyink/ui'
 import { computed, shallowRef, watchEffect } from 'vue'
@@ -131,7 +132,17 @@ const GROUP_LABELS: Record<string, string> = {
   border: 'designer.property.border',
   layout: 'designer.property.layout',
   general: 'designer.property.style',
+  'table-border': 'designer.property.border',
+  'table-layout': 'designer.property.layout',
+  'table-typography': 'designer.property.typography',
+  'table-appearance': 'designer.property.appearance',
 }
+
+/** Whether the selected element is a table in deep editing mode. */
+const isTableDeepEditing = computed(() => {
+  const el = selectedElement.value
+  return el && isTableNode(el) && store.isInDeepEditing && store.deepEditingNodeId === el.id
+})
 
 function groupLabel(group: string): string {
   const key = GROUP_LABELS[group]
@@ -213,6 +224,16 @@ function clearBinding(nodeId: string) {
             :model-value="selectedElement.alpha ?? 1"
             @update:model-value="updateGeometry('alpha', Number($event))"
           />
+        </div>
+      </EiPanel>
+
+      <!-- Table editing info -->
+      <EiPanel v-if="isTableDeepEditing && store.tableEditing.cellPath" :title="store.t('designer.property.cellInfo')" collapsible flat>
+        <div class="ei-properties-panel__fields">
+          <span class="ei-properties-panel__cell-label">
+            {{ store.t('designer.table.row') }}: {{ store.tableEditing.cellPath.row + 1 }},
+            {{ store.t('designer.table.col') }}: {{ store.tableEditing.cellPath.col + 1 }}
+          </span>
         </div>
       </EiPanel>
 
@@ -309,5 +330,10 @@ function clearBinding(nodeId: string) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.ei-properties-panel__cell-label {
+  font-size: 12px;
+  color: var(--ei-text-secondary, #666);
 }
 </style>

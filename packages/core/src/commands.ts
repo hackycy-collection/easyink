@@ -1,4 +1,4 @@
-import type { BindingRef, DocumentSchema, GuideSchema, MaterialNode, PageSchema, TableCellSchema, TableNode, TableRowSchema, TableSectionSchema } from '@easyink/schema'
+import type { BindingRef, DocumentSchema, GuideSchema, MaterialNode, PageSchema, TableBandSchema, TableCellSchema, TableNode, TableRowSchema } from '@easyink/schema'
 import type { UsageRule } from '@easyink/shared'
 import type { Command } from './command'
 import { deepClone, generateId } from '@easyink/shared'
@@ -406,6 +406,7 @@ export class UnionDropCommand implements Command {
 
 // ─── Table Commands ─────────────────────────────────────────────────
 
+/** Insert a row into the table topology. Adjusts band rowRanges accordingly. */
 export class InsertTableRowCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'insert-table-row'
@@ -413,70 +414,314 @@ export class InsertTableRowCommand implements Command {
 
   constructor(
     private node: TableNode,
-    private sectionIndex: number,
     private rowIndex: number,
     private row: TableRowSchema,
   ) {}
 
   execute(): void {
-    this.node.table.sections[this.sectionIndex]!.rows.splice(this.rowIndex, 0, this.row)
+    this.node.table.topology.rows.splice(this.rowIndex, 0, this.row)
+    // Shift band rowRanges: bands starting at or after insertion get shifted
+    for (const band of this.node.table.bands) {
+      if (band.rowRange.start >= this.rowIndex)
+        band.rowRange.start++
+      if (band.rowRange.end >= this.rowIndex)
+        band.rowRange.end++
+    }
+    // Update element height
+    this.node.height += this.row.height
   }
 
   undo(): void {
-    this.node.table.sections[this.sectionIndex]!.rows.splice(this.rowIndex, 1)
+    this.node.table.topology.rows.splice(this.rowIndex, 1)
+    for (const band of this.node.table.bands) {
+      if (band.rowRange.start > this.rowIndex)
+        band.rowRange.start--
+      if (band.rowRange.end > this.rowIndex)
+        band.rowRange.end--
+    }
+    this.node.height -= this.row.height
   }
 }
 
+/** Remove a row from the table topology. Adjusts band rowRanges accordingly. */
 export class RemoveTableRowCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'remove-table-row'
   readonly description = 'Remove table row'
   private snapshot: TableRowSchema | undefined
+  private oldHeight = 0
 
   constructor(
     private node: TableNode,
-    private sectionIndex: number,
     private rowIndex: number,
   ) {}
 
   execute(): void {
-    const rows = this.node.table.sections[this.sectionIndex]!.rows
+    const rows = this.node.table.topology.rows
     this.snapshot = deepClone(rows[this.rowIndex]!)
+    this.oldHeight = this.node.height
+    this.node.height -= rows[this.rowIndex]!.height
     rows.splice(this.rowIndex, 1)
+    for (const band of this.node.table.bands) {
+      if (band.rowRange.start > this.rowIndex)
+        band.rowRange.start--
+      if (band.rowRange.end > this.rowIndex)
+        band.rowRange.end--
+    }
   }
 
   undo(): void {
-    if (this.snapshot)
-      this.node.table.sections[this.sectionIndex]!.rows.splice(this.rowIndex, 0, this.snapshot)
+    if (!this.snapshot)
+      return
+    this.node.table.topology.rows.splice(this.rowIndex, 0, this.snapshot)
+    for (const band of this.node.table.bands) {
+      if (band.rowRange.start >= this.rowIndex)
+        band.rowRange.start++
+      if (band.rowRange.end >= this.rowIndex)
+        band.rowRange.end++
+    }
+    this.node.height = this.oldHeight
   }
 }
 
+/** Insert a column. Adds a cell to each row, adjusts existing colSpan, re-normalizes ratios. */
+export class InsertTableColumnCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'insert-table-column'
+  readonly description = 'Insert table column'
+  private oldColumns: Array<{ ratio: number }> = []
+  private oldWidth = 0
+  private affectedMerges: Array<{ rowIndex: number, cellIndex: number, oldColSpan: number }> = []
+
+  constructor(
+    private node: TableNode,
+    private colIndex: number,
+  ) {}
+
+  execute(): void {
+    const { topology } = this.node.table
+    this.oldColumns = deepClone(topology.columns)
+    this.oldWidth = this.node.width
+
+    // Insert new column with equal share
+    const newRatio = 1 / (topology.columns.length + 1)
+    // Scale existing ratios down proportionally
+    const scale = topology.columns.length / (topology.columns.length + 1)
+    for (const col of topology.columns) {
+      col.ratio *= scale
+    }
+    topology.columns.splice(this.colIndex, 0, { ratio: newRatio })
+
+    // Increase element width proportionally
+    this.node.width = this.oldWidth / scale
+
+    // Insert a cell in each row
+    for (const row of topology.rows) {
+      const emptyCell: TableCellSchema = {}
+      row.cells.splice(this.colIndex, 0, emptyCell)
+    }
+
+    // Adjust colSpan of merged cells that span across the insertion point
+    this.affectedMerges = []
+    for (let ri = 0; ri < topology.rows.length; ri++) {
+      const row = topology.rows[ri]!
+      let colPos = 0
+      for (let ci = 0; ci < row.cells.length; ci++) {
+        const cell = row.cells[ci]!
+        const span = cell.colSpan ?? 1
+        if (ci !== this.colIndex && colPos < this.colIndex && colPos + span > this.colIndex) {
+          this.affectedMerges.push({ rowIndex: ri, cellIndex: ci, oldColSpan: span })
+          cell.colSpan = span + 1
+        }
+        colPos += span
+      }
+    }
+  }
+
+  undo(): void {
+    const { topology } = this.node.table
+    // Restore colSpan
+    for (const m of this.affectedMerges) {
+      const cell = topology.rows[m.rowIndex]!.cells[m.cellIndex]!
+      cell.colSpan = m.oldColSpan
+    }
+    // Remove inserted cells
+    for (const row of topology.rows) {
+      row.cells.splice(this.colIndex, 1)
+    }
+    // Restore columns
+    topology.columns = this.oldColumns
+    this.node.width = this.oldWidth
+  }
+}
+
+/** Remove a column. Removes a cell from each row, adjusts colSpan, re-normalizes ratios. */
+export class RemoveTableColumnCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'remove-table-column'
+  readonly description = 'Remove table column'
+  private oldColumns: Array<{ ratio: number }> = []
+  private oldWidth = 0
+  private removedCells: Array<{ rowIndex: number, cell: TableCellSchema }> = []
+  private affectedMerges: Array<{ rowIndex: number, cellIndex: number, oldColSpan: number }> = []
+
+  constructor(
+    private node: TableNode,
+    private colIndex: number,
+  ) {}
+
+  execute(): void {
+    const { topology } = this.node.table
+    if (topology.columns.length <= 1)
+      return
+
+    this.oldColumns = deepClone(topology.columns)
+    this.oldWidth = this.node.width
+
+    // Shrink colSpan for merged cells that span the deleted column
+    this.affectedMerges = []
+    for (let ri = 0; ri < topology.rows.length; ri++) {
+      const row = topology.rows[ri]!
+      let colPos = 0
+      for (let ci = 0; ci < row.cells.length; ci++) {
+        const cell = row.cells[ci]!
+        const span = cell.colSpan ?? 1
+        if (ci !== this.colIndex && colPos <= this.colIndex && colPos + span > this.colIndex) {
+          this.affectedMerges.push({ rowIndex: ri, cellIndex: ci, oldColSpan: span })
+          cell.colSpan = span - 1
+          if (cell.colSpan <= 1)
+            cell.colSpan = undefined
+        }
+        colPos += span
+      }
+    }
+
+    // Save and remove cells
+    this.removedCells = []
+    for (let ri = 0; ri < topology.rows.length; ri++) {
+      const row = topology.rows[ri]!
+      if (this.colIndex < row.cells.length) {
+        this.removedCells.push({ rowIndex: ri, cell: deepClone(row.cells[this.colIndex]!) })
+        row.cells.splice(this.colIndex, 1)
+      }
+    }
+
+    // Remove column and re-normalize ratios
+    const removedRatio = topology.columns[this.colIndex]!.ratio
+    topology.columns.splice(this.colIndex, 1)
+    const remaining = 1 - removedRatio
+    if (remaining > 0) {
+      for (const col of topology.columns) {
+        col.ratio = col.ratio / remaining
+      }
+    }
+
+    // Adjust element width
+    this.node.width = this.oldWidth * remaining
+  }
+
+  undo(): void {
+    const { topology } = this.node.table
+    // Restore columns
+    topology.columns = this.oldColumns
+    this.node.width = this.oldWidth
+    // Restore removed cells
+    for (const { rowIndex, cell } of this.removedCells) {
+      topology.rows[rowIndex]!.cells.splice(this.colIndex, 0, cell)
+    }
+    // Restore colSpan
+    for (const m of this.affectedMerges) {
+      const cell = topology.rows[m.rowIndex]!.cells[m.cellIndex]!
+      cell.colSpan = m.oldColSpan
+    }
+  }
+}
+
+/** Resize a column by changing its ratio. Supports merge for continuous drag. */
 export class ResizeTableColumnCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'resize-table-column'
   readonly description = 'Resize table column'
+  private oldRatio = 0
   private oldWidth = 0
 
   constructor(
     private node: TableNode,
-    private sectionIndex: number,
-    private rowIdx: number,
-    private cellIdx: number,
-    private newWidth: number,
+    private colIndex: number,
+    private newRatio: number,
+    private newElementWidth: number,
   ) {}
 
   execute(): void {
-    const cell = this.node.table.sections[this.sectionIndex]!.rows[this.rowIdx]!.cells[this.cellIdx]!
-    this.oldWidth = cell.width
-    cell.width = this.newWidth
+    const col = this.node.table.topology.columns[this.colIndex]!
+    this.oldRatio = col.ratio
+    this.oldWidth = this.node.width
+    col.ratio = this.newRatio
+    this.node.width = this.newElementWidth
   }
 
   undo(): void {
-    const cell = this.node.table.sections[this.sectionIndex]!.rows[this.rowIdx]!.cells[this.cellIdx]!
-    cell.width = this.oldWidth
+    const col = this.node.table.topology.columns[this.colIndex]!
+    col.ratio = this.oldRatio
+    this.node.width = this.oldWidth
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as ResizeTableColumnCommand
+    if (other.node !== this.node || other.colIndex !== this.colIndex)
+      return null
+    const merged = new ResizeTableColumnCommand(this.node, this.colIndex, other.newRatio, other.newElementWidth)
+    merged.oldRatio = this.oldRatio
+    merged.oldWidth = this.oldWidth
+    return merged
   }
 }
 
+/** Resize a row height. Supports merge for continuous drag. */
+export class ResizeTableRowCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'resize-table-row'
+  readonly description = 'Resize table row'
+  private oldRowHeight = 0
+  private oldElementHeight = 0
+
+  constructor(
+    private node: TableNode,
+    private rowIndex: number,
+    private newHeight: number,
+  ) {}
+
+  execute(): void {
+    const row = this.node.table.topology.rows[this.rowIndex]!
+    this.oldRowHeight = row.height
+    this.oldElementHeight = this.node.height
+    const delta = this.newHeight - row.height
+    row.height = this.newHeight
+    this.node.height += delta
+  }
+
+  undo(): void {
+    const row = this.node.table.topology.rows[this.rowIndex]!
+    row.height = this.oldRowHeight
+    this.node.height = this.oldElementHeight
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as ResizeTableRowCommand
+    if (other.node !== this.node || other.rowIndex !== this.rowIndex)
+      return null
+    const merged = new ResizeTableRowCommand(this.node, this.rowIndex, other.newHeight)
+    merged.oldRowHeight = this.oldRowHeight
+    merged.oldElementHeight = this.oldElementHeight
+    return merged
+  }
+}
+
+/** Update a table cell's properties. */
 export class UpdateTableCellCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'update-table-cell'
@@ -485,14 +730,13 @@ export class UpdateTableCellCommand implements Command {
 
   constructor(
     private node: TableNode,
-    private sectionIndex: number,
-    private rowIdx: number,
-    private cellIdx: number,
+    private rowIndex: number,
+    private cellIndex: number,
     private updates: Partial<TableCellSchema>,
   ) {}
 
   execute(): void {
-    const cell = this.node.table.sections[this.sectionIndex]!.rows[this.rowIdx]!.cells[this.cellIdx]!
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
     for (const key of Object.keys(this.updates) as Array<keyof TableCellSchema>) {
       asRecord(this.oldValues)[key] = deepClone(asRecord(cell)[key])
       asRecord(cell)[key] = deepClone(asRecord(this.updates)[key])
@@ -500,38 +744,141 @@ export class UpdateTableCellCommand implements Command {
   }
 
   undo(): void {
-    const cell = this.node.table.sections[this.sectionIndex]!.rows[this.rowIdx]!.cells[this.cellIdx]!
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
     for (const key of Object.keys(this.oldValues) as Array<keyof TableCellSchema>) {
       asRecord(cell)[key] = asRecord(this.oldValues)[key]
     }
   }
 }
 
-export class UpdateTableSectionCommand implements Command {
+/** Update a band's properties (visibility, repeat, etc). */
+export class UpdateTableBandCommand implements Command {
   readonly id = generateId('cmd')
-  readonly type = 'update-table-section'
-  readonly description = 'Update table section'
-  private oldValues: Partial<TableSectionSchema> = {}
+  readonly type = 'update-table-band'
+  readonly description = 'Update table band'
+  private oldValues: Partial<TableBandSchema> = {}
 
   constructor(
     private node: TableNode,
-    private sectionIndex: number,
-    private updates: Partial<TableSectionSchema>,
+    private bandIndex: number,
+    private updates: Partial<TableBandSchema>,
   ) {}
 
   execute(): void {
-    const section = this.node.table.sections[this.sectionIndex]!
-    for (const key of Object.keys(this.updates) as Array<keyof TableSectionSchema>) {
-      asRecord(this.oldValues)[key] = deepClone(asRecord(section)[key])
-      asRecord(section)[key] = deepClone(asRecord(this.updates)[key])
+    const band = this.node.table.bands[this.bandIndex]!
+    for (const key of Object.keys(this.updates) as Array<keyof TableBandSchema>) {
+      asRecord(this.oldValues)[key] = deepClone(asRecord(band)[key])
+      asRecord(band)[key] = deepClone(asRecord(this.updates)[key])
     }
   }
 
   undo(): void {
-    const section = this.node.table.sections[this.sectionIndex]!
-    for (const key of Object.keys(this.oldValues) as Array<keyof TableSectionSchema>) {
-      asRecord(section)[key] = asRecord(this.oldValues)[key]
+    const band = this.node.table.bands[this.bandIndex]!
+    for (const key of Object.keys(this.oldValues) as Array<keyof TableBandSchema>) {
+      asRecord(band)[key] = asRecord(this.oldValues)[key]
     }
+  }
+}
+
+/** Update a single border side of a cell. */
+export class UpdateTableCellBorderCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-table-cell-border'
+  readonly description = 'Update cell border'
+  private oldBorder: TableCellSchema['border']
+
+  constructor(
+    private node: TableNode,
+    private rowIndex: number,
+    private cellIndex: number,
+    private side: 'top' | 'right' | 'bottom' | 'left',
+    private border: { width?: number, color?: string, type?: string } | undefined,
+  ) {}
+
+  execute(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    this.oldBorder = deepClone(cell.border)
+    if (!cell.border)
+      cell.border = {}
+    asRecord(cell.border)[this.side] = this.border ? deepClone(this.border) : undefined
+  }
+
+  undo(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    cell.border = this.oldBorder
+  }
+}
+
+/** Merge cells starting from (rowIndex, cellIndex) with given colSpan/rowSpan. */
+export class MergeTableCellsCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'merge-table-cells'
+  readonly description = 'Merge cells'
+  private oldSpans: Array<{ rowIndex: number, cellIndex: number, colSpan?: number, rowSpan?: number }> = []
+
+  constructor(
+    private node: TableNode,
+    private rowIndex: number,
+    private cellIndex: number,
+    private colSpan: number,
+    private rowSpan: number,
+  ) {}
+
+  execute(): void {
+    const { rows } = this.node.table.topology
+    this.oldSpans = []
+
+    // Save old spans and clear them
+    for (let r = this.rowIndex; r < this.rowIndex + this.rowSpan && r < rows.length; r++) {
+      const row = rows[r]!
+      for (let c = this.cellIndex; c < this.cellIndex + this.colSpan && c < row.cells.length; c++) {
+        const cell = row.cells[c]!
+        this.oldSpans.push({ rowIndex: r, cellIndex: c, colSpan: cell.colSpan, rowSpan: cell.rowSpan })
+      }
+    }
+
+    // Set the anchor cell's span
+    const anchor = rows[this.rowIndex]!.cells[this.cellIndex]!
+    anchor.colSpan = this.colSpan > 1 ? this.colSpan : undefined
+    anchor.rowSpan = this.rowSpan > 1 ? this.rowSpan : undefined
+  }
+
+  undo(): void {
+    const { rows } = this.node.table.topology
+    for (const { rowIndex, cellIndex, colSpan, rowSpan } of this.oldSpans) {
+      const cell = rows[rowIndex]!.cells[cellIndex]!
+      cell.colSpan = colSpan
+      cell.rowSpan = rowSpan
+    }
+  }
+}
+
+/** Split a previously merged cell back to individual cells. */
+export class SplitTableCellCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'split-table-cell'
+  readonly description = 'Split cell'
+  private oldColSpan?: number
+  private oldRowSpan?: number
+
+  constructor(
+    private node: TableNode,
+    private rowIndex: number,
+    private cellIndex: number,
+  ) {}
+
+  execute(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    this.oldColSpan = cell.colSpan
+    this.oldRowSpan = cell.rowSpan
+    cell.colSpan = undefined
+    cell.rowSpan = undefined
+  }
+
+  undo(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    cell.colSpan = this.oldColSpan
+    cell.rowSpan = this.oldRowSpan
   }
 }
 

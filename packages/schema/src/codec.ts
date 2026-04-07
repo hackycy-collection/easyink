@@ -1,5 +1,6 @@
-import type { DocumentSchema } from './types'
+import type { DocumentSchema, TableBandSchema, TableColumnSchema, TableRowSchema, TableSchema } from './types'
 import { isObject } from '@easyink/shared'
+import { isTableNode } from './types'
 
 /**
  * Benchmark (report-designer) compatibility input format.
@@ -215,6 +216,16 @@ function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['e
     node.compat = { rawProps: passthroughProps }
   }
 
+  // Table elements: convert extensions.table to node.table
+  const isTable = type === 'table-static' || type === 'table-data'
+  if (isTable && rest.extensions && isObject(rest.extensions)) {
+    const ext = rest.extensions as Record<string, unknown>
+    const tableSchema = decodeTableExtensions(ext)
+    if (tableSchema) {
+      ;(node as unknown as Record<string, unknown>).table = tableSchema
+    }
+  }
+
   return node
 }
 
@@ -316,5 +327,142 @@ function encodeBenchmarkElement(node: DocumentSchema['elements'][number]): Bench
     Object.assign(result, node.compat.rawProps)
   }
 
+  // Table: encode table schema as extensions.table for benchmark compatibility
+  if (isTableNode(node)) {
+    result.extensions = { ...result.extensions as Record<string, unknown> || {}, table: encodeTableSchema(node.table) }
+  }
+
   return result
+}
+
+/**
+ * Decode old sections-based table data from extensions.table into topology+bands format.
+ * Old format: { sections: [{ kind, rows: [{ height, cells: [{ width?, ... }] }] }] }
+ * New format: { topology: { columns, rows }, bands }
+ */
+function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null {
+  const raw = ext.table
+  if (!isObject(raw))
+    return null
+
+  const rawTable = raw as Record<string, unknown>
+
+  // Already in new format?
+  if (rawTable.topology && isObject(rawTable.topology)) {
+    return rawTable as unknown as TableSchema
+  }
+
+  // Old sections format
+  const sections = rawTable.sections
+  if (!Array.isArray(sections) || sections.length === 0)
+    return null
+
+  // Flatten all rows to determine column count from first row
+  const allRows: Array<{ height: number, cells: Array<Record<string, unknown>>, sectionKind: string }> = []
+  for (const section of sections) {
+    if (!isObject(section))
+      continue
+    const sec = section as Record<string, unknown>
+    const kind = (sec.kind as string) || 'body'
+    const sRows = sec.rows
+    if (!Array.isArray(sRows))
+      continue
+    for (const row of sRows) {
+      if (!isObject(row))
+        continue
+      const r = row as Record<string, unknown>
+      const cells = Array.isArray(r.cells) ? r.cells as Array<Record<string, unknown>> : []
+      allRows.push({ height: (r.height as number) || 24, cells, sectionKind: kind })
+    }
+  }
+
+  if (allRows.length === 0)
+    return null
+
+  // Determine column count from the row with most cells
+  const colCount = Math.max(1, ...allRows.map(r => r.cells.length))
+
+  // Infer column ratios from first row cell widths, or equal
+  const firstRow = allRows[0]!
+  const columns: TableColumnSchema[] = []
+  let hasWidths = false
+  const widths: number[] = []
+  for (let c = 0; c < colCount; c++) {
+    const cell = firstRow.cells[c]
+    const w = cell?.width as number | undefined
+    if (w && w > 0) {
+      hasWidths = true
+      widths.push(w)
+    }
+    else {
+      widths.push(1)
+    }
+  }
+  const totalW = widths.reduce((a, b) => a + b, 0) || colCount
+  for (let c = 0; c < colCount; c++) {
+    columns.push({ ratio: hasWidths ? widths[c]! / totalW : 1 / colCount })
+  }
+
+  // Build rows
+  const rows: TableRowSchema[] = allRows.map((r) => {
+    const cells = Array.from({ length: colCount }, (_, i) => {
+      const rawCell = r.cells[i]
+      if (!rawCell)
+        return {}
+      const cell: Record<string, unknown> = {}
+      if (rawCell.content !== undefined)
+        cell.content = { text: String(rawCell.content) }
+      if (rawCell.colSpan !== undefined)
+        cell.colSpan = rawCell.colSpan
+      if (rawCell.rowSpan !== undefined)
+        cell.rowSpan = rawCell.rowSpan
+      return cell
+    })
+    return { height: r.height, cells }
+  })
+
+  // Build bands from sections
+  const bands: TableBandSchema[] = []
+  let rowIdx = 0
+  for (const section of sections) {
+    if (!isObject(section))
+      continue
+    const sec = section as Record<string, unknown>
+    const kind = (sec.kind as string) || 'body'
+    const sRows = sec.rows
+    const count = Array.isArray(sRows) ? sRows.length : 0
+    if (count > 0) {
+      bands.push({
+        kind: kind === 'total' ? 'summary' : kind as TableBandSchema['kind'],
+        rowRange: { start: rowIdx, end: rowIdx + count },
+      })
+      rowIdx += count
+    }
+  }
+
+  // Layout from table-level properties
+  const layout: TableSchema['layout'] = {}
+  if (rawTable.borderWidth !== undefined)
+    layout.borderWidth = rawTable.borderWidth as number
+  if (rawTable.borderColor !== undefined)
+    layout.borderColor = rawTable.borderColor as string
+  if (rawTable.borderType !== undefined)
+    layout.borderType = rawTable.borderType as TableSchema['layout']['borderType']
+  if (rawTable.borderAppearance !== undefined)
+    layout.borderAppearance = rawTable.borderAppearance as TableSchema['layout']['borderAppearance']
+
+  return { topology: { columns, rows }, bands, layout }
+}
+
+/**
+ * Encode topology+bands table schema back to a portable object for benchmark.
+ * We write it in the new format directly; old consumers will see extensions.table.topology.
+ */
+function encodeTableSchema(table: TableSchema): Record<string, unknown> {
+  return {
+    topology: table.topology,
+    bands: table.bands,
+    layout: table.layout,
+    ...(table.data ? { data: table.data } : {}),
+  }
 }

@@ -1,5 +1,6 @@
-import type { BindingRef, MaterialNode, TableSchema, TableSectionSchema } from '@easyink/schema'
+import type { BindingRef, MaterialNode, TableBandSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
+import { isTableNode } from '@easyink/schema'
 
 function escapeAttr(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -9,43 +10,18 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-const SECTION_BG: Record<string, string> = {
+const BAND_BG_MAP: Record<string, keyof TableDataProps> = {
   header: 'headerBackground',
-  total: 'totalBackground',
+  summary: 'summaryBackground',
 }
 
-function renderSection(
-  section: TableSectionSchema,
-  props: TableDataProps,
-  context: { getBindingLabel: (binding: BindingRef) => string },
-): string {
-  const bw = props.borderWidth || 1
-  const bc = escapeAttr(props.borderColor || '#000')
-  const bt = props.borderType || 'solid'
-  const pad = props.cellPadding ?? 4
-  const bgKey = SECTION_BG[section.kind]
-  const sectionBg = bgKey ? (props as unknown as Record<string, string>)[bgKey] || '' : ''
-
-  let rows = ''
-  for (const row of section.rows) {
-    let cells = ''
-    for (const cell of row.cells) {
-      const rs = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
-      const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
-
-      let content = ''
-      if (cell.binding) {
-        const b = Array.isArray(cell.binding) ? cell.binding[0] : cell.binding
-        const label = context.getBindingLabel(b)
-        content = `<span style="color:#1890ff">{{${escapeHtml(label)}}}</span>`
-      }
-
-      cells += `<td${rs}${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;font-size:${props.fontSize}pt;color:${props.color}${sectionBg ? `;background:${sectionBg}` : ''}">${content}</td>`
+function getBandForRow(bands: TableBandSchema[], rowIndex: number): TableBandSchema | undefined {
+  for (const band of bands) {
+    if (rowIndex >= band.rowRange.start && rowIndex < band.rowRange.end) {
+      return band
     }
-    rows += `<tr style="height:${row.height || 24}px">${cells}</tr>`
   }
-
-  return rows
+  return undefined
 }
 
 export function renderTableDataContent(
@@ -53,19 +29,55 @@ export function renderTableDataContent(
   context: { getBindingLabel: (binding: BindingRef) => string },
 ): { html: string } {
   const p = node.props as unknown as TableDataProps
-  const table = (node.extensions?.table) as TableSchema | undefined
-  if (!table) {
+  if (!isTableNode(node)) {
     return { html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px">table-data</div>` }
   }
 
-  let allRows = ''
-  for (const section of table.sections) {
-    if (section.hidden)
+  const { topology, bands } = node.table
+  const bw = p.borderWidth || 1
+  const bc = escapeAttr(p.borderColor || '#000')
+  const bt = p.borderType || 'solid'
+  const pad = p.cellPadding ?? 4
+
+  // Build colgroup
+  let colgroup = '<colgroup>'
+  for (const col of topology.columns) {
+    colgroup += `<col style="width:${(col.ratio * 100).toFixed(2)}%">`
+  }
+  colgroup += '</colgroup>'
+
+  let rows = ''
+  for (let ri = 0; ri < topology.rows.length; ri++) {
+    const row = topology.rows[ri]!
+    const band = getBandForRow(bands, ri)
+
+    // Skip hidden bands
+    if (band?.hidden)
       continue
-    allRows += renderSection(section, p, context)
+
+    const bgKey = band ? BAND_BG_MAP[band.kind] : undefined
+    const sectionBg = bgKey ? (p as unknown as Record<string, string>)[bgKey] || '' : ''
+
+    let cells = ''
+    for (const cell of row.cells) {
+      const rs = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
+      const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
+
+      let content = cell.content?.text || ''
+      if (cell.binding) {
+        const b = Array.isArray(cell.binding) ? cell.binding[0] : cell.binding
+        if (b) {
+          const label = context.getBindingLabel(b)
+          content = `<span style="color:#1890ff">{{${escapeHtml(label)}}}</span>`
+        }
+      }
+
+      cells += `<td${rs}${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;font-size:${p.fontSize}pt;color:${p.color}${sectionBg ? `;background:${sectionBg}` : ''}">${content}</td>`
+    }
+    rows += `<tr style="height:${row.height}px">${cells}</tr>`
   }
 
-  const html = `<table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">${allRows}</table>`
+  const html = `<table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">${colgroup}${rows}</table>`
   return { html }
 }
 

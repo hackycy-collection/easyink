@@ -1,5 +1,5 @@
 export interface TableDataBindingHint {
-  sectionKind: 'header' | 'data' | 'total'
+  sectionKind: 'header' | 'data' | 'summary'
   columnIndex: number
   fieldPath: string
 }
