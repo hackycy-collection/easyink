@@ -58,9 +58,15 @@ catalogs:
       specifier: ^3.2.6
       version: 3.2.6
   framework:
+    jsbarcode:
+      specifier: ^3.12.3
+      version: 3.12.3
     lucide-vue-next:
       specifier: ^1.0.0
       version: 1.0.0
+    qrcode-generator:
+      specifier: ^2.0.4
+      version: 2.0.4
     vue:
       specifier: ^3.5.0
       version: 3.5.31
@@ -264,6 +270,9 @@ importers:
       '@easyink/shared':
         specifier: workspace:*
         version: link:../../shared
+      jsbarcode:
+        specifier: catalog:framework
+        version: 3.12.3
 
   packages/materials/chart:
     dependencies:
@@ -336,6 +345,9 @@ importers:
       '@easyink/shared':
         specifier: workspace:*
         version: link:../../shared
+      qrcode-generator:
+        specifier: catalog:framework
+        version: 2.0.4
 
   packages/materials/rect:
     dependencies:
@@ -2148,6 +2160,9 @@ packages:
     resolution: {integrity: sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA==}
     hasBin: true
 
+  jsbarcode@3.12.3:
+    resolution: {integrity: sha512-CuHU9hC6dPsHF5oVFMo8NW76uQVjH4L22CsP4hW+dNnGywJHC/B0ThA1CTDVLnxKLrrpYdicBLnd2xsgTfRnvg==}
+
   jsdoc-type-pratt-parser@4.1.0:
     resolution: {integrity: sha512-Hicd6JK5Njt2QB6XYFS7ok9e37O8AYk3jTcppG4YVQnYjOemymvTcmc7OWsmq/Qqj5TdRFO5/x/tIPmBeRtGHg==}
     engines: {node: '>=12.0.0'}
@@ -2631,6 +2646,9 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
+
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
 
   quansync@0.2.11:
     resolution: {integrity: sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA==}
@@ -4881,6 +4899,8 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
+  jsbarcode@3.12.3: {}
+
   jsdoc-type-pratt-parser@4.1.0: {}
 
   jsdoc-type-pratt-parser@6.10.0: {}
@@ -5502,6 +5522,8 @@ snapshots:
       sade: 1.8.1
 
   punycode@2.3.1: {}
+
+  qrcode-generator@2.0.4: {}
 
   quansync@0.2.11: {}
 

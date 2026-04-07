@@ -1,3 +1,4 @@
 export * from './designer'
+export * from './render'
 export * from './schema'
 export * from './viewer'

@@ -1,5 +1,6 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
 import type { BarcodeProps } from './schema'
+import { generateBarcodeSvg } from './render'
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -11,27 +12,75 @@ export function renderBarcodeContent(
 ): { html: string } {
   const p = node.props as unknown as BarcodeProps
 
-  let label: string
+  let label: string | undefined
   if (node.binding) {
     const b = Array.isArray(node.binding) ? node.binding[0] : node.binding
     label = `{{${escapeHtml(context.getBindingLabel(b))}}}`
   }
-  else {
-    label = p.value ? escapeHtml(p.value) : p.format
+
+  const value = p.value || ''
+
+  // No value: show placeholder barcode with a sample value
+  if (!value) {
+    return { html: renderPlaceholder(p, label || p.format) }
   }
 
-  // Stylized barcode lines placeholder
-  const lines = Array.from(
-    { length: 20 },
-    (_, i) => `<rect x="${i * 5 + 4}" y="4" width="${i % 3 === 0 ? 3 : 1}" height="calc(100% - ${p.showText ? 20 : 8}px)" fill="${p.lineColor}"/>`,
-  ).join('')
+  // Generate real barcode
+  let svg: string
+  try {
+    svg = generateBarcodeSvg(value, {
+      format: p.format,
+      lineWidth: p.lineWidth,
+      lineColor: p.lineColor,
+      backgroundColor: p.backgroundColor,
+      showText: p.showText,
+    })
+  }
+  catch {
+    // Invalid value for format -- show error placeholder
+    return { html: renderErrorPlaceholder(p, value) }
+  }
 
-  const textPart = p.showText
-    ? `<text x="50%" y="calc(100% - 4px)" text-anchor="middle" font-size="9" fill="${p.lineColor}">${label}</text>`
-    : ''
+  if (label) {
+    // Overlay binding label
+    const html = `<div style="position:relative;width:100%;height:100%">${svg}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="background:rgba(255,255,255,0.8);padding:1px 4px;font-size:10px;color:${p.lineColor};border-radius:2px;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div></div>`
+    return { html }
+  }
 
-  const html = `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background:${p.backgroundColor}">${lines}${textPart}</svg>`
-  return { html }
+  return { html: svg }
+}
+
+function renderPlaceholder(p: BarcodeProps, label: string): string {
+  // Use a sample value to show a representative barcode
+  const sampleValues: Record<string, string> = {
+    CODE128: 'EasyInk',
+    CODE39: 'EASYINK',
+    EAN13: '5901234123457',
+    EAN8: '96385074',
+    UPC: '123456789012',
+    ITF14: '98765432109213',
+  }
+  const sampleValue = sampleValues[p.format] || 'EasyInk'
+
+  let svg: string
+  try {
+    svg = generateBarcodeSvg(sampleValue, {
+      format: p.format,
+      lineWidth: p.lineWidth,
+      lineColor: p.lineColor,
+      backgroundColor: p.backgroundColor,
+      showText: false,
+    })
+  }
+  catch {
+    return renderErrorPlaceholder(p, label)
+  }
+
+  return `<div style="position:relative;width:100%;height:100%;opacity:0.4">${svg}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="background:rgba(255,255,255,0.8);padding:1px 4px;font-size:10px;color:${p.lineColor};border-radius:2px">${label}</span></div></div>`
+}
+
+function renderErrorPlaceholder(p: BarcodeProps, value: string): string {
+  return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${p.backgroundColor};color:#e53e3e;font-size:11px;border:1px dashed #e53e3e;box-sizing:border-box">Invalid: ${escapeHtml(value)}</div>`
 }
 
 export function getBarcodeContextActions(_node: MaterialNode) {

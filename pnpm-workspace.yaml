@@ -26,7 +26,9 @@ catalogs:
     vite: ^7.2.1
     vue-tsc: ^3.2.6
   framework:
+    jsbarcode: ^3.12.3
     lucide-vue-next: ^1.0.0
+    qrcode-generator: ^2.0.4
     vue: ^3.5.0
   inlined:
     '@antfu/utils': ^9.3.0
