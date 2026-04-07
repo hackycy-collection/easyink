@@ -349,8 +349,8 @@ onUnmounted(() => {
               class="ei-canvas-element__rotate-handle"
               @pointerdown="handleRotatePointerDown($event, el.id)"
             >
-              <div class="ei-canvas-element__rotate-line" />
               <div class="ei-canvas-element__rotate-dot" />
+              <div class="ei-canvas-element__rotate-line" />
             </div>
           </template>
         </div>
