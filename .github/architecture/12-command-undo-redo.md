@@ -98,16 +98,67 @@ class CommandManager {
 
 - `InsertTableRowCommand`
 - `RemoveTableRowCommand`
-- `ResizeTableColumnCommand`
+- `InsertTableColumnCommand`
+- `RemoveTableColumnCommand`
+- `ResizeTableColumnCommand`（列 ratio 修改，支持 merge）
+- `ResizeTableRowCommand`（行高修改，支持 merge）
+- `MergeTableCellsCommand`（合并单元格，修改 colSpan/rowSpan）
+- `SplitTableCellCommand`（拆分已合并单元格）
 - `UpdateTableCellCommand`
+- `UpdateTableCellBorderCommand`（单边边框显隐）
 - `UpdateTableSectionCommand`
 
 ### 组合命令
 
+- `CompositeCommand` -- 将多个子命令打包成一条原子操作，undo/redo 时整体回滚/重做
 - `BatchCommand`
 - `ImportTemplateCommand`
 
-## 12.6 历史面板
+## 12.6 CompositeCommand 模型
+
+表格的许多操作涉及多个数据修改（如插入一列需要同时修改 columns[]、更新每行的 cells[]、调整合并单元格的 colSpan），这些必须作为一条原子命令进入历史栈。
+
+```typescript
+class CompositeCommand implements Command {
+  id: string
+  type = 'composite'
+  description: string
+  private children: Command[]
+
+  constructor(description: string, children: Command[]) {
+    this.id = generateId()
+    this.description = description
+    this.children = children
+  }
+
+  execute(): void {
+    for (const child of this.children) {
+      child.execute()
+    }
+  }
+
+  undo(): void {
+    // 逆序 undo
+    for (let i = this.children.length - 1; i >= 0; i--) {
+      this.children[i].undo()
+    }
+  }
+}
+```
+
+### 使用 CompositeCommand 的场景
+
+- **插入列**：修改 columns[] + 每行插入新 cell + 调整受影响的合并单元格 colSpan
+- **删除列**：修改 columns[] + 每行删除 cell + 调整受影响的合并单元格 colSpan（colSpan 减到 1 变普通单元格）
+- **插入行**：修改 rows[] + 根据列定义生成 cells + 调整各 band 的 rowRange
+- **删除行**：修改 rows[] + 调整各 band 的 rowRange + 调整受影响的合并单元格 rowSpan
+- **合并单元格**：修改目标 cell 的 colSpan/rowSpan + 标记被合并的 cells
+
+### 与事务的区别
+
+`CompositeCommand` 是命令组合，在 execute 之前就确定了所有子命令。事务（`beginTransaction/commitTransaction`）适用于运行时才能确定步骤的场景（如拖拽投放多个元素）。两者不冲突，事务提交时可以将收集到的命令包装成 `CompositeCommand`。
+
+## 12.7 历史面板
 
 Designer 底部历史面板至少提供：
 
@@ -122,7 +173,7 @@ Designer 底部历史面板至少提供：
 - 选区刷新
 - Viewer 预览刷新
 
-## 12.7 失败语义
+## 12.8 失败语义
 
 命令执行失败时：
 

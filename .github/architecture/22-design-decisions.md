@@ -44,6 +44,26 @@
 | 38 | 页面属性编辑协议 | 描述符驱动，区分规范字段、兼容字段和派生控件 | 对标产品的页面设置窗口不是 `PageSchema` 平面镜像 |
 | 39 | Benchmark 页面兼容策略 | codec 必须接受页面原始字段别名噪音 | 公开样例已验证 `scale/scaleType`、背景偏移字段、`blank` 值类型都不一致 |
 | 40 | 页面预设字段归属 | 单位展示、纸张预设等编辑器便利信息不直接落入 `page` 规范字段 | 避免把工作台视图噪音写进模板资产 |
+| 41 | 表格 Schema 结构 | 采用 topology(columns[] + rows[]) + bands[] 分层模型，废弃 sections[] 扁平模型 | 列宽独立于行管理，列操作（增删、resize）更自然；band 通过 rowRange 引用行范围而非自包含 |
+| 42 | 表格列宽存储 | 归一化比例(0-1)，所有列 ratio 总和 = 1 | element.width 驱动实际宽度；resize 元素整体时列宽自动等比伸缩；避免列宽与元素宽度的双来源冲突 |
+| 43 | 表格行高存储 | 绝对值（文档 unit） | 行是 band/section 内部拓扑，table-data 数据区行数运行时动态变化，行高比例语义不成立 |
+| 44 | 列 resize 交互 | 推动右侧 + 变总宽 | 拖拽列边线修改当前列 ratio，右侧列位置平移，element.width 随之变化。不是此消彼长 |
+| 45 | 表格编辑状态机 | idle -> table-selected -> cell-selected -> content-editing（废弃 band-selected） | band-selected 作为必经层级没有价值；section 上下文由 cellPath 自动推断 |
+| 46 | 表格深度编辑入口 | 单击格子进 cell-selected，双击格子进 content-editing | 第一次单击表格 = table-selected，再次单击格子区域直接进入 cell-selected |
+| 47 | 深度编辑退出 | 点击外部直接回 idle，Esc 逐层退出 | 点击空白/其他元素时直接退出最省操作步骤；Esc 逐层退出供精确控制 |
+| 48 | 深度编辑拖拽把手 | capability 驱动的外部拖拽把手（左上角元素外） | hasDeepEditing 元素 body 不再响应拖拽；把手位置避免被页面裁切 |
+| 49 | element 级 handle 切换 | 进入深度编辑后 resize/rotate handle 全部隐藏 | 避免与 overlay 内部手柄（列/行 resize）视觉和交互重叠 |
+| 50 | renderOverlay 返回类型 | Vue VNode/Component | 物料对 overlay 有完全控制权；VNode 通过 teleport 挂载到页面级 overlay 容器 |
+| 51 | overlay DOM 挂载位置 | 页面级 teleport | 不受元素 transform 影响，手柄 hitTest 和视觉一致性更可靠 |
+| 52 | 表格浮动工具条位置 | 固定在表格正上方 | 不跟随 cell 移动，避免遮挡相邻单元格 |
+| 53 | MaterialCapabilities 扩展 | 新增 hasDeepEditing / hasOverlay / hasContentEditing / keepAspectRatio | 驱动框架层的 handle 切换、overlay 渲染、外部拖拽把手等统一行为 |
+| 54 | 表格 undo/redo 粒度 | CompositeCommand 模型 | 表格批量操作（插入列 = 修改 columns + 每行 cells + 合并单元格 colSpan）打包成一条原子命令 |
+| 55 | 表格数据存储位置 | TableNode extends MaterialNode，顶层 table 字段 | 不再使用 extensions.table；通过 isTableNode 判别函数访问 |
+| 56 | v1 格子内容 | 仅纯文本 | 架构预留 MaterialNode[] 内容槽，v1 只实现原生 input 覆盖编辑 |
+| 57 | v1 单元格选择 | 仅单选 | cellPath 为单值；多选后续扩展 |
+| 58 | 列操作与合并单元格交互 | 自动调整 colSpan | 插入列时合并单元格 colSpan 扩展，删除列时 colSpan 收缩（减到 1 变普通单元格） |
+| 59 | 现有表格代码处理 | 重写而非迁移 | 现有 sections[] 实现量不大，直接按新 topology+bands 模型重写更干净 |
+| 60 | 多选与深度编辑 | 互斥 | 进入深度编辑前必须取消多选；同一时刻只有一个元素可进入深度编辑 |
 
 ## 22.1 已明确废弃的旧前提
 
@@ -60,6 +80,12 @@
 - “对标产品原始 JSON 就是内部规范模型”
 - “属性窗口可以拆成页面属性和元素属性两个互不相关的系统”
 - “页面属性面板只要有 `width / height / mode` 三项输入就够了”
+- “表格编辑必须经过 band-selected 中间层级”
+- “表格列宽是绝对值，每个 cell 自持宽度”
+- “表格数据存储在 node.extensions.table”
+- “sections[] 扁平模型足够支撑表格结构”
+- “renderOverlay 返回声明式描述对象”
+- “复杂元素可以通过 body 拖拽移动”
 
 ## 22.2 当前优先级
 

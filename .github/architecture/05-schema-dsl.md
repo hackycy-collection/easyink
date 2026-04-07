@@ -318,12 +318,15 @@ interface TableSchema {
 }
 
 interface TableTopologySchema {
-  columns?: TableColumnSchema[]
+  columns: TableColumnSchema[]
   rows: TableRowSchema[]
 }
 
 interface TableColumnSchema {
-  width: number
+  /** 归一化比例值 (0-1)，所有列的 ratio 总和严格等于 1。
+   *  实际像素宽度 = element.width * ratio。
+   *  resize 表格元素整体时列宽自动等比伸缩。 */
+  ratio: number
 }
 
 interface TableLayoutConfig {
@@ -356,15 +359,18 @@ interface TableDataSemantics {
 }
 
 interface TableRowSchema {
-  height?: number
+  /** 行高为绝对值（使用文档 unit），不采用比例制。
+   *  原因：各 band 行数独立，table-data 数据区行数运行时动态变化，
+   *  行高比例的语义不成立。resize 行高时直接修改此值并联动 element.height。 */
+  height: number
   cells: TableCellSchema[]
 }
 
 interface TableCellSchema {
   rowSpan?: number
   colSpan?: number
-  width: number
-  height?: number
+  /** @deprecated 单元格宽度由 columns[].ratio 计算得来，不再自持。
+   *  合并单元格的宽度 = 跨越列的 ratio 之和 * element.width。 */
   border?: CellBorderSchema
   padding?: BoxSpacing
   content: TableCellContentSlot
@@ -373,6 +379,7 @@ interface TableCellSchema {
 }
 
 interface TableCellContentSlot {
+  /** v1 仅支持纯文本内容。架构预留 MaterialNode[] 用于未来嵌套物料。 */
   elements: MaterialNode[]
   editMode?: 'inline-text' | 'rich-text' | 'hosted'
 }
@@ -382,9 +389,30 @@ interface TableCellContentSlot {
 
 - 让 `table-static` 与 `table-data` 共享表壳、格子和内容槽，而不是复制两套实现
 - 把集合绑定、区段、分页、空行填充等数据语义隔离到 `data` 层，不污染静态表格
-- 让设计器支持表壳、区段、格子、格子内容四层编辑上下文
-- 让结构树能表达“表格里还有表格/文本/图形”的关系
+- 让设计器支持表壳、格子、格子内容三层编辑上下文（废弃 band-selected 层级）
+- 让结构树能表达”表格里还有表格/文本/图形”的关系
 - 让 Viewer 支持分页、重复头、留白、空行填充、单元格内容递归渲染
+
+### 列宽模型说明
+
+列宽采用归一化比例制而非绝对值，核心动机：
+
+- **element.width 是唯一绝对宽度来源**：resize 表格元素时所有列等比伸缩，不需要逐列重算
+- **列 resize 交互语义**：拖拽列边线时修改当前列 ratio、推动右侧列并改变 element.width（表格总宽变化），不是左右列此消彼长
+- **最小列宽约束**：通过计算 `ratio * element.width` 的实际像素值与下限(如 4px)比较来约束，而非约束 ratio 本身
+- **浮点精度**：所有列 ratio 总和严格为 1。增删列时重新归一化。默认 3 列等分 → `[1/3, 1/3, 1/3]` 归一化存储
+
+### 行高模型说明
+
+行高采用绝对值(使用文档 unit)，与列宽不对称：
+
+- 列是跨所有 band 共享的全局拓扑，行是 band 内部的局部拓扑
+- table-data 数据区的行数运行时动态变化，行高比例的语义不成立
+- 拖拽行 resize 时修改 row.height 并联动 element.height
+
+### TableNode 类型访问
+
+schema 包通过 TypeScript 类型拓展声明 `TableNode extends MaterialNode`。运行时通过判别函数 `isTableNode(node)` 访问 `node.table`。不破坏 `MaterialNode` 基础类型，但类型层明确。实际存储中表格数据位于 `node.table` 顶层字段，不再使用 `node.extensions.table`。
 
 ## 5.7 动画与扩展
 

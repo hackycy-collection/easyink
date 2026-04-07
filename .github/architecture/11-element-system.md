@@ -41,6 +41,17 @@ interface MaterialCapabilities {
   supportsUnionDrop?: boolean
   pageAware?: boolean
   multiBinding?: boolean
+  /** 标识元素支持深度编辑模式（表格、容器等）。
+   *  有此标识的元素使用外部拖拽把手（左上角元素外），
+   *  单击后可进入内部编辑态，element 级 handle 按 phase 隐藏。 */
+  hasDeepEditing?: boolean
+  /** 标识元素拥有自定义 overlay（列/行 resize 手柄、单元格选区等）。
+   *  有此标识时 CanvasWorkspace 会调用 renderOverlay() 并挂载返回的 VNode。 */
+  hasOverlay?: boolean
+  /** 标识元素支持内容原位编辑（文本双击编辑、表格格子内文本编辑等）。 */
+  hasContentEditing?: boolean
+  /** 拖拽 element 级 resize handle 时保持宽高比。 */
+  keepAspectRatio?: boolean
 }
 ```
 
@@ -194,6 +205,22 @@ interface MaterialCapabilities {
 - `table-static` 不能为了复用代码伪造 `data/header/summary` 这类运行时区段
 - Designer 和 Viewer 都应先命中表格内核，再进入 `static/data` 语义层
 
+### 表格 capabilities
+
+```
+table-static:  rotatable=false, resizable=true, hasDeepEditing=true, hasOverlay=true, hasContentEditing=true
+table-data:    rotatable=false, resizable=true, hasDeepEditing=true, hasOverlay=true, hasContentEditing=true, bindable=true, multiBinding=true
+```
+
+### 深度编辑元素的通用交互模型
+
+所有声明了 `hasDeepEditing = true` 的元素共享以下交互规范：
+
+1. **外部拖拽把手**：位于元素左上角外部，替代 element body 拖拽。由 CanvasWorkspace 统一渲染，不由物料自行渲染。把手不应被页面边缘裁切。
+2. **handle 切换**：`table-selected`（或等价的一级选中态）显示 element 级 resize handle。进入深度编辑后 element 级 handle 全部隐藏，改由 overlay 接管交互。
+3. **z-index 提升**：进入深度编辑时提升元素 z-index，确保 overlay 不被其他元素遮挡。
+4. **互斥约束**：同一时刻只有一个元素可进入深度编辑。多选状态与深度编辑互斥。
+
 ### `container`
 
 它需要：
@@ -323,8 +350,23 @@ interface MaterialDesignerExtension {
   renderContent?(node: MaterialNode, context: DesignerRenderContext): DesignerRenderOutput
   getToolbarActions?(node: MaterialNode): ToolbarAction[]
   getContextActions?(node: MaterialNode): ContextAction[]
-  renderOverlay?(node: MaterialNode, state: DesignerMaterialState): unknown
+  /** 自定义 overlay 渲染：返回 Vue VNode 或 Component。
+   *  VNode 通过 teleport 挂载到页面级 overlay 容器（绝对定位，不受元素 transform 影响）。
+   *  物料对 overlay 有完全控制权，负责渲染列/行 resize 手柄、单元格高亮、浮动工具条等。
+   *  仅当 capabilities.hasOverlay = true 时被 CanvasWorkspace 调用。 */
+  renderOverlay?(node: MaterialNode, state: DesignerMaterialState): VNode | Component | null
+  /** 进入内容编辑模式。返回 true 表示成功进入。
+   *  由 capabilities.hasContentEditing 控制是否可用。 */
   enterEditMode?(node: MaterialNode): boolean
+}
+
+interface DesignerMaterialState {
+  selected: boolean
+  hovered: boolean
+  editing: boolean
+  /** 深度编辑相关状态，仅 hasDeepEditing 元素使用 */
+  deepEditPhase?: string
+  cellPath?: { row: number; col: number }
 }
 
 interface DesignerRenderContext {
@@ -390,9 +432,11 @@ CanvasWorkspace 遍历 elements
 
 对表格物料，还需要额外支持：
 
-- 表壳、区段、格子、格子内容四层编辑上下文
+- 表壳、格子、格子内容三层编辑上下文（band-selected 已废弃）
 - 格子内文本进入内联编辑时，属性壳层仍保持 `table-static/table-data` 上下文
 - 表格浮动工具条与属性面板共享同一份表格编辑状态，而不是各自维护一套临时状态
+- overlay VNode 通过 teleport 挂载到页面级 overlay 容器，不受元素 transform 影响
+- 外部拖拽把手由框架根据 `hasDeepEditing` capability 统一渲染
 
 ## 11.7 Viewer 扩展面
 

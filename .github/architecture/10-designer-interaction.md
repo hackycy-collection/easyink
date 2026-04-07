@@ -376,81 +376,140 @@ interface TemplateLibraryState {
 
 ## 10.7 表格深度编辑
 
-表格交互不能按“选中一个元素”处理。对标产品已经证明它是层级式编辑流。
+表格交互不能按”选中一个元素”处理。对标产品已经证明它是层级式编辑流。
 
 ### 10.7.1 表格交互流
 
 1. 页面空白处选中时，属性面板显示页面属性。
-2. 用户选中表格后，进入 table-selected，属性面板切到表格级属性。
-3. 用户继续点入格子后，进入 cell-selected。
-4. 画布出现格子级操作 affordance 和浮动工具条。
-5. 属性面板在保留表格级属性的同时，追加格子级属性分组。
-6. 用户点入格子内内容（如表头文本）后，进入 content-editing，内容在格子内部原位编辑。
-7. `content-editing` 期间属性面板仍保持表格壳层，不切成独立文本面板。
-8. 用户可继续切换到标题、数据、合计、留白等区段上下文。
-9. 用户点击空白处或切换其他节点后，退出格子深度编辑态。
+2. 用户单击表格后，进入 `table-selected`，属性面板切到表格级属性。此时显示外部拖拽把手和 element 级 resize handle（表格 rotatable=false 所以没有 rotate handle）。
+3. 用户再次单击格子区域后，直接进入 `cell-selected`（跳过 band-selected）。
+4. 画布出现格子级操作 affordance（单元格高亮、列 resize 手柄、行 resize 手柄）和浮动工具条（表格正上方）。
+5. element 级的 resize/rotate handle 全部隐藏，仅保留外部拖拽把手。
+6. 属性面板在保留表格级属性的同时，动态追加格子级属性分组。
+7. 用户双击格子后，进入 `content-editing`，原生 input 覆盖在单元格位置上进行原位文本编辑。
+8. `content-editing` 期间属性面板仍保持表格壳层，不切成独立文本面板。
+9. 用户点击表格外部空白区域时，直接退出到 `idle`（不逐层退出）。
+10. 用户按 Esc 键时，逐层退出：`content-editing` -> `cell-selected` -> `table-selected` -> `idle`。
+11. 同 band 内 cell 之间直接切换（更新 cellPath），跨 band 时同样直接切换（同时更新 section 上下文和 cellPath）。
 
 ### 10.7.2 表格状态机
 
 ```typescript
 interface TableEditingState {
-	phase: 'idle' | 'table-selected' | 'band-selected' | 'cell-selected' | 'content-editing'
+	phase: 'idle' | 'table-selected' | 'cell-selected' | 'content-editing'
 	tableId?: string
-	band?: 'header' | 'title' | 'data' | 'summary' | 'footer' | 'blank'
+	/** 根据 cellPath 从 topology.rows 推断当前 band，不作为独立可选中状态 */
+	sectionKind?: 'header' | 'title' | 'data' | 'summary' | 'footer' | 'blank'
 	cellPath?: {
 		row: number
 		col: number
 	}
-	contentNodeId?: string
 }
 ```
 
 实现约束：
 
+- `band-selected` 已废弃。Section（header/data/total 等）的显隐、重复等 section 级属性通过属性面板的表级属性区管理，无需显式切换 -- 当用户点击不同 section 的 cell 时自动推断当前 section 上下文
 - `table-selected` 显示表格壳层属性和结构属性
-- `band-selected` 用于标题、数据、合计、留白等逻辑区段
-- `cell-selected` 才允许出现分裂、合并、局部边框、内容位置、格子内边距等操作
-- `content-editing` 用于格子内文本或富文本的原位编辑，但仍从属于当前 `tableId + cellPath`
+- `cell-selected` 才允许出现合并、拆分、局部边框、内容位置、格子内边距等操作
+- `content-editing` 用于格子内纯文本的原位编辑（v1 使用原生 input 覆盖），仍从属于当前 `tableId + cellPath`
 - `cellPath` 不能等价成普通元素 id，因为它依赖表格内部拓扑
-- `contentNodeId` 指向格子内容槽中的节点，而不是脱离表格上下文的全局主选区
+- v1 仅支持单选格子（cellPath 是单值），多选后续扩展
+- 多选元素状态与深度编辑互斥：进入深度编辑前必须先取消多选，反之亦然
 
-### 10.7.3 格子态 affordance
+### 10.7.3 事件分发
+
+表格的 pointer 事件分发需要区分两个阶段：
+
+**table-selected 阶段：**
+- 单击格子区域 → 进入 `cell-selected`（记录 cellPath，推断 sectionKind）
+- 拖拽元素 body → 由外部拖拽把手处理（element body 不再响应拖拽）
+- 拖拽 element resize handle → 调整表格整体尺寸，列宽等比伸缩
+
+**cell-selected 阶段：**
+- 单击另一个格子 → 同 band 内直接切换 cellPath；跨 band 同时更新 sectionKind
+- 双击格子 → 进入 `content-editing`
+- 拖拽列边线 → 列 resize（修改当前列 ratio，推动右侧列位置，改变 element.width）
+- 拖拽行边线 → 行 resize（修改 row.height，改变 element.height）
+- 点击表格外空白 → 直接退到 idle
+- 点击其他元素 → 退到 idle + 选中新元素
+
+### 10.7.4 深度编辑与 element 级 handle 的交互
+
+进入深度编辑模式后：
+
+- element 级的 8 个 resize handle 和 rotate handle 全部隐藏
+- 外部拖拽把手保持显示，用于移动表格
+- overlay 层渲染列 resize 手柄、行 resize 手柄、单元格高亮
+- overlay DOM 通过 teleport 挂载到页面级专用 overlay 容器，使用绝对定位基于元素在页面上的位置计算，不受元素 transform 影响
+- 进入深度编辑时提升表格 z-index，确保 overlay 不被其他元素遮挡
+- 同一时刻只有一个元素可进入深度编辑
+
+外部拖拽把手位于元素左上角外部，当元素贴近页面左上角时把手不应被裁切（页面 overflow:visible）。
+
+### 10.7.5 格子态 affordance
 
 进入 `cell-selected` 后，Designer 至少需要提供：
 
 - 绑定字段拖拽句柄
 - 删除当前绑定字段动作
-- 格子宽度拖拽
-- 格子高度拖拽
-- 表格浮动工具条
+- 格子列宽拖拽（列边线手柄）
+- 格子行高拖拽（行边线手柄）
+- 表格浮动工具条（位于表格正上方）
 
-表格浮动工具条至少要覆盖：
+表格浮动工具条 v1 覆盖的动作：
 
 - 添加/删除行列
-- 拆分单元格
-- 合并单元格
+- 合并/拆分单元格（v1 仅单选，合并方向为向右或向下相邻单元格）
 - 单边边框显隐
 - 内容水平/垂直对齐
 
-### 10.7.4 属性壳层行为
+当表格尺寸巨大时，浮动工具条固定在表格正上方可能超出可视区域。后续可考虑 sticky 定位策略。
 
-格子态下属性面板不应切换成“另一个单元格编辑器页面”，而应保持同一壳层：
+### 10.7.6 列 resize 交互语义
+
+- 拖拽列右边线时，修改当前列的 ratio 值
+- 右侧所有列位置平移，表格元素总宽（element.width）随之变化
+- 这不是”左右列此消彼长”模式
+- 最小列宽约束：计算 `ratio * element.width` 的实际像素值，当低于下限（如 4px）时拖拽停止响应
+- 列 resize 命令支持 merge，连续拖拽期间的中间值压缩为一条 undo 记录
+
+### 10.7.7 列操作与合并单元格的交互
+
+- 插入列时，已有合并单元格（colSpan > 1）自动扩展 colSpan
+- 删除列时，涉及的合并单元格自动收缩 colSpan（colSpan 减到 1 则变回普通单元格）
+- 这些批量修改由 CompositeCommand 包装，undo 时整体回滚
+
+### 10.7.8 属性壳层行为
+
+格子态下属性面板不应切换成”另一个单元格编辑器页面”，而应保持同一壳层：
 
 - 上半段仍是表格级属性
-- 下半段追加格子背景、格子尺寸、格子操作、格子内容、内容位置、内边距等局部属性
+- 下半段根据 `TableEditingState.phase` 动态追加格子背景、格子操作、格子内容等局部属性组
+- `cell-selected` 时自动追加格子属性组
+- `table-selected` 时仅显示表格级属性
+- 属性面板使用展开/折叠组分离不同层级的属性
 
-这是同一属性壳层里的上下文递进，不是两个面板。
+Section 级属性（显隐、重复）不需要独立的交互态。用户点击不同 section 中的 cell 时，属性面板的表级属性区自动反映当前 section 的上下文。
 
-### 10.7.5 格子内容编辑
+### 10.7.9 格子内容编辑
 
-实测表格表头文本点击后会直接在格子里进入输入框，但右侧属性面板仍显示 `表格 / 数据表格` 的壳层属性，而不是跳到独立文本属性页。
+v1 表格格子内容仅支持纯文本：
 
-设计约束：
+- 双击单元格后，在单元格位置覆盖一个原生 input 元素
+- input 的位置和尺寸与单元格对齐，由 overlay 层管理
+- 回车键确认编辑，Esc 退出到 `cell-selected`
+- 编辑完成后通过 `UpdateTableCellCommand` 写入 cell 的 content
+- 右侧属性面板仍显示表格壳层属性，不切成独立文本属性页
 
-- 格子内容必须建模为 `cell content slot`，允许承载文本、图片、子表格等子元素
-- 文本内容默认支持原位编辑；编辑 host 运行在格子内部 overlay，而不是弹出第二个面板
-- 进入 `content-editing` 不改变右侧主类型标签，保持表格上下文连续
-- 只有用户显式执行“编辑子物料”动作时，才允许脱离表格壳层进入子元素独立属性页
+架构预留 `TableCellContentSlot.elements: MaterialNode[]` 用于未来支持格子内嵌套物料（图片、子表格等），但 v1 不实现。
+
+### 10.7.10 键盘交互（v1 最小集）
+
+- **Esc**：逐层退出（content-editing -> cell-selected -> table-selected -> idle）
+- **Tab**：cell-selected 时切换到下一个单元格（按行优先顺序，末尾回绕到首格）
+- **Enter**：cell-selected 时进入 content-editing；content-editing 时确认编辑并退出到 cell-selected
+- **Delete**：cell-selected 时删除当前格子内容
 
 ## 10.8 绑定交互
 
