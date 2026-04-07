@@ -581,8 +581,8 @@ onUnmounted(() => {
 }
 
 .ei-canvas-element__rotate-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #fff;
   border: 1.5px solid var(--ei-primary, #1890ff);
