@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MarqueeRect } from '../composables/use-marquee-select'
 import type { ResizeHandle } from '../composables/use-element-resize'
-import { computed, onMounted, onUnmounted, provide, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { useDeepEditing } from '../composables/use-deep-editing'
 import { useElementDrag } from '../composables/use-element-drag'
@@ -85,6 +85,8 @@ const deepEditing = useDeepEditing({
   store,
   getPageEl: () => pageRef.value,
   getScrollEl: () => scrollRef.value,
+  getOverlayEl: () => deepEditOverlayRef.value,
+  getToolbarEl: () => deepEditToolbarRef.value,
 })
 
 function handlePageDragOver(e: DragEvent) {
@@ -176,11 +178,11 @@ function handleElementPointerDown(e: PointerEvent, elementId: string) {
   if (!(e.ctrlKey || e.metaKey)) {
     const ext = store.getDesignerExtension(store.getElementById(elementId)?.type ?? '')
     if (ext?.deepEditing) {
-      const overlayEl = deepEditOverlayRef.value
-      const toolbarEl = deepEditToolbarRef.value
-      if (overlayEl && toolbarEl) {
-        deepEditing.enter(elementId, overlayEl, toolbarEl)
+      // Step 1: set store state (triggers reactive updates for overlay positioning)
+      if (deepEditing.enter(elementId)) {
         deepEditEnteredOnPointerDown = true
+        // Step 2: after Vue renders the overlay/toolbar, mount the FSM phase
+        nextTick(() => deepEditing.mountCurrentPhase())
         return
       }
     }
@@ -299,6 +301,10 @@ const containerObserver = new ResizeObserver(clampWindowPositions)
 onMounted(() => {
   const el = containerRef.value
   if (!el) return
+
+  // Register page element provider so material extensions can do coordinate conversion
+  store.setPageElProvider(() => pageRef.value)
+
   const rect = el.getBoundingClientRect()
   for (const win of store.workbench.windows) {
     if (win.x < 0) {
@@ -402,31 +408,28 @@ onUnmounted(() => {
         <!-- Snap line overlay -->
         <SnapLineOverlay />
 
-        <!-- Deep editing containers -->
-        <template v-if="store.isInDeepEditing && deepEditNode">
-          <!-- Overlay: positioned exactly at the element -->
-          <div
-            ref="deepEditOverlayRef"
-            class="ei-deep-edit-overlay"
-            :style="{
-              left: `${deepEditNode.x}${store.schema.unit}`,
-              top: `${deepEditNode.y}${store.schema.unit}`,
-              width: `${deepEditNode.width}${store.schema.unit}`,
-              height: `${deepEditNode.height}${store.schema.unit}`,
-            }"
-          />
-          <!-- Toolbar: floating above the element -->
-          <div
-            ref="deepEditToolbarRef"
-            class="ei-deep-edit-toolbar"
-            :style="{
-              left: `${deepEditNode.x}${store.schema.unit}`,
-              top: `${deepEditNode.y}${store.schema.unit}`,
-            }"
-          />
-          <!-- Drag handle -->
-          <DeepEditDragHandle :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
-        </template>
+        <!-- Deep editing containers (always in DOM; v-show controls visibility) -->
+        <div
+          ref="deepEditOverlayRef"
+          v-show="store.isInDeepEditing && deepEditNode"
+          class="ei-deep-edit-overlay"
+          :style="deepEditNode ? {
+            left: `${deepEditNode.x}${store.schema.unit}`,
+            top: `${deepEditNode.y}${store.schema.unit}`,
+            width: `${deepEditNode.width}${store.schema.unit}`,
+            height: `${deepEditNode.height}${store.schema.unit}`,
+          } : undefined"
+        />
+        <div
+          ref="deepEditToolbarRef"
+          v-show="store.isInDeepEditing && deepEditNode"
+          class="ei-deep-edit-toolbar"
+          :style="deepEditNode ? {
+            left: `${deepEditNode.x}${store.schema.unit}`,
+            top: `${deepEditNode.y}${store.schema.unit}`,
+          } : undefined"
+        />
+        <DeepEditDragHandle v-if="store.isInDeepEditing && deepEditNode" :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
 
         <!-- Marquee selection rectangle -->
         <div
@@ -520,7 +523,7 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--ei-text-secondary, #999);
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -535,7 +538,7 @@ onUnmounted(() => {
 .ei-canvas-element__render {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ei-canvas-element__type-label {

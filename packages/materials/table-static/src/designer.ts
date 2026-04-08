@@ -28,6 +28,7 @@ function buildHtml(node: MaterialNode, unit: UnitType): string {
     topology: node.table.topology,
     props: p,
     unit,
+    tableStyle: 'height:100%',
     cellRenderer: cell => cell.content?.text || '',
   })
 }
@@ -76,9 +77,10 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
     screenToDoc(screenVal, screenOrigin, zoom) {
       return unitManager.screenToDocument(screenVal, screenOrigin, 0, zoom)
     },
-    getZoom: () => 1,
-    getPageEl: () => null,
-    t: (key: string) => key,
+    getZoom: () => context.getZoom(),
+    getPageEl: () => context.getPageEl(),
+    getUnit: () => context.getSchema().unit,
+    t: (key: string) => context.t(key),
   }
 }
 

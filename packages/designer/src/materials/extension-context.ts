@@ -61,5 +61,17 @@ export function createMaterialExtensionContext(store: DesignerStore): MaterialEx
         }
       }
     },
+
+    getZoom() {
+      return store.workbench.viewport.zoom
+    },
+
+    getPageEl() {
+      return store.getPageEl()
+    },
+
+    t(key: string) {
+      return store.t(key)
+    },
   }
 }

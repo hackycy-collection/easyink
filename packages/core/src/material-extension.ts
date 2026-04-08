@@ -57,6 +57,12 @@ export interface MaterialExtensionContext {
   requestPropertyPanel: (descriptor: PropertyPanelRequest) => void
   emit: (event: string, payload: unknown) => void
   on: (event: string, handler: (...args: unknown[]) => void) => () => void
+  /** Current viewport zoom level (1 = 100%). */
+  getZoom: () => number
+  /** DOM element of the page canvas, used for coordinate conversion. */
+  getPageEl: () => HTMLElement | null
+  /** Translate an i18n key to the current locale. */
+  t: (key: string) => string
 }
 
 export interface SelectionSnapshot {

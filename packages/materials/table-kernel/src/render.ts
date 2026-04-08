@@ -47,7 +47,7 @@ export interface RenderTableHtmlOptions {
  */
 export function renderTableHtml(options: RenderTableHtmlOptions): string {
   const { topology, props, unit, tableStyle, cellRenderer, rowDecorator } = options
-  const bw = props.borderWidth || 1
+  const bw = props.borderWidth ?? 1
   const bc = escapeAttr(props.borderColor || '#000')
   const bt = props.borderType || 'solid'
   const pad = props.cellPadding ?? 4

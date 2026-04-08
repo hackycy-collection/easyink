@@ -27,7 +27,12 @@ export function renderTableData(node: MaterialNode) {
         : row.role === 'footer'
           ? props.summaryBackground
           : ''
-      return bg ? { rowStyle: `;background:${bg}` } : {}
+      if (bg)
+        return { cellStyle: `;background:${bg}` }
+      // Striped rows: apply to non-header/footer rows at odd indices
+      if (props.stripedRows && props.stripedColor && row.role !== 'header' && row.role !== 'footer' && ri % 2 === 1)
+        return { cellStyle: `;background:${props.stripedColor}` }
+      return {}
     },
   })
   return { html }

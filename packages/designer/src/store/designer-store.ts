@@ -36,6 +36,11 @@ export class DesignerStore {
 
   // ─── Generic deep editing ─────────────────────────────────────
   readonly deepEditing: DeepEditingRuntimeState = createDefaultDeepEditing()
+  /** Registered callback for FSM-level cleanup before resetting deep editing state. */
+  private _deepEditingCleanup: (() => void) | null = null
+
+  // ─── Page element provider (for coordinate conversion) ──────
+  private _pageElProvider: () => HTMLElement | null = () => null
 
   // ─── Locale ───────────────────────────────────────────────────
   private _locale?: LocaleMessages
@@ -171,6 +176,16 @@ export class DesignerStore {
 
   // ─── Deep Editing ───────────────────────────────────────────────
 
+  /** Register the page DOM element provider (called by CanvasWorkspace on mount). */
+  setPageElProvider(provider: () => HTMLElement | null): void {
+    this._pageElProvider = provider
+  }
+
+  /** Get the page DOM element for coordinate conversion. */
+  getPageEl(): HTMLElement | null {
+    return this._pageElProvider()
+  }
+
   /** Whether a deep editing session is active. */
   get isInDeepEditing(): boolean {
     return this.deepEditing.nodeId !== undefined
@@ -204,10 +219,18 @@ export class DesignerStore {
 
   /** Exit deep editing, reset to idle. */
   exitDeepEditing(): void {
+    if (this._deepEditingCleanup) {
+      this._deepEditingCleanup()
+    }
     this.deepEditing.nodeId = undefined
     this.deepEditing.materialType = undefined
     this.deepEditing.currentPhase = undefined
     this.deepEditing.materialState = undefined
+  }
+
+  /** Register a callback for FSM-level phase cleanup (called before state reset in exitDeepEditing). */
+  setDeepEditingCleanup(fn: (() => void) | null): void {
+    this._deepEditingCleanup = fn
   }
 
   /** Transition to a specific phase within the active deep editing FSM. */

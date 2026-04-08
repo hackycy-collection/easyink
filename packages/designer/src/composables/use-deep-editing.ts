@@ -5,6 +5,9 @@ export interface DeepEditingContext {
   store: DesignerStore
   getPageEl: () => HTMLElement | null
   getScrollEl: () => HTMLElement | null
+  /** Lazy getters for overlay/toolbar containers (may be null before DOM mount). */
+  getOverlayEl: () => HTMLElement | null
+  getToolbarEl: () => HTMLElement | null
 }
 
 interface ActiveSession {
@@ -12,8 +15,8 @@ interface ActiveSession {
   definition: DeepEditingDefinition
   extension: MaterialDesignerExtension
   currentPhase: DeepEditingPhase
-  overlayContainer: HTMLElement
-  toolbarContainer: HTMLElement
+  /** Whether onEnter has been called for the initial phase. */
+  mounted: boolean
 }
 
 /**
@@ -23,24 +26,32 @@ interface ActiveSession {
  */
 export function useDeepEditing(ctx: DeepEditingContext) {
   let session: ActiveSession | null = null
+  /** Guard against re-entrancy: blur during exit() calls requestTransition which calls transitionTo */
+  let exiting = false
 
   function findPhase(definition: DeepEditingDefinition, phaseId: string): DeepEditingPhase | undefined {
     return definition.phases.find(p => p.id === phaseId)
   }
 
-  function makeContainers(overlayEl: HTMLElement, toolbarEl: HTMLElement) {
+  function getContainers() {
+    const overlay = ctx.getOverlayEl()
+    const toolbar = ctx.getToolbarEl()
+    if (!overlay || !toolbar)
+      return null
     return {
-      overlay: overlayEl,
-      toolbar: toolbarEl,
+      overlay,
+      toolbar,
       requestTransition: (phaseId: string) => transitionTo(phaseId),
     }
   }
 
   /**
-   * Enter deep editing for a node. Creates overlay/toolbar containers
-   * and transitions to the initial phase.
+   * Enter deep editing for a node.
+   * Sets store-level state immediately. The initial phase's onEnter is
+   * deferred until mountCurrentPhase() is called (after Vue renders the
+   * overlay/toolbar containers via nextTick).
    */
-  function enter(nodeId: string, overlayEl: HTMLElement, toolbarEl: HTMLElement): boolean {
+  function enter(nodeId: string): boolean {
     const { store } = ctx
     const node = store.getElementById(nodeId)
     if (!node)
@@ -55,7 +66,7 @@ export function useDeepEditing(ctx: DeepEditingContext) {
     if (!initialPhase)
       return false
 
-    // Enter store-level deep editing state
+    // Enter store-level deep editing state (triggers v-show / computed updates)
     store.enterDeepEditing(nodeId)
 
     session = {
@@ -63,29 +74,64 @@ export function useDeepEditing(ctx: DeepEditingContext) {
       definition,
       extension: ext,
       currentPhase: initialPhase,
-      overlayContainer: overlayEl,
-      toolbarContainer: toolbarEl,
+      mounted: false,
     }
-
-    // Enter initial phase
-    initialPhase.onEnter(makeContainers(overlayEl, toolbarEl), node)
 
     return true
   }
+
+  /**
+   * Mount the current phase's UI into overlay/toolbar containers.
+   * Must be called after Vue has rendered the containers (e.g. in nextTick).
+   */
+  function mountCurrentPhase(): boolean {
+    if (!session || session.mounted)
+      return false
+
+    const containers = getContainers()
+    if (!containers)
+      return false
+
+    const node = ctx.store.getElementById(session.nodeId)
+    if (!node)
+      return false
+
+    session.currentPhase.onEnter(containers, node)
+    session.mounted = true
+    return true
+  }
+
+  /**
+   * Clean up the current FSM phase without resetting store state.
+   * Called by the store's exitDeepEditing() via the registered cleanup callback.
+   */
+  function cleanupPhase(): void {
+    if (!session)
+      return
+
+    exiting = true
+    if (session.mounted) {
+      session.currentPhase.onExit()
+    }
+    session = null
+    exiting = false
+  }
+
+  // Register cleanup callback so store.exitDeepEditing() can clean up the FSM phase
+  ctx.store.setDeepEditingCleanup(cleanupPhase)
 
   /** Exit deep editing entirely, cleaning up the current phase. */
   function exit(): void {
     if (!session)
       return
 
-    session.currentPhase.onExit()
+    // exitDeepEditing() will call cleanupPhase() via the registered callback
     ctx.store.exitDeepEditing()
-    session = null
   }
 
   /** Transition to a named phase. */
   function transitionTo(phaseId: string): boolean {
-    if (!session)
+    if (!session || exiting)
       return false
 
     const { store } = ctx
@@ -97,18 +143,22 @@ export function useDeepEditing(ctx: DeepEditingContext) {
     if (!node)
       return false
 
+    const containers = getContainers()
+    if (!containers)
+      return false
+
     // Exit current phase
-    session.currentPhase.onExit()
+    if (session.mounted) {
+      session.currentPhase.onExit()
+    }
 
     // Update state
     session.currentPhase = nextPhase
+    session.mounted = true
     store.transitionPhase(phaseId)
 
-    // Enter new phase
-    nextPhase.onEnter(
-      makeContainers(session.overlayContainer, session.toolbarContainer),
-      node,
-    )
+    // Enter new phase (always re-read containers from refs for freshness)
+    nextPhase.onEnter(containers, node)
 
     return true
   }
@@ -118,7 +168,7 @@ export function useDeepEditing(ctx: DeepEditingContext) {
    * then checks for 'escape' transitions.
    */
   function handleKeyDown(e: KeyboardEvent): boolean {
-    if (!session)
+    if (!session || !session.mounted)
       return false
 
     const { store } = ctx
@@ -171,6 +221,7 @@ export function useDeepEditing(ctx: DeepEditingContext) {
 
   return {
     enter,
+    mountCurrentPhase,
     exit,
     transitionTo,
     handleKeyDown,

@@ -33,6 +33,7 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     topology: node.table.topology,
     props: p,
     unit,
+    tableStyle: 'height:100%',
     cellRenderer: (cell) => {
       if (cell.binding) {
         const label = context.getBindingLabel(cell.binding)
@@ -46,7 +47,12 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
         return {}
       const bgKey = ROLE_BG_MAP[row.role]
       const bg = bgKey ? (p as unknown as Record<string, string>)[bgKey] || '' : ''
-      return bg ? { cellStyle: `;background:${bg}` } : {}
+      if (bg)
+        return { cellStyle: `;background:${bg}` }
+      // Striped rows: apply to normal/repeat-template rows at even indices (0-based after headers)
+      if (p.stripedRows && p.stripedColor && !bgKey && ri % 2 === 1)
+        return { cellStyle: `;background:${p.stripedColor}` }
+      return {}
     },
   })
 }
@@ -95,9 +101,10 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
     screenToDoc(screenVal, screenOrigin, zoom) {
       return unitManager.screenToDocument(screenVal, screenOrigin, 0, zoom)
     },
-    getZoom: () => 1,
-    getPageEl: () => null,
-    t: (key: string) => key,
+    getZoom: () => context.getZoom(),
+    getPageEl: () => context.getPageEl(),
+    getUnit: () => context.getSchema().unit,
+    t: (key: string) => context.t(key),
   }
 }
 

@@ -20,6 +20,8 @@ export interface TableDeepEditingDelegate {
   getZoom: () => number
   getPageEl: () => HTMLElement | null
   screenToDoc: (screenVal: number, screenOrigin: number, zoom: number) => number
+  /** Document unit string for CSS (e.g. 'mm', 'px'). */
+  getUnit: () => string
   t: (key: string) => string
 }
 
@@ -152,24 +154,18 @@ function createCellSelectedPhase(shared: SharedState): TableDeepEditingPhase {
     },
     keyboardHandler: {
       handleKey(event, node) {
-        // Keyboard is handled within the phase via the overlay's event listeners.
-        // This handler is called by the orchestrator for events not consumed by DOM.
         if (!shared.selectedCell)
           return false
 
         if (event.key === 'Tab') {
           event.preventDefault()
           event.stopPropagation()
-          // Tab navigation handled at overlay level, but fallback here
           return true
         }
 
         if (event.key === 'Enter') {
           event.preventDefault()
           event.stopPropagation()
-          // Double-click or Enter triggers content-editing, but we can't
-          // call requestTransition here since we don't have containers.
-          // The orchestrator handles Enter via keyboard -> transitions.
           return false
         }
 
@@ -199,6 +195,8 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
   let inputEl: HTMLInputElement | null = null
   let snapshotText = ''
   let committed = false
+  /** Guard against re-entrancy: onExit removing wrapper triggers blur which calls requestTransition */
+  let exiting = false
 
   function commit(node: TableNode | undefined) {
     if (committed)
@@ -219,6 +217,7 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
     onEnter(containers, node) {
       shared.currentNodeId = node.id
       committed = false
+      exiting = false
       renderGridOverlay(containers, node, shared, cleanupFns)
 
       if (!shared.selectedCell)
@@ -234,12 +233,13 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
       if (!rect)
         return
 
+      const u = shared.delegate.getUnit()
       const cell = node.table.topology.rows[shared.selectedCell.row]?.cells[shared.selectedCell.col]
       snapshotText = cell?.content?.text ?? ''
 
       // Create input wrapper
       const wrapper = document.createElement('div')
-      wrapper.style.cssText = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.w}px;height:${rect.h}px;z-index:13;pointer-events:auto;`
+      wrapper.style.cssText = `position:absolute;left:${rect.x}${u};top:${rect.y}${u};width:${rect.w}${u};height:${rect.h}${u};z-index:13;pointer-events:auto;`
       wrapper.addEventListener('pointerdown', e => e.stopPropagation())
       wrapper.addEventListener('mousedown', e => e.stopPropagation())
       wrapper.addEventListener('click', e => e.stopPropagation())
@@ -264,8 +264,10 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
         }
       })
 
-      // Blur -> commit and transition back
+      // Blur -> commit and transition back (skip if already exiting to prevent re-entrancy)
       const onBlur = () => {
+        if (exiting)
+          return
         const currentNode = shared.currentNodeId
           ? shared.delegate.getNode(shared.currentNodeId)
           : undefined
@@ -306,6 +308,7 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
       renderCellHighlight(containers.overlay, node, shared, cleanupFns)
     },
     onExit() {
+      exiting = true
       if (!committed && inputEl && shared.currentNodeId) {
         commit(shared.delegate.getNode(shared.currentNodeId))
       }
@@ -315,8 +318,6 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
     },
     keyboardHandler: {
       handleKey(event, _node) {
-        // Input element handles its own keyboard events via DOM listener.
-        // Stop outer handlers from interfering.
         event.stopPropagation()
         return true
       },
@@ -335,6 +336,7 @@ function renderGridOverlay(
   shared: SharedState,
   cleanupFns: Array<() => void>,
 ): void {
+  const u = shared.delegate.getUnit()
   const gridEl = document.createElement('div')
   gridEl.style.cssText = 'position:absolute;inset:0;pointer-events:auto;z-index:10;'
 
@@ -344,14 +346,14 @@ function renderGridOverlay(
   // Column grid lines
   for (const x of colPositions) {
     const line = document.createElement('div')
-    line.style.cssText = `position:absolute;top:0;left:${x}px;width:1px;height:100%;background:rgba(24,144,255,0.3);pointer-events:none;`
+    line.style.cssText = `position:absolute;top:0;left:${x}${u};width:1px;height:100%;background:rgba(24,144,255,0.3);pointer-events:none;`
     gridEl.appendChild(line)
   }
 
   // Row grid lines
   for (const y of rowPositions) {
     const line = document.createElement('div')
-    line.style.cssText = `position:absolute;left:0;top:${y}px;width:100%;height:1px;background:rgba(24,144,255,0.3);pointer-events:none;`
+    line.style.cssText = `position:absolute;left:0;top:${y}${u};width:100%;height:1px;background:rgba(24,144,255,0.3);pointer-events:none;`
     gridEl.appendChild(line)
   }
 
@@ -359,7 +361,7 @@ function renderGridOverlay(
   for (let i = 0; i < colPositions.length; i++) {
     const x = colPositions[i]!
     const handle = document.createElement('div')
-    handle.style.cssText = `position:absolute;top:0;left:${x}px;width:6px;height:100%;margin-left:-3px;cursor:col-resize;pointer-events:auto;z-index:2;`
+    handle.style.cssText = `position:absolute;top:0;left:${x}${u};width:6px;height:100%;margin-left:-3px;cursor:col-resize;pointer-events:auto;z-index:2;`
     handle.addEventListener('pointerdown', (e) => {
       const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
       if (currentNode)
@@ -378,7 +380,7 @@ function renderGridOverlay(
   for (let i = 0; i < rowPositions.length; i++) {
     const y = rowPositions[i]!
     const handle = document.createElement('div')
-    handle.style.cssText = `position:absolute;left:0;top:${y}px;width:100%;height:6px;margin-top:-3px;cursor:row-resize;pointer-events:auto;z-index:2;`
+    handle.style.cssText = `position:absolute;left:0;top:${y}${u};width:100%;height:6px;margin-top:-3px;cursor:row-resize;pointer-events:auto;z-index:2;`
     handle.addEventListener('pointerdown', (e) => {
       const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
       if (currentNode)
@@ -436,8 +438,9 @@ function renderCellHighlight(
   if (!rect)
     return
 
+  const u = shared.delegate.getUnit()
   const el = document.createElement('div')
-  el.style.cssText = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.w}px;height:${rect.h}px;border:2px solid var(--ei-primary,#1890ff);background:rgba(24,144,255,0.08);pointer-events:none;z-index:1;`
+  el.style.cssText = `position:absolute;left:${rect.x}${u};top:${rect.y}${u};width:${rect.w}${u};height:${rect.h}${u};border:2px solid var(--ei-primary,#1890ff);background:rgba(24,144,255,0.08);pointer-events:none;z-index:1;`
 
   overlay.appendChild(el)
   cleanupFns.push(() => el.remove())
@@ -606,12 +609,14 @@ function onColumnBorderPointerDown(e: PointerEvent, tableNode: TableNode, colInd
   const startScreenX = e.clientX
   const startRatio = tableNode.table.topology.columns[colIndex]!.ratio
   const startWidth = tableNode.width
+  // Use screenToDoc difference for unit-correct delta computation
+  const baseDocX = shared.delegate.screenToDoc(startScreenX, 0, zoom)
 
   const el = e.currentTarget as HTMLElement
   el.setPointerCapture(e.pointerId)
 
   function onPointerMove(ev: PointerEvent) {
-    const deltaDoc = (ev.clientX - startScreenX) / zoom
+    const deltaDoc = shared.delegate.screenToDoc(ev.clientX, 0, zoom) - baseDocX
     const newRatio = Math.max(4 / startWidth, startRatio + deltaDoc / startWidth)
     tableNode.table.topology.columns[colIndex]!.ratio = newRatio
     tableNode.width = startWidth + (newRatio - startRatio) * startWidth
@@ -641,12 +646,14 @@ function onRowBorderPointerDown(e: PointerEvent, tableNode: TableNode, rowIndex:
   const startScreenY = e.clientY
   const startRowHeight = tableNode.table.topology.rows[rowIndex]!.height
   const startElementHeight = tableNode.height
+  // Use screenToDoc difference for unit-correct delta computation
+  const baseDocY = shared.delegate.screenToDoc(startScreenY, 0, zoom)
 
   const el = e.currentTarget as HTMLElement
   el.setPointerCapture(e.pointerId)
 
   function onPointerMove(ev: PointerEvent) {
-    const deltaDoc = (ev.clientY - startScreenY) / zoom
+    const deltaDoc = shared.delegate.screenToDoc(ev.clientY, 0, zoom) - baseDocY
     const newHeight = Math.max(4, startRowHeight + deltaDoc)
     tableNode.table.topology.rows[rowIndex]!.height = newHeight
     tableNode.height = startElementHeight + (newHeight - startRowHeight)

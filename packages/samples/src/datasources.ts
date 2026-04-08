@@ -172,6 +172,7 @@ const invoiceTableNode: TableNode = {
     summaryBackground: '#fafafa',
     stripedRows: false,
     stripedColor: '#fafafa',
+    borderWidth: 0,
   },
   table: {
     kind: 'data' as const,
