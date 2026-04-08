@@ -1,6 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TableDataProps } from './schema'
-import { getBandForRow, renderTableHtml } from '@easyink/material-table-kernel'
+import { renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 export function renderTableData(node: MaterialNode) {
@@ -11,7 +11,6 @@ export function renderTableData(node: MaterialNode) {
   }
 
   const props = node.props as unknown as TableDataProps
-  const { bands } = node.table
 
   const html = renderTableHtml({
     topology: node.table.topology,
@@ -20,10 +19,12 @@ export function renderTableData(node: MaterialNode) {
     tableStyle: 'height:100%',
     cellRenderer: cell => cell.content?.text || '',
     rowDecorator: (ri) => {
-      const band = getBandForRow(bands, ri)
-      const bg = band?.kind === 'header'
+      const row = node.table.topology.rows[ri]
+      if (!row)
+        return {}
+      const bg = row.role === 'header'
         ? props.headerBackground
-        : band?.kind === 'summary'
+        : row.role === 'footer'
           ? props.summaryBackground
           : ''
       return bg ? { rowStyle: `;background:${bg}` } : {}

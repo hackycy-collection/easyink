@@ -1,6 +1,8 @@
 export {
   BindFieldCommand,
+  BindTableSourceCommand,
   ClearBindingCommand,
+  ClearTableSourceCommand,
   UnionDropCommand,
   UpdateUsageCommand,
 } from './data'
@@ -27,7 +29,7 @@ export {
   ResizeTableColumnCommand,
   ResizeTableRowCommand,
   SplitTableCellCommand,
-  UpdateTableBandCommand,
   UpdateTableCellBorderCommand,
   UpdateTableCellCommand,
+  UpdateTableRowRoleCommand,
 } from './table'

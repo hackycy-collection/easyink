@@ -1,5 +1,4 @@
-import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
-import type { TableSectionKind } from '@easyink/shared'
+import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, PreferenceProvider } from '../types'
 import { CommandManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
@@ -178,7 +177,7 @@ export class DesignerStore {
 
     this.tableEditing.phase = 'table-selected'
     this.tableEditing.tableId = nodeId
-    this.tableEditing.sectionKind = undefined
+    this.tableEditing.rowRole = undefined
     this.tableEditing.cellPath = undefined
     return true
   }
@@ -187,7 +186,7 @@ export class DesignerStore {
   exitDeepEditing(): void {
     this.tableEditing.phase = 'idle'
     this.tableEditing.tableId = undefined
-    this.tableEditing.sectionKind = undefined
+    this.tableEditing.rowRole = undefined
     this.tableEditing.cellPath = undefined
   }
 
@@ -199,10 +198,10 @@ export class DesignerStore {
     this.tableEditing.phase = 'cell-selected'
     this.tableEditing.cellPath = { row, col }
 
-    // Infer section kind from bands
+    // Infer row role directly from row schema
     const node = this.getElementById(this.tableEditing.tableId)
     if (node && isTableNode(node)) {
-      this.tableEditing.sectionKind = inferSectionKind(node, row)
+      this.tableEditing.rowRole = node.table.topology.rows[row]?.role
     }
   }
 
@@ -231,14 +230,4 @@ export class DesignerStore {
     this._catalog = []
     this.clipboard = []
   }
-}
-
-/** Infer which band/section a row belongs to based on bands[].rowRange. */
-export function inferSectionKind(node: TableNode, rowIndex: number): TableSectionKind | undefined {
-  for (const band of node.table.bands) {
-    if (rowIndex >= band.rowRange.start && rowIndex < band.rowRange.end) {
-      return band.kind
-    }
-  }
-  return undefined
 }

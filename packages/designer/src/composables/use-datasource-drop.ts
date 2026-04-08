@@ -1,6 +1,8 @@
-import type { BindingRef } from '@easyink/schema'
+import type { BindingRef, TableDataSchema, TableNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
-import { BindFieldCommand, pointInRect, UnitManager } from '@easyink/core'
+import { BindFieldCommand, BindTableSourceCommand, pointInRect, UnitManager, UpdateTableCellCommand } from '@easyink/core'
+import { hitTestGridCell, resolveMergeOwner } from '@easyink/material-table-kernel'
+import { isTableDataNode, isTableNode } from '@easyink/schema'
 
 /**
  * MIME type used for datasource field drag data.
@@ -26,10 +28,9 @@ export interface DatasourceDropContext {
  * Creates drag-and-drop handlers for binding datasource fields to canvas elements.
  *
  * Architecture ref (10.8):
- * 1. User drags a leaf field from the datasource tree onto a canvas element.
- * 2. Hit-test determines the target element.
- * 3. A BindingRef is generated and the element is updated via BindFieldCommand.
- * 4. Properties panel and canvas badge sync to reflect the binding.
+ * - Scalar elements: drag field onto element -> BindFieldCommand
+ * - table-data: drag field onto table -> auto-set table.source on first drag,
+ *   reject mismatching sourceId, bind cell via UpdateTableCellCommand
  */
 export function useDatasourceDrop(ctx: DatasourceDropContext) {
   function onDragOver(e: DragEvent) {
@@ -74,7 +75,6 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       if (el.hidden || el.locked)
         continue
       if (pointInRect({ x: docX, y: docY }, { x: el.x, y: el.y, width: el.width, height: el.height })) {
-        // Check if the material supports binding
         const mat = store.getMaterial(el.type)
         if (mat && mat.capabilities.bindable === false)
           continue
@@ -86,6 +86,13 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     if (!target)
       return
 
+    // Handle table-data: auto-set source + cell binding
+    if (isTableDataNode(target)) {
+      handleTableDataDrop(store, target, fieldData, docX, docY)
+      return
+    }
+
+    // Scalar element binding
     const binding: BindingRef = {
       sourceId: fieldData.sourceId,
       sourceName: fieldData.sourceName,
@@ -103,4 +110,69 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
   }
 
   return { onDragOver, onDrop }
+}
+
+function handleTableDataDrop(
+  store: DesignerStore,
+  target: TableNode & { table: TableDataSchema },
+  fieldData: DatasourceFieldDragData,
+  docX: number,
+  docY: number,
+): void {
+  const table = target.table
+
+  // First drag: auto-set table.source
+  if (!table.source) {
+    const collectionPath = getCollectionPath(fieldData.fieldPath)
+    const sourceRef: BindingRef = {
+      sourceId: fieldData.sourceId,
+      sourceName: fieldData.sourceName,
+      sourceTag: fieldData.sourceTag,
+      fieldPath: collectionPath,
+    }
+    const tableNode = store.getElementById(target.id)
+    if (!tableNode || !isTableNode(tableNode))
+      return
+    const cmd = new BindTableSourceCommand(tableNode, sourceRef)
+    store.commands.execute(cmd)
+  }
+  else if (table.source.sourceId !== fieldData.sourceId) {
+    // Reject: mismatching source
+    return
+  }
+
+  // Hit-test cell
+  const relX = docX - target.x
+  const relY = docY - target.y
+  const gridCell = hitTestGridCell(table.topology, target.width, target.height, relX, relY)
+  if (!gridCell)
+    return
+  const cell = resolveMergeOwner(table.topology, gridCell.row, gridCell.col)
+
+  // Create cell binding with auto-filled sourceId from table.source
+  const currentSource = table.source ?? (store.getElementById(target.id) as { table: TableDataSchema } | undefined)?.table.source
+  if (!currentSource)
+    return
+
+  const cellBinding: BindingRef = {
+    sourceId: currentSource.sourceId,
+    sourceName: currentSource.sourceName,
+    sourceTag: currentSource.sourceTag,
+    fieldPath: fieldData.fieldPath,
+    fieldKey: fieldData.fieldKey,
+    fieldLabel: fieldData.fieldLabel,
+  }
+
+  const tableNode = store.getElementById(target.id)
+  if (!tableNode || !isTableNode(tableNode))
+    return
+
+  const cmd = new UpdateTableCellCommand(tableNode, cell.row, cell.col, { binding: cellBinding })
+  store.commands.execute(cmd)
+}
+
+/** Extract collection path from a field path (e.g. 'orders.items.name' -> 'orders.items') */
+function getCollectionPath(fieldPath: string): string {
+  const lastDot = fieldPath.lastIndexOf('.')
+  return lastDot > 0 ? fieldPath.substring(0, lastDot) : fieldPath
 }

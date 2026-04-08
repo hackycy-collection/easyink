@@ -1,12 +1,12 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
 import type { UnitType } from '@easyink/shared'
 import type { TableDataProps } from './schema'
-import { escapeHtml, getBandForRow, renderTableHtml, TABLE_COMMON_CONTEXT_ACTIONS } from '@easyink/material-table-kernel'
+import { escapeHtml, renderTableHtml, TABLE_COMMON_CONTEXT_ACTIONS } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
-const BAND_BG_MAP: Record<string, keyof TableDataProps> = {
+const ROLE_BG_MAP: Record<string, keyof TableDataProps> = {
   header: 'headerBackground',
-  summary: 'summaryBackground',
+  footer: 'summaryBackground',
 }
 
 export function renderTableDataContent(
@@ -18,7 +18,6 @@ export function renderTableDataContent(
   }
 
   const p = node.props as unknown as TableDataProps
-  const { bands } = node.table
 
   const html = renderTableHtml({
     topology: node.table.topology,
@@ -26,19 +25,16 @@ export function renderTableDataContent(
     unit: context.unit,
     cellRenderer: (cell) => {
       if (cell.binding) {
-        const b = Array.isArray(cell.binding) ? cell.binding[0] : cell.binding
-        if (b) {
-          const label = context.getBindingLabel(b)
-          return `<span style="color:#1890ff">{{${escapeHtml(label)}}}</span>`
-        }
+        const label = context.getBindingLabel(cell.binding)
+        return `<span style="color:#1890ff">{{${escapeHtml(label)}}}</span>`
       }
       return cell.content?.text || ''
     },
     rowDecorator: (ri) => {
-      const band = getBandForRow(bands, ri)
-      if (band?.hidden)
-        return { skip: true }
-      const bgKey = band ? BAND_BG_MAP[band.kind] : undefined
+      const row = node.table.topology.rows[ri]
+      if (!row)
+        return {}
+      const bgKey = ROLE_BG_MAP[row.role]
       const bg = bgKey ? (p as unknown as Record<string, string>)[bgKey] || '' : ''
       return bg ? { cellStyle: `;background:${bg}` } : {}
     },

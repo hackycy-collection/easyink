@@ -1,11 +1,12 @@
-import type { TableBandSchema, TableCellSchema, TableNode, TableRowSchema } from '@easyink/schema'
+import type { TableCellSchema, TableNode, TableRowSchema } from '@easyink/schema'
+import type { TableRowRole } from '@easyink/shared'
 import type { Command } from '../command'
 import { deepClone, generateId } from '@easyink/shared'
 import { asRecord } from './helpers'
 
 // ─── Table Commands ─────────────────────────────────────────────────
 
-/** Insert a row into the table topology. Adjusts band rowRanges accordingly. */
+/** Insert a row into the table topology. New row inherits role from adjacent row. */
 export class InsertTableRowCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'insert-table-row'
@@ -19,30 +20,16 @@ export class InsertTableRowCommand implements Command {
 
   execute(): void {
     this.node.table.topology.rows.splice(this.rowIndex, 0, this.row)
-    // Shift band rowRanges: bands starting at or after insertion get shifted
-    for (const band of this.node.table.bands) {
-      if (band.rowRange.start >= this.rowIndex)
-        band.rowRange.start++
-      if (band.rowRange.end >= this.rowIndex)
-        band.rowRange.end++
-    }
-    // Update element height
     this.node.height += this.row.height
   }
 
   undo(): void {
     this.node.table.topology.rows.splice(this.rowIndex, 1)
-    for (const band of this.node.table.bands) {
-      if (band.rowRange.start > this.rowIndex)
-        band.rowRange.start--
-      if (band.rowRange.end > this.rowIndex)
-        band.rowRange.end--
-    }
     this.node.height -= this.row.height
   }
 }
 
-/** Remove a row from the table topology. Adjusts band rowRanges accordingly. */
+/** Remove a row from the table topology. */
 export class RemoveTableRowCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'remove-table-row'
@@ -61,24 +48,12 @@ export class RemoveTableRowCommand implements Command {
     this.oldHeight = this.node.height
     this.node.height -= rows[this.rowIndex]!.height
     rows.splice(this.rowIndex, 1)
-    for (const band of this.node.table.bands) {
-      if (band.rowRange.start > this.rowIndex)
-        band.rowRange.start--
-      if (band.rowRange.end > this.rowIndex)
-        band.rowRange.end--
-    }
   }
 
   undo(): void {
     if (!this.snapshot)
       return
     this.node.table.topology.rows.splice(this.rowIndex, 0, this.snapshot)
-    for (const band of this.node.table.bands) {
-      if (band.rowRange.start >= this.rowIndex)
-        band.rowRange.start++
-      if (band.rowRange.end >= this.rowIndex)
-        band.rowRange.end++
-    }
     this.node.height = this.oldHeight
   }
 }
@@ -350,32 +325,28 @@ export class UpdateTableCellCommand implements Command {
   }
 }
 
-/** Update a band's properties (visibility, repeat, etc). */
-export class UpdateTableBandCommand implements Command {
+/** Update a row's role (only for table-data). */
+export class UpdateTableRowRoleCommand implements Command {
   readonly id = generateId('cmd')
-  readonly type = 'update-table-band'
-  readonly description = 'Update table band'
-  private oldValues: Partial<TableBandSchema> = {}
+  readonly type = 'update-table-row-role'
+  readonly description = 'Update row role'
+  private oldRole: TableRowRole = 'normal'
 
   constructor(
     private node: TableNode,
-    private bandIndex: number,
-    private updates: Partial<TableBandSchema>,
+    private rowIndex: number,
+    private newRole: TableRowRole,
   ) {}
 
   execute(): void {
-    const band = this.node.table.bands[this.bandIndex]!
-    for (const key of Object.keys(this.updates) as Array<keyof TableBandSchema>) {
-      asRecord(this.oldValues)[key] = deepClone(asRecord(band)[key])
-      asRecord(band)[key] = deepClone(asRecord(this.updates)[key])
-    }
+    const row = this.node.table.topology.rows[this.rowIndex]!
+    this.oldRole = row.role
+    row.role = this.newRole
   }
 
   undo(): void {
-    const band = this.node.table.bands[this.bandIndex]!
-    for (const key of Object.keys(this.oldValues) as Array<keyof TableBandSchema>) {
-      asRecord(band)[key] = asRecord(this.oldValues)[key]
-    }
+    const row = this.node.table.topology.rows[this.rowIndex]!
+    row.role = this.oldRole
   }
 }
 

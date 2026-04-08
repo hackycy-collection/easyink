@@ -1,12 +1,14 @@
+import type { TableRowRole } from '@easyink/shared'
+
 export interface TableDataBindingHint {
-  sectionKind: 'header' | 'data' | 'summary'
+  rowRole: TableRowRole
   columnIndex: number
   fieldPath: string
 }
 
 export function createBindingHints(columns: string[]): TableDataBindingHint[] {
   return columns.map((fieldPath, index) => ({
-    sectionKind: 'data',
+    rowRole: 'repeat-template',
     columnIndex: index,
     fieldPath,
   }))

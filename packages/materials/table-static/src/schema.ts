@@ -23,8 +23,8 @@ export function createTableStaticNode(partial?: Partial<MaterialNode>): Material
     ...rest,
     type: 'table-static',
     table: {
+      kind: 'static',
       topology,
-      bands: [{ kind: 'body', rowRange: { start: 0, end: 3 } }],
       layout,
     },
   }

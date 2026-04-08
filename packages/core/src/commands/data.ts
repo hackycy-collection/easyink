@@ -1,4 +1,4 @@
-import type { BindingRef, MaterialNode } from '@easyink/schema'
+import type { BindingRef, MaterialNode, TableDataSchema, TableNode } from '@easyink/schema'
 import type { UsageRule } from '@easyink/shared'
 import type { Command } from '../command'
 import { deepClone, generateId } from '@easyink/shared'
@@ -127,6 +127,77 @@ export class UnionDropCommand implements Command {
     for (let i = this.elements.length - 1; i >= 0; i--) {
       if (ids.has(this.elements[i]!.id))
         this.elements.splice(i, 1)
+    }
+  }
+}
+
+/** Set table.source on a table-data node (first field drag auto-trigger). */
+export class BindTableSourceCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'bind-table-source'
+  readonly description = 'Bind table data source'
+  private oldSource: BindingRef | undefined
+
+  constructor(
+    private node: TableNode,
+    private source: BindingRef,
+  ) {}
+
+  execute(): void {
+    const table = this.node.table as TableDataSchema
+    this.oldSource = table.source ? deepClone(table.source) : undefined
+    table.source = deepClone(this.source)
+  }
+
+  undo(): void {
+    const table = this.node.table as TableDataSchema
+    if (this.oldSource) {
+      table.source = this.oldSource
+    }
+    else {
+      table.source = undefined
+    }
+  }
+}
+
+/** Clear table.source and all cell bindings atomically. */
+export class ClearTableSourceCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'clear-table-source'
+  readonly description = 'Clear table data source'
+  private oldSource: BindingRef | undefined
+  private oldCellBindings: Array<{ rowIndex: number, cellIndex: number, binding: BindingRef }> = []
+
+  constructor(
+    private node: TableNode,
+  ) {}
+
+  execute(): void {
+    const table = this.node.table as TableDataSchema
+    this.oldSource = table.source ? deepClone(table.source) : undefined
+    table.source = undefined!
+
+    // Clear all cell bindings and save snapshots for undo
+    this.oldCellBindings = []
+    for (let ri = 0; ri < table.topology.rows.length; ri++) {
+      const row = table.topology.rows[ri]!
+      for (let ci = 0; ci < row.cells.length; ci++) {
+        const cell = row.cells[ci]!
+        if (cell.binding) {
+          this.oldCellBindings.push({ rowIndex: ri, cellIndex: ci, binding: deepClone(cell.binding) })
+          cell.binding = undefined
+        }
+      }
+    }
+  }
+
+  undo(): void {
+    const table = this.node.table as TableDataSchema
+    if (this.oldSource) {
+      table.source = this.oldSource
+    }
+    for (const { rowIndex, cellIndex, binding } of this.oldCellBindings) {
+      table.topology.rows[rowIndex]!.cells[cellIndex]!.binding = binding
     }
   }
 }

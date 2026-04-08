@@ -53,7 +53,7 @@ export function useTableInteraction(ctx: TableInteractionContext) {
         // Back to table-selected
         store.tableEditing.phase = 'table-selected'
         store.tableEditing.cellPath = undefined
-        store.tableEditing.sectionKind = undefined
+        store.tableEditing.rowRole = undefined
       }
       else if (phase === 'table-selected') {
         store.exitDeepEditing()

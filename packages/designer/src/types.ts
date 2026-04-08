@@ -1,6 +1,6 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { MaterialNode } from '@easyink/schema'
-import type { MaterialCategory, PropSchemaType, TableSectionKind, TemplateBackendMode, TemplateLibraryPhase } from '@easyink/shared'
+import type { MaterialCategory, PropSchemaType, TableRowRole, TemplateBackendMode, TemplateLibraryPhase } from '@easyink/shared'
 import type { Component, VNode } from 'vue'
 
 // ─── Workbench State ───────────────────────────────────────────────
@@ -103,8 +103,8 @@ export interface TemplateLibraryState {
 export interface TableEditingState {
   phase: 'idle' | 'table-selected' | 'cell-selected' | 'content-editing'
   tableId?: string
-  /** Inferred from cellPath via bands[], not independently selectable */
-  sectionKind?: TableSectionKind
+  /** Inferred from row.role, not independently selectable */
+  rowRole?: TableRowRole
   cellPath?: {
     row: number
     col: number

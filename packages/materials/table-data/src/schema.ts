@@ -21,7 +21,7 @@ export const TABLE_DATA_DEFAULTS: TableDataProps = {
 }
 
 export function createTableDataNode(partial?: Partial<MaterialNode>): MaterialNode {
-  const topology = createDefaultTopology(3, 3, 8)
+  const topology = createDefaultTopology(3, 3, 8, ['header', 'repeat-template', 'footer'])
   const layout = createDefaultLayout()
   const { type: _type, ...rest } = partial || {} as Partial<MaterialNode>
   const node: TableNode = {
@@ -34,14 +34,10 @@ export function createTableDataNode(partial?: Partial<MaterialNode>): MaterialNo
     ...rest,
     type: 'table-data',
     table: {
+      kind: 'data',
       topology,
-      bands: [
-        { kind: 'header', rowRange: { start: 0, end: 1 }, repeatOnEachPage: true },
-        { kind: 'data', rowRange: { start: 1, end: 2 } },
-        { kind: 'summary', rowRange: { start: 2, end: 3 } },
-      ],
       layout,
-    },
+    } as TableNode['table'],
   }
   return node
 }

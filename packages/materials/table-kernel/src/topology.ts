@@ -1,16 +1,4 @@
-import type { TableBandSchema, TableTopologySchema } from '@easyink/schema'
-
-/**
- * Find the band that contains the given row index.
- */
-export function getBandForRow(bands: TableBandSchema[], rowIndex: number): TableBandSchema | undefined {
-  for (const band of bands) {
-    if (rowIndex >= band.rowRange.start && rowIndex < band.rowRange.end) {
-      return band
-    }
-  }
-  return undefined
-}
+import type { TableTopologySchema } from '@easyink/schema'
 
 /**
  * Resolve a grid position to the merge-owner (primary) cell.

@@ -412,12 +412,7 @@ onUnmounted(() => {
           @dblclick="handleElementDblClick($event, el.id)"
         >
           <div class="ei-canvas-element__content">
-            <!-- Binding badge -->
-            <span
-              v-if="el.binding"
-              class="ei-canvas-element__bind-badge"
-              :title="Array.isArray(el.binding) ? el.binding.map(b => b.fieldLabel || b.fieldPath).join(', ') : (el.binding.fieldLabel || el.binding.fieldPath)"
-            />
+            
             <!-- Design-time rendering -->
             <div
               v-if="getRenderedContent(el)"

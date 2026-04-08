@@ -6,7 +6,7 @@ import type {
   PageMode,
   PageScale,
   PrintBehavior,
-  TableSectionKind,
+  TableRowRole,
   UnitType,
   UsageRule,
 } from '@easyink/shared'
@@ -181,16 +181,21 @@ export interface NodeDiagnosticState {
 // ─── Table Schema ──────────────────────────────────────────────────
 
 export interface TableNode extends MaterialNode {
-  type: 'table-static' | 'table-data' | 'table-flex'
+  type: 'table-static' | 'table-data'
   table: TableSchema
 }
 
 export interface TableSchema {
+  kind: 'static' | 'data'
   topology: TableTopologySchema
-  bands: TableBandSchema[]
   layout: TableLayoutConfig
-  data?: TableDataSemantics
   diagnostics?: LayoutDiagnostic[]
+}
+
+/** table-data specific schema, adds primary datasource binding. */
+export interface TableDataSchema extends TableSchema {
+  kind: 'data'
+  source?: BindingRef
 }
 
 export interface TableTopologySchema {
@@ -211,25 +216,6 @@ export interface TableColumnSchema {
   ratio: number
 }
 
-export interface TableBandSchema {
-  kind: TableSectionKind
-  rowRange: {
-    start: number
-    end: number
-  }
-  repeatOnEachPage?: boolean
-  hidden?: boolean
-}
-
-export interface TableDataSemantics {
-  source?: BindingRef
-  rowBinding?: BindingRef
-  fillBlankRows?: boolean
-  keepPlaceholderSpace?: boolean
-  repeatHeader?: boolean
-  showSummaryOnLastPage?: boolean
-}
-
 export interface TableLayoutConfig {
   equalizeCells?: boolean
   gap?: number
@@ -237,15 +223,17 @@ export interface TableLayoutConfig {
   borderWidth?: number
   borderType?: BorderType
   borderColor?: string
+  fillBlankRows?: boolean
 }
 
 export interface TableRowSchema {
   /**
    * Row height in absolute document units (not ratio).
-   * Rows belong to bands; table-data data rows change dynamically at runtime,
+   * repeat-template rows change dynamically at runtime,
    * making ratio-based row height semantically unsound.
    */
   height: number
+  role: TableRowRole
   cells: TableCellSchema[]
 }
 
@@ -260,7 +248,7 @@ export interface TableCellSchema {
   padding?: BoxSpacing
   content?: TableCellContentSlot
   props?: Record<string, unknown>
-  binding?: BindingRef | BindingRef[]
+  binding?: BindingRef
 }
 
 export interface TableCellContentSlot {
@@ -303,7 +291,12 @@ export interface LayoutDiagnostic {
 
 /** Runtime discriminator for TableNode. Checks that node.type is a table type and node.table exists. */
 export function isTableNode(node: MaterialNode): node is TableNode {
-  return (node.type === 'table-static' || node.type === 'table-data' || node.type === 'table-flex')
+  return (node.type === 'table-static' || node.type === 'table-data')
     && 'table' in node
     && node.table != null
+}
+
+/** Narrow to TableNode with TableDataSchema (kind='data', has source). */
+export function isTableDataNode(node: MaterialNode): node is TableNode & { table: TableDataSchema } {
+  return isTableNode(node) && node.type === 'table-data' && node.table.kind === 'data'
 }

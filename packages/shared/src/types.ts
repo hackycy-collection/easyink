@@ -67,9 +67,9 @@ export type UsageRule
     }
 
 /**
- * Table section kind.
+ * Table row role for row-level semantics.
  */
-export type TableSectionKind = 'title' | 'header' | 'data' | 'summary' | 'footer' | 'blank' | 'body'
+export type TableRowRole = 'normal' | 'header' | 'footer' | 'repeat-template'
 
 /**
  * Border appearance style for tables.

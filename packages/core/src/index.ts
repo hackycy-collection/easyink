@@ -3,7 +3,9 @@ export type { Command, HistoryEntry } from './command'
 export {
   AddMaterialCommand,
   BindFieldCommand,
+  BindTableSourceCommand,
   ClearBindingCommand,
+  ClearTableSourceCommand,
   ImportTemplateCommand,
   InsertTableColumnCommand,
   InsertTableRowCommand,
@@ -22,9 +24,9 @@ export {
   UpdateGuidesCommand,
   UpdateMaterialPropsCommand,
   UpdatePageCommand,
-  UpdateTableBandCommand,
   UpdateTableCellBorderCommand,
   UpdateTableCellCommand,
+  UpdateTableRowRoleCommand,
   UpdateUsageCommand,
 } from './commands'
 

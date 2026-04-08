@@ -1,4 +1,4 @@
-import type { DocumentSchema, TableBandSchema, TableColumnSchema, TableRowSchema, TableSchema } from './types'
+import type { DocumentSchema, TableColumnSchema, TableRowSchema, TableSchema } from './types'
 import { isObject } from '@easyink/shared'
 import { isTableNode } from './types'
 
@@ -220,7 +220,7 @@ function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['e
   const isTable = type === 'table-static' || type === 'table-data'
   if (isTable && rest.extensions && isObject(rest.extensions)) {
     const ext = rest.extensions as Record<string, unknown>
-    const tableSchema = decodeTableExtensions(ext)
+    const tableSchema = decodeTableExtensions(ext, type || '')
     if (tableSchema) {
       ;(node as unknown as Record<string, unknown>).table = tableSchema
     }
@@ -336,20 +336,25 @@ function encodeBenchmarkElement(node: DocumentSchema['elements'][number]): Bench
 }
 
 /**
- * Decode old sections-based table data from extensions.table into topology+bands format.
+ * Decode old sections-based table data from extensions.table into topology+row.role format.
  * Old format: { sections: [{ kind, rows: [{ height, cells: [{ width?, ... }] }] }] }
- * New format: { topology: { columns, rows }, bands }
+ * New format: { kind, topology: { columns, rows (with role) }, layout }
  */
-function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null {
+function decodeTableExtensions(ext: Record<string, unknown>, tableType: string): TableSchema | null {
   const raw = ext.table
   if (!isObject(raw))
     return null
 
   const rawTable = raw as Record<string, unknown>
 
-  // Already in new format?
-  if (rawTable.topology && isObject(rawTable.topology)) {
+  // Already in new format (has topology + kind)?
+  if (rawTable.topology && isObject(rawTable.topology) && rawTable.kind) {
     return rawTable as unknown as TableSchema
+  }
+
+  // Already in intermediate format (has topology + bands but no kind)?
+  if (rawTable.topology && isObject(rawTable.topology) && rawTable.bands && Array.isArray(rawTable.bands)) {
+    return migrateBandsToRowRole(rawTable, tableType)
   }
 
   // Old sections format
@@ -357,13 +362,24 @@ function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null
   if (!Array.isArray(sections) || sections.length === 0)
     return null
 
+  // Map section kind to row role
+  const SECTION_KIND_TO_ROLE: Record<string, TableRowSchema['role']> = {
+    header: 'header',
+    data: 'repeat-template',
+    body: 'normal',
+    total: 'footer',
+    summary: 'footer',
+    footer: 'footer',
+  }
+
   // Flatten all rows to determine column count from first row
-  const allRows: Array<{ height: number, cells: Array<Record<string, unknown>>, sectionKind: string }> = []
+  const allRows: Array<{ height: number, cells: Array<Record<string, unknown>>, role: TableRowSchema['role'] }> = []
   for (const section of sections) {
     if (!isObject(section))
       continue
     const sec = section as Record<string, unknown>
     const kind = (sec.kind as string) || 'body'
+    const role = SECTION_KIND_TO_ROLE[kind] || 'normal'
     const sRows = sec.rows
     if (!Array.isArray(sRows))
       continue
@@ -372,7 +388,7 @@ function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null
         continue
       const r = row as Record<string, unknown>
       const cells = Array.isArray(r.cells) ? r.cells as Array<Record<string, unknown>> : []
-      allRows.push({ height: (r.height as number) || 24, cells, sectionKind: kind })
+      allRows.push({ height: (r.height as number) || 24, cells, role })
     }
   }
 
@@ -403,7 +419,7 @@ function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null
     columns.push({ ratio: hasWidths ? widths[c]! / totalW : 1 / colCount })
   }
 
-  // Build rows
+  // Build rows with role
   const rows: TableRowSchema[] = allRows.map((r) => {
     const cells = Array.from({ length: colCount }, (_, i) => {
       const rawCell = r.cells[i]
@@ -418,27 +434,8 @@ function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null
         cell.rowSpan = rawCell.rowSpan
       return cell
     })
-    return { height: r.height, cells }
+    return { height: r.height, role: r.role, cells }
   })
-
-  // Build bands from sections
-  const bands: TableBandSchema[] = []
-  let rowIdx = 0
-  for (const section of sections) {
-    if (!isObject(section))
-      continue
-    const sec = section as Record<string, unknown>
-    const kind = (sec.kind as string) || 'body'
-    const sRows = sec.rows
-    const count = Array.isArray(sRows) ? sRows.length : 0
-    if (count > 0) {
-      bands.push({
-        kind: kind === 'total' ? 'summary' : kind as TableBandSchema['kind'],
-        rowRange: { start: rowIdx, end: rowIdx + count },
-      })
-      rowIdx += count
-    }
-  }
 
   // Layout from table-level properties
   const layout: TableSchema['layout'] = {}
@@ -451,18 +448,47 @@ function decodeTableExtensions(ext: Record<string, unknown>): TableSchema | null
   if (rawTable.borderAppearance !== undefined)
     layout.borderAppearance = rawTable.borderAppearance as TableSchema['layout']['borderAppearance']
 
-  return { topology: { columns, rows }, bands, layout }
+  const kind = tableType === 'table-data' ? 'data' : 'static'
+  return { kind, topology: { columns, rows }, layout } as TableSchema
+}
+
+/** Migrate intermediate format (topology + bands) to new format (topology + row.role). */
+function migrateBandsToRowRole(rawTable: Record<string, unknown>, tableType: string): TableSchema {
+  const topology = rawTable.topology as { columns: TableColumnSchema[], rows: Array<Record<string, unknown>> }
+  const bands = rawTable.bands as Array<{ kind: string, rowRange: { start: number, end: number } }>
+
+  const BAND_KIND_TO_ROLE: Record<string, TableRowSchema['role']> = {
+    header: 'header',
+    data: 'repeat-template',
+    body: 'normal',
+    summary: 'footer',
+    footer: 'footer',
+  }
+
+  // Assign role to each row based on bands
+  const rows: TableRowSchema[] = topology.rows.map((row, ri) => {
+    let role: TableRowSchema['role'] = 'normal'
+    for (const band of bands) {
+      if (ri >= band.rowRange.start && ri < band.rowRange.end) {
+        role = BAND_KIND_TO_ROLE[band.kind] || 'normal'
+        break
+      }
+    }
+    return { ...row, role, cells: row.cells || [] } as unknown as TableRowSchema
+  })
+
+  const layout = (rawTable.layout || {}) as TableSchema['layout']
+  const kind = tableType === 'table-data' ? 'data' : 'static'
+  return { kind, topology: { columns: topology.columns, rows }, layout } as TableSchema
 }
 
 /**
- * Encode topology+bands table schema back to a portable object for benchmark.
- * We write it in the new format directly; old consumers will see extensions.table.topology.
+ * Encode topology+role table schema back to a portable object for benchmark.
  */
 function encodeTableSchema(table: TableSchema): Record<string, unknown> {
   return {
+    kind: table.kind,
     topology: table.topology,
-    bands: table.bands,
     layout: table.layout,
-    ...(table.data ? { data: table.data } : {}),
   }
 }
