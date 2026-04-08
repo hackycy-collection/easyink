@@ -12,7 +12,7 @@ export interface SampleTemplateEntry {
 }
 
 /**
- * A4 blank template.
+ * A4 空白模板。
  */
 export const blankA4Template: DocumentSchema = {
   version: SCHEMA_VERSION,
@@ -27,7 +27,7 @@ export const blankA4Template: DocumentSchema = {
 }
 
 /**
- * Simple invoice template with header text and a data table placeholder.
+ * 简单发票模板，含标题文本和数据表格占位。
  */
 export const simpleInvoiceTemplate: DocumentSchema = {
   version: SCHEMA_VERSION,
@@ -47,7 +47,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       width: 90,
       height: 12,
       props: {
-        content: 'INVOICE',
+        content: '发票',
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
@@ -63,7 +63,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       width: 60,
       height: 6,
       props: {
-        content: 'Date: ____',
+        content: '日期：____',
         fontSize: 10,
         textAlign: 'right',
         verticalAlign: 'middle',
@@ -78,7 +78,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       width: 60,
       height: 6,
       props: {
-        content: 'No: ____',
+        content: '编号：____',
         fontSize: 10,
         textAlign: 'left',
         verticalAlign: 'middle',
@@ -89,7 +89,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
 }
 
 /**
- * Label template (multi-column).
+ * 标签模板（多列）。
  */
 export const labelTemplate: DocumentSchema = {
   version: SCHEMA_VERSION,
@@ -127,7 +127,7 @@ export const labelTemplate: DocumentSchema = {
       width: 55,
       height: 6,
       props: {
-        content: 'Product Name',
+        content: '商品名称',
         fontSize: 9,
         textAlign: 'center',
       },
@@ -136,7 +136,7 @@ export const labelTemplate: DocumentSchema = {
 }
 
 /**
- * Receipt template (stack mode).
+ * 收据模板（堆叠模式）。
  */
 export const receiptTemplate: DocumentSchema = {
   version: SCHEMA_VERSION,
@@ -156,7 +156,7 @@ export const receiptTemplate: DocumentSchema = {
       width: 70,
       height: 8,
       props: {
-        content: 'RECEIPT',
+        content: '收据',
         fontSize: 16,
         fontWeight: 'bold',
         textAlign: 'center',
@@ -179,50 +179,50 @@ export const receiptTemplate: DocumentSchema = {
 }
 
 /**
- * Demo data for invoice.
+ * 发票示例数据。
  */
 export const invoiceDemoData = {
   company: {
-    name: 'Acme Corp',
-    address: '123 Business Street',
+    name: '示例科技有限公司',
+    address: '北京市朝阳区示例街道123号',
   },
   invoice: {
     number: 'INV-2026-001',
     date: '2026-04-05',
   },
   items: [
-    { name: 'Widget A', qty: 10, price: 25.00 },
-    { name: 'Widget B', qty: 5, price: 40.00 },
-    { name: 'Service C', qty: 1, price: 150.00 },
+    { name: '商品甲', qty: 10, price: 25.00 },
+    { name: '商品乙', qty: 5, price: 40.00 },
+    { name: '服务丙', qty: 1, price: 150.00 },
   ],
   total: 600.00,
 }
 
 /**
- * All sample templates.
+ * 全部示例模板。
  */
 export const sampleTemplates: SampleTemplateEntry[] = [
   {
     id: 'blank-a4',
-    name: 'Blank A4',
+    name: 'A4 空白',
     category: 'basic',
     schema: blankA4Template,
   },
   {
     id: 'simple-invoice',
-    name: 'Simple Invoice',
+    name: '简单发票',
     category: 'business',
     schema: simpleInvoiceTemplate,
   },
   {
     id: 'label-3col',
-    name: 'Label (3-column)',
+    name: '标签（三列）',
     category: 'label',
     schema: labelTemplate,
   },
   {
     id: 'receipt',
-    name: 'Receipt',
+    name: '收据',
     category: 'receipt',
     schema: receiptTemplate,
   },

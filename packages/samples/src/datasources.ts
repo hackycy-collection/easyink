@@ -3,80 +3,80 @@ import type { DocumentSchema, TableNode } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
 // ---------------------------------------------------------------------------
-// A. Invoice data source
+// A. 发票数据源
 // Covers: scalar text/image, nested groups, collection for table-data binding
 // ---------------------------------------------------------------------------
 
 export const invoiceDataSource: DataSourceDescriptor = {
   id: 'invoice',
-  name: 'Invoice',
-  title: 'Invoice',
+  name: 'invoice',
+  title: '发票',
   expand: true,
   fields: [
     {
       name: 'company',
-      title: 'Company',
+      title: '公司',
       path: 'company',
       expand: true,
       fields: [
-        { name: 'name', title: 'Company Name', path: 'company/name', use: 'text' },
-        { name: 'logo', title: 'Company Logo', path: 'company/logo', use: 'image' },
-        { name: 'address', title: 'Address', path: 'company/address', use: 'text' },
-        { name: 'phone', title: 'Phone', path: 'company/phone', use: 'text' },
+        { name: 'name', title: '公司名称', path: 'company/name', use: 'text' },
+        { name: 'logo', title: '公司Logo', path: 'company/logo', use: 'image' },
+        { name: 'address', title: '地址', path: 'company/address', use: 'text' },
+        { name: 'phone', title: '联系电话', path: 'company/phone', use: 'text' },
       ],
     },
     {
       name: 'invoice',
-      title: 'Invoice Info',
+      title: '发票信息',
       path: 'invoice',
       expand: true,
       fields: [
-        { name: 'number', title: 'Invoice No.', path: 'invoice/number', use: 'text' },
-        { name: 'date', title: 'Date', path: 'invoice/date', use: 'text' },
-        { name: 'dueDate', title: 'Due Date', path: 'invoice/dueDate', use: 'text' },
+        { name: 'number', title: '发票编号', path: 'invoice/number', use: 'text' },
+        { name: 'date', title: '开票日期', path: 'invoice/date', use: 'text' },
+        { name: 'dueDate', title: '到期日', path: 'invoice/dueDate', use: 'text' },
       ],
     },
     {
       name: 'customer',
-      title: 'Customer',
+      title: '客户',
       path: 'customer',
       fields: [
-        { name: 'name', title: 'Customer Name', path: 'customer/name', use: 'text' },
-        { name: 'address', title: 'Customer Address', path: 'customer/address', use: 'text' },
+        { name: 'name', title: '客户名称', path: 'customer/name', use: 'text' },
+        { name: 'address', title: '客户地址', path: 'customer/address', use: 'text' },
       ],
     },
     {
       name: 'items',
-      title: 'Line Items',
+      title: '明细项目',
       path: 'items',
       tag: 'collection',
       expand: true,
       fields: [
-        { name: 'name', title: 'Product Name', path: 'items/name', use: 'text' },
-        { name: 'qty', title: 'Quantity', path: 'items/qty', use: 'text' },
-        { name: 'price', title: 'Unit Price', path: 'items/price', use: 'text' },
-        { name: 'amount', title: 'Amount', path: 'items/amount', use: 'text' },
+        { name: 'name', title: '品名', path: 'items/name', use: 'text' },
+        { name: 'qty', title: '数量', path: 'items/qty', use: 'text' },
+        { name: 'price', title: '单价', path: 'items/price', use: 'text' },
+        { name: 'amount', title: '金额', path: 'items/amount', use: 'text' },
       ],
     },
-    { name: 'subtotal', title: 'Subtotal', path: 'subtotal', use: 'text' },
-    { name: 'taxRate', title: 'Tax Rate', path: 'taxRate', use: 'text' },
-    { name: 'taxAmount', title: 'Tax Amount', path: 'taxAmount', use: 'text' },
-    { name: 'grandTotal', title: 'Grand Total', path: 'grandTotal', use: 'text' },
-    { name: 'notes', title: 'Notes', path: 'notes', use: 'rich-text' },
+    { name: 'subtotal', title: '小计', path: 'subtotal', use: 'text' },
+    { name: 'taxRate', title: '税率', path: 'taxRate', use: 'text' },
+    { name: 'taxAmount', title: '税额', path: 'taxAmount', use: 'text' },
+    { name: 'grandTotal', title: '合计', path: 'grandTotal', use: 'text' },
+    { name: 'notes', title: '备注', path: 'notes', use: 'rich-text' },
   ],
 }
 
 // ---------------------------------------------------------------------------
-// B. Product data source
+// B. 商品数据源
 // Covers: barcode, qrcode, image, union binding
 // ---------------------------------------------------------------------------
 
 export const productDataSource: DataSourceDescriptor = {
   id: 'product',
-  name: 'Product',
-  title: 'Product',
+  name: 'product',
+  title: '商品',
   fields: [
-    { name: 'name', title: 'Product Name', path: 'name', use: 'text' },
+    { name: 'name', title: '商品名称', path: 'name', use: 'text' },
     {
       name: 'sku',
       title: 'SKU',
@@ -87,62 +87,62 @@ export const productDataSource: DataSourceDescriptor = {
         { name: 'skuLabel', path: 'sku', use: 'text', offsetX: 0, offsetY: 22 },
       ],
     },
-    { name: 'qrUrl', title: 'QR Link', path: 'qrUrl', use: 'qrcode' },
-    { name: 'photo', title: 'Product Photo', path: 'photo', use: 'image' },
-    { name: 'price', title: 'Price', path: 'price', use: 'text' },
-    { name: 'category', title: 'Category', path: 'category', use: 'text' },
+    { name: 'qrUrl', title: '二维码链接', path: 'qrUrl', use: 'qrcode' },
+    { name: 'photo', title: '商品图片', path: 'photo', use: 'image' },
+    { name: 'price', title: '价格', path: 'price', use: 'text' },
+    { name: 'category', title: '分类', path: 'category', use: 'text' },
     {
       name: 'specs',
-      title: 'Specifications',
+      title: '规格参数',
       path: 'specs',
       fields: [
-        { name: 'weight', title: 'Weight', path: 'specs/weight', use: 'text' },
-        { name: 'dimension', title: 'Dimension', path: 'specs/dimension', use: 'text' },
-        { name: 'color', title: 'Color', path: 'specs/color', use: 'text' },
-        { name: 'material', title: 'Material', path: 'specs/material', use: 'text' },
+        { name: 'weight', title: '重量', path: 'specs/weight', use: 'text' },
+        { name: 'dimension', title: '尺寸', path: 'specs/dimension', use: 'text' },
+        { name: 'color', title: '颜色', path: 'specs/color', use: 'text' },
+        { name: 'material', title: '材质', path: 'specs/material', use: 'text' },
       ],
     },
   ],
 }
 
 // ---------------------------------------------------------------------------
-// C. Order list data source
+// C. 订单列表数据源
 // Covers: flat collection for table-data, multi-level nesting, headless
 // ---------------------------------------------------------------------------
 
 export const orderListDataSource: DataSourceDescriptor = {
   id: 'order-list',
-  name: 'Order List',
-  title: 'Order List',
+  name: 'order-list',
+  title: '订单列表',
   headless: true,
   fields: [
     {
       name: 'orders',
-      title: 'Orders',
+      title: '订单',
       path: 'orders',
       tag: 'collection',
       expand: true,
       fields: [
-        { name: 'orderId', title: 'Order ID', path: 'orders/orderId', use: 'text' },
-        { name: 'customer', title: 'Customer', path: 'orders/customer', use: 'text' },
-        { name: 'date', title: 'Order Date', path: 'orders/date', use: 'text' },
-        { name: 'status', title: 'Status', path: 'orders/status', use: 'text' },
-        { name: 'amount', title: 'Total Amount', path: 'orders/amount', use: 'text' },
+        { name: 'orderId', title: '订单编号', path: 'orders/orderId', use: 'text' },
+        { name: 'customer', title: '客户', path: 'orders/customer', use: 'text' },
+        { name: 'date', title: '下单日期', path: 'orders/date', use: 'text' },
+        { name: 'status', title: '状态', path: 'orders/status', use: 'text' },
+        { name: 'amount', title: '订单金额', path: 'orders/amount', use: 'text' },
         {
           name: 'items',
-          title: 'Order Items',
+          title: '订单明细',
           path: 'orders/items',
           tag: 'collection',
           fields: [
-            { name: 'productName', title: 'Product', path: 'orders/items/productName', use: 'text' },
-            { name: 'qty', title: 'Qty', path: 'orders/items/qty', use: 'text' },
-            { name: 'unitPrice', title: 'Unit Price', path: 'orders/items/unitPrice', use: 'text' },
+            { name: 'productName', title: '商品名称', path: 'orders/items/productName', use: 'text' },
+            { name: 'qty', title: '数量', path: 'orders/items/qty', use: 'text' },
+            { name: 'unitPrice', title: '单价', path: 'orders/items/unitPrice', use: 'text' },
           ],
         },
       ],
     },
-    { name: 'totalOrders', title: 'Total Orders', path: 'totalOrders', use: 'text' },
-    { name: 'totalRevenue', title: 'Total Revenue', path: 'totalRevenue', use: 'text' },
+    { name: 'totalOrders', title: '订单总数', path: 'totalOrders', use: 'text' },
+    { name: 'totalRevenue', title: '总收入', path: 'totalRevenue', use: 'text' },
   ],
 }
 
@@ -179,7 +179,7 @@ const invoiceTableNode: TableNode = {
     source: {
       sourceId: 'invoice',
       fieldPath: 'items',
-      fieldLabel: 'Line Items',
+      fieldLabel: '明细项目',
     },
     topology: {
       columns: [
@@ -193,30 +193,30 @@ const invoiceTableNode: TableNode = {
           height: 8,
           role: 'header' as const,
           cells: [
-            { content: { text: 'Product' } },
-            { content: { text: 'Qty' } },
-            { content: { text: 'Price' } },
-            { content: { text: 'Amount' } },
+            { content: { text: '品名' } },
+            { content: { text: '数量' } },
+            { content: { text: '单价' } },
+            { content: { text: '金额' } },
           ],
         },
         {
           height: 8,
           role: 'repeat-template' as const,
           cells: [
-            { binding: { sourceId: 'invoice', fieldPath: 'name', fieldLabel: 'Product Name' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'qty', fieldLabel: 'Quantity' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'price', fieldLabel: 'Unit Price' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'amount', fieldLabel: 'Amount' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'name', fieldLabel: '品名' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'qty', fieldLabel: '数量' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'price', fieldLabel: '单价' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'amount', fieldLabel: '金额' } },
           ],
         },
         {
           height: 8,
           role: 'footer' as const,
           cells: [
-            { content: { text: 'Total' }, colSpan: 3 },
+            { content: { text: '合计' }, colSpan: 3 },
             {},
             {},
-            { binding: { sourceId: 'invoice', fieldPath: 'grandTotal', fieldLabel: 'Grand Total' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'grandTotal', fieldLabel: '合计' } },
           ],
         },
       ],
@@ -240,7 +240,7 @@ export const invoiceWithTableTemplate: DocumentSchema = {
   },
   guides: { x: [], y: [] },
   elements: [
-    // Company name (bound)
+    // 公司名称（绑定）
     {
       id: 'inv_company',
       type: 'text',
@@ -249,18 +249,19 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 100,
       height: 10,
       props: {
-        content: '{{Company Name}}',
+        content: '{{公司名称}}',
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333333',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'company/name',
-        fieldLabel: 'Company Name',
+        fieldLabel: '公司名称',
       },
     },
-    // Company address (bound)
+    // 公司地址（绑定）
     {
       id: 'inv_address',
       type: 'text',
@@ -269,17 +270,18 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 100,
       height: 6,
       props: {
-        content: '{{Address}}',
+        content: '{{地址}}',
         fontSize: 9,
         color: '#666666',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'company/address',
-        fieldLabel: 'Address',
+        fieldLabel: '地址',
       },
     },
-    // Invoice title
+    // 发票标题
     {
       id: 'inv_title',
       type: 'text',
@@ -288,14 +290,15 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 60,
       height: 10,
       props: {
-        content: 'INVOICE',
+        content: '发票',
         fontSize: 22,
         fontWeight: 'bold',
         textAlign: 'right',
         color: '#1a1a1a',
+        verticalAlign: 'middle',
       },
     },
-    // Invoice number (bound)
+    // 发票编号（绑定）
     {
       id: 'inv_number',
       type: 'text',
@@ -304,18 +307,19 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 60,
       height: 6,
       props: {
-        content: '{{Invoice No.}}',
+        content: '{{发票编号}}',
         fontSize: 9,
         textAlign: 'right',
         color: '#666666',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'invoice/number',
-        fieldLabel: 'Invoice No.',
+        fieldLabel: '发票编号',
       },
     },
-    // Invoice date (bound)
+    // 开票日期（绑定）
     {
       id: 'inv_date',
       type: 'text',
@@ -324,18 +328,19 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 60,
       height: 6,
       props: {
-        content: '{{Date}}',
+        content: '{{开票日期}}',
         fontSize: 9,
         textAlign: 'right',
         color: '#666666',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'invoice/date',
-        fieldLabel: 'Date',
+        fieldLabel: '开票日期',
       },
     },
-    // Separator line
+    // 分隔线
     {
       id: 'inv_line',
       type: 'line',
@@ -349,7 +354,7 @@ export const invoiceWithTableTemplate: DocumentSchema = {
         lineType: 'solid',
       },
     },
-    // Customer info (bound)
+    // 客户信息（绑定）
     {
       id: 'inv_customer',
       type: 'text',
@@ -358,19 +363,20 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 100,
       height: 6,
       props: {
-        content: 'Bill To: {{Customer Name}}',
+        content: '致：{{客户名称}}',
         fontSize: 10,
         color: '#333333',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'customer/name',
-        fieldLabel: 'Customer Name',
+        fieldLabel: '客户名称',
       },
     },
-    // Line items table (table-data with bindings)
+    // 明细表格（table-data 绑定）
     invoiceTableNode,
-    // Grand total (bound)
+    // 合计（绑定）
     {
       id: 'inv_grand_total',
       type: 'text',
@@ -379,19 +385,20 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 60,
       height: 8,
       props: {
-        content: 'Total: {{Grand Total}}',
+        content: '合计：{{合计}}',
         fontSize: 14,
         fontWeight: 'bold',
         textAlign: 'right',
         color: '#1a1a1a',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'grandTotal',
-        fieldLabel: 'Grand Total',
+        fieldLabel: '合计',
       },
     },
-    // Notes (rich-text bound)
+    // 备注（富文本绑定）
     {
       id: 'inv_notes',
       type: 'text',
@@ -400,14 +407,15 @@ export const invoiceWithTableTemplate: DocumentSchema = {
       width: 190,
       height: 12,
       props: {
-        content: '{{Notes}}',
+        content: '{{备注}}',
         fontSize: 9,
         color: '#999999',
+        verticalAlign: 'middle',
       },
       binding: {
         sourceId: 'invoice',
         fieldPath: 'notes',
-        fieldLabel: 'Notes',
+        fieldLabel: '备注',
       },
     },
   ],

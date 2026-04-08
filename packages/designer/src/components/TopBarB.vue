@@ -720,10 +720,10 @@ function handleSnap() {
   display: flex;
   align-items: center;
   height: 36px;
-  padding: 0 8px;
+  padding: 0 4px;
   border-bottom: 1px solid var(--ei-border-color, #e0e0e0);
   background: var(--ei-topbar-bg, #fafafa);
-  gap: 2px;
+  gap: 4px;
 }
 
 .ei-topbar-b__groups {

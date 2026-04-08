@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { DataFieldNode, DataSourceDescriptor } from '@easyink/datasource'
-import type { DatasourceFieldDragData } from '../composables/use-datasource-drop'
-import { computed } from 'vue'
+import { IconChevronRight, IconDatabase } from '@easyink/icons'
+import { computed, reactive, watch } from 'vue'
 import { useDesignerStore } from '../composables'
-import { DATASOURCE_DRAG_MIME } from '../composables/use-datasource-drop'
+import DataFieldTreeNode from './datasource/DataFieldTreeNode.vue'
 
 const store = useDesignerStore()
 
@@ -13,20 +13,41 @@ const sources = computed<DataSourceDescriptor[]>(() => {
 
 const hasData = computed(() => sources.value.length > 0)
 
-function onFieldDragStart(e: DragEvent, source: DataSourceDescriptor, field: DataFieldNode) {
-  if (!e.dataTransfer)
-    return
-  const data: DatasourceFieldDragData = {
-    sourceId: source.id,
-    sourceName: source.name,
-    sourceTag: source.tag,
-    fieldPath: field.path || field.name,
-    fieldKey: field.key,
-    fieldLabel: field.title || field.name,
-    use: field.use,
+const expandedKeys = reactive(new Set<string>())
+
+function isExpanded(key: string): boolean {
+  return expandedKeys.has(key)
+}
+
+function toggleExpand(key: string) {
+  if (expandedKeys.has(key))
+    expandedKeys.delete(key)
+  else
+    expandedKeys.add(key)
+}
+
+function initFieldExpand(sourceId: string, fields: DataFieldNode[]) {
+  for (const field of fields) {
+    if (field.expand)
+      expandedKeys.add(`${sourceId}:${field.path || field.name}`)
+    if (field.fields)
+      initFieldExpand(sourceId, field.fields)
   }
-  e.dataTransfer.setData(DATASOURCE_DRAG_MIME, JSON.stringify(data))
-  e.dataTransfer.effectAllowed = 'link'
+}
+
+// Initialize expand state when sources first become available
+watch(sources, (s) => {
+  for (const source of s) {
+    // Default sources to expanded unless explicitly set to false
+    if (source.expand !== false && !expandedKeys.has(source.id))
+      expandedKeys.add(source.id)
+    if (source.fields)
+      initFieldExpand(source.id, source.fields)
+  }
+}, { immediate: true })
+
+function childKey(source: DataSourceDescriptor, child: DataFieldNode): string {
+  return `${source.id}:${child.path || child.name}`
 }
 </script>
 
@@ -38,18 +59,32 @@ function onFieldDragStart(e: DragEvent, source: DataSourceDescriptor, field: Dat
         :key="source.id"
         class="ei-datasource-panel__source"
       >
-        <div class="ei-datasource-panel__source-name">
-          {{ source.title || source.name }}
-        </div>
+        <!-- Source header -->
         <div
-          v-for="field in source.fields"
-          :key="field.name"
-          class="ei-datasource-panel__field"
-          draggable="true"
-          @dragstart="onFieldDragStart($event, source, field)"
+          class="ei-datasource-panel__source-header"
+          @click="toggleExpand(source.id)"
         >
-          <span class="ei-datasource-panel__field-name">{{ field.title || field.name }}</span>
-          <span v-if="field.use" class="ei-datasource-panel__field-use">{{ field.use }}</span>
+          <IconChevronRight
+            :size="14"
+            :stroke-width="1.5"
+            class="ei-datasource-panel__chevron"
+            :class="{ 'ei-datasource-panel__chevron--expanded': isExpanded(source.id) }"
+          />
+          <IconDatabase :size="14" :stroke-width="1.5" class="ei-datasource-panel__source-icon" />
+          <span class="ei-datasource-panel__source-name">{{ source.title || source.name }}</span>
+        </div>
+
+        <!-- Source body (fields tree) -->
+        <div v-if="isExpanded(source.id) && source.fields.length > 0" class="ei-datasource-panel__source-body">
+          <DataFieldTreeNode
+            v-for="child in source.fields"
+            :key="childKey(source, child)"
+            :field="child"
+            :source="source"
+            :depth="0"
+            :toggle-expand="toggleExpand"
+            :is-expanded="isExpanded"
+          />
         </div>
       </div>
     </div>
@@ -65,39 +100,52 @@ function onFieldDragStart(e: DragEvent, source: DataSourceDescriptor, field: Dat
 <style scoped>
 .ei-datasource-panel {
   font-size: 12px;
-  padding: 4px;
 }
 
 .ei-datasource-panel__source {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-.ei-datasource-panel__source-name {
+.ei-datasource-panel__source-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 4px;
   font-weight: 500;
-  padding: 4px 0;
+  cursor: pointer;
+  border-radius: 3px;
+  user-select: none;
   color: var(--ei-text, #333);
 }
 
-.ei-datasource-panel__field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 3px 8px;
-  cursor: grab;
-  border-radius: 3px;
-}
-
-.ei-datasource-panel__field:hover {
+.ei-datasource-panel__source-header:hover {
   background: var(--ei-hover-bg, #f0f0f0);
 }
 
-.ei-datasource-panel__field-name {
-  color: var(--ei-text, #333);
+.ei-datasource-panel__chevron {
+  flex-shrink: 0;
+  color: var(--ei-text-secondary, #999);
+  transition: transform 0.15s ease;
 }
 
-.ei-datasource-panel__field-use {
-  color: var(--ei-text-secondary, #999);
-  font-size: 11px;
+.ei-datasource-panel__chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.ei-datasource-panel__source-icon {
+  flex-shrink: 0;
+  color: var(--ei-primary, #1890ff);
+}
+
+.ei-datasource-panel__source-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ei-datasource-panel__source-body {
+  padding-left: 16px;
 }
 
 .ei-datasource-panel__empty {
