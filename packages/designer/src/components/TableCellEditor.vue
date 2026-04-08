@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { TableNode } from '@easyink/schema'
-import { computed, ref, watch } from 'vue'
-import { useDesignerStore } from '../composables'
+import { computeCellRect } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 import { UpdateTableCellCommand } from '@easyink/core'
+import { computed, ref, watch } from 'vue'
+import { useDesignerStore } from '../composables'
 
 const store = useDesignerStore()
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -25,50 +26,15 @@ const visible = computed(() => {
   return store.tableEditing.phase === 'content-editing' && tableNode.value && cellPath.value
 })
 
-/** The cell rect relative to the table element. */
 const cellRect = computed(() => {
   const node = tableNode.value
   const cp = cellPath.value
   if (!node || !cp)
     return null
-
-  const { columns, rows } = node.table.topology
-  if (cp.row >= rows.length || cp.col >= columns.length)
+  const rect = computeCellRect(node.table.topology, node.width, node.height, cp.row, cp.col)
+  if (!rect)
     return null
-
-  // Normalize column ratios (sum may != 1 after column resize)
-  let totalColRatio = 0
-  for (const col of columns)
-    totalColRatio += col.ratio
-  if (totalColRatio === 0) totalColRatio = 1
-
-  // Proportional row scale to match browser table layout (height:100%)
-  let totalRowHeight = 0
-  for (const r of rows)
-    totalRowHeight += r.height
-  const rowScale = totalRowHeight > 0 ? node.height / totalRowHeight : 1
-
-  let x = 0
-  for (let c = 0; c < cp.col; c++)
-    x += (columns[c]!.ratio / totalColRatio) * node.width
-
-  let y = 0
-  for (let r = 0; r < cp.row; r++)
-    y += rows[r]!.height * rowScale
-
-  const cell = rows[cp.row]!.cells[cp.col]
-  const colSpan = cell?.colSpan ?? 1
-  const rowSpan = cell?.rowSpan ?? 1
-
-  let w = 0
-  for (let c = cp.col; c < Math.min(cp.col + colSpan, columns.length); c++)
-    w += (columns[c]!.ratio / totalColRatio) * node.width
-
-  let h = 0
-  for (let r = cp.row; r < Math.min(cp.row + rowSpan, rows.length); r++)
-    h += rows[r]!.height * rowScale
-
-  return { x: node.x + x, y: node.y + y, w, h }
+  return { x: node.x + rect.x, y: node.y + rect.y, w: rect.w, h: rect.h }
 })
 
 /** Cell style to match rendered cell appearance. */

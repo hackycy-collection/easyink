@@ -1,0 +1,350 @@
+import type { DocumentSchema, GuideSchema, MaterialNode, PageSchema } from '@easyink/schema'
+import type { Command } from '../command'
+import { isTableNode } from '@easyink/schema'
+import { deepClone, generateId } from '@easyink/shared'
+import { asRecord, findNode } from './helpers'
+
+// ─── Document Commands ──────────────────────────────────────────────
+
+export class AddMaterialCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'add-material'
+  readonly description = 'Add material'
+
+  constructor(
+    private elements: MaterialNode[],
+    private node: MaterialNode,
+  ) {}
+
+  execute(): void {
+    this.elements.push(this.node)
+  }
+
+  undo(): void {
+    const idx = this.elements.findIndex(el => el.id === this.node.id)
+    if (idx >= 0)
+      this.elements.splice(idx, 1)
+  }
+}
+
+export class RemoveMaterialCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'remove-material'
+  readonly description = 'Remove material'
+  private snapshot: MaterialNode | undefined
+  private index = -1
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+  ) {}
+
+  execute(): void {
+    const idx = this.elements.findIndex(el => el.id === this.nodeId)
+    if (idx < 0)
+      return
+    this.index = idx
+    this.snapshot = deepClone(this.elements[idx]!)
+    this.elements.splice(idx, 1)
+  }
+
+  undo(): void {
+    if (this.snapshot)
+      this.elements.splice(this.index, 0, this.snapshot)
+  }
+}
+
+export class MoveMaterialCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'move-material'
+  readonly description = 'Move material'
+  private oldX = 0
+  private oldY = 0
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private to: { x: number, y: number },
+  ) {}
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    this.oldX = node.x
+    this.oldY = node.y
+    node.x = this.to.x
+    node.y = this.to.y
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    node.x = this.oldX
+    node.y = this.oldY
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as MoveMaterialCommand
+    if (other.nodeId !== this.nodeId)
+      return null
+    const merged = new MoveMaterialCommand(this.elements, this.nodeId, other.to)
+    merged.oldX = this.oldX
+    merged.oldY = this.oldY
+    return merged
+  }
+}
+
+export class ResizeMaterialCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'resize-material'
+  readonly description = 'Resize material'
+  private oldX = 0
+  private oldY = 0
+  private oldWidth = 0
+  private oldHeight = 0
+  private oldRowHeights: number[] | null = null
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private to: { x: number, y: number, width: number, height: number },
+    private rowHeights: number[] | null = null,
+  ) {}
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    this.oldX = node.x
+    this.oldY = node.y
+    this.oldWidth = node.width
+    this.oldHeight = node.height
+    node.x = this.to.x
+    node.y = this.to.y
+    node.width = this.to.width
+    node.height = this.to.height
+
+    // Scale table row heights when provided
+    if (this.rowHeights && isTableNode(node)) {
+      const rows = node.table.topology.rows
+      this.oldRowHeights = rows.map(r => r.height)
+      for (let i = 0; i < rows.length && i < this.rowHeights.length; i++) {
+        rows[i]!.height = this.rowHeights[i]!
+      }
+    }
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    node.x = this.oldX
+    node.y = this.oldY
+    node.width = this.oldWidth
+    node.height = this.oldHeight
+
+    if (this.oldRowHeights && isTableNode(node)) {
+      const rows = node.table.topology.rows
+      for (let i = 0; i < rows.length && i < this.oldRowHeights.length; i++) {
+        rows[i]!.height = this.oldRowHeights[i]!
+      }
+    }
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as ResizeMaterialCommand
+    if (other.nodeId !== this.nodeId)
+      return null
+    const merged = new ResizeMaterialCommand(this.elements, this.nodeId, other.to, other.rowHeights)
+    merged.oldX = this.oldX
+    merged.oldY = this.oldY
+    merged.oldWidth = this.oldWidth
+    merged.oldHeight = this.oldHeight
+    merged.oldRowHeights = this.oldRowHeights
+    return merged
+  }
+}
+
+export class RotateMaterialCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'rotate-material'
+  readonly description = 'Rotate material'
+  private oldRotation = 0
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private to: number,
+  ) {}
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    this.oldRotation = node.rotation ?? 0
+    node.rotation = this.to
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    node.rotation = this.oldRotation
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as RotateMaterialCommand
+    if (other.nodeId !== this.nodeId)
+      return null
+    const merged = new RotateMaterialCommand(this.elements, this.nodeId, other.to)
+    merged.oldRotation = this.oldRotation
+    return merged
+  }
+}
+
+export class UpdateMaterialPropsCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-material-props'
+  readonly description = 'Update material props'
+  private oldValues: Record<string, unknown> = {}
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private updates: Record<string, unknown>,
+  ) {}
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.updates)) {
+      this.oldValues[key] = deepClone(node.props[key])
+      node.props[key] = deepClone(this.updates[key])
+    }
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.oldValues)) {
+      node.props[key] = this.oldValues[key]
+    }
+  }
+}
+
+export class UpdatePageCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-page'
+  readonly description = 'Update page'
+  private oldValues: Partial<PageSchema> = {}
+
+  constructor(
+    private page: PageSchema,
+    private updates: Partial<PageSchema>,
+  ) {}
+
+  execute(): void {
+    for (const key of Object.keys(this.updates) as Array<keyof PageSchema>) {
+      asRecord(this.oldValues)[key] = deepClone(asRecord(this.page)[key])
+      asRecord(this.page)[key] = deepClone(asRecord(this.updates)[key])
+    }
+  }
+
+  undo(): void {
+    for (const key of Object.keys(this.oldValues) as Array<keyof PageSchema>) {
+      asRecord(this.page)[key] = asRecord(this.oldValues)[key]
+    }
+  }
+}
+
+export class UpdateGuidesCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-guides'
+  readonly description = 'Update guides'
+  private oldGuides: GuideSchema | undefined
+
+  constructor(
+    private schema: DocumentSchema,
+    private newGuides: GuideSchema,
+  ) {}
+
+  execute(): void {
+    this.oldGuides = deepClone(this.schema.guides)
+    this.schema.guides = deepClone(this.newGuides)
+  }
+
+  undo(): void {
+    if (this.oldGuides)
+      this.schema.guides = this.oldGuides
+  }
+}
+
+export class UpdateDocumentCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-document'
+  readonly description = 'Update document'
+  private oldValues: Partial<DocumentSchema> = {}
+
+  constructor(
+    private schema: DocumentSchema,
+    private updates: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
+  ) {}
+
+  execute(): void {
+    for (const key of Object.keys(this.updates) as Array<keyof typeof this.updates>) {
+      asRecord(this.oldValues)[key] = deepClone(asRecord(this.schema)[key])
+      asRecord(this.schema)[key] = deepClone(asRecord(this.updates)[key])
+    }
+  }
+
+  undo(): void {
+    for (const key of Object.keys(this.oldValues) as Array<keyof typeof this.oldValues>) {
+      asRecord(this.schema)[key] = asRecord(this.oldValues)[key]
+    }
+  }
+}
+
+export class ImportTemplateCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'import-template'
+  readonly description = 'Import template'
+  private oldElements: MaterialNode[] = []
+  private oldPage: PageSchema | undefined
+  private oldGuides: GuideSchema | undefined
+
+  constructor(
+    private schema: DocumentSchema,
+    private imported: DocumentSchema,
+  ) {}
+
+  execute(): void {
+    this.oldElements = deepClone(this.schema.elements)
+    this.oldPage = deepClone(this.schema.page)
+    this.oldGuides = deepClone(this.schema.guides)
+    this.schema.elements.length = 0
+    for (const el of this.imported.elements)
+      this.schema.elements.push(deepClone(el))
+    Object.assign(this.schema.page, deepClone(this.imported.page))
+    this.schema.guides = deepClone(this.imported.guides)
+  }
+
+  undo(): void {
+    this.schema.elements.length = 0
+    for (const el of this.oldElements)
+      this.schema.elements.push(el)
+    if (this.oldPage)
+      Object.assign(this.schema.page, this.oldPage)
+    if (this.oldGuides)
+      this.schema.guides = this.oldGuides
+  }
+}

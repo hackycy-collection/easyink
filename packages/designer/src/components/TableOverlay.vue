@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { TableNode } from '@easyink/schema'
+import { computeCellRect, computeColBorderPositions, computeRowBorderPositions } from '@easyink/material-table-kernel'
+import { isTableNode } from '@easyink/schema'
 import { computed } from 'vue'
 import { useDesignerStore } from '../composables'
 import { useTableColumnResize, useTableRowResize } from '../composables'
-import { isTableNode } from '@easyink/schema'
 
 const store = useDesignerStore()
 
@@ -33,94 +34,26 @@ const tableNode = computed<TableNode | null>(() => {
 
 const unit = computed(() => store.schema.unit)
 
-/** Sum of all column ratios (may != 1 after column resize). */
-const totalColRatio = computed(() => {
-  const node = tableNode.value
-  if (!node)
-    return 1
-  let sum = 0
-  for (const col of node.table.topology.columns)
-    sum += col.ratio
-  return sum || 1
-})
-
-/** Column border X positions (between columns, excludes left edge and right edge). */
 const colBorderXList = computed(() => {
   const node = tableNode.value
   if (!node)
     return []
-  const { columns } = node.table.topology
-  const total = totalColRatio.value
-  const positions: number[] = []
-  let accX = 0
-  for (let i = 0; i < columns.length - 1; i++) {
-    accX += (columns[i]!.ratio / total) * node.width
-    positions.push(accX)
-  }
-  return positions
+  return computeColBorderPositions(node.table.topology.columns, node.width)
 })
 
-/** Row border Y positions (between rows, excludes top edge and bottom edge).
- *  Uses proportional distribution to match browser table layout (height:100%). */
 const rowBorderYList = computed(() => {
   const node = tableNode.value
   if (!node)
     return []
-  const { rows } = node.table.topology
-  let totalRowHeight = 0
-  for (const row of rows)
-    totalRowHeight += row.height
-  const scale = totalRowHeight > 0 ? node.height / totalRowHeight : 1
-  const positions: number[] = []
-  let accY = 0
-  for (let i = 0; i < rows.length - 1; i++) {
-    accY += rows[i]!.height * scale
-    positions.push(accY)
-  }
-  return positions
+  return computeRowBorderPositions(node.table.topology.rows, node.height)
 })
 
-/** Selected cell highlight rect. */
 const cellHighlight = computed(() => {
   const node = tableNode.value
   const cellPath = store.tableEditing.cellPath
   if (!node || !cellPath)
     return null
-
-  const { columns, rows } = node.table.topology
-  const { row, col } = cellPath
-  if (row >= rows.length || col >= columns.length)
-    return null
-
-  const total = totalColRatio.value
-
-  // Proportional row scale to match browser table layout (height:100%)
-  let totalRowHeight = 0
-  for (const r of rows)
-    totalRowHeight += r.height
-  const rowScale = totalRowHeight > 0 ? node.height / totalRowHeight : 1
-
-  let x = 0
-  for (let c = 0; c < col; c++)
-    x += (columns[c]!.ratio / total) * node.width
-
-  let y = 0
-  for (let r = 0; r < row; r++)
-    y += rows[r]!.height * rowScale
-
-  const cell = rows[row]!.cells[col]
-  const colSpan = cell?.colSpan ?? 1
-  const rowSpan = cell?.rowSpan ?? 1
-
-  let w = 0
-  for (let c = col; c < Math.min(col + colSpan, columns.length); c++)
-    w += (columns[c]!.ratio / total) * node.width
-
-  let h = 0
-  for (let r = row; r < Math.min(row + rowSpan, rows.length); r++)
-    h += rows[r]!.height * rowScale
-
-  return { x, y, w, h }
+  return computeCellRect(node.table.topology, node.width, node.height, cellPath.row, cellPath.col)
 })
 
 const showCellHighlight = computed(() => {

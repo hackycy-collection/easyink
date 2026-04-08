@@ -35,6 +35,7 @@
     "@easyink/material-relation": "workspace:*",
     "@easyink/material-svg": "workspace:*",
     "@easyink/material-table-data": "workspace:*",
+    "@easyink/material-table-kernel": "workspace:*",
     "@easyink/material-table-static": "workspace:*",
     "@easyink/material-text": "workspace:*",
     "@easyink/schema": "workspace:*",

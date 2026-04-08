@@ -231,6 +231,9 @@ importers:
       '@easyink/material-table-data':
         specifier: workspace:*
         version: link:../materials/table-data
+      '@easyink/material-table-kernel':
+        specifier: workspace:*
+        version: link:../materials/table-kernel
       '@easyink/material-table-static':
         specifier: workspace:*
         version: link:../materials/table-static
@@ -387,12 +390,21 @@ importers:
 
   packages/materials/table-data:
     dependencies:
-      '@easyink/core':
-        specifier: workspace:*
-        version: link:../../core
       '@easyink/datasource':
         specifier: workspace:*
         version: link:../../datasource
+      '@easyink/material-table-kernel':
+        specifier: workspace:*
+        version: link:../table-kernel
+      '@easyink/schema':
+        specifier: workspace:*
+        version: link:../../schema
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
+  packages/materials/table-kernel:
+    dependencies:
       '@easyink/schema':
         specifier: workspace:*
         version: link:../../schema
@@ -402,9 +414,9 @@ importers:
 
   packages/materials/table-static:
     dependencies:
-      '@easyink/core':
+      '@easyink/material-table-kernel':
         specifier: workspace:*
-        version: link:../../core
+        version: link:../table-kernel
       '@easyink/schema':
         specifier: workspace:*
         version: link:../../schema

@@ -1,8 +1,8 @@
 {
-  "name": "@easyink/material-table-static",
+  "name": "@easyink/material-table-kernel",
   "type": "module",
   "version": "0.0.0",
-  "description": "EasyInk table-static material",
+  "description": "EasyInk shared table kernel: geometry, rendering, topology helpers",
   "author": "hackycy <hackycy@outlook.com>",
   "license": "MIT",
   "sideEffects": false,
@@ -19,7 +19,6 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@easyink/material-table-kernel": "workspace:*",
     "@easyink/schema": "workspace:*",
     "@easyink/shared": "workspace:*"
   }

@@ -1,57 +1,17 @@
-import type { MaterialNode, TableNode, TableSchema } from '@easyink/schema'
+import type { TableBaseProps } from '@easyink/material-table-kernel'
+import type { MaterialNode, TableNode } from '@easyink/schema'
+import { createDefaultLayout, createDefaultTopology, TABLE_BASE_CAPABILITIES, TABLE_BASE_DEFAULTS } from '@easyink/material-table-kernel'
 import { generateId } from '@easyink/shared'
 
 export const TABLE_STATIC_TYPE = 'table-static'
 
-export interface TableStaticProps {
-  borderWidth: number
-  borderColor: string
-  borderType: 'solid' | 'dashed' | 'dotted'
-  cellPadding: number
-  fontSize: number
-  color: string
-}
+export type TableStaticProps = TableBaseProps
 
-export const TABLE_STATIC_DEFAULTS: TableStaticProps = {
-  borderWidth: 1,
-  borderColor: '#000000',
-  borderType: 'solid',
-  cellPadding: 2,
-  fontSize: 9,
-  color: '#000000',
-}
-
-function createDefaultTable(): TableSchema {
-  const cols = 3
-  const rowCount = 3
-  const rowHeight = 8
-  const ratio = 1 / cols
-
-  return {
-    topology: {
-      columns: Array.from({ length: cols }, () => ({ ratio })),
-      rows: Array.from({ length: rowCount }, () => ({
-        height: rowHeight,
-        cells: Array.from({ length: cols }, () => ({})),
-      })),
-    },
-    bands: [
-      {
-        kind: 'body',
-        rowRange: { start: 0, end: rowCount },
-      },
-    ],
-    layout: {
-      borderAppearance: 'all',
-      borderWidth: 1,
-      borderType: 'solid',
-      borderColor: '#000000',
-    },
-  }
-}
+export const TABLE_STATIC_DEFAULTS: TableStaticProps = { ...TABLE_BASE_DEFAULTS }
 
 export function createTableStaticNode(partial?: Partial<MaterialNode>): MaterialNode {
-  const table = createDefaultTable()
+  const topology = createDefaultTopology(3, 3, 8)
+  const layout = createDefaultLayout()
   const { type: _type, ...rest } = partial || {} as Partial<MaterialNode>
   const node: TableNode = {
     id: generateId('ts'),
@@ -62,20 +22,17 @@ export function createTableStaticNode(partial?: Partial<MaterialNode>): Material
     props: { ...TABLE_STATIC_DEFAULTS },
     ...rest,
     type: 'table-static',
-    table,
+    table: {
+      topology,
+      bands: [{ kind: 'body', rowRange: { start: 0, end: 3 } }],
+      layout,
+    },
   }
   return node
 }
 
 export const TABLE_STATIC_CAPABILITIES = {
+  ...TABLE_BASE_CAPABILITIES,
   bindable: false,
-  rotatable: false,
-  resizable: true,
-  supportsChildren: false,
-  supportsAnimation: false,
-  supportsUnionDrop: false,
   multiBinding: false,
-  hasDeepEditing: true,
-  hasOverlay: true,
-  hasContentEditing: true,
 }
