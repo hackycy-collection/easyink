@@ -41,15 +41,6 @@ interface MaterialCapabilities {
   supportsUnionDrop?: boolean
   pageAware?: boolean
   multiBinding?: boolean
-  /** 标识元素支持深度编辑模式（表格、容器等）。
-   *  有此标识的元素使用外部拖拽把手（左上角元素外），
-   *  单击后可进入内部编辑态，element 级 handle 按 phase 隐藏。 */
-  hasDeepEditing?: boolean
-  /** 标识元素拥有自定义 overlay（列/行 resize 手柄、单元格选区等）。
-   *  有此标识时 CanvasWorkspace 会调用 renderOverlay() 并挂载返回的 VNode。 */
-  hasOverlay?: boolean
-  /** 标识元素支持内容原位编辑（文本双击编辑、表格格子内文本编辑等）。 */
-  hasContentEditing?: boolean
   /** 拖拽 element 级 resize handle 时保持宽高比。 */
   keepAspectRatio?: boolean
 }
@@ -180,46 +171,38 @@ interface MaterialCapabilities {
 
 它需要：
 
-- 主数据源与行上下文
-- 区段语义（标题 / 表头 / 数据 / 合计 / 尾部 / 留白）
-- 集合字段绑定
-- 单元格绑定
+- 表级主数据源绑定（`TableDataSchema.source`），指向集合字段
+- Row role 标记 (normal/header/footer/repeat-template)
+- Cell 绑定自动继承 table.source 的 sourceId（严格单源）
 - 表头编辑
-- 分页切片
-- 重复头
-- 合计区
-- 空行填充
-- 递归子元素
+- Row 级 repeat：repeat-template 行按 table.source.fieldPath 集合数据逐项重复
 
-### 表格内核分层
+分页切片、重复头、合计区、空行填充由 Viewer/PagePlanner 负责，不属于 table-data 职责。Cell 仅包含文本内容，不支持子物料嵌套。
 
-`table-static` 和 `table-data` 不是两套独立实现，而是同一个表格内核外加不同语义层。
+### 表格工具库
 
-- 共享内核：行列拓扑、合并拆分、格子尺寸、边框、格子内容槽、局部选区、浮动工具条
-- 静态语义：固定行列、固定内容、局部内容编辑、允许嵌套文本/图片/子表格
-- 数据语义：区段、集合绑定、相对字段、分页、重复头、空行填充、合计规则
-
-设计约束：
-
-- `table-data` 不能把分页、区段、绑定规则直接烙进每个格子的公共模型
-- `table-static` 不能为了复用代码伪造 `data/header/summary` 这类运行时区段
-- Designer 和 Viewer 都应先命中表格内核，再进入 `static/data` 语义层
+`table-kernel` 是纯工具库，提供 table-static 和 table-data 共享的纯函数：几何计算、拓扑合并/拆分、命中测试。两个表格物料直接 import 所需函数，table-kernel 不做抽象层、不做 re-export。
 
 ### 表格 capabilities
 
 ```
-table-static:  rotatable=false, resizable=true, hasDeepEditing=true, hasOverlay=true, hasContentEditing=true
-table-data:    rotatable=false, resizable=true, hasDeepEditing=true, hasOverlay=true, hasContentEditing=true, bindable=true, multiBinding=true
+table-static:  rotatable=false, resizable=true
+table-data:    rotatable=false, resizable=true, bindable=true, multiBinding=true
 ```
+
+深度编辑能力通过扩展协议的 `deepEditing` FSM 定义声明，不再通过 capability 标志。
 
 ### 深度编辑元素的通用交互模型
 
-所有声明了 `hasDeepEditing = true` 的元素共享以下交互规范：
+深度编辑由统一扩展协议驱动，物料通过声明式 FSM 定义自己的编辑阶段，不再依赖 capability 标志。
 
-1. **外部拖拽把手**：位于元素左上角外部，替代 element body 拖拽。由 CanvasWorkspace 统一渲染，不由物料自行渲染。把手不应被页面边缘裁切。
-2. **handle 切换**：`table-selected`（或等价的一级选中态）显示 element 级 resize handle。进入深度编辑后 element 级 handle 全部隐藏，改由 overlay 接管交互。
-3. **z-index 提升**：进入深度编辑时提升元素 z-index，确保 overlay 不被其他元素遮挡。
-4. **互斥约束**：同一时刻只有一个元素可进入深度编辑。多选状态与深度编辑互斥。
+1. **声明式 FSM**：每个复杂物料通过 `DeepEditingDefinition` 声明内部编辑 phase 和转换规则。Designer 提供基础状态机（idle / selected / deep-editing），物料在 deep-editing 内部扩展子 phase。
+2. **Overlay 与 Toolbar 自渲染**：物料在 phase 的 `onEnter` 回调中接收 Designer 提供的定位好的 DOM 容器（overlay + toolbar），自行 mount 渲染内容。Designer 不参与物料内部 UI 渲染。
+3. **职责划分**：Designer 管理选区框、resize 把手、对齐、拖拽；物料管理内容渲染和深度编辑 UI。
+4. **通信机制**：物料通过 `MaterialExtensionContext` 的查询方法读取状态，通过 `commitCommand` / `emit` 发送指令。
+5. **Extension 注册**：物料通过工厂函数 `createExtension(context)` 注册，返回 `MaterialDesignerExtension` 实例。
+6. **Phase 生命周期**：每个 phase 通过 `onEnter` / `onExit` 回调管理挂载和清理。
+7. **互斥约束**：同一时刻只有一个元素可进入深度编辑。多选状态与深度编辑互斥。
 
 ### `container`
 
@@ -292,12 +275,12 @@ interface PropSchema {
 
 ### 表格物料属性矩阵
 
-表格物料至少要拆成四层上下文：
+表格物料属性按三层上下文组织：
 
-- 表级属性：格子均分、边框外观、格子间距、边框宽度、边框类型、边框颜色
-- 区段属性：标题区、表头区、数据区、合计区、尾部区、留白区的显隐与重复规则；仅 `table-data` 持有
-- 单元格属性：跨度、边框、内边距、尺寸、局部操作、绑定规则
-- 内容属性：格子内容子树、内容对齐、内联文本编辑入口、内容物料插入与替换
+- 表级属性：格子均分、边框外观、格子间距、边框宽度、边框类型、边框颜色、主数据源（仅 table-data，显示当前绑定的集合字段路径）
+- 行属性：行角色 (normal/header/footer/repeat-template)、行高
+- 单元格属性：跨度、边框、内边距、尺寸、局部操作、绑定字段（仅 fieldPath + fieldLabel）
+- 内容属性：格子文本内容、内容对齐、内联文本编辑入口
 
 内容层不是另一套独立属性面板。它必须挂在表格壳层之下，避免编辑文字时丢失当前表格上下文。
 
@@ -342,43 +325,96 @@ interface PropSchema {
 
 ## 11.6 Designer 扩展面
 
-每个物料包可提供 Designer 扩展：
+物料通过工厂函数注册 extension，Designer 提供上下文能力，物料自行渲染和管理深度编辑。
 
 ```typescript
+/** 物料通过工厂函数注册 extension */
+type MaterialExtensionFactory = (context: MaterialExtensionContext) => MaterialDesignerExtension
+
+interface MaterialExtensionContext {
+  /** 查询能力：读取 schema、获取选中状态 */
+  getSchema(): DocumentSchema
+  getNode(id: string): MaterialNode | undefined
+  getSelection(): SelectionState
+  /** 指令能力：提交 command、请求属性面板切换 */
+  commitCommand(command: Command): void
+  requestPropertyPanel(descriptor: PropertyPanelRequest): void
+  emit(event: string, payload: unknown): void
+  on(event: string, handler: (...args: unknown[]) => void): () => void
+}
+
 interface MaterialDesignerExtension {
-  /** 设计态内容渲染：返回元素在画布中的视觉 HTML */
-  renderContent?(node: MaterialNode, context: DesignerRenderContext): DesignerRenderOutput
-  getToolbarActions?(node: MaterialNode): ToolbarAction[]
+  /** 设计态内容渲染：设计器提供定位好的内容 DOM 容器，物料自行渲染。
+   *  nodeSignal 提供框架无关的响应式订阅：调用 nodeSignal.subscribe(callback) 监听节点变化，
+   *  调用 nodeSignal.get() 获取当前值。物料在首次调用时完成 DOM 挂载，后续通过 subscribe 增量更新。
+   *  返回 cleanup 函数，在元素从画布移除时调用。 */
+  renderContent(nodeSignal: NodeSignal, container: HTMLElement): () => void
+  /** 右键菜单动作 */
   getContextActions?(node: MaterialNode): ContextAction[]
-  /** 自定义 overlay 渲染：返回 Vue VNode 或 Component。
-   *  VNode 通过 teleport 挂载到页面级 overlay 容器（绝对定位，不受元素 transform 影响）。
-   *  物料对 overlay 有完全控制权，负责渲染列/行 resize 手柄、单元格高亮、浮动工具条等。
-   *  仅当 capabilities.hasOverlay = true 时被 CanvasWorkspace 调用。 */
-  renderOverlay?(node: MaterialNode, state: DesignerMaterialState): VNode | Component | null
-  /** 进入内容编辑模式。返回 true 表示成功进入。
-   *  由 capabilities.hasContentEditing 控制是否可用。 */
-  enterEditMode?(node: MaterialNode): boolean
+
+  /** 声明式 FSM 定义（可选，仅复杂物料提供） */
+  deepEditing?: DeepEditingDefinition
 }
 
-interface DesignerMaterialState {
-  selected: boolean
-  hovered: boolean
-  editing: boolean
-  /** 深度编辑相关状态，仅 hasDeepEditing 元素使用 */
-  deepEditPhase?: string
-  cellPath?: { row: number; col: number }
+/** 框架无关的节点响应式信号 */
+interface NodeSignal {
+  /** 获取当前节点快照 */
+  get(): MaterialNode
+  /** 订阅节点变化，返回取消订阅函数 */
+  subscribe(callback: (node: MaterialNode) => void): () => void
 }
 
-interface DesignerRenderContext {
-  unit: UnitType
-  /** 获取绑定字段的显示标签（非真实数据） */
-  getBindingLabel: (binding: BindingRef) => string
+/** 声明式有限状态机定义 */
+interface DeepEditingDefinition {
+  /** 物料内部 phases + 转换规则 */
+  phases: DeepEditingPhase[]
+  /** 初始 phase（进入 deep editing 时） */
+  initialPhase: string
 }
 
-interface DesignerRenderOutput {
-  html: string
-  /** 是否支持双击进入内容编辑态（如文本直接编辑） */
-  editable?: boolean
+interface DeepEditingPhase {
+  id: string
+  /** Phase 进入时，设计器提供 DOM 容器，物料自行 mount overlay/toolbar */
+  onEnter(containers: PhaseContainers, node: MaterialNode): void
+  /** Phase 退出时 cleanup */
+  onExit(): void
+  /** 子选择协议：物料声明当前 phase 支持的子元素选择逻辑 */
+  subSelection?: SubSelectionHandler
+  /** Resize 协议：物料声明内部可 resize 区域 */
+  internalResize?: InternalResizeHandler
+  /** Keyboard 路由：物料声明对按键事件的响应 */
+  keyboardHandler?: KeyboardRouteHandler
+  /** 转换规则：声明从当前 phase 可以转换到哪些 phase 及触发条件 */
+  transitions: PhaseTransition[]
+}
+
+interface PhaseContainers {
+  /** overlay DOM 容器（覆盖在元素上方，绝对定位） */
+  overlay: HTMLElement
+  /** toolbar DOM 容器（位于元素上方的浮动区域） */
+  toolbar: HTMLElement
+}
+
+interface SubSelectionHandler {
+  hitTest(point: { x: number; y: number }, node: MaterialNode): SubSelectionResult | null
+  getSelectedPath(): unknown
+  clearSelection(): void
+}
+
+interface InternalResizeHandler {
+  getResizeHandles(node: MaterialNode): ResizeHandle[]
+  onResize(handle: ResizeHandle, delta: { dx: number; dy: number }): void
+  onResizeEnd(handle: ResizeHandle): void
+}
+
+interface KeyboardRouteHandler {
+  handleKey(event: KeyboardEvent, node: MaterialNode): boolean
+}
+
+interface PhaseTransition {
+  to: string
+  trigger: 'click' | 'double-click' | 'escape' | 'custom'
+  guard?: (event: unknown, node: MaterialNode) => boolean
 }
 ```
 
@@ -394,6 +430,12 @@ interface DesignerRenderOutput {
 - 设计态需要响应编辑交互（悬停、选中、编辑态样式变化），Viewer 渲染器不关心这些
 - 设计态渲染运行在画布主线程，必须轻量快速
 
+**渲染方式：**
+
+`renderContent(nodeSignal, container)` 接收 Designer 提供的已定位 DOM 容器和框架无关的节点信号。物料在首次调用时挂载 DOM，后续通过 `nodeSignal.subscribe()` 监听变化并增量更新，无需重建。返回 cleanup 函数用于元素移除时的清理。不返回 HTML 字符串。
+
+Designer 内部将 Vue computed 包装为 `NodeSignal` 接口，extension 代码不依赖 Vue。
+
 **各类物料的设计态渲染策略：**
 
 | 物料类别 | 设计态渲染 | 与 Viewer 的差异 |
@@ -402,8 +444,8 @@ interface DesignerRenderOutput {
 | image | 有 src 时显示图片缩略图，无 src 时显示图标占位 | 无差异 |
 | barcode / qrcode | 显示静态示意图 + 值标签 | Viewer 调用渲染库生成真实码 |
 | line / rect / ellipse | 根据 props 直接渲染图形（颜色、边框、圆角） | 基本无差异 |
-| table-static | 渲染表格格线结构和格子内容子树；格子内容保持设计态占位 | 基本无差异 |
-| table-data | 渲染表格格线结构、区段标签和格子内容槽；数据区显示字段标签而非真实行 | Viewer 执行数据展开、分页、重复头 |
+| table-static | 渲染表格格线结构和格子内容；格子内容保持设计态占位 | 基本无差异 |
+| table-data | 渲染表格格线结构和格子内容槽；数据区显示字段标签而非真实行 | Viewer 执行数据展开、分页、重复头 |
 | container | 渲染容器边界 + 递归渲染子元素 | 基本无差异 |
 | chart | 显示图表类型图标 + 静态缩略图占位 | Viewer 调用图表库渲染真实图表 |
 | svg | 直接渲染 SVG 内容 | 基本无差异 |
@@ -418,10 +460,13 @@ interface DesignerRenderOutput {
 
 ```
 CanvasWorkspace 遍历 elements
+  → 为每个元素创建定位好的内容 DOM 容器
+  → 创建 NodeSignal：包装 Vue computed 为 { get(), subscribe() }
   → 查找 MaterialDesignerExtension.renderContent
-  → 有：调用并渲染返回的 HTML
-  → 无：显示类型名占位
+  → 有：调用 cleanup = renderContent(nodeSignal, container)，物料自行渲染到容器内
+  → 无：在容器内显示类型名占位
   → 叠加选区边框、拖拽手柄、绑定角标等交互层
+  → 元素移除时调用 cleanup() 清理
 ```
 
 对于结构物料，还需要支持：
@@ -432,11 +477,10 @@ CanvasWorkspace 遍历 elements
 
 对表格物料，还需要额外支持：
 
-- 表壳、格子、格子内容三层编辑上下文（band-selected 已废弃）
+- 表壳、格子、格子内容三层编辑上下文
 - 格子内文本进入内联编辑时，属性壳层仍保持 `table-static/table-data` 上下文
 - 表格浮动工具条与属性面板共享同一份表格编辑状态，而不是各自维护一套临时状态
-- overlay VNode 通过 teleport 挂载到页面级 overlay 容器，不受元素 transform 影响
-- 外部拖拽把手由框架根据 `hasDeepEditing` capability 统一渲染
+- 深度编辑 phase 的 overlay/toolbar 通过 `PhaseContainers` 挂载，由 Designer 管理定位
 
 ## 11.7 Viewer 扩展面
 

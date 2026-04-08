@@ -40,8 +40,8 @@ MaterialRendererRegistry
 1. `SchemaCodec`：把外部输入转为 EasyInk 规范模型。
 2. `FontRegistryLoader`：加载字体描述与字体资源。
 3. `DataSourceResolver`：根据 `sourceId / sourceTag` 拉取数据。
-4. `BindingProjector`：处理 `usage / union / bindIndex`。
-5. `PagePlanner`：生成固定分页、连续页或标签页计划。
+4. `BindingProjector`：处理 `usage / union / bindIndex`。对 table-data 节点执行单元格级预解析（见 6.6.1）。
+5. `PagePlanner`：生成固定分页、连续页或标签页计划。对 table-data 元素与 ViewerExtension 协作完成行展开和分页（见 [7.3](./07-layout-engine.md)）。
 6. `RenderSurface`：输出页面 DOM/SVG 和缩略图。
 7. `ExportAdapterLoader`：按需装载导出依赖和适配器。
 
@@ -72,7 +72,7 @@ EasyInk 存在两套独立的物料渲染能力，不共享实现代码：
 
 | | 设计态渲染 | Viewer 渲染 |
 |---|---|---|
-| 接口 | `MaterialDesignerExtension.renderContent()` | `MaterialViewerExtension.render()` |
+| 接口 | `MaterialDesignerExtension.renderContent(nodeSignal, container)` | `MaterialViewerExtension.render()` |
 | 运行场景 | Designer 画布内 | Viewer 运行时（预览/打印/导出） |
 | 数据 | 无真实数据，绑定显示为字段标签 | 真实数据绑定 + 格式化 |
 | 性能要求 | 主线程同步渲染，必须轻量 | 可异步，可引入重量级第三方库 |
@@ -102,6 +102,29 @@ Viewer 在渲染前执行：
 - `usage` 格式规则解释
 - 聚合规则求值
 - union 批量投放结果合并
+
+### 6.6.1 table-data 单元格绑定预解析
+
+ViewerRuntime 在 `resolveAllBindings` 阶段检测到 table-data 节点时，通过单一入口执行整表绑定预解析：
+
+1. 从 `table.source`（`TableDataSchema.source`）读取 sourceId 和集合字段路径 `source.fieldPath`
+2. 使用 sourceId 匹配数据适配器，从数据中取出集合数组
+3. 遍历集合中的每个数据项
+4. 对 repeat-template 行内每个单元格的 `binding`，调用 `resolveBindingValue(binding, data, collectionItem)`，以数据项作为 scope 进行相对路径解析。cell.binding 的 sourceId 已在存储时自动填充，Viewer 无需推断
+5. 对 header / footer / normal 行内每个单元格的 `binding`，调用 `resolveBindingValue(binding, data)`，从根解析（绝对路径）
+6. 将解析结果存入 `Map<string, ResolvedCellBindings>`，key 格式为 `${nodeId}:${rowIndex}:${colIndex}[:${dataIndex}]`
+7. 后续 PagePlanner 协作阶段和表格 ViewerExtension 渲染阶段直接消费预解析结果
+
+```typescript
+interface ResolvedCellBindings {
+  /** 解析后的值，对应 cell.binding 的解析结果 */
+  value: unknown
+  /** 格式化后的显示值（如果有 usage 规则） */
+  formatted?: string
+}
+```
+
+这种预解析模式确保绑定解析集中在 Viewer pipeline 的单一阶段完成，表格 ViewerExtension 只消费解析结果，不自行调用 resolveBindingValue。
 
 但不会执行：
 

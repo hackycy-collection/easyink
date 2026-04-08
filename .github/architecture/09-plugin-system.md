@@ -25,9 +25,11 @@ EasyInk 当前保留扩展抽象，但它的目标是支撑内置体系演进，
 ### 物料扩展
 
 - 注册物料定义
-- 注册 Designer 交互能力
+- 注册 Designer 交互能力（factory 模式，按需创建扩展实例）
 - 注册 Viewer 渲染能力
 - 注册数据源投放提示
+
+Designer 与 Viewer 各自维护独立的物料注册表。Viewer 运行在 iframe 内是独立进程，无法共享同一个注册表实例。物料包分别导出 `designer.ts` 和 `viewer.ts`，由各自的初始化流程调用注册。
 
 ### 数据源扩展
 
@@ -64,11 +66,17 @@ interface InternalExtensionContext {
   hooks: InternalHooks
 }
 
+// factory 在需要时被调用，返回包含 renderContent / getContextActions / deepEditing(可选，声明式 FSM) 的扩展实例
+type MaterialExtensionFactory = (context: MaterialExtensionContext) => MaterialDesignerExtension
+
 interface MaterialExtensionRegistry {
   register(definition: MaterialDefinition): void
-  registerDesigner(type: string, designer: MaterialDesignerExtension): void
+  registerDesigner(type: string, factory: MaterialExtensionFactory): void
   registerViewer(type: string, viewer: MaterialViewerExtension): void
 }
+```
+
+注意：`MaterialExtensionRegistry` 是逻辑接口，Designer 和 Viewer 各自实现。Designer 进程只调用 `register()` 和 `registerDesigner()`，Viewer 进程只调用 `register()` 和 `registerViewer()`。不存在跨进程共享的单例注册表。
 
 interface DataSourceExtensionRegistry {
   registerAdapter(adapter: DataAdapter): void

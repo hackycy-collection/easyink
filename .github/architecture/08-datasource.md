@@ -231,21 +231,76 @@ interface DataAdapter {
 - 导入层兼容 `.` 路径和仅 `key` 的老格式
 - 对数组字段，集合节点路径指向集合本身，子字段路径指向相对字段
 - 容器、对象、数组都可以通过嵌套路径表达
+- 路径的相对/绝对语义由上下文隐式决定：repeat-template 行内单元格的 fieldPath 为相对路径，其他行内单元格为绝对路径。不在路径字符串本身添加前缀标记
+
+### `resolveBindingValue` 的 scope 参数
+
+`resolveBindingValue` 支持可选的 `scope` 参数，用于相对路径解析：
+
+```typescript
+function resolveBindingValue(
+  binding: BindingRef,
+  data: Record<string, unknown>,
+  scope?: Record<string, unknown>
+): unknown
+```
+
+- 当 `scope` 存在时，`fieldPath` 从 `scope` 对象开始遍历（相对路径语义）
+- 当 `scope` 不存在时，`fieldPath` 从 `data` 根开始遍历（绝对路径语义）
+- 调用方（ViewerRuntime）根据行 role 决定是否传入 scope
 
 ### 格式规则
 
 - `usage` 表达数字格式化、前后缀、日期格式、聚合等安全声明式能力
 - 不支持模板内直接写任意脚本
 
-## 8.11 data-table 绑定约束
+## 8.11 data-table 绑定模型
 
-`data-table` 绑定不再是“列自己随便绑”，而要遵守结构约束：
+`data-table` 采用表级主数据源 + cell 相对绑定的模型。`TableDataSchema.source` 是整个表格的唯一数据入口，指向集合字段。
 
-- 表格必须明确主数据源
-- 数据区行绑定到集合字段
-- 单元格绑定相对字段或聚合字段
-- 合计区绑定聚合规则，而不是冒充普通字段
-- 结构树中的嵌套单元格元素，绑定路径默认相对当前行上下文解析
+### 主数据源
+
+```typescript
+// table.source: BindingRef 指向集合字段
+const tableSource: BindingRef = {
+  sourceId: 'receipt',
+  sourceTag: 'apis/receipt.json',
+  fieldPath: 'orders/items',  // 集合字段路径
+  fieldLabel: '订单明细',
+}
+```
+
+- `source.fieldPath` 指向数据源中的数组节点，Viewer 从此路径取出集合数据
+- 整表严格单源：所有 cell 的 `binding.sourceId` 必须与 `source.sourceId` 一致
+- 每个表格只支持一个集合数据源，不支持多组 repeat-template 绑定不同集合
+
+### cell 绑定约束
+
+绑定路径按行角色区分语义：
+
+- **repeat-template 行内的单元格**：`fieldPath` 使用相对路径，相对于 `table.source.fieldPath` 集合项解析。例如 `source.fieldPath` 为 `orders/items`，单元格的 `fieldPath` 为 `name`，Viewer 展开时解析为 `orders/items[i]/name`
+- **header / footer / normal 行内的单元格**：`fieldPath` 使用绝对路径，从数据源根解析。例如 footer 行汇总单元格绑定 `orders/totalAmount`
+- 路径的相对/绝对语义由所在行的 `role` 隐式决定，不在 `BindingRef` 上添加额外字段。`resolveBindingValue` 接收可选的 `scope` 参数：当 scope 存在时按相对路径解析，否则按绝对路径从根解析
+- 聚合规则通过 `binding.usage` 声明（如求和、计数），不通过 fieldPath 本身表达
+
+### cell binding 存储策略
+
+- cell.binding 使用完整 BindingRef 类型，但 sourceId 自动从 table.source 填充
+- 拖入字段时 Designer 自动设置 sourceId/sourceTag，用户只需关心字段名（fieldPath）
+- cell.binding 为单值 BindingRef，不支持数组（cell 为纯文本，无多参数绑定场景）
+
+### 首次拖入自动设置 source
+
+- 向空表格（无 source）拖入第一个字段时，Designer 自动将该字段所属数据源设为 table.source
+- 后续拖入的字段如果不属于当前 source 的 sourceId，拒绝拖入并显示提示
+- source.fieldPath 的设置逻辑：
+  - 如果拖入的字段是集合节点的子字段（例如从 `orders/items` 下拖入 `name`），自动将集合节点路径设为 source.fieldPath
+  - 如果拖入的字段不在集合节点下，source.fieldPath 留空，表格不产生 repeat 行为
+
+### 解除绑定
+
+- 解除 table.source 时，清除所有 cell 的 binding，通过 CompositeCommand 打包实现，支持整体 undo
+- 更换 source 等价于先解除再重新绑定
 
 ## 8.12 Designer 与 Viewer 共享协议
 

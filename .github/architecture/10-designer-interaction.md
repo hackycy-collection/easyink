@@ -194,7 +194,7 @@ interface PanelToggleState {
 
 ### 区段导航
 
-对票据、表格区段和多编辑区模板，画布上方需要有显式 `RegionNavigator`：
+对票据、多区域模板和多编辑区模板，画布上方需要有显式 `RegionNavigator`：
 
 - 显示区段名称，例如单据头、单据体、单据尾
 - 支持切换当前编辑区或单元格
@@ -374,99 +374,120 @@ interface TemplateLibraryState {
 - `selectedTemplateId` 只在 overlay 流程内短暂存在
 - 模板加载成功后，真正进入命令历史的是新模板文档，而不是 overlay 过程本身
 
-## 10.7 表格深度编辑
+## 10.7 深度编辑（Deep Editing）
 
-表格交互不能按”选中一个元素”处理。对标产品已经证明它是层级式编辑流。
+深度编辑不是表格专属能力。所有复杂物料（table/chart/container/relation）通过同一套扩展协议进入深度编辑模式。
 
-### 10.7.1 表格交互流
+### 10.7.1 统一深度编辑协议
 
-1. 页面空白处选中时，属性面板显示页面属性。
-2. 用户单击表格后，进入 `table-selected`，属性面板切到表格级属性。此时显示外部拖拽把手和 element 级 resize handle（表格 rotatable=false 所以没有 rotate handle）。
-3. 用户再次单击格子区域后，直接进入 `cell-selected`（跳过 band-selected）。
-4. 画布出现格子级操作 affordance（单元格高亮、列 resize 手柄、行 resize 手柄）和浮动工具条（表格正上方）。
-5. element 级的 resize/rotate handle 全部隐藏，仅保留外部拖拽把手。
-6. 属性面板在保留表格级属性的同时，动态追加格子级属性分组。
-7. 用户双击格子后，进入 `content-editing`，原生 input 覆盖在单元格位置上进行原位文本编辑。
-8. `content-editing` 期间属性面板仍保持表格壳层，不切成独立文本面板。
-9. 用户点击表格外部空白区域时，直接退出到 `idle`（不逐层退出）。
-10. 用户按 Esc 键时，逐层退出：`content-editing` -> `cell-selected` -> `table-selected` -> `idle`。
-11. 同 band 内 cell 之间直接切换（更新 cellPath），跨 band 时同样直接切换（同时更新 section 上下文和 cellPath）。
+Designer 提供基础状态机，包含三个顶层阶段：`idle`、`selected`、`deep-editing`。
 
-### 10.7.2 表格状态机
+当物料在其 extension 中声明 `deepEditing` 时，进入 `deep-editing` 阶段后控制权委托给物料自身的 FSM：
+
+```
+idle --click element--> selected
+selected --trigger deep edit--> deep-editing (delegate to material FSM)
+deep-editing --click outside / exit--> idle
+```
+
+职责划分：
+
+**Designer 管理：**
+- 选区边框（selection box）
+- element 级 resize handle
+- 对齐辅助线
+- 拖拽移动（drag movement）
+- deep-editing 的进入/退出生命周期
+- overlay 容器和 toolbar 容器的 DOM 分配
+
+**物料 FSM 管理：**
+- 内容渲染（content rendering）
+- overlay 渲染（自行挂载到 Designer 提供的 overlay DOM 容器）
+- toolbar 渲染（自行挂载到 Designer 提供的 toolbar DOM 容器）
+- 内部 resize handle（如列/行边线手柄）
+- 子选中（sub-selection，如单元格选中）
+- 键盘路由（进入 deep-editing 后键盘事件先经过物料 FSM）
+
+进入 deep-editing 时：
+- element 级 8 个 resize handle 和 rotate handle 隐藏
+- 外部拖拽把手保持显示，用于移动元素
+- overlay DOM 通过 teleport 挂载到页面级专用 overlay 容器，绝对定位基于元素在页面上的位置计算
+- 提升元素 z-index，确保 overlay 不被其他元素遮挡
+- 同一时刻只有一个元素可进入 deep-editing
+- 多选元素状态与 deep-editing 互斥：进入前必须先取消多选
+
+### 10.7.2 深度编辑运行时状态
 
 ```typescript
-interface TableEditingState {
-	phase: 'idle' | 'table-selected' | 'cell-selected' | 'content-editing'
-	tableId?: string
-	/** 根据 cellPath 从 topology.rows 推断当前 band，不作为独立可选中状态 */
-	sectionKind?: 'header' | 'title' | 'data' | 'summary' | 'footer' | 'blank'
-	cellPath?: {
-		row: number
-		col: number
-	}
+interface DeepEditingState {
+	nodeId: string
+	materialType: string
+	currentPhase: string
+	materialState: unknown  // 不透明状态，由物料 FSM 自行管理
 }
 ```
 
-实现约束：
+注意：Schema 不感知 FSM -- 此状态纯粹属于运行时/交互上下文，不进入 Schema 也不进入命令历史。
 
-- `band-selected` 已废弃。Section（header/data/total 等）的显隐、重复等 section 级属性通过属性面板的表级属性区管理，无需显式切换 -- 当用户点击不同 section 的 cell 时自动推断当前 section 上下文
-- `table-selected` 显示表格壳层属性和结构属性
-- `cell-selected` 才允许出现合并、拆分、局部边框、内容位置、格子内边距等操作
-- `content-editing` 用于格子内纯文本的原位编辑（v1 使用原生 input 覆盖），仍从属于当前 `tableId + cellPath`
-- `cellPath` 不能等价成普通元素 id，因为它依赖表格内部拓扑
-- v1 仅支持单选格子（cellPath 是单值），多选后续扩展
-- 多选元素状态与深度编辑互斥：进入深度编辑前必须先取消多选，反之亦然
+### 10.7.3 示例：表格物料的 FSM 实现
 
-### 10.7.3 事件分发
+> 以下是表格物料内部的阶段定义，属于物料自身的 FSM，不是 Designer 级协议。其他复杂物料（chart/container/relation）各自定义自己的内部阶段。
 
-表格的 pointer 事件分发需要区分两个阶段：
+表格物料声明三个内部阶段：
 
-**table-selected 阶段：**
-- 单击格子区域 → 进入 `cell-selected`（记录 cellPath，推断 sectionKind）
-- 拖拽元素 body → 由外部拖拽把手处理（element body 不再响应拖拽）
-- 拖拽 element resize handle → 调整表格整体尺寸，列宽等比伸缩
+**`table-selected`：**
+- 显示表格级属性，element resize handle 可见
+- 尚未进入 deep-editing（仍在 Designer 的 `selected` 阶段）
+
+**`cell-selected`：**
+- 进入 deep-editing，onEnter 将单元格高亮、列/行 resize 手柄、浮动工具条挂载到 Designer 提供的 overlay/toolbar 容器
+- element 级 handle 隐藏
+- 属性面板在表格级属性基础上动态追加格子级属性分组
+
+**`content-editing`：**
+- onEnter 在单元格位置创建原生 input overlay 进行原位文本编辑
+- 属性面板仍保持表格壳层
+
+阶段转换：
+
+```
+table-selected --click cell--> cell-selected
+cell-selected --double-click cell--> content-editing
+cell-selected --Esc--> table-selected
+content-editing --Esc--> cell-selected
+任意阶段 --click outside table--> Designer 退出 deep-editing（回到 idle）
+```
+
+### 10.7.4 示例：表格事件分发
+
+> 以下是表格物料 FSM 内部的事件处理逻辑。
 
 **cell-selected 阶段：**
-- 单击另一个格子 → 同 band 内直接切换 cellPath；跨 band 同时更新 sectionKind
+- 单击另一个格子 → 直接切换 cellPath（跨 row role 时同时更新行上下文）
 - 双击格子 → 进入 `content-editing`
 - 拖拽列边线 → 列 resize（修改当前列 ratio，推动右侧列位置，改变 element.width）
 - 拖拽行边线 → 行 resize（修改 row.height，改变 element.height）
-- 点击表格外空白 → 直接退到 idle
-- 点击其他元素 → 退到 idle + 选中新元素
 
-### 10.7.4 深度编辑与 element 级 handle 的交互
+**table-selected 阶段：**
+- 单击格子区域 → 进入 `cell-selected`（记录 cellPath，推断行 role 上下文）
+- 拖拽 element resize handle → 调整表格整体尺寸，列宽等比伸缩
 
-进入深度编辑模式后：
+### 10.7.5 示例：表格格子态 affordance
 
-- element 级的 8 个 resize handle 和 rotate handle 全部隐藏
-- 外部拖拽把手保持显示，用于移动表格
-- overlay 层渲染列 resize 手柄、行 resize 手柄、单元格高亮
-- overlay DOM 通过 teleport 挂载到页面级专用 overlay 容器，使用绝对定位基于元素在页面上的位置计算，不受元素 transform 影响
-- 进入深度编辑时提升表格 z-index，确保 overlay 不被其他元素遮挡
-- 同一时刻只有一个元素可进入深度编辑
+> 以下是表格物料在 cell-selected 阶段自行渲染到 overlay/toolbar 容器中的 UI 元素。
 
-外部拖拽把手位于元素左上角外部，当元素贴近页面左上角时把手不应被裁切（页面 overflow:visible）。
+进入 `cell-selected` 后，表格物料挂载：
 
-### 10.7.5 格子态 affordance
-
-进入 `cell-selected` 后，Designer 至少需要提供：
-
+- 单元格高亮边框
+- 列 resize 手柄（列边线）
+- 行 resize 手柄（行边线）
 - 绑定字段拖拽句柄
 - 删除当前绑定字段动作
-- 格子列宽拖拽（列边线手柄）
-- 格子行高拖拽（行边线手柄）
-- 表格浮动工具条（位于表格正上方）
+- 浮动工具条（挂载到 toolbar 容器），v1 覆盖：添加/删除行列、合并/拆分单元格、单边边框显隐、内容对齐
 
-表格浮动工具条 v1 覆盖的动作：
+### 10.7.6 示例：表格列 resize 交互语义
 
-- 添加/删除行列
-- 合并/拆分单元格（v1 仅单选，合并方向为向右或向下相邻单元格）
-- 单边边框显隐
-- 内容水平/垂直对齐
-
-当表格尺寸巨大时，浮动工具条固定在表格正上方可能超出可视区域。后续可考虑 sticky 定位策略。
-
-### 10.7.6 列 resize 交互语义
+> 以下是表格物料内部的列 resize 逻辑。
 
 - 拖拽列右边线时，修改当前列的 ratio 值
 - 右侧所有列位置平移，表格元素总宽（element.width）随之变化
@@ -474,25 +495,31 @@ interface TableEditingState {
 - 最小列宽约束：计算 `ratio * element.width` 的实际像素值，当低于下限（如 4px）时拖拽停止响应
 - 列 resize 命令支持 merge，连续拖拽期间的中间值压缩为一条 undo 记录
 
-### 10.7.7 列操作与合并单元格的交互
+### 10.7.7 示例：表格列操作与合并单元格的交互
+
+> 以下是表格物料内部的列操作逻辑。
 
 - 插入列时，已有合并单元格（colSpan > 1）自动扩展 colSpan
 - 删除列时，涉及的合并单元格自动收缩 colSpan（colSpan 减到 1 则变回普通单元格）
 - 这些批量修改由 CompositeCommand 包装，undo 时整体回滚
 
-### 10.7.8 属性壳层行为
+### 10.7.8 示例：表格属性壳层行为
+
+> 以下是表格物料与属性面板的协作方式。
 
 格子态下属性面板不应切换成”另一个单元格编辑器页面”，而应保持同一壳层：
 
 - 上半段仍是表格级属性
-- 下半段根据 `TableEditingState.phase` 动态追加格子背景、格子操作、格子内容等局部属性组
+- 下半段根据 `DeepEditingState.currentPhase` 动态追加格子背景、格子操作、格子内容等局部属性组
 - `cell-selected` 时自动追加格子属性组
 - `table-selected` 时仅显示表格级属性
 - 属性面板使用展开/折叠组分离不同层级的属性
 
-Section 级属性（显隐、重复）不需要独立的交互态。用户点击不同 section 中的 cell 时，属性面板的表级属性区自动反映当前 section 的上下文。
+行角色级属性（显隐、重复）不需要独立的交互态。用户点击不同 role 行中的 cell 时，属性面板的表级属性区自动反映当前行的 role 上下文。
 
-### 10.7.9 格子内容编辑
+### 10.7.9 示例：表格格子内容编辑
+
+> 以下是表格物料 content-editing 阶段的实现。
 
 v1 表格格子内容仅支持纯文本：
 
@@ -502,9 +529,11 @@ v1 表格格子内容仅支持纯文本：
 - 编辑完成后通过 `UpdateTableCellCommand` 写入 cell 的 content
 - 右侧属性面板仍显示表格壳层属性，不切成独立文本属性页
 
-架构预留 `TableCellContentSlot.elements: MaterialNode[]` 用于未来支持格子内嵌套物料（图片、子表格等），但 v1 不实现。
+Cell 内容为纯文本，不支持嵌套子物料。
 
-### 10.7.10 键盘交互（v1 最小集）
+### 10.7.10 示例：表格键盘交互（v1 最小集）
+
+> 以下是表格物料 FSM 内部的键盘路由。
 
 - **Esc**：逐层退出（content-editing -> cell-selected -> table-selected -> idle）
 - **Tab**：cell-selected 时切换到下一个单元格（按行优先顺序，末尾回绕到首格）
@@ -531,9 +560,15 @@ v1 表格格子内容仅支持纯文本：
 
 ### `table-data` 绑定
 
-1. 拖拽集合字段到 `table-data`。
-2. 指定主数据源和数据区。
-3. 单元格再绑定相对字段或聚合规则。
+表格采用表级主数据源 + cell 继承绑定模型。
+
+1. 从数据源树拖拽字段到表格上方。
+2. 如果表格尚无 `table.source`，首次拖入自动设置 `table.source`（sourceId + fieldPath 指向该字段所属集合）。
+3. 如果字段不属于当前 `table.source.sourceId`，拒绝拖入并显示提示。
+4. 当前悬停的单元格显示 drop zone 高亮，并指示类型兼容性。
+5. 松手后生成该单元格的 `BindingRef`，sourceId 自动从 `table.source` 填充，用户只需关心字段名。
+6. repeat-template 行内 cell 使用相对路径（相对于集合项），header/footer/normal 行内 cell 使用绝对路径。
+7. 解除 table.source 时，CompositeCommand 原子清除所有 cell binding，支持整体 undo。
 
 ## 10.9 画布设计态渲染
 
@@ -546,7 +581,7 @@ EasyInk 存在两套独立的物料渲染能力：
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Designer 画布                                        │
-│  MaterialDesignerExtension.renderContent()           │
+│  MaterialDesignerExtension.renderContent(nodeSignal, container)   │
 │  - 轻量、快速、不依赖运行时数据流                      │
 │  - 绑定值显示为字段标签 {{字段名}}                     │
 │  - 复杂物料使用简化占位                               │
@@ -578,8 +613,9 @@ EasyInk 存在两套独立的物料渲染能力：
 ```
 CanvasWorkspace 遍历 elements
   → store.getDesignerExtension(el.type)
-  → extension.renderContent(el, context) 存在？
-     ├─ 是：将返回的 HTML 注入元素容器
+  → extension.renderContent 存在？
+     ├─ 是：创建 NodeSignal 并传入 renderContent(nodeSignal, container)
+     │     物料首次挂载 DOM，后续通过 subscribe 增量更新
      └─ 否：显示类型名占位块 + 虚线边框（回退）
   → 叠加交互层：选区边框、8 向缩放手柄、旋转手柄、绑定角标
 ```
@@ -597,7 +633,7 @@ CanvasWorkspace 遍历 elements
 
 ### 10.9.4 编辑态过渡
 
-部分物料支持双击进入内容编辑态（由 `renderContent` 返回 `editable: true` 标记）：
+部分物料支持双击进入内容编辑态（物料 extension 声明 `deepEditing` 能力）：
 
 - 文本：双击进入富文本编辑
 - 表格：先进入格子态，再由格子内内容触发原位编辑（与 10.7 表格深度编辑衔接）
@@ -651,9 +687,9 @@ CanvasWorkspace 遍历 elements
 
 以下状态属于交互上下文状态，不进入 Schema，但可能进入工作台内存：
 
-- 当前表格编辑阶段
+- 当前深度编辑阶段（DeepEditingState）
 - 当前区段选择
-- 当前格子坐标
+- 物料 FSM 内部状态（materialState）
 - 模板库搜索关键字和页码
 
 这些状态可以持久化为用户偏好，但不能污染 Schema。

@@ -93,6 +93,8 @@ class CommandManager {
 - `ClearBindingCommand`
 - `UpdateUsageCommand`
 - `UnionDropCommand`
+- `BindTableSourceCommand`（设置 table-data 的主数据源 table.source，首次拖入字段时自动触发）
+- `ClearTableSourceCommand`（解除 table.source 并清除所有 cell binding，通过 CompositeCommand 打包）
 
 ### 表格相关命令
 
@@ -102,11 +104,11 @@ class CommandManager {
 - `RemoveTableColumnCommand`
 - `ResizeTableColumnCommand`（列 ratio 修改，支持 merge）
 - `ResizeTableRowCommand`（行高修改，支持 merge）
-- `MergeTableCellsCommand`（合并单元格，修改 colSpan/rowSpan）
+- `MergeTableCellsCommand`（合并单元格，修改 colSpan/rowSpan。必须校验选区内所有行 role 一致，跨 role 合并拒绝执行）
 - `SplitTableCellCommand`（拆分已合并单元格）
 - `UpdateTableCellCommand`
 - `UpdateTableCellBorderCommand`（单边边框显隐）
-- `UpdateTableSectionCommand`
+- `UpdateTableRowRoleCommand`（修改行角色，仅 table-data）
 
 ### 组合命令
 
@@ -150,9 +152,10 @@ class CompositeCommand implements Command {
 
 - **插入列**：修改 columns[] + 每行插入新 cell + 调整受影响的合并单元格 colSpan
 - **删除列**：修改 columns[] + 每行删除 cell + 调整受影响的合并单元格 colSpan（colSpan 减到 1 变普通单元格）
-- **插入行**：修改 rows[] + 根据列定义生成 cells + 调整各 band 的 rowRange
-- **删除行**：修改 rows[] + 调整各 band 的 rowRange + 调整受影响的合并单元格 rowSpan
+- **插入行**：修改 rows[] + 根据列定义生成 cells + 重新计算 element.height
+- **删除行**：修改 rows[] + 调整受影响的合并单元格 rowSpan + 重新计算 element.height
 - **合并单元格**：修改目标 cell 的 colSpan/rowSpan + 标记被合并的 cells
+- **解除表级数据源**：清除 table.source + 清除所有 cell.binding，整体 undo 恢复
 
 ### 与事务的区别
 
