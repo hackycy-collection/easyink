@@ -166,7 +166,7 @@ function onDragStart(e: DragEvent) {
 }
 
 .ei-field-node__icon--folder {
-  color: var(--ei-warning, #faad14);
+  color: var(--ei-text-secondary, #999);
 }
 
 .ei-field-node__grip {

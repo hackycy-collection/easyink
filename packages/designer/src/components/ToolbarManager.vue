@@ -134,7 +134,8 @@ function groupLabelKey(id: string): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 6px 0;
+  margin: 0 10px;
   border-bottom: 1px solid var(--ei-border-color, #eee);
 }
 
@@ -168,8 +169,6 @@ function groupLabelKey(id: string): string {
 }
 
 .ei-toolbar-manager__list {
-  max-height: 240px;
-  overflow-y: auto;
   padding: 4px 0;
 }
 

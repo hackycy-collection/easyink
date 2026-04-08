@@ -1,23 +1,56 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { MaterialNode } from '@easyink/schema'
-import { EiTree } from '@easyink/ui'
+import type { TreeNode } from '@easyink/ui'
+import {
+  IconBarcode,
+  IconChart,
+  IconContainer,
+  IconEllipse,
+  IconHidden,
+  IconImage,
+  IconLine,
+  IconLock,
+  IconQrcode,
+  IconRect,
+  IconRelation,
+  IconSvg,
+  IconTable,
+  IconText,
+} from '@easyink/icons'
+import { EiIcon, EiTree } from '@easyink/ui'
 import { computed } from 'vue'
 import { useDesignerStore } from '../composables'
 
-interface TreeNode {
-  id: string
-  label: string
-  icon?: string
-  children?: TreeNode[]
-  data?: unknown
+const ICON_MAP: Record<string, Component> = {
+  'text': IconText,
+  'image': IconImage,
+  'barcode': IconBarcode,
+  'qrcode': IconQrcode,
+  'line': IconLine,
+  'rect': IconRect,
+  'ellipse': IconEllipse,
+  'container': IconContainer,
+  'table-static': IconTable,
+  'table-data': IconTable,
+  'chart': IconChart,
+  'svg': IconSvg,
+  'relation': IconRelation,
 }
 
 const store = useDesignerStore()
 
+function getNodeLabel(node: MaterialNode): string {
+  if (node.name) return node.name
+  const def = store.getMaterial(node.type)
+  if (def) return store.t(def.name)
+  return `${node.type} (${node.id.slice(0, 8)})`
+}
+
 function toTreeNode(node: MaterialNode): TreeNode {
   return {
     id: node.id,
-    label: node.name || `${node.type} (${node.id.slice(0, 8)})`,
+    label: getNodeLabel(node),
     icon: node.type,
     children: node.children?.map(toTreeNode),
     data: node,
@@ -25,14 +58,7 @@ function toTreeNode(node: MaterialNode): TreeNode {
 }
 
 const treeNodes = computed<TreeNode[]>(() => {
-  return [
-    {
-      id: '__page_root__',
-      label: store.t('designer.page.title'),
-      icon: 'page',
-      children: store.getElements().map(toTreeNode),
-    },
-  ]
+  return store.getElements().map(toTreeNode)
 })
 
 const selectedId = computed(() => {
@@ -41,10 +67,6 @@ const selectedId = computed(() => {
 })
 
 function handleSelect(node: TreeNode) {
-  if (node.id === '__page_root__') {
-    store.selection.clear()
-    return
-  }
   store.selection.select(node.id)
 }
 </script>
@@ -53,6 +75,31 @@ function handleSelect(node: TreeNode) {
   <EiTree
     :nodes="treeNodes"
     :selected-id="selectedId"
+    :icon-map="ICON_MAP"
+    default-expand-all
     @select="handleSelect"
-  />
+  >
+    <template #suffix="{ node }">
+      <EiIcon
+        v-if="(node.data as MaterialNode)?.locked"
+        :icon="IconLock"
+        :size="12"
+        :stroke-width="1.5"
+        class="structure-tree__status"
+      />
+      <EiIcon
+        v-if="(node.data as MaterialNode)?.hidden"
+        :icon="IconHidden"
+        :size="12"
+        :stroke-width="1.5"
+        class="structure-tree__status"
+      />
+    </template>
+  </EiTree>
 </template>
+
+<style scoped>
+.structure-tree__status {
+  color: var(--ei-text-secondary, #999);
+}
+</style>
