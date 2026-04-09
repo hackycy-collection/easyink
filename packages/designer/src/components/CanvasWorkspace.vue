@@ -165,6 +165,14 @@ function handleElementPointerDown(e: PointerEvent, elementId: string) {
   e.stopPropagation()
   deepEditEnteredOnPointerDown = false
 
+  // Right-click: preserve current selection for context menu, skip deep editing and drag
+  if (e.button === 2) {
+    if (!store.selection.has(elementId)) {
+      store.selection.select(elementId)
+    }
+    return
+  }
+
   // During deep editing for this element, don't start element drag
   if (deepEditing.isActive() && deepEditing.getNodeId() === elementId) {
     return
