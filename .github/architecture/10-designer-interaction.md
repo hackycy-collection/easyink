@@ -441,14 +441,22 @@ interface DeepEditingState {
 **`table-selected`：**
 - 显示表格级属性，element resize handle 可见
 - 尚未进入 deep-editing（仍在 Designer 的 `selected` 阶段）
+- overlay 仅渲染微妙的虚线边框指示器（无 grid lines、无 resize handles），表明已进入深度编辑
+- 点击任意单元格区域触发转换到 `cell-selected`
 
 **`cell-selected`：**
-- 进入 deep-editing，onEnter 将单元格高亮、列/行 resize 手柄、浮动工具条挂载到 Designer 提供的 overlay/toolbar 容器
+- 进入 deep-editing
+- overlay 由两层构成：
+  - **透明点击捕获层**：覆盖整个表格区域，负责路由对其他单元格的点击事件，无视觉效果
+  - **单元格 overlay**：仅覆盖被选中的单元格区域，包含蓝色高亮边框+背景、该单元格右列边和下行边的 resize 手柄（手柄长度仅等于单元格宽/高）
+- resize 手柄在拖拽过程中命令式同步更新位置和尺寸（overlay 容器、高亮区、手柄位置在 pointermove 回调中实时更新）
 - element 级 handle 隐藏
+- 浮动工具条挂载到 toolbar 容器（固定在表格上方，不随单元格移动）
 - 属性面板在表格级属性基础上动态追加格子级属性分组
 
 **`content-editing`：**
 - onEnter 在单元格位置创建原生 input overlay 进行原位文本编辑
+- 同样使用透明点击捕获层 + 单元格高亮（无 resize 手柄）
 - 属性面板仍保持表格壳层
 
 阶段转换：
@@ -481,12 +489,14 @@ content-editing --Esc--> cell-selected
 
 进入 `cell-selected` 后，表格物料挂载：
 
-- 单元格高亮边框
-- 列 resize 手柄（列边线）
-- 行 resize 手柄（行边线）
+- 透明点击捕获层（覆盖整个表格，pointer-events:auto，无视觉效果，路由对其他单元格的点击/双击事件）
+- 单元格高亮边框+背景（仅覆盖选中单元格区域，pointer-events:none）
+- 右列边 resize 手柄（仅在选中单元格的右列边缘，长度等于单元格高度）
+- 下行边 resize 手柄（仅在选中单元格的下行边缘，长度等于单元格宽度）
+- resize 手柄在拖拽期间实时更新位置（命令式同步：overlay 容器、高亮、手柄位置在 pointermove 中更新）
 - 绑定字段拖拽句柄
 - 删除当前绑定字段动作
-- 浮动工具条（挂载到 toolbar 容器），v1 覆盖：添加/删除行列、合并/拆分单元格、单边边框显隐、内容对齐
+- 浮动工具条（挂载到 toolbar 容器，固定在表格上方），v1 覆盖：添加/删除行列、合并/拆分单元格、单边边框显隐、内容对齐
 
 ### 10.7.6 示例：表格列 resize 交互语义
 

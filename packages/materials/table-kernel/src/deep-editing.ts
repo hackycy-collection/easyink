@@ -1,6 +1,6 @@
 import type { TableNode } from '@easyink/schema'
 import type { CellRect } from './types'
-import { computeCellRect, computeColBorderPositions, computeRowBorderPositions, hitTestGridCell } from './geometry'
+import { computeCellRect, hitTestGridCell } from './geometry'
 import { resolveMergeOwner } from './topology'
 
 // ─── Callback interface (avoids dependency on @easyink/designer, @easyink/core) ───
@@ -103,7 +103,7 @@ function createTableSelectedPhase(shared: SharedState): TableDeepEditingPhase {
     onEnter(containers, node) {
       shared.currentNodeId = node.id
       shared.selectedCell = null
-      renderGridOverlay(containers, node, shared, cleanupFns)
+      renderTableIndicator(containers, node, shared, cleanupFns)
     },
     onExit() {
       for (const fn of cleanupFns) fn()
@@ -128,8 +128,8 @@ function createCellSelectedPhase(shared: SharedState): TableDeepEditingPhase {
     id: 'cell-selected',
     onEnter(containers, node) {
       shared.currentNodeId = node.id
-      renderGridOverlay(containers, node, shared, cleanupFns)
-      renderCellHighlight(containers.overlay, node, shared, cleanupFns)
+      renderClickCatchLayer(containers, node, shared, cleanupFns)
+      renderCellOverlay(containers, node, shared, cleanupFns)
       renderToolbar(containers, node, shared, cleanupFns)
     },
     onExit() {
@@ -218,7 +218,9 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
       shared.currentNodeId = node.id
       committed = false
       exiting = false
-      renderGridOverlay(containers, node, shared, cleanupFns)
+
+      // Click-catch layer for clicking other cells during content editing
+      renderClickCatchLayer(containers, node, shared, cleanupFns)
 
       if (!shared.selectedCell)
         return
@@ -328,75 +330,22 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
   }
 }
 
-// ─── Shared rendering helpers ──────────────────────────────────────
+// ─── Rendering: table-selected indicator ──────────────────────────
 
-function renderGridOverlay(
+/**
+ * Render a subtle dashed border over the table to indicate deep-editing is active.
+ * Handles click to select a cell and transition to cell-selected phase.
+ */
+function renderTableIndicator(
   containers: PhaseContainers,
   node: TableNode,
   shared: SharedState,
   cleanupFns: Array<() => void>,
 ): void {
-  const u = shared.delegate.getUnit()
-  const gridEl = document.createElement('div')
-  gridEl.style.cssText = 'position:absolute;inset:0;pointer-events:auto;z-index:10;'
+  const el = document.createElement('div')
+  el.style.cssText = 'position:absolute;inset:0;border:2px dashed rgba(24,144,255,0.4);pointer-events:auto;z-index:10;box-sizing:border-box;'
 
-  const colPositions = computeColBorderPositions(node.table.topology.columns, node.width)
-  const rowPositions = computeRowBorderPositions(node.table.topology.rows, node.height)
-
-  // Column grid lines
-  for (const x of colPositions) {
-    const line = document.createElement('div')
-    line.style.cssText = `position:absolute;top:0;left:${x}${u};width:1px;height:100%;background:rgba(24,144,255,0.3);pointer-events:none;`
-    gridEl.appendChild(line)
-  }
-
-  // Row grid lines
-  for (const y of rowPositions) {
-    const line = document.createElement('div')
-    line.style.cssText = `position:absolute;left:0;top:${y}${u};width:100%;height:1px;background:rgba(24,144,255,0.3);pointer-events:none;`
-    gridEl.appendChild(line)
-  }
-
-  // Column resize handles
-  for (let i = 0; i < colPositions.length; i++) {
-    const x = colPositions[i]!
-    const handle = document.createElement('div')
-    handle.style.cssText = `position:absolute;top:0;left:${x}${u};width:6px;height:100%;margin-left:-3px;cursor:col-resize;pointer-events:auto;z-index:2;`
-    handle.addEventListener('pointerdown', (e) => {
-      const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
-      if (currentNode)
-        onColumnBorderPointerDown(e, currentNode, i, shared)
-    })
-    handle.addEventListener('mouseenter', () => {
-      handle.style.background = 'rgba(24,144,255,0.15)'
-    })
-    handle.addEventListener('mouseleave', () => {
-      handle.style.background = ''
-    })
-    gridEl.appendChild(handle)
-  }
-
-  // Row resize handles
-  for (let i = 0; i < rowPositions.length; i++) {
-    const y = rowPositions[i]!
-    const handle = document.createElement('div')
-    handle.style.cssText = `position:absolute;left:0;top:${y}${u};width:100%;height:6px;margin-top:-3px;cursor:row-resize;pointer-events:auto;z-index:2;`
-    handle.addEventListener('pointerdown', (e) => {
-      const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
-      if (currentNode)
-        onRowBorderPointerDown(e, currentNode, i, shared)
-    })
-    handle.addEventListener('mouseenter', () => {
-      handle.style.background = 'rgba(24,144,255,0.15)'
-    })
-    handle.addEventListener('mouseleave', () => {
-      handle.style.background = ''
-    })
-    gridEl.appendChild(handle)
-  }
-
-  // Click -> select cell
-  gridEl.addEventListener('click', (e) => {
+  el.addEventListener('click', (e) => {
     const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
     if (!currentNode)
       return
@@ -407,17 +356,191 @@ function renderGridOverlay(
     containers.requestTransition('cell-selected')
   })
 
-  // Double-click -> content editing
-  gridEl.addEventListener('dblclick', (e) => {
+  containers.overlay.appendChild(el)
+  cleanupFns.push(() => el.remove())
+}
+
+// ─── Rendering: transparent click-catch layer ─────────────────────
+
+/**
+ * Transparent full-table div that routes clicks to cell selection.
+ * Used in cell-selected and content-editing phases so clicks on
+ * other cells can change selection without overlay covering the full table visually.
+ */
+function renderClickCatchLayer(
+  containers: PhaseContainers,
+  node: TableNode,
+  shared: SharedState,
+  cleanupFns: Array<() => void>,
+): void {
+  const el = document.createElement('div')
+  el.style.cssText = 'position:absolute;inset:0;pointer-events:auto;z-index:9;'
+
+  el.addEventListener('click', (e) => {
+    const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
+    if (!currentNode)
+      return
+    const cellCoords = hitTestFromScreenEvent(e, currentNode, shared)
+    if (!cellCoords)
+      return
+    // Only transition if clicking a different cell
+    if (shared.selectedCell && cellCoords.row === shared.selectedCell.row && cellCoords.col === shared.selectedCell.col)
+      return
+    shared.selectedCell = cellCoords
+    containers.requestTransition('cell-selected')
+  })
+
+  el.addEventListener('dblclick', (e) => {
     e.preventDefault()
-    if (shared.selectedCell) {
+    const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
+    if (!currentNode || !shared.selectedCell)
+      return
+    const cellCoords = hitTestFromScreenEvent(e, currentNode, shared)
+    if (!cellCoords)
+      return
+    if (cellCoords.row === shared.selectedCell.row && cellCoords.col === shared.selectedCell.col) {
       containers.requestTransition('content-editing')
     }
   })
 
-  containers.overlay.appendChild(gridEl)
-  cleanupFns.push(() => gridEl.remove())
+  containers.overlay.appendChild(el)
+  cleanupFns.push(() => el.remove())
 }
+
+// ─── Rendering: cell highlight + resize handles ───────────────────
+
+/**
+ * Render cell highlight border/background and two resize handles
+ * (right column edge, bottom row edge) scoped to the selected cell.
+ * Resize handles imperatively sync positions during drag.
+ */
+function renderCellOverlay(
+  containers: PhaseContainers,
+  node: TableNode,
+  shared: SharedState,
+  cleanupFns: Array<() => void>,
+): void {
+  if (!shared.selectedCell)
+    return
+
+  const rect = computeCellRect(
+    node.table.topology,
+    node.width,
+    node.height,
+    shared.selectedCell.row,
+    shared.selectedCell.col,
+  )
+  if (!rect)
+    return
+
+  const u = shared.delegate.getUnit()
+
+  // Cell highlight
+  const highlightEl = document.createElement('div')
+  highlightEl.style.cssText = `position:absolute;left:${rect.x}${u};top:${rect.y}${u};width:${rect.w}${u};height:${rect.h}${u};border:2px solid var(--ei-primary,#1890ff);background:rgba(24,144,255,0.08);pointer-events:none;z-index:11;box-sizing:border-box;`
+  containers.overlay.appendChild(highlightEl)
+  cleanupFns.push(() => highlightEl.remove())
+
+  // Determine column/row indices for resize handles (accounting for merged cells)
+  const cell = node.table.topology.rows[shared.selectedCell.row]?.cells[shared.selectedCell.col]
+  const colSpan = cell?.colSpan ?? 1
+  const rowSpan = cell?.rowSpan ?? 1
+  const rightColIndex = shared.selectedCell.col + colSpan - 1
+  const bottomRowIndex = shared.selectedCell.row + rowSpan - 1
+
+  // Only show column resize handle if not the last column
+  const isLastCol = rightColIndex >= node.table.topology.columns.length - 1
+  // Only show row resize handle if not the last row
+  const isLastRow = bottomRowIndex >= node.table.topology.rows.length - 1
+
+  // Declare handle refs before syncPositions so they can be referenced
+  let colHandle: HTMLElement | null = null
+  let rowHandle: HTMLElement | null = null
+
+  // Sync function: updates positions of highlight and handles after resize
+  function syncPositions() {
+    const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
+    if (!currentNode || !shared.selectedCell)
+      return
+    const newRect = computeCellRect(
+      currentNode.table.topology,
+      currentNode.width,
+      currentNode.height,
+      shared.selectedCell.row,
+      shared.selectedCell.col,
+    )
+    if (!newRect)
+      return
+
+    // Sync overlay container size with table size
+    containers.overlay.style.width = `${currentNode.width}${u}`
+    containers.overlay.style.height = `${currentNode.height}${u}`
+
+    // Sync highlight
+    highlightEl.style.left = `${newRect.x}${u}`
+    highlightEl.style.top = `${newRect.y}${u}`
+    highlightEl.style.width = `${newRect.w}${u}`
+    highlightEl.style.height = `${newRect.h}${u}`
+
+    // Sync column resize handle
+    if (colHandle) {
+      colHandle.style.left = `${newRect.x + newRect.w}${u}`
+      colHandle.style.top = `${newRect.y}${u}`
+      colHandle.style.height = `${newRect.h}${u}`
+    }
+
+    // Sync row resize handle
+    if (rowHandle) {
+      rowHandle.style.left = `${newRect.x}${u}`
+      rowHandle.style.top = `${newRect.y + newRect.h}${u}`
+      rowHandle.style.width = `${newRect.w}${u}`
+    }
+  }
+
+  // Column resize handle (right edge of selected cell)
+  if (!isLastCol) {
+    colHandle = document.createElement('div')
+    colHandle.style.cssText = `position:absolute;left:${rect.x + rect.w}${u};top:${rect.y}${u};width:6px;height:${rect.h}${u};margin-left:-3px;cursor:col-resize;pointer-events:auto;z-index:12;`
+    colHandle.addEventListener('pointerdown', (e) => {
+      const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
+      if (currentNode)
+        onColumnBorderPointerDown(e, currentNode, rightColIndex, shared, syncPositions)
+    })
+    colHandle.addEventListener('mouseenter', () => {
+      if (colHandle)
+        colHandle.style.background = 'rgba(24,144,255,0.15)'
+    })
+    colHandle.addEventListener('mouseleave', () => {
+      if (colHandle)
+        colHandle.style.background = ''
+    })
+    containers.overlay.appendChild(colHandle)
+    cleanupFns.push(() => colHandle?.remove())
+  }
+
+  // Row resize handle (bottom edge of selected cell)
+  if (!isLastRow) {
+    rowHandle = document.createElement('div')
+    rowHandle.style.cssText = `position:absolute;left:${rect.x}${u};top:${rect.y + rect.h}${u};width:${rect.w}${u};height:6px;margin-top:-3px;cursor:row-resize;pointer-events:auto;z-index:12;`
+    rowHandle.addEventListener('pointerdown', (e) => {
+      const currentNode = shared.currentNodeId ? shared.delegate.getNode(shared.currentNodeId) : undefined
+      if (currentNode)
+        onRowBorderPointerDown(e, currentNode, bottomRowIndex, shared, syncPositions)
+    })
+    rowHandle.addEventListener('mouseenter', () => {
+      if (rowHandle)
+        rowHandle.style.background = 'rgba(24,144,255,0.15)'
+    })
+    rowHandle.addEventListener('mouseleave', () => {
+      if (rowHandle)
+        rowHandle.style.background = ''
+    })
+    containers.overlay.appendChild(rowHandle)
+    cleanupFns.push(() => rowHandle?.remove())
+  }
+}
+
+// ─── Rendering: cell highlight only (for content-editing) ─────────
 
 function renderCellHighlight(
   overlay: HTMLElement,
@@ -445,6 +568,8 @@ function renderCellHighlight(
   overlay.appendChild(el)
   cleanupFns.push(() => el.remove())
 }
+
+// ─── Rendering: toolbar ───────────────────────────────────────────
 
 function renderToolbar(
   containers: PhaseContainers,
@@ -601,7 +726,13 @@ function renderToolbar(
 
 // ─── Column/row resize handlers ────────────────────────────────────
 
-function onColumnBorderPointerDown(e: PointerEvent, tableNode: TableNode, colIndex: number, shared: SharedState): void {
+function onColumnBorderPointerDown(
+  e: PointerEvent,
+  tableNode: TableNode,
+  colIndex: number,
+  shared: SharedState,
+  onResizeMove?: () => void,
+): void {
   e.stopPropagation()
   e.preventDefault()
 
@@ -620,6 +751,7 @@ function onColumnBorderPointerDown(e: PointerEvent, tableNode: TableNode, colInd
     const newRatio = Math.max(4 / startWidth, startRatio + deltaDoc / startWidth)
     tableNode.table.topology.columns[colIndex]!.ratio = newRatio
     tableNode.width = startWidth + (newRatio - startRatio) * startWidth
+    onResizeMove?.()
   }
 
   function onPointerUp(ev: PointerEvent) {
@@ -638,7 +770,13 @@ function onColumnBorderPointerDown(e: PointerEvent, tableNode: TableNode, colInd
   el.addEventListener('pointerup', onPointerUp)
 }
 
-function onRowBorderPointerDown(e: PointerEvent, tableNode: TableNode, rowIndex: number, shared: SharedState): void {
+function onRowBorderPointerDown(
+  e: PointerEvent,
+  tableNode: TableNode,
+  rowIndex: number,
+  shared: SharedState,
+  onResizeMove?: () => void,
+): void {
   e.stopPropagation()
   e.preventDefault()
 
@@ -657,6 +795,7 @@ function onRowBorderPointerDown(e: PointerEvent, tableNode: TableNode, rowIndex:
     const newHeight = Math.max(4, startRowHeight + deltaDoc)
     tableNode.table.topology.rows[rowIndex]!.height = newHeight
     tableNode.height = startElementHeight + (newHeight - startRowHeight)
+    onResizeMove?.()
   }
 
   function onPointerUp(ev: PointerEvent) {
