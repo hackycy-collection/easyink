@@ -1,14 +1,41 @@
 <script setup lang="ts">
 import type { MaterialNode } from '@easyink/schema'
-import type { ContextAction } from '../types'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import type { Component } from 'vue'
+import { computed, h, ref, onMounted, onUnmounted } from 'vue'
 import { useDesignerStore } from '../composables'
 import {
   AddMaterialCommand,
   RemoveMaterialCommand,
-  ClearBindingCommand,
 } from '@easyink/core'
 import { deepClone, generateId } from '@easyink/shared'
+import {
+  IconCopy,
+  IconCopyPlus,
+  IconDelete,
+  IconLayerBottom,
+  IconLayerDown,
+  IconLayerTop,
+  IconLayerUp,
+  IconLock,
+  IconPaste,
+  IconScissors,
+  IconSelectAll,
+  IconUnlock,
+} from '@easyink/icons'
+
+interface ContextMenuItem {
+  id: string
+  label: string
+  icon?: Component
+  disabled?: boolean
+  destructive?: boolean
+  shortcut?: string
+}
+
+interface ContextMenuGroup {
+  id: string
+  items: ContextMenuItem[]
+}
 
 const store = useDesignerStore()
 
@@ -16,8 +43,7 @@ const visible = ref(false)
 const menuX = ref(0)
 const menuY = ref(0)
 
-// Snapshot the actions at open time so selection changes don't cause menu flicker
-const snapshotActions = ref<ContextAction[]>([])
+const snapshotGroups = ref<ContextMenuGroup[]>([])
 
 const selectedNodes = computed<MaterialNode[]>(() => {
   return store.selection.ids
@@ -25,45 +51,80 @@ const selectedNodes = computed<MaterialNode[]>(() => {
     .filter((n): n is MaterialNode => n != null)
 })
 
-function buildActions(isBlank: boolean): ContextAction[] {
+const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent)
+const modKey = isMac ? 'Cmd' : 'Ctrl'
+
+function buildGroups(isBlank: boolean): ContextMenuGroup[] {
   const nodes = selectedNodes.value
+
   if (isBlank || nodes.length === 0) {
     return [
-      { id: 'paste', label: store.t('designer.context.paste') },
-      { id: 'select-all', label: store.t('designer.context.selectAll') },
+      {
+        id: 'edit',
+        items: [
+          { id: 'paste', label: store.t('designer.context.paste'), icon: IconPaste, shortcut: `${modKey}+V`, disabled: store.clipboard.length === 0 },
+          { id: 'select-all', label: store.t('designer.context.selectAll'), icon: IconSelectAll, shortcut: `${modKey}+A` },
+        ],
+      },
     ]
   }
 
-  const actions: ContextAction[] = [
-    { id: 'copy', label: store.t('designer.context.copy') },
-    { id: 'cut', label: store.t('designer.context.cut') },
-    { id: 'delete', label: store.t('designer.context.delete'), destructive: true },
-  ]
+  const groups: ContextMenuGroup[] = []
 
+  // Group 1: edit
+  groups.push({
+    id: 'edit',
+    items: [
+      { id: 'copy', label: store.t('designer.context.copy'), icon: IconCopy, shortcut: `${modKey}+C` },
+      { id: 'cut', label: store.t('designer.context.cut'), icon: IconScissors, shortcut: `${modKey}+X` },
+      { id: 'paste', label: store.t('designer.context.paste'), icon: IconPaste, shortcut: `${modKey}+V`, disabled: store.clipboard.length === 0 },
+      { id: 'duplicate', label: store.t('designer.context.duplicate'), icon: IconCopyPlus, shortcut: `${modKey}+D` },
+    ],
+  })
+
+  // Group 2: layer (single selection only)
   if (nodes.length === 1) {
-    const node = nodes[0]!
-    actions.push(
-      { id: 'bring-front', label: store.t('designer.context.bringToFront') },
-      { id: 'send-back', label: store.t('designer.context.sendToBack') },
-    )
-
-    if (node.locked) {
-      actions.push({ id: 'unlock', label: store.t('designer.context.unlock') })
-    }
-    else {
-      actions.push({ id: 'lock', label: store.t('designer.context.lock') })
-    }
-
-    if (node.binding) {
-      actions.push({ id: 'clear-binding', label: store.t('designer.context.clearBinding') })
-    }
-
-    const ext = store.getDesignerExtension(node.type)
-    const extActions = ext?.getContextActions?.(node) ?? []
-    actions.push(...extActions)
+    groups.push({
+      id: 'layer',
+      items: [
+        { id: 'bring-front', label: store.t('designer.context.bringToFront'), icon: IconLayerTop },
+        { id: 'send-back', label: store.t('designer.context.sendToBack'), icon: IconLayerBottom },
+        { id: 'layer-up', label: store.t('designer.context.layerUp'), icon: IconLayerUp },
+        { id: 'layer-down', label: store.t('designer.context.layerDown'), icon: IconLayerDown },
+      ],
+    })
   }
 
-  return actions
+  // Group 3: control
+  const controlItems: ContextMenuItem[] = []
+  const allLocked = nodes.every(n => n.locked)
+  if (allLocked) {
+    controlItems.push({ id: 'unlock', label: store.t('designer.context.unlock'), icon: IconUnlock })
+  }
+  else {
+    controlItems.push({ id: 'lock', label: store.t('designer.context.lock'), icon: IconLock })
+  }
+  groups.push({ id: 'control', items: controlItems })
+
+  // Group 4: danger
+  groups.push({
+    id: 'danger',
+    items: [
+      { id: 'delete', label: store.t('designer.context.delete'), icon: IconDelete, destructive: true, shortcut: 'Del' },
+    ],
+  })
+
+  return groups
+}
+
+function isHitElement(target: HTMLElement): boolean {
+  // Direct hit on an element
+  if (target.closest('.ei-canvas-element'))
+    return true
+  // Hit on deep editing overlay/toolbar/drag-handle (these are siblings of .ei-canvas-element)
+  if (target.closest('.ei-deep-edit-overlay') || target.closest('.ei-deep-edit-toolbar') || target.closest('.ei-deep-edit-drag-handle'))
+    return true
+  return false
 }
 
 function onContextMenu(e: MouseEvent) {
@@ -72,20 +133,19 @@ function onContextMenu(e: MouseEvent) {
   menuY.value = e.clientY
 
   const target = e.target as HTMLElement
-  const isBlank = !target.closest('.ei-canvas-element')
+  const isBlank = !isHitElement(target)
 
-  // Snapshot actions at open time — immune to later selection changes
-  snapshotActions.value = buildActions(isBlank)
+  snapshotGroups.value = buildGroups(isBlank)
   visible.value = true
 }
 
-function handleAction(action: ContextAction) {
+function handleAction(item: ContextMenuItem) {
   visible.value = false
 
   const nodes = selectedNodes.value
   const elements = store.schema.elements
 
-  switch (action.id) {
+  switch (item.id) {
     case 'copy':
       if (nodes.length > 0) {
         store.clipboard = nodes.map(n => deepClone(n))
@@ -124,6 +184,26 @@ function handleAction(action: ContextAction) {
       }
       break
 
+    case 'duplicate':
+      if (nodes.length > 0) {
+        const offset = 10
+        const newIds: string[] = []
+        store.commands.beginTransaction('Duplicate')
+        for (const node of nodes) {
+          const dup: MaterialNode = {
+            ...deepClone(node),
+            id: generateId('el'),
+            x: node.x + offset,
+            y: node.y + offset,
+          }
+          store.commands.execute(new AddMaterialCommand(elements, dup))
+          newIds.push(dup.id)
+        }
+        store.commands.commitTransaction()
+        store.selection.selectMultiple(newIds)
+      }
+      break
+
     case 'delete':
       if (nodes.length > 0) {
         store.commands.beginTransaction('Delete')
@@ -151,6 +231,34 @@ function handleAction(action: ContextAction) {
       }
       break
 
+    case 'layer-up':
+      if (nodes.length === 1) {
+        const node = nodes[0]!
+        const currentZ = node.zIndex ?? 0
+        const above = elements
+          .filter(el => (el.zIndex ?? 0) > currentZ)
+          .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+        if (above.length > 0) {
+          const nextZ = above[0]!.zIndex ?? 0
+          store.updateElement(node.id, { zIndex: nextZ + 1 })
+        }
+      }
+      break
+
+    case 'layer-down':
+      if (nodes.length === 1) {
+        const node = nodes[0]!
+        const currentZ = node.zIndex ?? 0
+        const below = elements
+          .filter(el => (el.zIndex ?? 0) < currentZ)
+          .sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0))
+        if (below.length > 0) {
+          const nextZ = below[0]!.zIndex ?? 0
+          store.updateElement(node.id, { zIndex: nextZ - 1 })
+        }
+      }
+      break
+
     case 'lock':
       for (const node of nodes) {
         store.updateElement(node.id, { locked: true })
@@ -163,13 +271,6 @@ function handleAction(action: ContextAction) {
       }
       break
 
-    case 'clear-binding':
-      if (nodes.length === 1) {
-        const cmd = new ClearBindingCommand(elements, nodes[0]!.id)
-        store.commands.execute(cmd)
-      }
-      break
-
     case 'select-all':
       store.selection.selectMultiple(elements.map(el => el.id))
       break
@@ -179,7 +280,7 @@ function handleAction(action: ContextAction) {
   }
 }
 
-// Use pointerdown in capture phase — fires before workspace clears selection
+// Use pointerdown in capture phase -- fires before workspace clears selection
 function onDocumentPointerDown(e: Event) {
   if (!visible.value)
     return
@@ -208,19 +309,24 @@ defineExpose({ onContextMenu })
       :style="{ left: `${menuX}px`, top: `${menuY}px` }"
       @click.stop
     >
-      <div
-        v-for="action in snapshotActions"
-        :key="action.id"
-        class="ei-context-menu__item"
-        :class="{
-          'ei-context-menu__item--destructive': action.destructive,
-          'ei-context-menu__item--disabled': action.disabled,
-        }"
-        @click="!action.disabled && handleAction(action)"
-      >
-        {{ action.label || action.id }}
-      </div>
-      <div v-if="snapshotActions.length === 0" class="ei-context-menu__empty">
+      <template v-for="(group, gi) in snapshotGroups" :key="group.id">
+        <div v-if="gi > 0" class="ei-context-menu__divider" />
+        <div
+          v-for="item in group.items"
+          :key="item.id"
+          class="ei-context-menu__item"
+          :class="{
+            'ei-context-menu__item--destructive': item.destructive,
+            'ei-context-menu__item--disabled': item.disabled,
+          }"
+          @click="!item.disabled && handleAction(item)"
+        >
+          <component :is="item.icon" v-if="item.icon" class="ei-context-menu__icon" :size="14" :stroke-width="1.5" />
+          <span class="ei-context-menu__label">{{ item.label }}</span>
+          <span v-if="item.shortcut" class="ei-context-menu__shortcut">{{ item.shortcut }}</span>
+        </div>
+      </template>
+      <div v-if="snapshotGroups.length === 0" class="ei-context-menu__empty">
         {{ store.t('designer.context.noActions') }}
       </div>
     </div>
@@ -233,18 +339,30 @@ defineExpose({ onContextMenu })
   z-index: 10000;
   background: var(--ei-menu-bg, #fff);
   border: 1px solid var(--ei-border-color, #e0e0e0);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   padding: 4px 0;
-  min-width: 140px;
+  min-width: 180px;
   font-size: 12px;
 }
 
+.ei-context-menu__divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--ei-border-color, #e8e8e8);
+}
+
 .ei-context-menu__item {
-  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
   cursor: pointer;
   color: var(--ei-text, #333);
   white-space: nowrap;
+  border-radius: 4px;
+  margin: 0 4px;
+  transition: background 0.15s;
 }
 
 .ei-context-menu__item:hover {
@@ -262,6 +380,20 @@ defineExpose({ onContextMenu })
 
 .ei-context-menu__item--disabled:hover {
   background: none;
+}
+
+.ei-context-menu__icon {
+  flex-shrink: 0;
+}
+
+.ei-context-menu__label {
+  flex: 1;
+}
+
+.ei-context-menu__shortcut {
+  color: var(--ei-text-secondary, #999);
+  font-size: 11px;
+  margin-left: 16px;
 }
 
 .ei-context-menu__empty {

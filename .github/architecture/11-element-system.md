@@ -349,12 +349,12 @@ interface MaterialDesignerExtension {
    *  调用 nodeSignal.get() 获取当前值。物料在首次调用时完成 DOM 挂载，后续通过 subscribe 增量更新。
    *  返回 cleanup 函数，在元素从画布移除时调用。 */
   renderContent(nodeSignal: NodeSignal, container: HTMLElement): () => void
-  /** 右键菜单动作 */
-  getContextActions?(node: MaterialNode): ContextAction[]
 
   /** 声明式 FSM 定义（可选，仅复杂物料提供） */
   deepEditing?: DeepEditingDefinition
 }
+
+> **右键菜单**由 Designer 统一管理（`CanvasContextMenu`），提供通用操作（复制/剪切/粘贴/克隆/删除/层级/锁定），物料不参与右键菜单注册。物料特有的操作应通过深度编辑或属性面板暴露。
 
 /** 框架无关的节点响应式信号 */
 interface NodeSignal {
@@ -473,7 +473,7 @@ CanvasWorkspace 遍历 elements
 
 - 局部选区
 - 子树结构树映射
-- 专属快捷键和右键菜单
+- 专属快捷键
 
 对表格物料，还需要额外支持：
 

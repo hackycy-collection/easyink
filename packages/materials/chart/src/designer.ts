@@ -32,8 +32,5 @@ export function createChartExtension(_context: MaterialExtensionContext): Materi
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return []
-    },
   }
 }

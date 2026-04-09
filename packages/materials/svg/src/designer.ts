@@ -23,8 +23,5 @@ export function createSvgExtension(_context: MaterialExtensionContext): Material
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return []
-    },
   }
 }

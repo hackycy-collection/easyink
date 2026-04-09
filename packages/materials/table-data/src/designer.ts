@@ -15,7 +15,7 @@ import {
   UnitManager,
   UpdateTableCellCommand,
 } from '@easyink/core'
-import { createTableDeepEditing, escapeHtml, renderTableHtml, TABLE_COMMON_CONTEXT_ACTIONS } from '@easyink/material-table-kernel'
+import { createTableDeepEditing, escapeHtml, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 const ROLE_BG_MAP: Record<string, keyof TableDataProps> = {
@@ -123,9 +123,6 @@ export function createTableDataExtension(context: MaterialExtensionContext): Mat
       }
       render()
       return nodeSignal.subscribe(render)
-    },
-    getContextActions() {
-      return [...TABLE_COMMON_CONTEXT_ACTIONS, { id: 'bind-datasource', label: 'Bind Data Source' }]
     },
     deepEditing: buildDeepEditing(delegate),
   }

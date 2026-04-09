@@ -15,7 +15,7 @@ import {
   UnitManager,
   UpdateTableCellCommand,
 } from '@easyink/core'
-import { createTableDeepEditing, renderTableHtml, TABLE_COMMON_CONTEXT_ACTIONS } from '@easyink/material-table-kernel'
+import { createTableDeepEditing, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 function buildHtml(node: MaterialNode, unit: UnitType): string {
@@ -105,9 +105,6 @@ export function createTableStaticExtension(context: MaterialExtensionContext): M
       }
       render()
       return nodeSignal.subscribe(render)
-    },
-    getContextActions() {
-      return [...TABLE_COMMON_CONTEXT_ACTIONS]
     },
     deepEditing: buildDeepEditing(delegate),
   }

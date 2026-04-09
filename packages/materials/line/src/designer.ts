@@ -16,8 +16,5 @@ export function createLineExtension(_context: MaterialExtensionContext): Materia
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return []
-    },
   }
 }

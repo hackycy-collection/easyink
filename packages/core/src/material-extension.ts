@@ -38,8 +38,6 @@ export interface MaterialDesignerExtension {
    * Returns a cleanup function called when the element is removed from the canvas.
    */
   renderContent: (nodeSignal: NodeSignal, container: HTMLElement) => () => void
-  /** Context menu actions */
-  getContextActions?: (node: MaterialNode) => ContextAction[]
   /** Declarative FSM for deep editing (optional, only complex materials) */
   deepEditing?: DeepEditingDefinition
 }

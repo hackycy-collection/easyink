@@ -39,10 +39,5 @@ export function createImageExtension(context: MaterialExtensionContext): Materia
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return [
-        { id: 'change-image', label: 'Change Image' },
-      ]
-    },
   }
 }

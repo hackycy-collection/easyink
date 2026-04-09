@@ -25,8 +25,5 @@ export function createEllipseExtension(_context: MaterialExtensionContext): Mate
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return []
-    },
   }
 }

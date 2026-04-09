@@ -28,8 +28,5 @@ export function createRelationExtension(_context: MaterialExtensionContext): Mat
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return []
-    },
   }
 }

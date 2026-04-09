@@ -85,10 +85,5 @@ export function createBarcodeExtension(context: MaterialExtensionContext): Mater
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return [
-        { id: 'edit-value', label: 'Edit Value' },
-      ]
-    },
   }
 }

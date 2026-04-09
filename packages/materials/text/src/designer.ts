@@ -52,10 +52,5 @@ export function createTextExtension(context: MaterialExtensionContext): Material
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return [
-        { id: 'edit-text', label: 'Edit Text' },
-      ]
-    },
   }
 }

@@ -54,10 +54,5 @@ export function createQrcodeExtension(context: MaterialExtensionContext): Materi
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return [
-        { id: 'edit-value', label: 'Edit Value' },
-      ]
-    },
   }
 }

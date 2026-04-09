@@ -27,10 +27,5 @@ export function createContainerExtension(_context: MaterialExtensionContext): Ma
       const unsub = nodeSignal.subscribe(render)
       return unsub
     },
-    getContextActions() {
-      return [
-        { id: 'add-child', label: 'Add Child' },
-      ]
-    },
   }
 }
