@@ -24,13 +24,12 @@ easyink/
 │       ├── ellipse/
 │       ├── table-static/
 │       ├── table-data/
+│       ├── table-kernel/           # @easyink/material-table-kernel — 表格共享纯计算库
 │       ├── container/
 │       ├── chart/
 │       ├── svg/
 │       └── relation/
 ├── playground/
-├── examples/
-└── e2e/
 ```
 
 ## 3.1 包职责
@@ -43,7 +42,8 @@ easyink/
 
 ### `@easyink/core`
 
-- CommandManager、HistoryModel、SelectionModel
+- CommandManager、SelectionModel
+- 历史（undo/redo）由 CommandManager 内部栈管理，无独立 HistoryModel
 - 几何计算、辅助线、吸附、分页计划、区域模型
 - 不直接渲染 DOM，不依赖 Vue
 
@@ -64,7 +64,7 @@ easyink/
 
 - 顶部工具栏、画布、面板系统、模板库、概览图、历史记录
 - 管理设计态工作台状态
-- 通过 iframe 嵌入 `viewer` 做预览，不直接承担全部运行时职责
+- 通过 `ViewerAdapter` 接口与外部 Viewer 桥接预览，不在包级直接依赖 `@easyink/viewer`
 
 ### `@easyink/material-*`
 
@@ -90,27 +90,27 @@ packages/materials/table-data/
 ## 3.3 依赖关系
 
 ```
-shared
-  ↑
-schema
+shared          icons
+  ↑               ↑
+schema            ui ─── icons + shared
   ↑
 core        datasource
   ↑           ↑
-material-* ───┘
+  ├── viewer ─┘           samples ─── datasource + schema + shared
+  │
+material-* ── core + schema + shared (+ datasource 按需)
   ↑
-viewer
+designer ─── core + datasource + schema + shared + ui + icons + material-*
   ↑
-designer
-  ↑
-ui / icons / samples
+playground ── designer + samples + schema
 ```
 
 依赖原则：
 
-- `designer` 依赖 `viewer`，因为预览由 Viewer 提供
-- `viewer` 依赖 `schema`、`core`、`datasource` 和内置物料
-- `datasource` 独立于 `designer`，避免把运行时数据接入绑死在 UI 层
-- `samples` 作为产品能力的一部分存在，不只是 demo 目录
+- `designer` 依赖全部 `material-*` 包（设计态注册），不直接依赖 `viewer`（预览通过宿主适配器桥接）
+- `viewer` 依赖 `core`、`datasource`、`schema`、`shared`，不依赖 `material-*`（Viewer 物料渲染器由调用方注册）
+- `ui` 依赖 `icons` 和 `shared`，不依赖 `designer`；方向为 designer 依赖 ui
+- `samples` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`
 
 ## 3.4 对外消费方式
 

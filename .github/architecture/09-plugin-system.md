@@ -78,6 +78,7 @@ interface MaterialExtensionRegistry {
 
 注意：`MaterialExtensionRegistry` 是逻辑接口，Designer 和 Viewer 各自实现。Designer 进程只调用 `register()` 和 `registerDesigner()`，Viewer 进程只调用 `register()` 和 `registerViewer()`。不存在跨进程共享的单例注册表。
 
+```typescript
 interface DataSourceExtensionRegistry {
   registerAdapter(adapter: DataAdapter): void
   registerUsageResolver(resolver: UsageResolver): void
