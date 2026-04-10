@@ -14,7 +14,6 @@ import {
   SplitTableCellCommand,
   UnitManager,
   UpdateTableCellCommand,
-  UpdateTableVisibilityCommand,
 } from '@easyink/core'
 import { computeRowScale, createTableDeepEditing, escapeHtml, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
@@ -148,9 +147,6 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
       return node && isTableNode(node) ? node : undefined
     },
     getTableKind: () => 'data' as const,
-    commitToggleVisibility(node, field, value) {
-      context.commitCommand(new UpdateTableVisibilityCommand(node, field, value))
-    },
     screenToDoc(screenVal, screenOrigin, zoom) {
       return unitManager.screenToDocument(screenVal, screenOrigin, 0, zoom)
     },

@@ -125,6 +125,8 @@ const zhCN: LocaleMessages = {
       summaryBackground: '汇总背景',
       stripedRows: '斑马纹',
       stripedColor: '斑马纹颜色',
+      showHeader: '显示表头',
+      showFooter: '显示表尾',
     },
     panel: {
       datasource: '数据源',

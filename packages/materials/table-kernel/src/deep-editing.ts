@@ -32,7 +32,6 @@ export interface TableDeepEditingDelegate {
   commitRemoveCol: (node: TableNode, colIndex: number) => void
   commitMergeCells: (node: TableNode, row: number, col: number, colSpan: number, rowSpan: number) => void
   commitSplitCell: (node: TableNode, row: number, col: number) => void
-  commitToggleVisibility?: (node: TableNode, field: 'showHeader' | 'showFooter', value: boolean) => void
   getNode: (nodeId: string) => TableNode | undefined
   getTableKind: () => 'static' | 'data'
   getZoom: () => number

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { PropSchema } from '../types'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
-import { ClearBindingCommand, getByPath, UpdateDocumentCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
+import { ClearBindingCommand, getByPath, UpdateDocumentCommand, UpdateMaterialPropsCommand, UpdatePageCommand, UpdateTableVisibilityCommand } from '@easyink/core'
 import { PAPER_PRESETS } from '@easyink/shared'
+import { isTableNode } from '@easyink/schema'
 import { EiInput, EiPanel, EiSwitch } from '@easyink/ui'
 import { computed, shallowRef, watchEffect } from 'vue'
 import { useDesignerStore } from '../composables'
@@ -160,6 +161,14 @@ function updateProp(key: string, value: unknown) {
   const el = selectedElement.value
   if (!el)
     return
+  if (key.startsWith('table:')) {
+    const field = key.slice(6) as 'showHeader' | 'showFooter'
+    if (isTableNode(el)) {
+      const cmd = new UpdateTableVisibilityCommand(el, field, value as boolean)
+      store.commands.execute(cmd)
+    }
+    return
+  }
   const cmd = new UpdateMaterialPropsCommand(
     store.schema.elements,
     el.id,
@@ -171,6 +180,18 @@ function updateProp(key: string, value: unknown) {
 function clearBinding(nodeId: string) {
   const cmd = new ClearBindingCommand(store.schema.elements, nodeId)
   store.commands.execute(cmd)
+}
+
+function readPropValue(schema: PropSchema): unknown {
+  const el = selectedElement.value
+  if (!el)
+    return undefined
+  if (schema.key.startsWith('table:')) {
+    const field = schema.key.slice(6)
+    const table = (el as unknown as Record<string, unknown>).table as Record<string, unknown> | undefined
+    return table ? table[field] ?? true : true
+  }
+  return getByPath(el.props as Record<string, unknown>, schema.key)
 }
 </script>
 
@@ -233,7 +254,7 @@ function clearBinding(nodeId: string) {
             v-for="schema in schemas"
             :key="schema.key"
             :schema="schema"
-            :value="getByPath(selectedElement.props as Record<string, unknown>, schema.key)"
+            :value="readPropValue(schema)"
             :disabled="schema.disabled ? schema.disabled(selectedElement.props as Record<string, unknown>) : false"
             :fonts="fontList"
             :t="store.t.bind(store)"
@@ -312,7 +333,7 @@ function clearBinding(nodeId: string) {
 .ei-properties-panel__fields {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ei-properties-panel__cell-label {
