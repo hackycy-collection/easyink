@@ -20,6 +20,9 @@ export interface TextProps {
   richText: boolean
   prefix: string
   suffix: string
+  borderWidth: number
+  borderColor: string
+  borderType: 'solid' | 'dashed' | 'dotted'
 }
 
 export const TEXT_DEFAULTS: TextProps = {
@@ -39,6 +42,9 @@ export const TEXT_DEFAULTS: TextProps = {
   richText: false,
   prefix: '',
   suffix: '',
+  borderWidth: 0,
+  borderColor: '#000000',
+  borderType: 'solid',
 }
 
 export function createTextNode(partial?: Partial<MaterialNode>): MaterialNode {

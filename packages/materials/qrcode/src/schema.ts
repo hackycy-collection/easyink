@@ -9,6 +9,9 @@ export interface QrcodeProps {
   errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H'
   foreground: string
   background: string
+  borderWidth: number
+  borderColor: string
+  borderType: 'solid' | 'dashed' | 'dotted'
 }
 
 export const QRCODE_DEFAULTS: QrcodeProps = {
@@ -17,6 +20,9 @@ export const QRCODE_DEFAULTS: QrcodeProps = {
   errorCorrectionLevel: 'M',
   foreground: '#000000',
   background: '#ffffff',
+  borderWidth: 0,
+  borderColor: '#000000',
+  borderType: 'solid',
 }
 
 export function createQrcodeNode(partial?: Partial<MaterialNode>): MaterialNode {

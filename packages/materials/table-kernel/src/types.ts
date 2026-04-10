@@ -9,6 +9,7 @@ export interface TableBaseProps {
   cellPadding: number
   fontSize: number
   color: string
+  equalizeCells: boolean
 }
 
 export const TABLE_BASE_DEFAULTS: TableBaseProps = {
@@ -18,6 +19,7 @@ export const TABLE_BASE_DEFAULTS: TableBaseProps = {
   cellPadding: 2,
   fontSize: 9,
   color: '#000000',
+  equalizeCells: false,
 }
 
 /**

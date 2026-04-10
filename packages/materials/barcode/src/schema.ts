@@ -10,6 +10,9 @@ export interface BarcodeProps {
   lineWidth: number
   lineColor: string
   backgroundColor: string
+  borderWidth: number
+  borderColor: string
+  borderType: 'solid' | 'dashed' | 'dotted'
 }
 
 export const BARCODE_DEFAULTS: BarcodeProps = {
@@ -19,6 +22,9 @@ export const BARCODE_DEFAULTS: BarcodeProps = {
   lineWidth: 2,
   lineColor: '#000000',
   backgroundColor: '#ffffff',
+  borderWidth: 0,
+  borderColor: '#000000',
+  borderType: 'solid',
 }
 
 export function createBarcodeNode(partial?: Partial<MaterialNode>): MaterialNode {

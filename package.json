@@ -15,7 +15,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev --filter='./packages/*'",
+    "dev": "turbo dev --filter='./packages/**' --concurrency 30",
     "play": "pnpm -F ./playground dev",
     "lint": "eslint --cache .",
     "prepublishOnly": "nr build",

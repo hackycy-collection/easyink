@@ -7,12 +7,20 @@ export interface ImageProps {
   src: string
   fit: 'contain' | 'cover' | 'fill' | 'none'
   alt: string
+  backgroundColor: string
+  borderWidth: number
+  borderColor: string
+  borderType: 'solid' | 'dashed' | 'dotted'
 }
 
 export const IMAGE_DEFAULTS: ImageProps = {
   src: '',
   fit: 'contain',
   alt: '',
+  backgroundColor: '',
+  borderWidth: 0,
+  borderColor: '#000000',
+  borderType: 'solid',
 }
 
 export function createImageNode(partial?: Partial<MaterialNode>): MaterialNode {

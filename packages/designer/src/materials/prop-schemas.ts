@@ -37,6 +37,13 @@ const TEXT_PROP_SCHEMAS: PropSchema[] = [
   ] },
   { key: 'color', label: 'designer.property.color', type: 'color', group: 'appearance' },
   { key: 'backgroundColor', label: 'designer.property.background', type: 'color', group: 'appearance' },
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 20, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' },
+  ] },
 ]
 
 // ─── Image ───────────────────────────────────────────────────────────
@@ -50,6 +57,14 @@ const IMAGE_PROP_SCHEMAS: PropSchema[] = [
     { label: 'None', value: 'none' },
   ] },
   { key: 'alt', label: 'designer.property.imageAlt', type: 'string', group: 'content' },
+  { key: 'backgroundColor', label: 'designer.property.background', type: 'color', group: 'appearance' },
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 20, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' },
+  ] },
 ]
 
 // ─── Barcode ─────────────────────────────────────────────────────────
@@ -68,6 +83,13 @@ const BARCODE_PROP_SCHEMAS: PropSchema[] = [
   { key: 'lineWidth', label: 'designer.property.lineWidth', type: 'number', group: 'appearance', min: 1, max: 5, step: 1 },
   { key: 'lineColor', label: 'designer.property.lineColor', type: 'color', group: 'appearance' },
   { key: 'backgroundColor', label: 'designer.property.background', type: 'color', group: 'appearance' },
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 20, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' },
+  ] },
 ]
 
 // ─── QRCode ──────────────────────────────────────────────────────────
@@ -83,6 +105,13 @@ const QRCODE_PROP_SCHEMAS: PropSchema[] = [
   ] },
   { key: 'foreground', label: 'designer.property.foreground', type: 'color', group: 'appearance' },
   { key: 'background', label: 'designer.property.background', type: 'color', group: 'appearance' },
+  { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'border', min: 0, max: 20, step: 1 },
+  { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'border' },
+  { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'border', enum: [
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' },
+  ] },
 ]
 
 // ─── Line ────────────────────────────────────────────────────────────
@@ -185,6 +214,7 @@ const RELATION_PROP_SCHEMAS: PropSchema[] = [
 // ─── Table Static ────────────────────────────────────────────────────
 
 const TABLE_STATIC_TABLE_PROPS: PropSchema[] = [
+  { key: 'equalizeCells', label: 'designer.property.equalizeCells', type: 'switch', group: 'table-layout' },
   { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'table-border', min: 0, max: 10, step: 1 },
   { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'table-border' },
   { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'table-border', enum: [
@@ -204,6 +234,7 @@ const TABLE_STATIC_PROP_SCHEMAS: PropSchema[] = [
 // ─── Table Data ──────────────────────────────────────────────────────
 
 const TABLE_DATA_TABLE_PROPS: PropSchema[] = [
+  { key: 'equalizeCells', label: 'designer.property.equalizeCells', type: 'switch', group: 'table-layout' },
   { key: 'borderWidth', label: 'designer.property.borderWidth', type: 'number', group: 'table-border', min: 0, max: 10, step: 1 },
   { key: 'borderColor', label: 'designer.property.borderColor', type: 'color', group: 'table-border' },
   { key: 'borderType', label: 'designer.property.borderType', type: 'enum', group: 'table-border', enum: [
