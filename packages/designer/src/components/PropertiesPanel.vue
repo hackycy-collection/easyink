@@ -41,6 +41,7 @@ watch(
       store.setPropertyOverlay(null)
     }
   },
+  { flush: 'sync' },
 )
 
 // Overlay schemas grouped by group field
@@ -207,6 +208,9 @@ const GROUP_LABELS: Record<string, string> = {
   'table-layout': 'designer.property.layout',
   'table-typography': 'designer.property.typography',
   'table-appearance': 'designer.property.appearance',
+  'cell-typography': 'designer.property.typography',
+  'cell-border': 'designer.property.border',
+  'cell-layout': 'designer.property.layout',
 }
 
 function groupLabel(group: string): string {

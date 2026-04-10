@@ -42,6 +42,8 @@ export interface TableDeepEditingDelegate {
   /** The number of virtual placeholder rows rendered in designer (0 for table-static). */
   getPlaceholderRowCount: () => number
   t: (key: string) => string
+  /** Called when a cell is selected in the cell-selected phase (for property panel overlay). */
+  onCellSelected?: (node: TableNode, row: number, col: number) => void
 }
 
 // ─── Phase containers (mirrors designer's PhaseContainers) ─────────
@@ -238,6 +240,10 @@ function createCellSelectedPhase(shared: SharedState): TableDeepEditingPhase {
       renderClickCatchLayer(containers, node, shared, cleanupFns)
       renderCellOverlay(containers, node, shared, cleanupFns)
       renderToolbar(containers, node, shared, cleanupFns)
+      // Notify delegate for property panel overlay push
+      if (shared.selectedCell) {
+        shared.delegate.onCellSelected?.(node, shared.selectedCell.row, shared.selectedCell.col)
+      }
     },
     onExit() {
       for (const fn of cleanupFns) fn()

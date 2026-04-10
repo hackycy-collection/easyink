@@ -35,6 +35,7 @@ export {
   SplitTableCellCommand,
   UpdateTableCellBorderCommand,
   UpdateTableCellCommand,
+  UpdateTableCellTypographyCommand,
   UpdateTableRowRoleCommand,
   UpdateTableVisibilityCommand,
   validateMerge,

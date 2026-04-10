@@ -1,3 +1,5 @@
+export * from './cell-border-editor'
+export * from './cell-schemas'
 export * from './deep-editing'
 export * from './geometry'
 export * from './render'

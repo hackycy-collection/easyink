@@ -339,6 +339,61 @@ export class ResizeTableRowCommand implements Command {
   }
 }
 
+/** Update a cell's typography fields with merge semantics (never replaces the whole object). */
+export class UpdateTableCellTypographyCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-table-cell-typography'
+  readonly description = 'Update cell typography'
+  private oldValues: Record<string, unknown> = {}
+  private hadTypography = false
+
+  constructor(
+    private node: TableNode,
+    private rowIndex: number,
+    private cellIndex: number,
+    private updates: Record<string, unknown>,
+  ) {}
+
+  execute(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    this.hadTypography = !!cell.typography
+    if (!cell.typography)
+      cell.typography = {}
+    const typo = cell.typography as Record<string, unknown>
+    for (const key of Object.keys(this.updates)) {
+      this.oldValues[key] = typo[key]
+      typo[key] = this.updates[key]
+    }
+  }
+
+  undo(): void {
+    const cell = this.node.table.topology.rows[this.rowIndex]!.cells[this.cellIndex]!
+    if (!cell.typography)
+      return
+    const typo = cell.typography as Record<string, unknown>
+    for (const key of Object.keys(this.oldValues)) {
+      typo[key] = this.oldValues[key]
+    }
+    if (!this.hadTypography)
+      cell.typography = undefined
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as UpdateTableCellTypographyCommand
+    if (other.node !== this.node || other.rowIndex !== this.rowIndex || other.cellIndex !== this.cellIndex)
+      return null
+    const merged = new UpdateTableCellTypographyCommand(this.node, this.rowIndex, this.cellIndex, { ...this.updates, ...other.updates })
+    merged.oldValues = { ...this.oldValues }
+    for (const key of Object.keys(other.updates)) {
+      if (!(key in merged.oldValues))
+        merged.oldValues[key] = other.oldValues[key]
+    }
+    return merged
+  }
+}
+
 /** Update a table cell's properties. */
 export class UpdateTableCellCommand implements Command {
   readonly id = generateId('cmd')

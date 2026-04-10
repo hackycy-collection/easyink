@@ -29,6 +29,7 @@ export {
   UpdatePageCommand,
   UpdateTableCellBorderCommand,
   UpdateTableCellCommand,
+  UpdateTableCellTypographyCommand,
   UpdateTableRowRoleCommand,
   UpdateTableVisibilityCommand,
   UpdateUsageCommand,
