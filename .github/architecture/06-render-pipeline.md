@@ -107,12 +107,12 @@ Viewer 在渲染前执行：
 
 ViewerRuntime 在 `resolveAllBindings` 阶段检测到 table-data 节点时，通过单一入口执行整表绑定预解析：
 
-1. 从 `table.source`（`TableDataSchema.source`）读取 sourceId 和集合字段路径 `source.fieldPath`
-2. 使用 sourceId 匹配数据适配器，从数据中取出集合数组
+1. 收集 repeat-template 行内所有 cell 的 `binding.fieldPath`，调用 `extractCollectionPath(fieldPaths)` 提取公共集合前缀
+2. 用提取出的集合路径从数据中取值，通过 `Array.isArray` 确认其为集合数组
 3. 遍历集合中的每个数据项
 4. **showHeader/showFooter 检查**：若 `showHeader=false`，跳过 header 行的绑定解析；若 `showFooter=false`，跳过 footer 行的绑定解析
-5. 对 repeat-template 行内每个单元格的 `binding`，调用 `resolveBindingValue(binding, data, collectionItem)`，以数据项作为 scope 进行相对路径解析。cell.binding 的 sourceId 已在存储时自动填充，Viewer 无需推断
-6. 对 header / footer / normal 行内每个单元格的 `binding`，调用 `resolveBindingValue(binding, data)`，从根解析（绝对路径）
+5. 对 repeat-template 行内每个单元格的 `binding`，使用 `resolveFieldFromRecord(leafField, record)` 从集合项中取出叶子字段值（leafField 为 fieldPath 去掉集合前缀后的剩余部分）。所有路径均为绝对路径，不存在 scope 参数
+6. 对 header / footer / normal 行内每个单元格的 `staticBinding`，调用 `resolveBindingValue(staticBinding, data)` 从根解析（绝对路径）
 7. 将解析结果存入 `Map<string, ResolvedCellBindings>`，key 格式为 `${nodeId}:${rowIndex}:${colIndex}[:${dataIndex}]`
 8. 后续 PagePlanner 协作阶段和表格 ViewerExtension 渲染阶段直接消费预解析结果
 
@@ -134,7 +134,7 @@ interface ResolvedCellBindings {
 ViewerRuntime 在 `resolveAllBindings` 阶段检测到 table-static 节点时：
 
 1. 遍历所有行的所有 cell，查找 `staticBinding` 字段
-2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（绝对路径，无 scope，无集合展开）
+2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（绝对路径，无集合展开）
 3. 结果存入 `Map<string, ResolvedCellBindings>`，key 格式 `${nodeId}:${rowIndex}:${colIndex}`
 4. 无 `staticBinding` 的 cell 使用 `content.text` 作为渲染内容
 

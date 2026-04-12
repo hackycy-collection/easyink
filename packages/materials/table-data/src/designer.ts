@@ -1,10 +1,11 @@
 import type { DatasourceDropHandler, DeepEditingDefinition, MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { TableDeepEditingDelegate } from '@easyink/material-table-kernel'
-import type { BindingRef, MaterialNode, TableDataSchema, TableNode } from '@easyink/schema'
+import type { BindingRef, MaterialNode, TableDataSchema, TableNode, TableRowSchema } from '@easyink/schema'
 import type { UnitType } from '@easyink/shared'
 import type { TableDataProps } from './schema'
 import {
-  BindTableSourceCommand,
+  BindStaticCellCommand,
+  ClearStaticCellBindingCommand,
   InsertTableColumnCommand,
   InsertTableRowCommand,
   MergeTableCellsCommand,
@@ -81,6 +82,10 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     cellRenderer: (cell) => {
       if (cell.binding) {
         const label = context.getBindingLabel(cell.binding)
+        return `<span style="">{#${escapeHtml(label)}}</span>`
+      }
+      if (cell.staticBinding) {
+        const label = context.getBindingLabel(cell.staticBinding)
         return `<span style="">{#${escapeHtml(label)}}</span>`
       }
       return cell.content?.text || ''
@@ -192,13 +197,28 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
         context.commitCommand(new UpdateTableCellTypographyCommand(n, row, col, { [key]: undefined }))
       },
       get binding() {
-        return getCell()?.binding ?? null
+        const c = getCell()
+        if (!c)
+          return null
+        const n = getNode()
+        if (!n)
+          return null
+        const rowRole = n.table.topology.rows[row]?.role
+        if (rowRole === 'repeat-template')
+          return c.binding ?? null
+        return c.staticBinding ?? null
       },
       clearBinding() {
         const n = getNode()
         if (!n)
           return
-        context.commitCommand(new UpdateTableCellCommand(n, row, col, { binding: undefined }))
+        const rowRole = n.table.topology.rows[row]?.role
+        if (rowRole === 'repeat-template') {
+          context.commitCommand(new UpdateTableCellCommand(n, row, col, { binding: undefined }))
+        }
+        else {
+          context.commitCommand(new ClearStaticCellBindingCommand(n, row, col))
+        }
       },
       editors: {
         'cell-border': CellBorderEditor,
@@ -330,83 +350,91 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
     onDragOver(field, point, node) {
       if (!isTableNode(node))
         return null
-      const table = node.table as TableDataSchema
-
-      // Reject mismatching sourceId (skip when sourceId is empty — browser blocks getData during dragover)
-      if (field.sourceId && table.source && table.source.sourceId !== field.sourceId) {
-        const ph = computePlaceholderHeight(node)
-        return {
-          status: 'rejected',
-          rect: { x: 0, y: 0, w: node.width, h: node.height + ph },
-          label: context.t('designer.dataSource.sourceConflict'),
-        }
-      }
 
       // Hit-test cell (placeholder-aware)
       const gridCell = hitTestWithPlaceholders(node, point.x, point.y)
       if (!gridCell)
         return null
-      const cell = resolveMergeOwner(table.topology, gridCell.row, gridCell.col)
+      const cell = resolveMergeOwner(node.table.topology, gridCell.row, gridCell.col)
+      const row = node.table.topology.rows[cell.row]
+      if (!row)
+        return null
+
+      // For repeat-template rows: validate same-collection constraint
+      if (row.role === 'repeat-template' && field.sourceId && field.fieldPath) {
+        const incomingPrefix = getFieldCollectionPrefix(field.fieldPath)
+        const existingPrefixes = getRowCollectionPrefixes(row)
+        if (existingPrefixes.length > 0 && existingPrefixes[0] !== incomingPrefix) {
+          const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col)
+          if (!cellRect)
+            return null
+          return {
+            status: 'rejected',
+            rect: cellRect,
+            label: context.t('designer.dataSource.collectionMismatch'),
+          }
+        }
+      }
+
       const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col)
       if (!cellRect)
         return null
-
       return { status: 'accepted', rect: cellRect, label: field.fieldLabel }
     },
 
     onDrop(field, point, node) {
       if (!isTableNode(node))
         return
-      const table = node.table as TableDataSchema
 
-      // Auto-set table.source on first drop
-      if (!table.source) {
-        const collectionPath = getCollectionPath(field.fieldPath)
-        const sourceRef: BindingRef = {
-          sourceId: field.sourceId,
-          sourceName: field.sourceName,
-          sourceTag: field.sourceTag,
-          fieldPath: collectionPath,
-        }
-        context.commitCommand(new BindTableSourceCommand(node, sourceRef))
-      }
-      else if (table.source.sourceId !== field.sourceId) {
-        return
-      }
-
-      // Hit-test cell (placeholder-aware)
       const gridCell = hitTestWithPlaceholders(node, point.x, point.y)
       if (!gridCell)
         return
-      const cell = resolveMergeOwner(table.topology, gridCell.row, gridCell.col)
-
-      // Re-read node after BindTableSourceCommand may have mutated it
-      const updatedNode = context.getNode(node.id)
-      if (!updatedNode || !isTableNode(updatedNode))
-        return
-      const currentSource = (updatedNode.table as TableDataSchema).source
-      if (!currentSource)
+      const cell = resolveMergeOwner(node.table.topology, gridCell.row, gridCell.col)
+      const row = node.table.topology.rows[cell.row]
+      if (!row)
         return
 
-      const cellBinding: BindingRef = {
-        sourceId: currentSource.sourceId,
-        sourceName: currentSource.sourceName,
-        sourceTag: currentSource.sourceTag,
+      const binding: BindingRef = {
+        sourceId: field.sourceId,
+        sourceName: field.sourceName,
+        sourceTag: field.sourceTag,
         fieldPath: field.fieldPath,
         fieldKey: field.fieldKey,
         fieldLabel: field.fieldLabel,
       }
 
-      context.commitCommand(new UpdateTableCellCommand(updatedNode, cell.row, cell.col, { binding: cellBinding }))
+      if (row.role === 'repeat-template') {
+        // Validate same-collection constraint
+        const incomingPrefix = getFieldCollectionPrefix(field.fieldPath)
+        const existingPrefixes = getRowCollectionPrefixes(row)
+        if (existingPrefixes.length > 0 && existingPrefixes[0] !== incomingPrefix)
+          return
+
+        context.commitCommand(new UpdateTableCellCommand(node, cell.row, cell.col, { binding }))
+      }
+      else {
+        // header/footer/normal rows: use staticBinding
+        context.commitCommand(new BindStaticCellCommand(node, cell.row, cell.col, binding))
+      }
     },
   }
 }
 
-/** Extract collection path from a field path (e.g. 'orders/items/name' -> 'orders/items') */
-function getCollectionPath(fieldPath: string): string {
-  const sep = fieldPath.includes('/') ? '/' : '.'
-  const lastSep = fieldPath.lastIndexOf(sep)
-  return lastSep > 0 ? fieldPath.substring(0, lastSep) : fieldPath
+/** Extract collection prefix from a field path (everything except the last segment). */
+function getFieldCollectionPrefix(fieldPath: string): string {
+  const lastSep = fieldPath.lastIndexOf('/')
+  return lastSep > 0 ? fieldPath.substring(0, lastSep) : ''
+}
+
+/** Get all unique collection prefixes from existing bindings in a repeat-template row. */
+function getRowCollectionPrefixes(row: TableRowSchema): string[] {
+  const prefixes = new Set<string>()
+  for (const cell of row.cells) {
+    if (cell.binding?.fieldPath) {
+      prefixes.add(getFieldCollectionPrefix(cell.binding.fieldPath))
+    }
+  }
+  return [...prefixes]
 }
 
 function buildDeepEditing(delegate: TableDeepEditingDelegate): DeepEditingDefinition {

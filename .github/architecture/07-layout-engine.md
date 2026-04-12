@@ -109,9 +109,9 @@ interface TableMeasureResult {
 
 /** measure 接收的上下文（由 ViewerRuntime 在 resolveAllBindings 阶段预备） */
 interface TableMeasureContext {
-  /** 原始表格节点（TableDataSchema 类型，含 source） */
+  /** 原始表格节点（TableDataSchema 类型） */
   node: TableNode
-  /** repeat-template 行展开的集合数据（ViewerRuntime 已通过 table.source.fieldPath 取出） */
+  /** repeat-template 行展开的集合数据（ViewerRuntime 已通过 extractCollectionPath 推导集合路径并取出） */
   collectionData: unknown[]
   /** 预解析的单元格绑定结果 Map，key = `${rowIndex}:${colIndex}[:${dataIndex}]`。
    *  类型定义见 [6.6.1 ResolvedCellBindings](./06-render-pipeline.md) */
@@ -126,7 +126,8 @@ ViewerRuntime                        PagePlanner                     表格 View
     |                                    |                                   |
     |-- resolveAllBindings ------------>  |                                   |
     |   (预解析 cell binding,            |                                   |
-    |    取出集合数据)                    |                                   |
+    |    extractCollectionPath           |                                   |
+    |    推导集合路径并取出数据)          |                                   |
     |                                    |                                   |
     |-- 传递 TableMeasureContext -------->|                                   |
     |                                    |-- measure(context) ------------->  |

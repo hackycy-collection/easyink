@@ -176,11 +176,6 @@ const invoiceTableNode: TableNode = {
   },
   table: {
     kind: 'data' as const,
-    source: {
-      sourceId: 'invoice',
-      fieldPath: 'items',
-      fieldLabel: '明细项目',
-    },
     topology: {
       columns: [
         { ratio: 0.4 },
@@ -203,10 +198,10 @@ const invoiceTableNode: TableNode = {
           height: 8,
           role: 'repeat-template' as const,
           cells: [
-            { binding: { sourceId: 'invoice', fieldPath: 'name', fieldLabel: '品名' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'qty', fieldLabel: '数量' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'price', fieldLabel: '单价' } },
-            { binding: { sourceId: 'invoice', fieldPath: 'amount', fieldLabel: '金额' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'items/name', fieldLabel: '品名' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'items/qty', fieldLabel: '数量' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'items/price', fieldLabel: '单价' } },
+            { binding: { sourceId: 'invoice', fieldPath: 'items/amount', fieldLabel: '金额' } },
           ],
         },
         {
@@ -216,7 +211,7 @@ const invoiceTableNode: TableNode = {
             { content: { text: '合计' }, colSpan: 3 },
             {},
             {},
-            { binding: { sourceId: 'invoice', fieldPath: 'grandTotal', fieldLabel: '合计' } },
+            { staticBinding: { sourceId: 'invoice', fieldPath: 'grandTotal', fieldLabel: '合计' } },
           ],
         },
       ],

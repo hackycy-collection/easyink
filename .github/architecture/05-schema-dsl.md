@@ -318,14 +318,11 @@ interface TableSchema {
   diagnostics?: LayoutDiagnostic[]
 }
 
-/** table-data 专用 Schema，继承基类，增加主数据源绑定和头尾可见性 */
+/** table-data 专用 Schema，继承基类，增加头尾可见性。
+ *  不再持有表级 source 字段，集合路径由 repeat-template 行内各 cell.binding.fieldPath 的
+ *  公共前缀在运行时推导（Viewer 使用 extractCollectionPath）。 */
 interface TableDataSchema extends TableSchema {
   kind: 'data'
-  /** 表级主数据源：指向集合字段（如 orders/items），是整个表格的唯一数据入口。
-   *  表内所有 cell 的 binding 都必须来自同一个 sourceId。
-   *  fieldPath 指向集合字段，Viewer 从此路径取出数组数据用于 repeat-template 行展开。
-   *  解除 source 绑定时，所有 cell binding 同步清除。 */
-  source: BindingRef
   /** 表头可见性。false 时 Viewer 不渲染 header 行、分页不重复 header。默认 true */
   showHeader?: boolean
   /** 表尾可见性。false 时 Viewer 不渲染 footer 行。默认 true */
@@ -391,7 +388,8 @@ interface TableRowSchema {
    *  - normal: 普通行（table-static 仅允许此值）
    *  - header: 表头行，Viewer 分页时每页重复（仅 table-data，强制单行）
    *  - footer: 表尾行，Viewer 在最后一页显示（仅 table-data，强制单行）
-   *  - repeat-template: 数据重复模板行，按 table.source 集合数据逐项重复（仅 table-data） */
+   *  - repeat-template: 数据重复模板行，Viewer 从 cell.binding 的公共集合前缀推导集合路径，
+   *    按集合数据逐项重复（仅 table-data） */
   role: 'normal' | 'header' | 'footer' | 'repeat-template'
   cells: TableCellSchema[]
 }
@@ -407,13 +405,12 @@ interface TableCellSchema {
   /** 单元格排版属性，字段缺失时回退到表级 typography 默认值 */
   typography?: CellTypography
   props?: Record<string, unknown>
-  /** table-data 专用：单元格绑定，仅单值。sourceId 存储时自动从 table.source 填充。
-   *  - repeat-template 行：fieldPath 为相对路径，相对于 table.source.fieldPath 集合项解析
-   *  - header / footer / normal 行：fieldPath 为绝对路径，从数据源根解析
-   *  - 所有 cell 的 sourceId 必须与 table.source.sourceId 一致（严格单源） */
+  /** table-data 专用：单元格绑定，仅单值。
+   *  - repeat-template 行：fieldPath 为绝对路径（如 items/name），同一行内所有 cell 的 fieldPath 必须共享相同的集合前缀
+   *  - header / footer / normal 行不使用此字段，改用 staticBinding */
   binding?: BindingRef
-  /** table-static 专用：独立绑定，每个 cell 可绑定不同 source 的字段。
-   *  复用 BindingRef 类型，无表级 source 约束。
+  /** 静态绑定：table-static 和 table-data 的 header/footer/normal 行共用。
+   *  每个 cell 可绑定不同 source 的字段，fieldPath 为绝对路径，从数据源根解析。
    *  与手动编辑(content)互斥：有 staticBinding 时文本由数据源填充，
    *  清除 staticBinding 后恢复手动编辑。Viewer 逐 cell 独立解析，不做集合展开。 */
   staticBinding?: BindingRef
@@ -429,18 +426,18 @@ interface TableCellContentSlot {
 
 - 让 `table-static` 与 `table-data` 共享表壳、格子和内容槽，通过 `TableDataSchema extends TableSchema` 实现类型拆分
 - 用行 `role` 替代 band 语义：header / footer / repeat-template 直接标记在行上，不再维护独立的区段索引（bands）
-- 表级主数据源简化绑定：`TableDataSchema.source` 指向集合字段（如 `orders/items`），整表严格单源
-- cell binding 自动继承 sourceId：cell.binding 存储时自动从 table.source 填充 sourceId，用户只需拖入字段名
-- repeat-template 行不再持有独立的 repeatBinding：集合路径由 table.source.fieldPath 提供
+- cell 绑定采用绝对路径：repeat-template 行的 cell.binding.fieldPath 使用绝对路径（如 `items/name`），同行内所有 cell 必须共享相同的集合前缀（如 `items`），Designer 在拖拽时强制此约束
+- header/footer/normal 行的 cell 使用 staticBinding 绑定，与 table-static 共用同一机制
+- Viewer 在运行时通过 `extractCollectionPath()` 从 repeat-template 行各 cell 的 fieldPath 提取公共集合前缀，再通过 `Array.isArray` 确认其为集合节点
+- repeat-template 行不再持有独立的 repeatBinding：集合路径由 cell.binding 的公共前缀推导
 - cell.binding 为单值 BindingRef，不支持数组（cell 无多参数绑定场景）
 - 单元格内容为纯文本，不嵌套子物料：内容槽只有 `text` + `editMode`，降低编辑和渲染复杂度
 - 让设计器支持表壳、格子、格子内容三层编辑上下文
-- 让 Viewer 根据行 role 处理打印语义：header 行每页重复、footer 行在末页显示、repeat-template 行按 table.source 集合数据展开
-- 解除 table.source 时自动清除所有 cell binding，保持一致性
+- 让 Viewer 根据行 role 处理打印语义：header 行每页重复、footer 行在末页显示、repeat-template 行按推导出的集合数据展开
 - fillBlankRows 语义为自动填充空行到页底，行数由页面剩余空间和行高自动计算
 - table-data 头尾可见性通过 `showHeader` / `showFooter` 控制，隐藏时 Viewer 完全不渲染对应行（不占空间、不分页重复）
 - 单元格排版属性通过 `CellTypography` 独立设置，缺失字段回退到表级 `TableTypography` 默认值
-- table-static 通过 `staticBinding` 支持独立数据源绑定，每个 cell 可绑定不同 source，与手动编辑互斥
+- table-static 和 table-data 的 header/footer/normal 行统一通过 `staticBinding` 支持独立数据源绑定，每个 cell 可绑定不同 source，与手动编辑互斥
 
 ### table-static 与 table-data 的 role 约束
 
@@ -474,14 +471,14 @@ footer 行（0 或 1 行，必须在底部）
 
 ### repeat-template 行的绑定路径语义
 
-repeat-template 行中单元格的 `binding.fieldPath` 采用相对路径语义：
+repeat-template 行中单元格的 `binding.fieldPath` 采用绝对路径语义：
 
-- `table.source.fieldPath` 指向集合字段（如 `orders/items`），标识数据源中的数组节点
-- 行内单元格的 `fieldPath` 相对于集合项解析（如 `name`、`price`），而非相对于数据源根
-- Viewer 展开数据行时，将集合项上下文与单元格相对路径拼接得到完整路径
+- 所有 fieldPath 均为绝对路径（如 `items/name`、`items/price`），从数据源根路径开始
+- 同一 repeat-template 行内所有 cell 的 fieldPath 必须共享相同的集合前缀（如 `items`），Designer 在拖拽时强制此约束（`getFieldCollectionPrefix()` 逐 cell 校验）
+- Viewer 运行时通过 `extractCollectionPath(fieldPaths)` 提取公共集合前缀，再对该路径的值做 `Array.isArray` 检查确认其为集合节点
+- 展开数据行时，Viewer 使用 `resolveFieldFromRecord(leafField, record)` 从集合项中取出叶子字段值（leafField 为去掉集合前缀后的相对部分）
 - Designer 设计态显示字段标签时，优先使用 `binding.fieldLabel`（存储在模板内），fallback 到数据源字段树中对应节点的 name/title
-- 非 repeat-template 行（header/footer/normal）的单元格使用绝对路径，从数据源根解析
-- 所有 cell 的 sourceId 必须与 table.source.sourceId 一致，不允许跨源绑定
+- header / footer / normal 行的单元格使用 `staticBinding`（绝对路径），从数据源根解析，与 table-static 共用同一机制
 
 ### 合并操作约束（双层防护）
 
@@ -536,7 +533,7 @@ TableCellSchema.typography (单元格级别)
 
 ### TableNode 类型访问
 
-schema 包通过 TypeScript 类型拓展声明 `TableNode extends MaterialNode`，其中 `table` 字段类型为 `TableSchema | TableDataSchema`。运行时通过判别函数 `isTableNode(node)` 访问 `node.table`，通过 `isTableDataNode(node)` 进一步窄化为 `TableDataSchema`（含 `source`、`showHeader`、`showFooter` 字段）。不破坏 `MaterialNode` 基础类型，但类型层明确。实际存储中表格数据位于 `node.table` 顶层字段，不再使用 `node.extensions.table`。
+schema 包通过 TypeScript 类型拓展声明 `TableNode extends MaterialNode`，其中 `table` 字段类型为 `TableSchema | TableDataSchema`。运行时通过判别函数 `isTableNode(node)` 访问 `node.table`，通过 `isTableDataNode(node)` 进一步窄化为 `TableDataSchema`（含 `showHeader`、`showFooter` 字段）。不破坏 `MaterialNode` 基础类型，但类型层明确。实际存储中表格数据位于 `node.table` 顶层字段，不再使用 `node.extensions.table`。
 
 ## 5.7 动画与扩展
 

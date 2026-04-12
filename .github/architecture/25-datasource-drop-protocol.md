@@ -102,15 +102,18 @@ datasourceDrop?: DatasourceDropHandler
 
 ```
 onDragOver:
-  1. 检查 sourceId 是否匹配（已有 source 时不匹配 -> rejected）
-  2. hitTestGridCell -> resolveMergeOwner -> computeCellRect
-  3. 返回 { status: 'accepted', rect: cellRect }
+  1. hitTestGridCell -> resolveMergeOwner -> computeCellRect
+  2. 判断目标 cell 所在行的 role:
+     - repeat-template 行: 检查字段集合前缀是否与同行已有 cell 一致（getFieldCollectionPrefix）
+       不一致 -> rejected（label: '集合前缀不一致'）
+     - header/footer/normal 行: 无约束，直接 accepted
+  3. 返回 { status, rect: cellRect }
 
 onDrop:
-  1. 首次拖入 -> BindTableSourceCommand 设置 table.source
-  2. sourceId 不匹配 -> 拒绝
-  3. hitTestGridCell -> resolveMergeOwner
-  4. UpdateTableCellCommand 设置 cell.binding
+  1. hitTestGridCell -> resolveMergeOwner
+  2. 判断目标 cell 所在行的 role:
+     - repeat-template 行: UpdateTableCellCommand 设置 cell.binding（绝对路径）
+     - header/footer/normal 行: BindStaticCellCommand 设置 cell.staticBinding
 ```
 
 ### 25.4.2 table-static

@@ -229,25 +229,40 @@ interface DataAdapter {
 
 - 规范路径分隔符使用 `/`
 - 导入层兼容 `.` 路径和仅 `key` 的老格式
-- 对数组字段，集合节点路径指向集合本身，子字段路径指向相对字段
+- 对数组字段，集合节点路径指向集合本身，子字段路径指向集合内的叶子字段
 - 容器、对象、数组都可以通过嵌套路径表达
-- 路径的相对/绝对语义由上下文隐式决定：repeat-template 行内单元格的 fieldPath 为相对路径，其他行内单元格为绝对路径。不在路径字符串本身添加前缀标记
+- **所有 fieldPath 均为绝对路径**，从数据源根开始。repeat-template 行内 cell 的 fieldPath 也是绝对路径（如 `items/name`），不再存在相对路径语义
+- 集合前缀在运行时由 `extractCollectionPath()` 从同行 cell 的 fieldPath 中提取公共部分，再通过 `Array.isArray` 确认
 
-### `resolveBindingValue` 的 scope 参数
+### `resolveBindingValue` 接口
 
-`resolveBindingValue` 支持可选的 `scope` 参数，用于相对路径解析：
+`resolveBindingValue` 统一按绝对路径从数据根解析，不再接受 `scope` 参数：
 
 ```typescript
 function resolveBindingValue(
   binding: BindingRef,
-  data: Record<string, unknown>,
-  scope?: Record<string, unknown>
+  data: Record<string, unknown>
 ): unknown
 ```
 
-- 当 `scope` 存在时，`fieldPath` 从 `scope` 对象开始遍历（相对路径语义）
-- 当 `scope` 不存在时，`fieldPath` 从 `data` 根开始遍历（绝对路径语义）
-- 调用方（ViewerRuntime）根据行 role 决定是否传入 scope
+- `fieldPath` 始终从 `data` 根开始遍历（绝对路径语义）
+- repeat-template 行的叶子字段值通过专用函数 `resolveFieldFromRecord(leafField, record)` 从集合项中解析，leafField 为 fieldPath 去掉集合前缀后的剩余部分
+
+### 集合路径推导工具函数
+
+`@easyink/datasource` 包提供两个运行时工具函数：
+
+```typescript
+/** 从一组绝对路径中提取公共集合前缀。
+ *  例如 ['items/name', 'items/price'] -> 'items'
+ *  若路径无公共前缀或仅有一个路径，返回该路径去掉末段的结果。 */
+function extractCollectionPath(fieldPaths: string[]): string
+
+/** 从集合数据项中解析叶子字段值。
+ *  leafField 为去掉集合前缀后的相对字段名（如 'name'、'detail/sku'）。
+ *  record 为集合数组中的单个数据项。 */
+function resolveFieldFromRecord(leafField: string, record: Record<string, unknown>): unknown
+```
 
 ### 格式规则
 
@@ -256,57 +271,80 @@ function resolveBindingValue(
 
 ## 8.11 data-table 绑定模型
 
-`data-table` 采用表级主数据源 + cell 相对绑定的模型。`TableDataSchema.source` 是整个表格的唯一数据入口，指向集合字段。
+`data-table` 采用 cell 级绝对路径绑定 + 同行同集合约束的模型。不再持有表级 `source` 字段，集合路径由 Viewer 在运行时从 repeat-template 行各 cell 的 fieldPath 公共前缀推导。
 
-### 主数据源
+### repeat-template 行 cell 绑定
 
 ```typescript
-// table.source: BindingRef 指向集合字段
-const tableSource: BindingRef = {
-  sourceId: 'receipt',
-  sourceTag: 'apis/receipt.json',
-  fieldPath: 'orders/items',  // 集合字段路径
-  fieldLabel: '订单明细',
+// repeat-template 行内 cell 绑定示例（绝对路径）
+const cell: TableCellSchema = {
+  content: { text: '' },
+  binding: {
+    sourceId: 'receipt',
+    sourceTag: 'apis/receipt.json',
+    fieldPath: 'items/name',     // 绝对路径，从数据源根开始
+    fieldLabel: '商品名称',
+  },
 }
 ```
 
-- `source.fieldPath` 指向数据源中的数组节点，Viewer 从此路径取出集合数据
-- 整表严格单源：所有 cell 的 `binding.sourceId` 必须与 `source.sourceId` 一致
-- 每个表格只支持一个集合数据源，不支持多组 repeat-template 绑定不同集合
+- `fieldPath` 为绝对路径（如 `items/name`、`items/price`），从数据源根开始
+- 同一 repeat-template 行内所有 cell 的 fieldPath 必须共享相同的集合前缀（如 `items`），Designer 在拖拽时通过 `getFieldCollectionPrefix()` 逐 cell 校验此约束
+- 每个 cell 各自持有 sourceId/sourceTag，不存在表级 source 的自动继承
 
-### cell 绑定约束
+### header / footer / normal 行 cell 绑定
 
-绑定路径按行角色区分语义：
+header、footer 和 normal 行的单元格使用 `staticBinding`（与 table-static 共用同一机制），不使用 `binding` 字段：
 
-- **repeat-template 行内的单元格**：`fieldPath` 使用相对路径，相对于 `table.source.fieldPath` 集合项解析。例如 `source.fieldPath` 为 `orders/items`，单元格的 `fieldPath` 为 `name`，Viewer 展开时解析为 `orders/items[i]/name`
-- **header / footer / normal 行内的单元格**：`fieldPath` 使用绝对路径，从数据源根解析。例如 footer 行汇总单元格绑定 `orders/totalAmount`
-- 路径的相对/绝对语义由所在行的 `role` 隐式决定，不在 `BindingRef` 上添加额外字段。`resolveBindingValue` 接收可选的 `scope` 参数：当 scope 存在时按相对路径解析，否则按绝对路径从根解析
-- 聚合规则通过 `binding.usage` 声明（如求和、计数），不通过 fieldPath 本身表达
+```typescript
+// header 行内 cell 绑定示例
+const headerCell: TableCellSchema = {
+  content: { text: '' },
+  staticBinding: {
+    sourceId: 'order',
+    fieldPath: 'customer/name',
+    fieldLabel: '客户姓名',
+  },
+}
+```
 
-### cell binding 存储策略
+- `staticBinding.fieldPath` 为绝对路径，从数据源根解析
+- 无集合展开，单值解析
+- 每个 cell 可绑定不同 source 的字段，无表级 source 约束
+- 与手动编辑互斥：有 staticBinding 时文本由数据源填充，清除后恢复手动编辑
 
-- cell.binding 使用完整 BindingRef 类型，但 sourceId 自动从 table.source 填充
-- 拖入字段时 Designer 自动设置 sourceId/sourceTag，用户只需关心字段名（fieldPath）
-- cell.binding 为单值 BindingRef，不支持数组（cell 为纯文本，无多参数绑定场景）
+### 集合路径运行时推导
 
-### 首次拖入自动设置 source
+Viewer 不再从 `table.source` 读取集合路径，而是在运行时推导：
 
-- 向空表格（无 source）拖入第一个字段时，Designer 自动将该字段所属数据源设为 table.source
-- 后续拖入的字段如果不属于当前 source 的 sourceId，拒绝拖入并显示提示
-- source.fieldPath 的设置逻辑：
-  - 如果拖入的字段是集合节点的子字段（例如从 `orders/items` 下拖入 `name`），自动将集合节点路径设为 source.fieldPath
-  - 如果拖入的字段不在集合节点下，source.fieldPath 留空，表格不产生 repeat 行为
+1. 收集 repeat-template 行内所有 cell 的 `binding.fieldPath`
+2. 调用 `extractCollectionPath(fieldPaths)` 提取公共集合前缀（如从 `['items/name', 'items/price']` 提取 `items`）
+3. 用该路径从数据中取值，通过 `Array.isArray` 确认其为集合数组
+4. 遍历集合数组，对每个数据项使用 `resolveFieldFromRecord(leafField, record)` 解析叶子字段值
+
+### 同行同集合约束
+
+- 同一 repeat-template 行内所有 cell 的 fieldPath 必须属于同一集合（共享集合前缀）
+- 此约束由 Designer 在拖拽时强制：`getFieldCollectionPrefix()` 检查新拖入字段的集合前缀是否与已有 cell 一致，不一致则拒绝拖入并提示
+- Viewer 运行时不做额外校验，直接从 `extractCollectionPath()` 结果工作
+
+### 拖拽绑定交互
+
+- repeat-template 行的单元格：拖入字段时执行 `UpdateTableCellCommand` 设置 `cell.binding`
+- header / footer / normal 行的单元格：拖入字段时执行 `BindStaticCellCommand` 设置 `cell.staticBinding`
+- 不存在首次拖入自动设置 source 的流程，每个 cell 独立绑定
 
 ### 解除绑定
 
-- 解除 table.source 时，清除所有 cell 的 binding，通过 CompositeCommand 打包实现，支持整体 undo
-- 更换 source 等价于先解除再重新绑定
+- repeat-template 行 cell：通过 `UpdateTableCellCommand` 清除 `cell.binding`
+- header / footer / normal 行 cell：通过 `ClearStaticCellBindingCommand` 清除 `cell.staticBinding`
+- 不存在解除 table.source 的整表清除流程
 
 ## 8.12 table-static 独立绑定模型
 
 > **v2 新增**：详见 [23-table-v2-redesign](./23-table-v2-redesign.md)
 
-table-static 原本不支持数据源绑定（`bindable=false`）。v2 重设计后，table-static 支持单元格级独立绑定，与 table-data 的表级严格单源模型完全不同。
+table-static 原本不支持数据源绑定（`bindable=false`）。v2 重设计后，table-static 支持单元格级独立绑定。table-data 的 header/footer/normal 行也复用同一机制。
 
 ### 绑定字段
 
@@ -324,32 +362,33 @@ const cell: TableCellSchema = {
 }
 ```
 
-### 与 table-data binding 的差异
+### 与 table-data repeat-template binding 的差异
 
-| | table-static staticBinding | table-data binding |
+| | staticBinding (table-static + table-data header/footer) | table-data repeat-template binding |
 |---|---|---|
-| 约束 | 无表级 source 约束，每 cell 可绑不同 sourceId | 严格单源，所有 cell 的 sourceId 必须与 table.source 一致 |
-| 路径语义 | 绝对路径，从数据源根解析 | repeat-template 行相对路径，其他行绝对路径 |
+| 约束 | 无集合前缀约束，每 cell 可绑不同 sourceId | 同一行内所有 cell 的 fieldPath 必须共享相同的集合前缀 |
+| 路径语义 | 绝对路径，从数据源根解析 | 绝对路径，从数据源根解析（运行时由 extractCollectionPath 提取集合前缀） |
 | 集合展开 | 不展开，单值解析 | repeat-template 行按集合数据逐项展开 |
-| 与 content 关系 | 互斥。有 staticBinding 时文本由数据源填充，清除后恢复手动编辑 | repeat-template 行不允许手动编辑，header/footer 行互斥 |
+| 与 content 关系 | 互斥。有 staticBinding 时文本由数据源填充，清除后恢复手动编辑 | repeat-template 行不允许手动编辑 |
 
 ### Viewer 解析
 
 Viewer 的 `resolveAllBindings` 阶段检测到 table-static 节点时：
 
 1. 遍历所有行的所有 cell，查找 `staticBinding` 字段
-2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（绝对路径，无 scope）
+2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（绝对路径）
 3. 结果存入 `ResolvedCellBindings`，key 格式 `${nodeId}:${rowIndex}:${colIndex}`
 
 ### Designer 交互
 
 - 拖拽字段到 table-static cell 时，直接写入 `cell.staticBinding`，无需检查表级 source
+- 拖拽字段到 table-data 的 header/footer cell 时，同样写入 `cell.staticBinding`
 - 属性面板显示当前 cell 的绑定字段标签，提供"清除绑定"操作
 - 设计态渲染：有 staticBinding 的 cell 显示 `{#fieldLabel}`，无 staticBinding 的 cell 显示手动编辑的 content.text
 
 ### 命令
 
-- `BindStaticCellCommand`：设置 `cell.staticBinding`，同时清除 `cell.content.text`
+- `BindStaticCellCommand`：设置 `cell.staticBinding`，同时清除 `cell.content.text`（用于 table-static 和 table-data 的 header/footer/normal 行）
 - `ClearStaticCellBindingCommand`：清除 `cell.staticBinding`，恢复 cell 为可手动编辑状态
 
 ## 8.13 Designer 与 Viewer 共享协议

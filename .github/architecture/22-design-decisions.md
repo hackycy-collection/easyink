@@ -74,7 +74,7 @@
 | 68 | Extension 注册形式 | 工厂函数 createExtension(context) | 复杂物料需要 lifecycle、状态、DOM 管理，纯对象字面量不够 |
 | 69 | 物料与设计器通信 | Context 查询 + 事件指令混合 | Context 提供读取能力（schema、selection），事件提供写入能力（commit command、请求属性面板切换） |
 | 70 | Band 模型 | 取消 band 容器，用 Row role 属性替代 (normal/header/footer/repeat-template) | Band 承载的打印语义可降维为 row-level 属性，band 容器过重 |
-| 71 | 数据源绑定粒度 | table-data 采用表级主数据源 + cell 继承绑定 | table.source 是唯一数据入口，cell.binding 自动继承 sourceId，严格单源。简化用户操作和 Viewer 解析 |
+| 71 | 数据源绑定粒度 | table-data 采用 cell 级绝对路径绑定 + 同行同集合约束 | 不再持有表级 source 字段。repeat-template 行 cell.binding.fieldPath 使用绝对路径，同行必须共享集合前缀。Viewer 通过 extractCollectionPath 运行时推导集合路径 |
 | 72 | Binding overlay | Drop zone + 当前悬停 cell 高亮 + 字段类型匹配 | 只高亮当前悬停 cell，不是所有 cell 同时高亮 |
 | 73 | table-kernel 定位 | 降级为纯工具库，不做抽象层 | 复杂物料的内部逻辑全部通过 extension protocol 暴露，不需要独立 kernel 抽象 |
 | 74 | table-static/table-data 关系 | 保持分离 | table-data 有 Row repeat + row role，table-static 是纯网格；差异足以支撑两个独立物料 |
@@ -82,20 +82,20 @@
 | 76 | Schema 迁移 | 不迁移，全新开始 | 旧 bands + 主数据源 Schema 与新 row role + cell binding 模型不兼容，直接重建 |
 | 77 | 对外 API | Breaking change OK | 重构后的 extension protocol 就是最终 v1 接口，之前的不兼容不管 |
 | 78 | Viewer 与 extension | Viewer 完全独立 | Viewer 只需读懂新 Schema（row role、cell binding），不需感知 extension protocol |
-| 79 | repeat-template 绑定路径 | 相对路径语义 | 行内单元格 fieldPath 相对于 table.source.fieldPath 集合项解析，非 repeat-template 行使用绝对路径 |
+| 79 | repeat-template 绑定路径 | 绝对路径语义 | 行内单元格 fieldPath 使用绝对路径（如 items/name），同行必须共享集合前缀。Viewer 通过 extractCollectionPath 提取公共前缀，resolveFieldFromRecord 解析叶子字段 |
 | 80 | table-static 行角色 | 仅允许 role = 'normal' | 静态表格不涉及打印分区和数据重复，限制无效状态 |
 | 81 | renderContent 更新机制 | 框架无关 NodeSignal：get() + subscribe() | renderContent 接收 NodeSignal，物料首次挂载后通过 subscribe 增量更新，不依赖 Vue |
 | 82 | 表格分页模型 | 取消 TablePageSlice，PagePlanner 直接生成行序列 | PagePlanner 从 row role 直接生成每页 TablePageRowSequence，不需要中间 Slice 抽象 |
 | 83 | UpdateTableSectionCommand | 废弃，替换为 UpdateTableRowRoleCommand | Band/section 概念已取消，行角色修改直接操作 row.role |
 | 84 | 插入/删除行的 undo 粒度 | CompositeCommand 包含 element.height 联动 | 行操作不再维护 band rowRange，改为重算 element.height |
-| 85 | 相对/绝对路径区分机制 | 行 role 隐式决定 | repeat-template 行内一律相对解析，其他行一律绝对。不修改 BindingRef 结构 |
+| 85 | 路径语义 | 统一绝对路径 | 所有 fieldPath 均为绝对路径，不再区分相对/绝对。repeat-template 行的集合前缀由 extractCollectionPath 运行时推导 |
 | 86 | repeat-template 行展开职责 | 协作模式：表格 ViewerExtension measure + PagePlanner 切分 | 表格最了解自身行结构，PagePlanner 最了解页面空间。各司其职 |
-| 87 | 单元格绑定解析时机 | ViewerRuntime 在 resolveAllBindings 阶段通过单一入口预解析 | 从 table.source 取集合数据，按 row.role 区分相对/绝对路径，表格 ViewerExtension 只消费结果 |
+| 87 | 单元格绑定解析时机 | ViewerRuntime 在 resolveAllBindings 阶段通过单一入口预解析 | 通过 extractCollectionPath 推导集合路径，按行 role 区分 binding/staticBinding，表格 ViewerExtension 只消费结果 |
 | 88 | renderContent 信号实现 | 框架无关 NodeSignal：get() + subscribe() | Extension 代码不依赖 Vue，Designer 内部包装 Vue computed 为 NodeSignal |
 | 89 | renderContent 返回值 | 返回 cleanup 函数 | 元素从画布移除时调用 cleanup 清理 DOM 和订阅 |
-| 90 | resolveBindingValue scope 参数 | 添加可选 scope 参数 | scope 存在时从 scope 解析（相对路径），不存在时从 root data 解析（绝对路径） |
+| 90 | resolveBindingValue 接口 | 移除 scope 参数，统一绝对路径 | 所有路径均为绝对路径，repeat-template 行叶子字段通过 resolveFieldFromRecord(leafField, record) 专用函数解析 |
 | 91 | 物料注册表统一性 | Designer 和 Viewer 分离注册 | Viewer 在 iframe 内是独立进程，无法共享注册表实例。物料包分别导出 designer/viewer 注册入口 |
-| 92 | measure 上下文 | measure 接收预解析结果 | ViewerRuntime 已通过 table.source.fieldPath 取出集合数据并完成单元格绑定预解析，measure 不自行解析路径 |
+| 92 | measure 上下文 | measure 接收预解析结果 | ViewerRuntime 已通过 extractCollectionPath 推导集合路径并取出集合数据，完成单元格绑定预解析，measure 不自行解析路径 |
 | 93 | 表格跨页渲染入口 | 每页生成虚拟 TableNode | PagePlanner 切分后为每页生成虚拟节点，保持 render(node) 接口统一，ViewerExtension 不感知分页 |
 | 94 | 跨 role 合并单元格 | 严格禁止 | 不同 role 的行（header/repeat-template/footer/normal）之间不允许合并单元格，避免 Viewer 分页语义矛盾 |
 | 95 | TableCellSchema.content | 可选字段 | 新插入单元格可不携带 content，渲染层视缺失为空字符串。避免强制构造开销 |
@@ -107,15 +107,15 @@
 | 101 | 行插入顺序违反 | 命令层自动纠正 | 如果继承的 role 违反 header-body-footer 顺序，自动调整插入位置到合法区域 |
 | 102 | repeat-template 数量 | v1 单组 | 多个连续 repeat-template 行可以，但只绑定一个集合数据源。多组 repeat 后续扩展 |
 | 103 | table-data 打印属性位置 | TableLayoutConfig | 空行填充等打印属性放在 layout 配置中，table-static 忽略。repeatHeader/showSummaryOnLastPage 由 row.role 自行表达，不再需要显式字段 |
-| 104 | table-data 主数据源 | TableDataSchema.source: BindingRef | 表级主数据源指向集合字段，整表严格单源。简化用户操作（拖字段自动继承 source）和 Viewer 解析（不从 cell 反推集合路径） |
-| 105 | TableSchema 类型拆分 | TableDataSchema extends TableSchema | TableSchema 基类含 kind + layout + topology。TableDataSchema 继承基类加 source: BindingRef。通过 isTableDataNode 判别函数窄化类型 |
+| 104 | table-data 绑定模型 | cell 级绝对路径 + 同行同集合约束 | 移除表级 source 字段。repeat-template 行 cell 使用绝对路径，同行共享集合前缀。Viewer 通过 extractCollectionPath 推导。header/footer 行使用 staticBinding |
+| 105 | TableSchema 类型拆分 | TableDataSchema extends TableSchema | TableSchema 基类含 kind + layout + topology。TableDataSchema 继承基类加 showHeader/showFooter。通过 isTableDataNode 判别函数窄化类型 |
 | 106 | cell.binding 类型 | 单值 BindingRef，非数组 | cell 为纯文本内容，无多参数绑定场景。去除 BindingRef[] 简化类型和命令层 |
-| 107 | cell.binding sourceId 策略 | 自动从 table.source 填充 | 存储时自动复制 sourceId/sourceTag，用户只关心 fieldPath。Viewer 直接读取，不做继承推断 |
-| 108 | 首次拖入自动设置 source | 首次拖入字段自动设置 table.source | 后续拖入字段必须属于同一 sourceId，否则拒绝并提示。消除显式绑定 source 的操作步骤 |
-| 109 | 解除 source 清除 cell binding | CompositeCommand 原子清除 | 解除 table.source 时清除所有 cell.binding，整体 undo 恢复。更换 source 等价于先解除再重新绑定 |
+| 107 | cell.binding sourceId 策略 | cell 各自持有 sourceId | 每个 cell 独立存储 sourceId/sourceTag。Designer 拖拽时自动填入字段所属数据源信息 |
+| 108 | 首次拖入行为 | 直接写入 cell.binding | 不再自动设置表级 source。repeat-template 行拖入字段时 Designer 检查同行已有 cell 的集合前缀一致性（getFieldCollectionPrefix），一致则写入，不一致则拒绝 |
+| 109 | 解除绑定粒度 | 逐 cell 独立解除 | repeat-template cell 通过 UpdateTableCellCommand 清除 binding，header/footer cell 通过 ClearStaticCellBindingCommand 清除 staticBinding。不存在整表批量清除流程 |
 | 110 | fillBlankRows 语义 | 自动填充空行到页底 | 行数由页面剩余空间和 repeat-template 行高自动计算，不需要 rowsPerPage 字段 |
-| 111 | repeatBinding 废弃 | 移除 row.repeatBinding | 集合路径由 table.source.fieldPath 提供，repeat-template 行不再需要独立的 repeatBinding 字段 |
-| 112 | 严格单集合 | v1 每表仅一个集合数据源 | 不支持多组 repeat-template 绑定不同集合。schema 结构不预留扩展（table.source 为单值非数组） |
+| 111 | repeatBinding 废弃 | 移除 row.repeatBinding | 集合路径由 repeat-template 行 cell.binding 的公共前缀在运行时推导（extractCollectionPath），不再需要独立字段 |
+| 112 | 严格单集合 | v1 每行仅一个集合前缀 | 同一 repeat-template 行内所有 cell 的 fieldPath 必须共享相同集合前缀，由 Designer 拖拽时强制。多行多集合后续扩展 |
 
 ## 22.1 已明确废弃的旧前提
 
@@ -139,14 +139,15 @@
 - “TablePageSlice 是表格分页的必要中间抽象”
 - “renderContent 每次传入新 node 快照（无 signal 订阅机制）”
 - “table-static 行可以有 header/footer/repeat-template 角色”
-- “repeat-template 行内单元格使用绝对路径”
+- “repeat-template 行内单元格使用相对路径”（已废弃：所有 fieldPath 均为绝对路径）
+- “resolveBindingValue 需要 scope 参数”（已废弃：移除 scope，统一绝对路径解析）
 - “renderContent 返回 HTML 字符串”
 - “表格 ViewerExtension 自行调用 resolveBindingValue 解析绑定”
 - “PagePlanner 单独负责表格行展开和分页”
 - “renderOverlay 返回声明式描述对象”
 - “复杂元素可以通过 body 拖拽移动”
-- “table-data 必须有主数据源”（已恢复为正确前提：table-data 采用表级主数据源 + cell 继承绑定）
-- “cell 独立声明 sourceId，不存在表级主数据源”（已废弃：严格单源，cell 自动继承 table.source 的 sourceId）
+- “table-data 必须有主数据源”（已废弃：table-data 不再持有表级 source 字段，集合路径由 cell.binding 公共前缀运行时推导）
+- “cell 独立声明 sourceId，不存在表级主数据源”（旧废弃理由已过时：当前模型确实是 cell 独立持有 sourceId，但通过同行同集合前缀约束保证一致性）
 - “Band 容器（title/header/data/summary/footer/blank）是表格结构的必要组成”
 - “MaterialDesignerExtension 返回 Vue VNode”
 - “MaterialDesignerExtension 返回 HTML string”
@@ -160,6 +161,10 @@
 - “fillBlankRows 需要配合 rowsPerPage 字段”
 - “repeatHeader 和 showSummaryOnLastPage 需要显式配置字段”
 - “TableSchema 单一类型同时服务 table-static 和 table-data”
+- “TableDataSchema.source 是表格唯一数据入口”（已废弃：移除 source 字段，改为 cell 级绑定）
+- “BindTableSourceCommand 和 ClearTableSourceCommand 是必要命令”（已废弃：移除这两个命令）
+- “resolveBindingValue 的 scope 参数用于相对路径解析”（已废弃：移除 scope，统一绝对路径）
+- “header/footer 行 cell 使用 cell.binding 字段”（已废弃：header/footer/normal 行改用 staticBinding）
 
 ## 22.2 当前优先级
 

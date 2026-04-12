@@ -93,10 +93,8 @@ class CommandManager {
 - `ClearBindingCommand`
 - `UpdateUsageCommand`
 - `UnionDropCommand`
-- `BindTableSourceCommand`（设置 table-data 的主数据源 table.source，首次拖入字段时自动触发）
-- `ClearTableSourceCommand`（解除 table.source 并清除所有 cell binding，通过 CompositeCommand 打包）
-- `BindStaticCellCommand`（v2 新增：设置 table-static cell 的 staticBinding，同时清除 content.text）
-- `ClearStaticCellBindingCommand`（v2 新增：清除 table-static cell 的 staticBinding，恢复可手动编辑状态）
+- `BindStaticCellCommand`（设置 cell 的 staticBinding，同时清除 content.text。用于 table-static 和 table-data 的 header/footer/normal 行）
+- `ClearStaticCellBindingCommand`（清除 cell 的 staticBinding，恢复可手动编辑状态）
 
 ### 表格相关命令
 
@@ -160,7 +158,6 @@ class CompositeCommand implements Command {
 - **插入行**：修改 rows[] + 根据列定义生成 cells + 重新计算 element.height
 - **删除行**：修改 rows[] + 调整受影响的合并单元格 rowSpan + 重新计算 element.height
 - **合并单元格**：修改目标 cell 的 colSpan/rowSpan + 标记被合并的 cells
-- **解除表级数据源**：清除 table.source + 清除所有 cell.binding，整体 undo 恢复
 
 ### 与事务的区别
 

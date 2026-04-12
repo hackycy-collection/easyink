@@ -118,3 +118,50 @@ export function resolveNodeBindings(
 
   return result
 }
+
+/**
+ * Extract the common collection path from a set of absolute field paths.
+ * Each path is split by separator, and the collection part is all segments
+ * except the last. All paths must share the same collection prefix.
+ *
+ * Example: ['items/name', 'items/qty'] => 'items'
+ * Example: ['items/name', 'orders/qty'] => undefined (mismatch)
+ * Example: [] => undefined
+ */
+export function extractCollectionPath(fieldPaths: string[]): string | undefined {
+  if (fieldPaths.length === 0)
+    return undefined
+  const collectionParts = fieldPaths.map((p) => {
+    const segments = p.split(FIELD_PATH_SEPARATOR)
+    return segments.slice(0, -1).join(FIELD_PATH_SEPARATOR)
+  })
+  const first = collectionParts[0]!
+  if (!first)
+    return undefined
+  if (collectionParts.every(cp => cp === first))
+    return first
+  return undefined
+}
+
+/**
+ * Resolve a leaf field path against a single record.
+ * Used during repeat-template expansion to resolve cell values
+ * within individual collection items.
+ */
+export function resolveFieldFromRecord(
+  leafField: string,
+  record: Record<string, unknown>,
+): unknown {
+  if (!leafField)
+    return undefined
+  const segments = leafField.split(FIELD_PATH_SEPARATOR).filter(Boolean)
+  let current: unknown = record
+  for (const segment of segments) {
+    if (BLOCKED_PATH_KEYS.has(segment))
+      return undefined
+    if (typeof current !== 'object' || current === null)
+      return undefined
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}

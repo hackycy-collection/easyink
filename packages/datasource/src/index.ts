@@ -1,7 +1,9 @@
 export { normalizeDataSource } from './normalize'
 export {
   DataSourceRegistry,
+  extractCollectionPath,
   resolveBindingValue,
+  resolveFieldFromRecord,
   resolveNodeBindings,
 } from './registry'
 

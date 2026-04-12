@@ -174,14 +174,14 @@ interface MaterialCapabilities {
 
 它需要：
 
-- 表级主数据源绑定（`TableDataSchema.source`），指向集合字段
+- Cell 级绝对路径绑定，repeat-template 行内各 cell 的 fieldPath 必须共享相同的集合前缀（Designer 拖拽时通过 `getFieldCollectionPrefix()` 校验）
 - Row role 标记 (normal/header/footer/repeat-template)，header 和 footer 各强制单行（schema + 命令层双层强制）
 - 头尾可见性控制（`showHeader` / `showFooter`），隐藏时 Viewer 完全不渲染对应行
-- Cell 绑定自动继承 table.source 的 sourceId（严格单源）
+- Header/footer/normal 行 cell 使用 `staticBinding`（与 table-static 共用同一机制）
 - 表头/尾编辑：支持手动编辑或拖拽数据源，仅允许左右列方向合并
 - 数据区编辑：设计态展示 3 行（1 行编辑区 + 2 行灰色占位），编辑区仅接受数据源绑定，不允许手动编辑和合并
 - 数据区占位行：纯渲染层虚拟行，不存在于 schema，完全惰性不可交互
-- Row 级 repeat：repeat-template 行按 table.source.fieldPath 集合数据逐项重复
+- Row 级 repeat：Viewer 运行时通过 `extractCollectionPath()` 从 repeat-template 行 cell 的 fieldPath 推导集合路径，按集合数据逐项重复
 
 分页切片、重复头、合计区、空行填充由 Viewer/PagePlanner 负责，不属于 table-data 职责。Cell 仅包含文本内容，不支持子物料嵌套。
 
@@ -315,9 +315,9 @@ interface PropSchema {
 
 表格物料属性按三层上下文组织：
 
-- 表级属性：格子均分、边框外观、格子间距、边框宽度、边框类型、边框颜色、排版默认值（`typography`：字号、颜色、粗体、斜体、行高、字间距、对齐、垂直对齐）、主数据源（仅 table-data）、头尾可见性（仅 table-data，`showHeader` / `showFooter`）
+- 表级属性：格子均分、边框外观、格子间距、边框宽度、边框类型、边框颜色、排版默认值（`typography`：字号、颜色、粗体、斜体、行高、字间距、对齐、垂直对齐）、头尾可见性（仅 table-data，`showHeader` / `showFooter`）
 - 行属性：行角色（仅 table-data 显示）、行高
-- 单元格属性：跨度、边框（四侧独立 width/color/type）、内边距、排版（`cell.typography`：字段缺失时显示表级默认值 + "重置为默认"按钮）、绑定字段（table-data: `binding`，table-static: `staticBinding`）
+- 单元格属性：跨度、边框（四侧独立 width/color/type）、内边距、排版（`cell.typography`：字段缺失时显示表级默认值 + "重置为默认"按钮）、绑定字段（table-data repeat-template: `binding`，table-static 和 table-data header/footer: `staticBinding`）
 - 内容属性：格子文本内容（仅无绑定时可编辑）、内联文本编辑入口
 
 内容层不是另一套独立属性面板。它必须挂在表格壳层之下，避免编辑文字时丢失当前表格上下文。

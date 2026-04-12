@@ -192,10 +192,9 @@ export interface TableSchema {
   diagnostics?: LayoutDiagnostic[]
 }
 
-/** table-data specific schema, adds primary datasource binding. */
+/** table-data specific schema. Cell-level absolute-path binding, no table-level source. */
 export interface TableDataSchema extends TableSchema {
   kind: 'data'
-  source?: BindingRef
   /** Header visibility. false = viewer skips header, pagination no repeat. Default true */
   showHeader?: boolean
   /** Footer visibility. false = viewer skips footer. Default true */

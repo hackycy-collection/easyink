@@ -573,15 +573,14 @@ Cell 内容为纯文本，不支持嵌套子物料。
 
 ### `table-data` 绑定
 
-表格采用表级主数据源 + cell 继承绑定模型。
+表格采用 cell 级绝对路径绑定 + 同行同集合约束模型。
 
 1. 从数据源树拖拽字段到表格上方。
-2. 如果表格尚无 `table.source`，首次拖入自动设置 `table.source`（sourceId + fieldPath 指向该字段所属集合）。
-3. 如果字段不属于当前 `table.source.sourceId`，拒绝拖入并显示提示。
-4. 当前悬停的单元格显示 drop zone 高亮，并指示类型兼容性。
-5. 松手后生成该单元格的 `BindingRef`，sourceId 自动从 `table.source` 填充，用户只需关心字段名。
-6. repeat-template 行内 cell 使用相对路径（相对于集合项），header/footer/normal 行内 cell 使用绝对路径。
-7. 解除 table.source 时，CompositeCommand 原子清除所有 cell binding，支持整体 undo。
+2. 当前悬停的单元格显示 drop zone 高亮，并指示类型兼容性。
+3. 根据目标 cell 所在行的 role 区分处理：
+   - **repeat-template 行**：检查新字段的集合前缀是否与同行已有 cell 一致（`getFieldCollectionPrefix()` 校验），不一致则拒绝拖入并显示提示。通过 `UpdateTableCellCommand` 设置 `cell.binding`，fieldPath 为绝对路径（如 `items/name`）。
+   - **header / footer / normal 行**：通过 `BindStaticCellCommand` 设置 `cell.staticBinding`，fieldPath 为绝对路径，无集合约束。
+4. 解除绑定时，repeat-template cell 通过 `UpdateTableCellCommand` 清除 `cell.binding`，header/footer cell 通过 `ClearStaticCellBindingCommand` 清除 `cell.staticBinding`。
 
 ## 10.9 画布设计态渲染
 

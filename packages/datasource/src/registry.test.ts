@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DataSourceRegistry, resolveBindingValue, resolveNodeBindings } from './registry'
+import { DataSourceRegistry, extractCollectionPath, resolveBindingValue, resolveFieldFromRecord, resolveNodeBindings } from './registry'
 
 describe('dataSourceRegistry', () => {
   it('registers and retrieves a source by id', () => {
@@ -107,5 +107,53 @@ describe('resolveNodeBindings', () => {
   it('returns empty map for undefined bindings', () => {
     const result = resolveNodeBindings(undefined, {})
     expect(result.size).toBe(0)
+  })
+})
+
+describe('extractCollectionPath', () => {
+  it('extracts common collection from same-prefix paths', () => {
+    expect(extractCollectionPath(['items/name', 'items/qty', 'items/price'])).toBe('items')
+  })
+
+  it('extracts nested collection path', () => {
+    expect(extractCollectionPath(['orders/items/name', 'orders/items/qty'])).toBe('orders/items')
+  })
+
+  it('returns undefined for empty array', () => {
+    expect(extractCollectionPath([])).toBeUndefined()
+  })
+
+  it('returns undefined for mismatched prefixes', () => {
+    expect(extractCollectionPath(['items/name', 'orders/qty'])).toBeUndefined()
+  })
+
+  it('returns undefined for single-segment paths (no collection)', () => {
+    expect(extractCollectionPath(['standalone'])).toBeUndefined()
+  })
+
+  it('works with single path', () => {
+    expect(extractCollectionPath(['items/name'])).toBe('items')
+  })
+})
+
+describe('resolveFieldFromRecord', () => {
+  it('resolves a simple field', () => {
+    expect(resolveFieldFromRecord('name', { name: 'Pen' })).toBe('Pen')
+  })
+
+  it('resolves a nested field', () => {
+    expect(resolveFieldFromRecord('nested/field', { nested: { field: 42 } })).toBe(42)
+  })
+
+  it('returns undefined for empty leaf', () => {
+    expect(resolveFieldFromRecord('', { a: 1 })).toBeUndefined()
+  })
+
+  it('returns undefined for missing field', () => {
+    expect(resolveFieldFromRecord('missing', { a: 1 })).toBeUndefined()
+  })
+
+  it('blocks __proto__ access', () => {
+    expect(resolveFieldFromRecord('__proto__', {})).toBeUndefined()
   })
 })
