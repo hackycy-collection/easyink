@@ -127,7 +127,7 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
         context.commitCommand(new UpdateTableCellTypographyCommand(n, row, col, { [key]: undefined }))
       },
       get binding() {
-        return getCell()?.staticBinding ?? null
+        return getCell()?.staticBinding
       },
       clearBinding() {
         const n = getNode()

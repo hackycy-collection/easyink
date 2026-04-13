@@ -383,7 +383,7 @@ function readPropValue(schema: PropSchema): unknown {
       </template>
 
       <!-- Data binding -->
-      <EiPanel v-if="!hideBindingSection && isSectionVisible('binding')" :title="store.t('designer.property.dataBinding')" collapsible flat>
+      <EiPanel v-if="!hideBindingSection && (isSectionVisible('binding') || hasOverlayBinding)" :title="store.t('designer.property.dataBinding')" collapsible flat>
         <BindingSection
           :element="selectedElement"
           :t="store.t.bind(store)"

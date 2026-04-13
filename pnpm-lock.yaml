@@ -423,6 +423,9 @@ importers:
       '@easyink/shared':
         specifier: workspace:*
         version: link:../../shared
+      '@easyink/ui':
+        specifier: workspace:*
+        version: link:../../ui
       vue:
         specifier: '>=3.0.0'
         version: 3.5.31(typescript@6.0.2)

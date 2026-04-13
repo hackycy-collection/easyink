@@ -199,14 +199,14 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
       get binding() {
         const c = getCell()
         if (!c)
-          return null
+          return undefined
         const n = getNode()
         if (!n)
-          return null
+          return undefined
         const rowRole = n.table.topology.rows[row]?.role
         if (rowRole === 'repeat-template')
-          return c.binding ?? null
-        return c.staticBinding ?? null
+          return c.binding
+        return c.staticBinding
       },
       clearBinding() {
         const n = getNode()

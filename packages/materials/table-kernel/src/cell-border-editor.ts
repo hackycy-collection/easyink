@@ -1,4 +1,5 @@
 import type { BorderSide, CellBorderSchema } from '@easyink/schema'
+import { EiColorPicker, EiInput } from '@easyink/ui'
 import { defineComponent, h, markRaw } from 'vue'
 
 const SIDES = ['top', 'right', 'bottom', 'left'] as const
@@ -11,7 +12,7 @@ const SIDE_LABELS: Record<string, string> = {
 
 /**
  * Custom four-side border editor for table cells.
- * Renders width + color inputs for each side.
+ * Renders width + color inputs for each side using @easyink/ui form components.
  * Conforms to the CustomEditor contract (props: schema/value/t, emits: change).
  */
 export const CellBorderEditor = markRaw(defineComponent({
@@ -36,36 +37,26 @@ export const CellBorderEditor = markRaw(defineComponent({
       const currentSide = current?.[side as keyof CellBorderSchema]
       const updated: CellBorderSchema = {
         ...current,
-        [side]: { ...currentSide, [field]: val },
+        [side]: { ...currentSide, [field]: field === 'width' ? Number(val) : val },
       }
       emit('change', props.schema.key, updated)
     }
 
-    const inputStyle = 'width:48px;height:24px;padding:2px 4px;border:1px solid var(--ei-border-color,#d0d0d0);border-radius:3px;font-size:12px;outline:none;box-sizing:border-box;'
-    const colorStyle = 'width:28px;height:24px;padding:1px;border:1px solid var(--ei-border-color,#d0d0d0);border-radius:3px;cursor:pointer;'
     const rowStyle = 'display:flex;align-items:center;gap:6px;'
-    const labelStyle = 'width:28px;font-size:11px;color:var(--ei-text-secondary,#666);flex-shrink:0;'
 
     return () => h('div', { style: 'display:flex;flex-direction:column;gap:4px;width:100%;' }, [
       ...SIDES.map(side =>
         h('div', { style: rowStyle }, [
-          h('span', { style: labelStyle }, props.t(SIDE_LABELS[side])),
-          h('input', {
-            type: 'number',
-            style: inputStyle,
-            value: getSide(side)?.width ?? 0,
-            disabled: props.disabled,
-            min: 0,
-            max: 10,
-            step: 1,
-            onInput: (e: Event) => updateSide(side, 'width', Number((e.target as HTMLInputElement).value)),
+          h(EiInput, {
+            'label': props.t(SIDE_LABELS[side]),
+            'type': 'number',
+            'modelValue': getSide(side)?.width ?? 0,
+            'disabled': props.disabled,
+            'onUpdate:modelValue': (v: string | number) => updateSide(side, 'width', v),
           }),
-          h('input', {
-            type: 'color',
-            style: colorStyle,
-            value: getSide(side)?.color ?? '#000000',
-            disabled: props.disabled,
-            onInput: (e: Event) => updateSide(side, 'color', (e.target as HTMLInputElement).value),
+          h(EiColorPicker, {
+            'modelValue': getSide(side)?.color ?? '#000000',
+            'onUpdate:modelValue': (v: string) => updateSide(side, 'color', v),
           }),
         ]),
       ),
