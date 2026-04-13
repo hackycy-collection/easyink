@@ -1,3 +1,5 @@
+export type { BorderSides } from './components/border-types'
+export { default as EiBorderToggle } from './components/EiBorderToggle.vue'
 export { default as EiButton } from './components/EiButton.vue'
 export { default as EiCheckbox } from './components/EiCheckbox.vue'
 export { default as EiColorPicker } from './components/EiColorPicker.vue'

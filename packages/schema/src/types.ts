@@ -291,17 +291,15 @@ export interface TableCellContentSlot {
   editMode?: 'inline-text' | 'rich-text' | 'hosted'
 }
 
+/**
+ * Per-cell border visibility. Each side is a boolean (default true = visible).
+ * Width / color / type are inherited from table-level props (TableLayoutConfig).
+ */
 export interface CellBorderSchema {
-  top?: BorderSide
-  right?: BorderSide
-  bottom?: BorderSide
-  left?: BorderSide
-}
-
-export interface BorderSide {
-  width?: number
-  color?: string
-  type?: BorderType
+  top?: boolean
+  right?: boolean
+  bottom?: boolean
+  left?: boolean
 }
 
 export interface BoxSpacing {

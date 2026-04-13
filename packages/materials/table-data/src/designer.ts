@@ -18,7 +18,7 @@ import {
   UpdateTableCellCommand,
   UpdateTableCellTypographyCommand,
 } from '@easyink/core'
-import { CELL_PROP_SCHEMAS, CellBorderEditor, computeCellRect, computeRowHeights, computeRowScale, createTableDeepEditing, escapeHtml, hitTestGridCell, renderTableHtml, resolveMergeOwner } from '@easyink/material-table-kernel'
+import { CELL_PROP_SCHEMAS, computeCellRect, computeRowHeights, computeRowScale, createTableDeepEditing, escapeHtml, hitTestGridCell, renderTableHtml, resolveMergeOwner } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 const ROLE_BG_MAP: Record<string, keyof TableDataProps> = {
@@ -219,9 +219,6 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
         else {
           context.commitCommand(new ClearStaticCellBindingCommand(n, row, col))
         }
-      },
-      editors: {
-        'cell-border': CellBorderEditor,
       },
     })
   }

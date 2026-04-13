@@ -126,7 +126,12 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
       const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
       const content = cellRenderer(cell, ri, ci)
       const typo = resolveCellTypography(cell, props.typography ?? TABLE_TYPOGRAPHY_DEFAULTS)
-      cells += `<td${rs}${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;font-size:${typo.fontSize}pt;color:${typo.color};font-weight:${typo.fontWeight};font-style:${typo.fontStyle};line-height:${typo.lineHeight};letter-spacing:${typo.letterSpacing}px;text-align:${typo.textAlign};vertical-align:${typo.verticalAlign}${cellStyle}">${content}</td>`
+      const cb = cell.border
+      const borderTop = cb?.top !== false ? `${bw}px ${bt} ${bc}` : 'none'
+      const borderRight = cb?.right !== false ? `${bw}px ${bt} ${bc}` : 'none'
+      const borderBottom = cb?.bottom !== false ? `${bw}px ${bt} ${bc}` : 'none'
+      const borderLeft = cb?.left !== false ? `${bw}px ${bt} ${bc}` : 'none'
+      cells += `<td${rs}${cs} style="border-top:${borderTop};border-right:${borderRight};border-bottom:${borderBottom};border-left:${borderLeft};padding:${pad}px;font-size:${typo.fontSize}pt;color:${typo.color};font-weight:${typo.fontWeight};font-style:${typo.fontStyle};line-height:${typo.lineHeight};letter-spacing:${typo.letterSpacing}px;text-align:${typo.textAlign};vertical-align:${typo.verticalAlign}${cellStyle}">${content}</td>`
     }
     rows += `<tr style="height:${scaledHeight}${unit}${rowExtraStyle}">${cells}</tr>`
 

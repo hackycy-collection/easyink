@@ -329,7 +329,7 @@ interface PropSchema {
 
 - 表级属性：格子均分、边框外观、格子间距、边框宽度、边框类型、边框颜色、排版默认值（`typography`：字号、颜色、粗体、斜体、行高、字间距、对齐、垂直对齐）、头尾可见性（仅 table-data，`showHeader` / `showFooter`）
 - 行属性：行角色（仅 table-data 显示）、行高
-- 单元格属性：跨度、边框（四侧独立 width/color/type）、内边距、排版（`cell.typography`：字段缺失时显示表级默认值 + "重置为默认"按钮）、绑定字段（table-data repeat-template: `binding`，table-static 和 table-data header/footer: `staticBinding`）
+- 单元格属性：跨度、边框（四侧独立显示/隐藏，粗细/颜色/类型继承表级设置）、内边距、排版（`cell.typography`：字段缺失时显示表级默认值 + "重置为默认"按钮）、绑定字段（table-data repeat-template: `binding`，table-static 和 table-data header/footer: `staticBinding`）
 - 内容属性：格子文本内容（仅无绑定时可编辑）、内联文本编辑入口
 
 内容层不是另一套独立属性面板。它必须挂在表格壳层之下，避免编辑文字时丢失当前表格上下文。

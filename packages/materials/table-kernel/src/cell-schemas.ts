@@ -14,7 +14,6 @@ export const CELL_PROP_SCHEMAS: Array<{
   max?: number
   step?: number
   enum?: Array<{ label: string, value: unknown }>
-  editor?: string
 }> = [
   { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'cell-typography', min: 1, max: 100, step: 1 },
   { key: 'color', label: 'designer.property.color', type: 'color', group: 'cell-typography' },
@@ -37,5 +36,5 @@ export const CELL_PROP_SCHEMAS: Array<{
     { label: 'Bottom', value: 'bottom' },
   ] },
   { key: 'padding', label: 'designer.property.padding', type: 'number', group: 'cell-layout', min: 0, max: 20, step: 1 },
-  { key: 'border', label: 'designer.property.border', type: 'object', group: 'cell-border', editor: 'cell-border' },
+  { key: 'border', label: 'designer.property.border', type: 'border-toggle', group: 'cell-border' },
 ]

@@ -397,7 +397,7 @@ interface TableCellSchema {
   colSpan?: number
   /** 单元格宽度由 columns[].ratio 计算得来，不自持。
    *  合并单元格的宽度 = 跨越列的 ratio 之和 * element.width。 */
-  border?: CellBorderSchema
+  border?: CellBorderSchema  // 四侧独立显示/隐藏（boolean），粗细/颜色/类型继承表级 TableLayoutConfig
   padding?: BoxSpacing
   content?: TableCellContentSlot
   /** 单元格排版属性，字段缺失时回退到表级 typography 默认值 */

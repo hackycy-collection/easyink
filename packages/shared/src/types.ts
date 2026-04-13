@@ -103,6 +103,7 @@ export type PropSchemaType
     | 'image'
     | 'font'
     | 'unit'
+    | 'border-toggle'
 
 /**
  * Diagnostic severity levels.

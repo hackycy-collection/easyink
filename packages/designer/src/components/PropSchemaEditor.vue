@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { PropSchema } from '../types'
-import { EiButton, EiCheckbox, EiColorPicker, EiFontPicker, EiInput, EiSelect, EiSwitch, EiTextarea } from '@easyink/ui'
+import { EiBorderToggle, EiButton, EiCheckbox, EiColorPicker, EiFontPicker, EiInput, EiSelect, EiSwitch, EiTextarea } from '@easyink/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -157,6 +157,15 @@ function handleClearOverride() {
         :label="label"
         :model-value="(value as string) ?? ''"
         :fonts="fonts"
+        :disabled="disabled"
+        @update:model-value="onUpdate"
+      />
+
+      <!-- border-toggle -->
+      <EiBorderToggle
+        v-else-if="schema.type === 'border-toggle'"
+        :label="label"
+        :model-value="(value as Record<string, boolean>) ?? undefined"
         :disabled="disabled"
         @update:model-value="onUpdate"
       />

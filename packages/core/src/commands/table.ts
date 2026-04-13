@@ -459,7 +459,7 @@ export class UpdateTableRowRoleCommand implements Command {
   }
 }
 
-/** Update a single border side of a cell. */
+/** Update a single border side visibility of a cell. */
 export class UpdateTableCellBorderCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'update-table-cell-border'
@@ -471,7 +471,7 @@ export class UpdateTableCellBorderCommand implements Command {
     private rowIndex: number,
     private cellIndex: number,
     private side: 'top' | 'right' | 'bottom' | 'left',
-    private border: { width?: number, color?: string, type?: string } | undefined,
+    private visible: boolean,
   ) {}
 
   execute(): void {
@@ -479,7 +479,7 @@ export class UpdateTableCellBorderCommand implements Command {
     this.oldBorder = deepClone(cell.border)
     if (!cell.border)
       cell.border = {}
-    asRecord(cell.border)[this.side] = this.border ? deepClone(this.border) : undefined
+    asRecord(cell.border)[this.side] = this.visible
   }
 
   undo(): void {
