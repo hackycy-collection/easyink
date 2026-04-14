@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: BorderSides]
+  'commit': [value: BorderSides]
 }>()
 
 function isActive(side: typeof SIDES[number]): boolean {
@@ -20,10 +21,12 @@ function isActive(side: typeof SIDES[number]): boolean {
 function toggle(side: typeof SIDES[number]) {
   if (props.disabled) return
   const current = isActive(side)
-  emit('update:modelValue', {
+  const val = {
     ...props.modelValue,
     [side]: !current,
-  })
+  }
+  emit('update:modelValue', val)
+  emit('commit', val)
 }
 </script>
 

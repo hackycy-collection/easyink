@@ -5,9 +5,16 @@ defineProps<{
   disabled?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'commit': [value: boolean]
 }>()
+
+function onChange(event: Event) {
+  const val = (event.target as HTMLInputElement).checked
+  emit('update:modelValue', val)
+  emit('commit', val)
+}
 </script>
 
 <template>
@@ -16,7 +23,7 @@ defineEmits<{
       type="checkbox"
       :checked="modelValue"
       :disabled="disabled"
-      @change="$emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
+      @change="onChange"
     >
     <span v-if="label" class="ei-checkbox__label">{{ label }}</span>
   </label>

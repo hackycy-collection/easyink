@@ -13,12 +13,13 @@ export {
   ResizeMaterialCommand,
   RotateMaterialCommand,
   UpdateDocumentCommand,
+  UpdateGeometryCommand,
   UpdateGuidesCommand,
   UpdateMaterialPropsCommand,
   UpdatePageCommand,
 } from './document'
 
-export { getByPath } from './helpers'
+export { getByPath, setByPath } from './helpers'
 
 export {
   BindStaticCellCommand,

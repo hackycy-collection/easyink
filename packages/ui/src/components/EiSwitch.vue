@@ -1,13 +1,20 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   modelValue?: boolean
   label?: string
   disabled?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'commit': [value: boolean]
 }>()
+
+function onClick() {
+  const val = !props.modelValue
+  emit('update:modelValue', val)
+  emit('commit', val)
+}
 </script>
 
 <template>
@@ -20,7 +27,7 @@ defineEmits<{
       class="ei-switch__track"
       :class="{ 'ei-switch__track--on': modelValue }"
       :disabled="disabled"
-      @click="$emit('update:modelValue', !modelValue)"
+      @click="onClick"
     >
       <span class="ei-switch__thumb" />
     </button>

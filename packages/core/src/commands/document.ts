@@ -220,21 +220,28 @@ export class UpdateMaterialPropsCommand implements Command {
     private elements: MaterialNode[],
     private nodeId: string,
     private updates: Record<string, unknown>,
-  ) {}
+    precomputedOldValues?: Record<string, unknown>,
+  ) {
+    if (precomputedOldValues) {
+      this.oldValues = deepClone(precomputedOldValues)
+    }
+  }
 
   execute(): void {
     const node = findNode(this.elements, this.nodeId)
     if (!node)
       return
     for (const key of Object.keys(this.updates)) {
-      if (key.includes('.')) {
-        this.oldValues[key] = deepClone(getByPath(node.props, key))
+      if (!(key in this.oldValues)) {
+        if (key.includes('.'))
+          this.oldValues[key] = deepClone(getByPath(node.props, key))
+        else
+          this.oldValues[key] = deepClone(node.props[key])
+      }
+      if (key.includes('.'))
         setByPath(node.props, key, deepClone(this.updates[key]))
-      }
-      else {
-        this.oldValues[key] = deepClone(node.props[key])
+      else
         node.props[key] = deepClone(this.updates[key])
-      }
     }
   }
 
@@ -260,11 +267,17 @@ export class UpdatePageCommand implements Command {
   constructor(
     private page: PageSchema,
     private updates: Partial<PageSchema>,
-  ) {}
+    precomputedOldValues?: Partial<PageSchema>,
+  ) {
+    if (precomputedOldValues) {
+      this.oldValues = deepClone(precomputedOldValues) as Partial<PageSchema>
+    }
+  }
 
   execute(): void {
     for (const key of Object.keys(this.updates) as Array<keyof PageSchema>) {
-      asRecord(this.oldValues)[key] = deepClone(asRecord(this.page)[key])
+      if (!(key in this.oldValues))
+        asRecord(this.oldValues)[key] = deepClone(asRecord(this.page)[key])
       asRecord(this.page)[key] = deepClone(asRecord(this.updates)[key])
     }
   }
@@ -307,11 +320,17 @@ export class UpdateDocumentCommand implements Command {
   constructor(
     private schema: DocumentSchema,
     private updates: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
-  ) {}
+    precomputedOldValues?: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
+  ) {
+    if (precomputedOldValues) {
+      this.oldValues = deepClone(precomputedOldValues) as Partial<DocumentSchema>
+    }
+  }
 
   execute(): void {
     for (const key of Object.keys(this.updates) as Array<keyof typeof this.updates>) {
-      asRecord(this.oldValues)[key] = deepClone(asRecord(this.schema)[key])
+      if (!(key in this.oldValues))
+        asRecord(this.oldValues)[key] = deepClone(asRecord(this.schema)[key])
       asRecord(this.schema)[key] = deepClone(asRecord(this.updates)[key])
     }
   }
@@ -355,5 +374,61 @@ export class ImportTemplateCommand implements Command {
       Object.assign(this.schema.page, this.oldPage)
     if (this.oldGuides)
       this.schema.guides = this.oldGuides
+  }
+}
+
+type GeometryKey = 'x' | 'y' | 'width' | 'height' | 'rotation' | 'alpha'
+
+export class UpdateGeometryCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-geometry'
+  readonly description = 'Update geometry'
+  private oldValues: Partial<Record<GeometryKey, number>> = {}
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private updates: Partial<Record<GeometryKey, number>>,
+    precomputedOldValues?: Partial<Record<GeometryKey, number>>,
+  ) {
+    if (precomputedOldValues) {
+      this.oldValues = { ...precomputedOldValues }
+    }
+  }
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.updates) as GeometryKey[]) {
+      if (!(key in this.oldValues))
+        this.oldValues[key] = (node as unknown as Record<string, number>)[key]
+      ;(node as unknown as Record<string, number>)[key] = this.updates[key]!
+    }
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.oldValues) as GeometryKey[]) {
+      (node as unknown as Record<string, number>)[key] = this.oldValues[key]!
+    }
+  }
+
+  merge(next: Command): Command | null {
+    if (next.type !== this.type)
+      return null
+    const other = next as UpdateGeometryCommand
+    if (other.nodeId !== this.nodeId)
+      return null
+    const mergedUpdates = { ...this.updates, ...other.updates }
+    const mergedOlds = { ...this.oldValues }
+    for (const key of Object.keys(other.oldValues) as GeometryKey[]) {
+      if (!(key in mergedOlds))
+        mergedOlds[key] = other.oldValues[key]
+    }
+    const merged = new UpdateGeometryCommand(this.elements, this.nodeId, mergedUpdates, mergedOlds)
+    return merged
   }
 }

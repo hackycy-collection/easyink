@@ -1,5 +1,7 @@
 <script setup lang="ts">
-defineProps<{
+import { ref } from 'vue'
+
+const props = defineProps<{
   modelValue?: string | number
   type?: 'text' | 'number'
   placeholder?: string
@@ -7,9 +9,28 @@ defineProps<{
   label?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: string | number]
+  'commit': [value: string | number]
 }>()
+
+const snapshotValue = ref<string | number | undefined>()
+
+function onFocus() {
+  snapshotValue.value = props.modelValue
+}
+
+function onInput(event: Event) {
+  emit('update:modelValue', (event.target as HTMLInputElement).value)
+}
+
+function onCommit(event: Event) {
+  const current = (event.target as HTMLInputElement).value
+  if (current !== snapshotValue.value) {
+    emit('commit', current)
+  }
+  snapshotValue.value = current
+}
 </script>
 
 <template>
@@ -21,7 +42,10 @@ defineEmits<{
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @focus="onFocus"
+      @input="onInput"
+      @blur="onCommit"
+      @keydown.enter="onCommit"
     >
   </div>
 </template>

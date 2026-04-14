@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  'commit': [value: string]
 }>()
 
 const PANEL_W = 220
@@ -109,8 +110,13 @@ function emitColor() {
   emit('update:modelValue', currentHex.value)
 }
 
+function commitColor() {
+  emit('commit', currentHex.value)
+}
+
 function clearColor() {
   emit('update:modelValue', '')
+  emit('commit', '')
 }
 
 function syncFromProp() {
@@ -306,6 +312,7 @@ function handleSatPointerDown(e: PointerEvent) {
   const onUp = () => {
     canvas.removeEventListener('pointermove', onMove)
     canvas.removeEventListener('pointerup', onUp)
+    commitColor()
   }
 
   canvas.addEventListener('pointermove', onMove)
@@ -335,6 +342,7 @@ function handleHuePointerDown(e: PointerEvent) {
   const onUp = () => {
     canvas.removeEventListener('pointermove', onMove)
     canvas.removeEventListener('pointerup', onUp)
+    commitColor()
   }
 
   canvas.addEventListener('pointermove', onMove)
@@ -364,6 +372,7 @@ function handleAlphaPointerDown(e: PointerEvent) {
   const onUp = () => {
     canvas.removeEventListener('pointermove', onMove)
     canvas.removeEventListener('pointerup', onUp)
+    commitColor()
   }
 
   canvas.addEventListener('pointermove', onMove)
@@ -384,6 +393,7 @@ function onHexInputCommit() {
     else
       alpha.value = hsva.a
     emitColor()
+    commitColor()
   }
   else {
     hexInput.value = currentHex.value.toUpperCase()
@@ -395,6 +405,7 @@ function onAlphaInputCommit(e: Event) {
   if (!Number.isNaN(val)) {
     alpha.value = clamp(val, 0, 100) / 100
     emitColor()
+    commitColor()
   }
 }
 
@@ -406,6 +417,7 @@ function onPresetClick(color: string) {
   brightness.value = hsva.v
   alpha.value = hsva.a
   emitColor()
+  commitColor()
 }
 
 function isPresetActive(color: string): boolean {

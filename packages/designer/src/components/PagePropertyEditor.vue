@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PagePropertyContext, PagePropertyDescriptor } from '../page-properties'
-import { EiCheckbox, EiColorPicker, EiFontPicker, EiInput, EiSelect, EiSwitch } from '@easyink/ui'
+import type { PagePropertyDescriptor } from '../page-properties'
+import { EiColorPicker, EiFontPicker, EiInput, EiNumberInput, EiSelect, EiSwitch } from '@easyink/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -11,6 +11,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  preview: [descriptor: PagePropertyDescriptor, value: unknown]
   change: [descriptor: PagePropertyDescriptor, value: unknown]
 }>()
 
@@ -25,14 +26,12 @@ const enumOptions = computed(() => {
   }))
 })
 
-function onUpdate(val: unknown) {
-  let resolved = val
-  if (props.descriptor.editor === 'number') {
-    resolved = Number(val)
-    if (Number.isNaN(resolved as number))
-      return
-  }
-  emit('change', props.descriptor, resolved)
+function onPreview(val: unknown) {
+  emit('preview', props.descriptor, val)
+}
+
+function onCommit(val: unknown) {
+  emit('change', props.descriptor, val)
 }
 </script>
 
@@ -47,12 +46,13 @@ function onUpdate(val: unknown) {
     />
 
     <!-- number -->
-    <EiInput
+    <EiNumberInput
       v-else-if="descriptor.editor === 'number'"
       :label="label"
-      type="number"
-      :model-value="(value as number) ?? 0"
-      @update:model-value="onUpdate"
+      :model-value="(value as number | null) ?? null"
+      :nullable="false"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
 
     <!-- select -->
@@ -61,7 +61,8 @@ function onUpdate(val: unknown) {
       :label="label"
       :model-value="(value as string | number) ?? ''"
       :options="enumOptions"
-      @update:model-value="onUpdate"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
 
     <!-- switch -->
@@ -69,7 +70,8 @@ function onUpdate(val: unknown) {
       v-else-if="descriptor.editor === 'switch'"
       :label="label"
       :model-value="(value as boolean) ?? false"
-      @update:model-value="onUpdate"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
 
     <!-- color -->
@@ -77,7 +79,8 @@ function onUpdate(val: unknown) {
       v-else-if="descriptor.editor === 'color'"
       :label="label"
       :model-value="(value as string) ?? ''"
-      @update:model-value="onUpdate"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
 
     <!-- asset (image url input) -->
@@ -85,7 +88,8 @@ function onUpdate(val: unknown) {
       v-else-if="descriptor.editor === 'asset'"
       :label="label"
       :model-value="(value as string) ?? ''"
-      @update:model-value="onUpdate"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
 
     <!-- font -->
@@ -94,7 +98,8 @@ function onUpdate(val: unknown) {
       :label="label"
       :model-value="(value as string) ?? ''"
       :fonts="fonts"
-      @update:model-value="onUpdate"
+      @update:model-value="onPreview"
+      @commit="onCommit"
     />
   </div>
 </template>

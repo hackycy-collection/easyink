@@ -7,9 +7,16 @@ defineProps<{
   label?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: string | number]
+  'commit': [value: string | number]
 }>()
+
+function onChange(event: Event) {
+  const val = (event.target as HTMLSelectElement).value
+  emit('update:modelValue', val)
+  emit('commit', val)
+}
 </script>
 
 <template>
@@ -19,7 +26,7 @@ defineEmits<{
       class="ei-select"
       :value="modelValue"
       :disabled="disabled"
-      @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      @change="onChange"
     >
       <option v-if="placeholder" value="" disabled>
         {{ placeholder }}

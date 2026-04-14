@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { PropSchema } from '../types'
-import { EiBorderToggle, EiCheckbox, EiColorPicker, EiFontPicker, EiInput, EiSelect, EiSwitch, EiTextarea } from '@easyink/ui'
+import { EiBorderToggle, EiCheckbox, EiColorPicker, EiFontPicker, EiInput, EiNumberInput, EiSelect, EiSwitch, EiTextarea } from '@easyink/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -15,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  preview: [key: string, value: unknown]
   change: [key: string, value: unknown]
 }>()
 
@@ -37,13 +38,32 @@ const customEditorComponent = computed<Component | undefined>(() => {
   return props.customEditors[editorKey]
 })
 
-function onUpdate(val: unknown) {
+function resolveValue(val: unknown): unknown {
   let resolved = val
   if (props.schema.type === 'number') {
-    resolved = Number(val)
-    if (Number.isNaN(resolved as number))
-      return
+    if (resolved == null) {
+      resolved = props.schema.default ?? 0
+    }
+    else {
+      resolved = Number(val)
+      if (Number.isNaN(resolved as number))
+        return undefined
+    }
   }
+  return resolved
+}
+
+function onPreview(val: unknown) {
+  const resolved = resolveValue(val)
+  if (resolved === undefined)
+    return
+  emit('preview', props.schema.key, resolved)
+}
+
+function onCommit(val: unknown) {
+  const resolved = resolveValue(val)
+  if (resolved === undefined)
+    return
   emit('change', props.schema.key, resolved)
 }
 </script>
@@ -59,6 +79,7 @@ function onUpdate(val: unknown) {
         :disabled="disabled"
         :fonts="fonts"
         :t="t"
+        @preview="(key: string, val: unknown) => emit('preview', key, val)"
         @change="(key: string, val: unknown) => emit('change', key, val)"
       />
     </template>
@@ -70,17 +91,21 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="(value as string) ?? ''"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- number -->
-      <EiInput
+      <EiNumberInput
         v-else-if="schema.type === 'number' || schema.type === 'unit'"
         :label="label"
-        type="number"
-        :model-value="(value as number) ?? 0"
+        :model-value="(value as number | null) ?? null"
+        :min="schema.min"
+        :max="schema.max"
+        :step="schema.step"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- boolean -->
@@ -89,7 +114,8 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="(value as boolean) ?? false"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- switch -->
@@ -98,7 +124,8 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="(value as boolean) ?? false"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- textarea -->
@@ -108,7 +135,8 @@ function onUpdate(val: unknown) {
         :model-value="(value as string) ?? ''"
         :disabled="disabled"
         :rows="(schema.editorOptions?.rows as number) ?? 3"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- color -->
@@ -116,7 +144,8 @@ function onUpdate(val: unknown) {
         v-else-if="schema.type === 'color'"
         :label="label"
         :model-value="(value as string) ?? '#000000'"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- enum -->
@@ -126,7 +155,8 @@ function onUpdate(val: unknown) {
         :model-value="(value as string | number) ?? ''"
         :options="enumOptions"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- font -->
@@ -136,7 +166,8 @@ function onUpdate(val: unknown) {
         :model-value="(value as string) ?? ''"
         :fonts="fonts"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- border-toggle -->
@@ -145,7 +176,8 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="(value as Record<string, boolean>) ?? undefined"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- rich-text: fallback to string input -->
@@ -154,7 +186,8 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="(value as string) ?? ''"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
 
       <!-- fallback -->
@@ -163,7 +196,8 @@ function onUpdate(val: unknown) {
         :label="label"
         :model-value="String(value ?? '')"
         :disabled="disabled"
-        @update:model-value="onUpdate"
+        @update:model-value="onPreview"
+        @commit="onCommit"
       />
     </template>
   </div>

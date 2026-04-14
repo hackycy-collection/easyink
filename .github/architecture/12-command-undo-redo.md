@@ -86,6 +86,7 @@ class CommandManager {
 - `UpdateMaterialPropsCommand`
 - `UpdatePageCommand`
 - `UpdateGuidesCommand`
+- `UpdateGeometryCommand`（属性面板 X/Y/W/H/rotation/opacity 修改，支持 merge 和 precomputedOldValues）
 
 ### 数据相关命令
 
@@ -161,7 +162,42 @@ class CompositeCommand implements Command {
 
 `CompositeCommand` 是命令组合，在 execute 之前就确定了所有子命令。事务（`beginTransaction/commitTransaction`）适用于运行时才能确定步骤的场景（如拖拽投放多个元素）。两者不冲突，事务提交时可以将收集到的命令包装成 `CompositeCommand`。
 
-## 12.7 历史面板
+## 12.7 `@easyink/ui` 表单组件事件协议
+
+所有 `@easyink/ui` 包中的 `Ei*` 表单组件必须同时暴露两个事件：
+
+| 事件 | 语义 | 触发时机 | 消费方用途 |
+|------|------|----------|-----------|
+| `update:modelValue` | 实时预览 | 每次值变化（按键、拖拽 tick、交互） | 直接修改模型用于画布实时预览，不产生 Command |
+| `commit` | 最终提交 | 用户完成一次编辑手势 | 创建 Command 进入 undo 栈 |
+
+### 组件分类与触发规则
+
+**连续输入类**（EiInput、EiTextarea、EiNumberInput）：
+
+- `update:modelValue`：每次按键触发
+- `commit`：blur 或 Enter 时触发，携带最终值
+- 值变更守卫：组件在 focus 时快照当前值，commit 时比较最终值与快照，相同则不 emit commit
+- EiNumberInput 的 commit 值经过 clamp/precision 处理
+
+**离散输入类**（EiSelect、EiCheckbox、EiSwitch、EiFontPicker、EiBorderToggle）：
+
+- 每次用户交互同时 emit `update:modelValue` 和 `commit`（每次交互必然产生值变化）
+
+**复合类**（EiColorPicker）：
+
+- 拖拽调色：`update:modelValue` 每个 tick，`commit` 在 pointerup 时
+- 预设色点击/Hex 输入提交/清除：同时 emit 两者
+
+### 新增组件时的必要约规
+
+新增 `Ei*` 表单组件时，**必须**同时声明 `update:modelValue` 和 `commit` 两个 emit。如果组件只 emit `update:modelValue` 而缺少 `commit`，上层 PropSchemaEditor/PagePropertyEditor 将无法正确区分预览与命令提交，导致 undo 栈出现多余记录或缺失记录。
+
+### precomputedOldValues 机制
+
+由于 preview 路径直接修改了 node.props / page / document，commit 时创建 Command 需要知道编辑前的原始值。`UpdateMaterialPropsCommand`、`UpdatePageCommand`、`UpdateDocumentCommand`、`UpdateGeometryCommand` 均接受可选的 `precomputedOldValues` 参数。上层在首次 preview 时快照原始值，commit 时传入 Command 构造函数。
+
+## 12.8 历史面板
 
 Designer 底部历史面板至少提供：
 
@@ -176,7 +212,7 @@ Designer 底部历史面板至少提供：
 - 选区刷新
 - Viewer 预览刷新
 
-## 12.8 失败语义
+## 12.9 失败语义
 
 命令执行失败时：
 

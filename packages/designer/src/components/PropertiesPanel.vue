@@ -2,10 +2,10 @@
 import type { Component } from 'vue'
 import type { PanelSectionId, PropSchema } from '../types'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
-import { ClearBindingCommand, getByPath, UpdateDocumentCommand, UpdateMaterialPropsCommand, UpdatePageCommand, UpdateTableVisibilityCommand } from '@easyink/core'
-import { PAPER_PRESETS } from '@easyink/shared'
+import { ClearBindingCommand, getByPath, setByPath, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialPropsCommand, UpdatePageCommand, UpdateTableVisibilityCommand } from '@easyink/core'
+import { deepClone, PAPER_PRESETS } from '@easyink/shared'
 import { isTableNode } from '@easyink/schema'
-import { EiInput, EiPanel, EiSwitch } from '@easyink/ui'
+import { EiNumberInput, EiPanel, EiSwitch } from '@easyink/ui'
 import { computed, shallowRef, watch, watchEffect } from 'vue'
 import { useDesignerStore } from '../composables'
 import { getPropSchemas, groupPropSchemas } from '../materials/prop-schemas'
@@ -53,6 +53,10 @@ const overlayGroupedSchemas = computed(() => {
 
 function readOverlayValue(schema: PropSchema): unknown {
   return overlay.value?.readValue(schema.key)
+}
+
+function previewOverlayProp(_key: string, value: unknown) {
+  overlay.value?.writeValue(_key, value)
 }
 
 function updateOverlayProp(key: string, value: unknown) {
@@ -146,7 +150,11 @@ function pageGroupLabel(group: PagePropertyGroup): string {
   return store.t(PAGE_GROUP_LABELS[group])
 }
 
-function onPagePropertyChange(descriptor: PagePropertyDescriptor, value: unknown) {
+// ─── Page property preview/commit snapshots ─────────────────────
+
+const pageSnapshots = new Map<string, { page?: Record<string, unknown>, document?: Record<string, unknown> }>()
+
+function previewPageProperty(descriptor: PagePropertyDescriptor, value: unknown) {
   const ctx = pagePropertyContext.value
   const patch = descriptor.normalize
     ? descriptor.normalize(value, ctx)
@@ -156,13 +164,60 @@ function onPagePropertyChange(descriptor: PagePropertyDescriptor, value: unknown
 
   const { pageUpdates, documentUpdates } = splitPatch(patch)
 
+  // Snapshot before first preview
+  if (!pageSnapshots.has(descriptor.id)) {
+    const snapshot: { page?: Record<string, unknown>, document?: Record<string, unknown> } = {}
+    if (pageUpdates && Object.keys(pageUpdates).length > 0) {
+      snapshot.page = {}
+      for (const key of Object.keys(pageUpdates)) {
+        (snapshot.page as Record<string, unknown>)[key] = deepClone((store.schema.page as unknown as Record<string, unknown>)[key])
+      }
+    }
+    if (documentUpdates && Object.keys(documentUpdates).length > 0) {
+      snapshot.document = {}
+      for (const key of Object.keys(documentUpdates)) {
+        (snapshot.document as Record<string, unknown>)[key] = deepClone((store.schema as unknown as Record<string, unknown>)[key])
+      }
+    }
+    pageSnapshots.set(descriptor.id, snapshot)
+  }
+
+  // Direct mutation for preview
   if (pageUpdates && Object.keys(pageUpdates).length > 0) {
-    const cmd = new UpdatePageCommand(store.schema.page, pageUpdates)
+    Object.assign(store.schema.page, pageUpdates)
+  }
+  if (documentUpdates && Object.keys(documentUpdates).length > 0) {
+    Object.assign(store.schema, documentUpdates)
+  }
+}
+
+function onPagePropertyChange(descriptor: PagePropertyDescriptor, value: unknown) {
+  const ctx = pagePropertyContext.value
+  const patch = descriptor.normalize
+    ? descriptor.normalize(value, ctx)
+    : descriptor.source === 'document'
+      ? defaultDocumentPatch(descriptor.path, value)
+      : defaultPagePatch(descriptor.path, value)
+
+  const { pageUpdates, documentUpdates } = splitPatch(patch)
+  const snapshot = pageSnapshots.get(descriptor.id)
+  pageSnapshots.delete(descriptor.id)
+
+  if (pageUpdates && Object.keys(pageUpdates).length > 0) {
+    const cmd = new UpdatePageCommand(
+      store.schema.page,
+      pageUpdates,
+      snapshot?.page as Record<string, unknown> | undefined,
+    )
     store.commands.execute(cmd)
   }
 
   if (documentUpdates && Object.keys(documentUpdates).length > 0) {
-    const cmd = new UpdateDocumentCommand(store.schema, documentUpdates)
+    const cmd = new UpdateDocumentCommand(
+      store.schema,
+      documentUpdates,
+      snapshot?.document as Record<string, unknown> | undefined,
+    )
     store.commands.execute(cmd)
   }
 }
@@ -225,18 +280,23 @@ function groupLabel(group: string): string {
   return key ? store.t(key) : group
 }
 
-// ─── Command-wrapped updates ────────────────────────────────────
+// ─── Material prop preview/commit ──────────────────────────────
 
-function updateGeometry(key: string, value: number) {
-  if (!selectedElement.value)
-    return
-  store.updateElement(selectedElement.value.id, { [key]: value })
-}
+const propSnapshots = new Map<string, unknown>()
 
-function updateElementMeta(key: string, value: unknown) {
-  if (!selectedElement.value)
+function previewProp(key: string, value: unknown) {
+  const el = selectedElement.value
+  if (!el)
     return
-  store.updateElement(selectedElement.value.id, { [key]: value })
+  // Snapshot before first preview
+  if (!propSnapshots.has(key)) {
+    propSnapshots.set(key, deepClone(getByPath(el.props as Record<string, unknown>, key)))
+  }
+  // Direct mutation for preview (no command)
+  if (key.includes('.'))
+    setByPath(el.props as Record<string, unknown>, key, value)
+  else
+    (el.props as Record<string, unknown>)[key] = value
 }
 
 function updateProp(key: string, value: unknown) {
@@ -251,13 +311,53 @@ function updateProp(key: string, value: unknown) {
     }
     return
   }
+  const oldValue = propSnapshots.get(key)
+  propSnapshots.delete(key)
   const cmd = new UpdateMaterialPropsCommand(
     store.schema.elements,
     el.id,
     { [key]: value },
+    oldValue !== undefined ? { [key]: oldValue } : undefined,
   )
   store.commands.execute(cmd)
 }
+
+// ─── Geometry preview/commit ────────────────────────────────────
+
+const geoSnapshots = new Map<string, number>()
+
+function previewGeometry(key: string, value: number) {
+  if (!selectedElement.value)
+    return
+  if (!geoSnapshots.has(key)) {
+    geoSnapshots.set(key, (selectedElement.value as unknown as Record<string, number>)[key])
+  }
+  store.updateElement(selectedElement.value.id, { [key]: value })
+}
+
+function commitGeometry(key: string, value: number) {
+  const el = selectedElement.value
+  if (!el)
+    return
+  const oldValue = geoSnapshots.get(key)
+  geoSnapshots.delete(key)
+  if (oldValue !== undefined && oldValue === value)
+    return
+  const updates = { [key]: value } as Record<string, number>
+  const olds = oldValue !== undefined ? { [key]: oldValue } as Record<string, number> : undefined
+  const cmd = new UpdateGeometryCommand(store.schema.elements, el.id, updates, olds)
+  store.commands.execute(cmd)
+}
+
+// ─── Element meta (hidden/locked) ──────────────────────────────
+
+function updateElementMeta(key: string, value: unknown) {
+  if (!selectedElement.value)
+    return
+  store.updateElement(selectedElement.value.id, { [key]: value })
+}
+
+// ─── Binding ────────────────────────────────────────────────────
 
 function clearBinding(nodeId: string) {
   const cmd = new ClearBindingCommand(store.schema.elements, nodeId)
@@ -284,41 +384,47 @@ function readPropValue(schema: PropSchema): unknown {
       <!-- Geometry -->
       <EiPanel v-if="isSectionVisible('geometry')" :title="`${store.t('designer.property.position')} / ${store.t('designer.property.size')}`" collapsible flat>
         <div class="ei-properties-panel__grid">
-          <EiInput
+          <EiNumberInput
             label="X"
-            type="number"
             :model-value="selectedElement.x"
-            @update:model-value="updateGeometry('x', Number($event))"
+            @update:model-value="previewGeometry('x', $event ?? 0)"
+            @commit="commitGeometry('x', $event ?? 0)"
           />
-          <EiInput
+          <EiNumberInput
             label="Y"
-            type="number"
             :model-value="selectedElement.y"
-            @update:model-value="updateGeometry('y', Number($event))"
+            @update:model-value="previewGeometry('y', $event ?? 0)"
+            @commit="commitGeometry('y', $event ?? 0)"
           />
-          <EiInput
+          <EiNumberInput
             :label="'W'"
-            type="number"
             :model-value="selectedElement.width"
-            @update:model-value="updateGeometry('width', Number($event))"
+            :min="0"
+            @update:model-value="previewGeometry('width', $event ?? 0)"
+            @commit="commitGeometry('width', $event ?? 0)"
           />
-          <EiInput
+          <EiNumberInput
             :label="'H'"
-            type="number"
             :model-value="selectedElement.height"
-            @update:model-value="updateGeometry('height', Number($event))"
+            :min="0"
+            @update:model-value="previewGeometry('height', $event ?? 0)"
+            @commit="commitGeometry('height', $event ?? 0)"
           />
-          <EiInput
+          <EiNumberInput
             :label="store.t('designer.property.rotation')"
-            type="number"
             :model-value="selectedElement.rotation ?? 0"
-            @update:model-value="updateGeometry('rotation', Number($event))"
+            @update:model-value="previewGeometry('rotation', $event ?? 0)"
+            @commit="commitGeometry('rotation', $event ?? 0)"
           />
-          <EiInput
+          <EiNumberInput
             :label="store.t('designer.property.opacity')"
-            type="number"
             :model-value="selectedElement.alpha ?? 1"
-            @update:model-value="updateGeometry('alpha', Number($event))"
+            :min="0"
+            :max="1"
+            :step="0.1"
+            :precision="2"
+            @update:model-value="previewGeometry('alpha', $event ?? 1)"
+            @commit="commitGeometry('alpha', $event ?? 1)"
           />
         </div>
       </EiPanel>
@@ -341,6 +447,7 @@ function readPropValue(schema: PropSchema): unknown {
             :disabled="schema.disabled ? schema.disabled(selectedElement.props as Record<string, unknown>) : false"
             :fonts="fontList"
             :t="store.t.bind(store)"
+            @preview="previewProp"
             @change="updateProp"
           />
         </div>
@@ -365,6 +472,7 @@ function readPropValue(schema: PropSchema): unknown {
               :custom-editors="overlayCustomEditors"
               :fonts="fontList"
               :t="store.t.bind(store)"
+              @preview="previewOverlayProp"
               @change="updateOverlayProp"
             />
           </div>
@@ -417,6 +525,7 @@ function readPropValue(schema: PropSchema): unknown {
             :value="readPagePropValue(descriptor)"
             :fonts="fontList"
             :t="store.t.bind(store)"
+            @preview="previewPageProperty"
             @change="onPagePropertyChange"
           />
         </div>

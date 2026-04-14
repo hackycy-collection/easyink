@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  'commit': [value: string]
 }>()
 
 const searchQuery = ref('')
@@ -36,12 +37,15 @@ const displayValue = computed(() => {
 
 function selectFont(family: string) {
   emit('update:modelValue', family)
+  emit('commit', family)
   isOpen.value = false
   searchQuery.value = ''
 }
 
 function handleInputChange(e: Event) {
-  emit('update:modelValue', (e.target as HTMLInputElement).value)
+  const val = (e.target as HTMLInputElement).value
+  emit('update:modelValue', val)
+  emit('commit', val)
 }
 
 watch(isOpen, (open) => {
