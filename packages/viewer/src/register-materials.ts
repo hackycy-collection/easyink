@@ -10,7 +10,7 @@ import { QRCODE_TYPE, renderQrcode } from '@easyink/material-qrcode'
 import { RECT_TYPE, renderRect } from '@easyink/material-rect'
 import { RELATION_TYPE, renderRelation } from '@easyink/material-relation'
 import { renderSvg, SVG_TYPE } from '@easyink/material-svg'
-import { renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
+import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { renderTableStatic, TABLE_STATIC_TYPE } from '@easyink/material-table-static'
 import { renderText, TEXT_TYPE } from '@easyink/material-text'
 
@@ -28,7 +28,10 @@ export function registerBuiltinViewerMaterials(viewer: ViewerRuntime): void {
   viewer.registerMaterial(ELLIPSE_TYPE, { render: node => renderEllipse(node) })
   viewer.registerMaterial(CONTAINER_TYPE, { render: node => renderContainer(node) })
   viewer.registerMaterial(TABLE_STATIC_TYPE, { render: node => renderTableStatic(node) })
-  viewer.registerMaterial(TABLE_DATA_TYPE, { render: (node, ctx) => renderTableData(node, ctx) })
+  viewer.registerMaterial(TABLE_DATA_TYPE, {
+    render: (node, ctx) => renderTableData(node, ctx),
+    measure: (node, ctx) => measureTableData(node, ctx),
+  })
   viewer.registerMaterial(CHART_TYPE, { render: node => renderChart(node) })
   viewer.registerMaterial(SVG_TYPE, { render: node => renderSvg(node) })
   viewer.registerMaterial(RELATION_TYPE, { render: node => renderRelation(node) })

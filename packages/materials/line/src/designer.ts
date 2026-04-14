@@ -2,7 +2,7 @@ import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyi
 import type { LineProps } from './schema'
 
 function buildHtml(props: LineProps): string {
-  return `<div style="position:absolute;top:50%;left:0;width:100%;border-top:${props.lineWidth}px ${props.lineType} ${props.lineColor};transform:translateY(-50%);"></div>`
+  return `<div style="width:100%;height:100%;display:flex;align-items:center;"><div style="width:100%;border-top:${props.lineWidth}px ${props.lineType} ${props.lineColor};"></div></div>`
 }
 
 export function createLineExtension(_context: MaterialExtensionContext): MaterialDesignerExtension {

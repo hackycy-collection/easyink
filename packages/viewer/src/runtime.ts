@@ -6,6 +6,7 @@ import type {
   MaterialViewerExtension,
   PrintAdapter,
   ViewerDiagnosticEvent,
+  ViewerMeasureContext,
   ViewerOpenInput,
   ViewerOptions,
   ViewerRenderResult,
@@ -13,6 +14,7 @@ import type {
 import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
 import { traverseNodes, validateSchema } from '@easyink/schema'
+import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
 import { MaterialRendererRegistry } from './material-registry'
@@ -116,8 +118,12 @@ export class ViewerRuntime {
     // Stage 3: Hook - beforePagePlan
     this._hooks.beforePagePlan.call({ schema: this._schema, mode: this._schema.page.mode })
 
+    // Stage 3.5: Measure elements that need expansion (e.g., table-data)
+    // Architecture ref: 07-layout-engine.md §7.3 — cooperative measure flow
+    const measuredSchema = this.applyMeasure()
+
     // Stage 4: Page planning (architecture doc 06 §6.2 step 5)
-    const plan = createPagePlan(this._schema)
+    const plan = createPagePlan(measuredSchema)
 
     for (const d of plan.diagnostics) {
       diagnostics.push({
@@ -183,10 +189,118 @@ export class ViewerRuntime {
       return
     }
 
-    // Fallback: use window.print
+    // Fallback: window.print with DOM isolation
     if (typeof window !== 'undefined') {
-      window.print()
+      if (this._options.container) {
+        this.printWithIsolation()
+      }
+      else {
+        window.print()
+      }
     }
+  }
+
+  private printWithIsolation(): void {
+    const container = this._options.container!
+    const doc = container.ownerDocument
+
+    // Mark ancestor chain so print CSS can hide everything else
+    const ancestors: HTMLElement[] = []
+    let el: HTMLElement | null = container.parentElement
+    while (el) {
+      el.setAttribute('data-ei-print-ancestor', '')
+      ancestors.push(el)
+      if (el === doc.body)
+        break
+      el = el.parentElement
+    }
+    container.setAttribute('data-ei-printing', '')
+
+    // Inject print stylesheet
+    const style = doc.createElement('style')
+    style.textContent = this.buildPrintStyles()
+    doc.head.appendChild(style)
+
+    window.print()
+
+    // Cleanup
+    style.remove()
+    container.removeAttribute('data-ei-printing')
+    for (const a of ancestors) {
+      a.removeAttribute('data-ei-print-ancestor')
+    }
+  }
+
+  private buildPrintStyles(): string {
+    const schema = this._schema!
+    const page = schema.page
+
+    // Convert page dimensions to mm for @page size
+    const factor = UNIT_FACTOR[schema.unit] ?? 25.4
+    const wMm = page.width * 25.4 / factor
+    const hMm = page.height * 25.4 / factor
+
+    // Print offset from PagePrintConfig
+    const hOff = page.print?.horizontalOffset ?? 0
+    const vOff = page.print?.verticalOffset ?? 0
+    const offsetCSS = (hOff !== 0 || vOff !== 0)
+      ? `transform: translate(${hOff * 25.4 / factor}mm, ${vOff * 25.4 / factor}mm) !important;`
+      : ''
+
+    return `@media print {
+  @page {
+    size: ${wMm}mm ${hMm}mm;
+    margin: 0;
+  }
+  [data-ei-print-ancestor] {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    z-index: auto !important;
+    inset: auto !important;
+    flex: none !important;
+  }
+  [data-ei-print-ancestor] > *:not([data-ei-print-ancestor]):not([data-ei-printing]) {
+    display: none !important;
+  }
+  [data-ei-printing] {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .ei-viewer-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    break-after: page;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    ${offsetCSS}
+  }
+  .ei-viewer-page:last-child {
+    break-after: auto;
+  }
+}`
   }
 
   async exportDocument(format?: string): Promise<Blob | void> {
@@ -288,6 +402,30 @@ export class ViewerRuntime {
   // ---------------------------------------------------------------------------
   // Internal pipeline stages
   // ---------------------------------------------------------------------------
+
+  /**
+   * Stage: Measure — call measure() on materials that report expanded dimensions
+   * (e.g., table-data after row expansion). Returns a schema with adjusted element sizes.
+   */
+  private applyMeasure(): DocumentSchema {
+    if (!this._schema)
+      return this._schema!
+
+    const measureCtx: ViewerMeasureContext = { data: this._data, unit: this._schema.unit }
+    let modified = false
+
+    const elements = this._schema.elements.map((node) => {
+      const result = this._materialRegistry.measure(node, measureCtx)
+      if (!result || (result.width === node.width && result.height === node.height))
+        return node
+      modified = true
+      return { ...node, height: result.height, width: result.width }
+    })
+
+    if (!modified)
+      return this._schema
+    return { ...this._schema, elements }
+  }
 
   /**
    * Stage: Font loading — collect references from schema, load via FontManager,

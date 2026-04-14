@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import type { MaterialViewerExtension, ViewerRenderContext, ViewerRenderOutput } from './types'
+import type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from './types'
 
 /**
  * Registry mapping material type strings to their viewer render extensions.
@@ -26,6 +26,13 @@ export class MaterialRendererRegistry {
       return renderUnknownMaterial(node)
     }
     return ext.render(node, context)
+  }
+
+  measure(node: MaterialNode, context: ViewerMeasureContext): ViewerMeasureResult | null {
+    const ext = this._renderers.get(node.type)
+    if (!ext?.measure)
+      return null
+    return ext.measure(node, context)
   }
 
   get registeredTypes(): string[] {

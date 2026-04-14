@@ -199,6 +199,7 @@ export const invoiceDemoData: Record<string, unknown> = {
     { name: '商品甲', qty: 10, price: 25.00, amount: 250.00 },
     { name: '商品乙', qty: 5, price: 40.00, amount: 200.00 },
     { name: '服务丙', qty: 1, price: 150.00, amount: 150.00 },
+    { name: '服务丁', qty: 1, price: 120.00, amount: 120.00 },
   ],
   grandTotal: 600.00,
   notes: '请于30天内付款。谢谢惠顾！',

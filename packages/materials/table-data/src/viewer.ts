@@ -17,6 +17,57 @@ interface ViewerRenderOutput {
   element?: HTMLElement
 }
 
+interface ViewerMeasureContext {
+  data: Record<string, unknown>
+  unit: string
+}
+
+interface ViewerMeasureResult {
+  width: number
+  height: number
+  overflow?: boolean
+}
+
+/**
+ * Filter rows to only include visible ones based on showHeader/showFooter settings.
+ */
+function filterVisibleRows(rows: TableRowSchema[], showHeader: boolean, showFooter: boolean): TableRowSchema[] {
+  return rows.filter((row) => {
+    if (row.role === 'header' && !showHeader)
+      return false
+    if (row.role === 'footer' && !showFooter)
+      return false
+    return true
+  })
+}
+
+/**
+ * Measure the table-data element's expanded dimensions after data binding.
+ * Called by ViewerRuntime before page planning to adjust the element height.
+ * Architecture ref: 07-layout-engine.md §7.3
+ */
+export function measureTableData(node: MaterialNode, context: ViewerMeasureContext): ViewerMeasureResult {
+  if (!isTableNode(node)) {
+    return { width: node.width, height: node.height }
+  }
+
+  const tableData = node.table as TableDataSchema
+  const showHeader = tableData.showHeader !== false
+  const showFooter = tableData.showFooter !== false
+  const data = context.data ?? {}
+
+  const expandedRows = expandRepeatTemplateRows(node.table.topology.rows, data)
+  const visibleRows = filterVisibleRows(expandedRows, showHeader, showFooter)
+  const originalRowScale = computeRowScale(node.table.topology.rows, node.height)
+
+  let expandedHeight = 0
+  for (const row of visibleRows) {
+    expandedHeight += row.height * originalRowScale
+  }
+
+  return { width: node.width, height: expandedHeight }
+}
+
 export function renderTableData(node: MaterialNode, context?: ViewerRenderContext): ViewerRenderOutput {
   if (!isTableNode(node)) {
     return {
@@ -30,31 +81,22 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
   const showFooter = tableData.showFooter !== false
   const data = context?.data ?? {}
 
-  // Expand repeat-template rows using collection data
+  // Expand repeat-template rows and filter to visible rows only
   const expandedRows = expandRepeatTemplateRows(node.table.topology.rows, data)
+  const visibleRows = filterVisibleRows(expandedRows, showHeader, showFooter)
 
-  // Compute expanded element height
-  const originalRowScale = computeRowScale(node.table.topology.rows, node.height)
-  let expandedHeight = 0
-  for (const row of expandedRows) {
-    expandedHeight += row.height * originalRowScale
-  }
-
+  // node.height is already adjusted by measure() — use it directly.
+  // renderTableHtml will scale rows proportionally to fit exactly in this height.
   const html = renderTableHtml({
-    topology: { columns: node.table.topology.columns, rows: expandedRows },
+    topology: { columns: node.table.topology.columns, rows: visibleRows },
     props,
     unit: 'mm',
-    elementHeight: expandedHeight,
+    elementHeight: node.height,
     cellRenderer: cell => cell.content?.text || '',
     rowDecorator: (ri) => {
-      const row = expandedRows[ri]
+      const row = visibleRows[ri]
       if (!row)
         return {}
-      // Viewer: skip hidden header/footer rows entirely
-      if (row.role === 'header' && !showHeader)
-        return { skip: true }
-      if (row.role === 'footer' && !showFooter)
-        return { skip: true }
       const bg = row.role === 'header'
         ? props.headerBackground
         : row.role === 'footer'
