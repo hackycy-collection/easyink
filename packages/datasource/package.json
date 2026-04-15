@@ -2,7 +2,7 @@
   "name": "@easyink/datasource",
   "type": "module",
   "version": "0.0.0",
-  "description": "Data source protocol, field tree, binding adapters for EasyInk",
+  "description": "Data source protocol and field tree for EasyInk designer",
   "author": "hackycy <hackycy@outlook.com>",
   "license": "MIT",
   "sideEffects": false,
@@ -19,7 +19,6 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@easyink/schema": "workspace:*",
     "@easyink/shared": "workspace:*"
   }
 }

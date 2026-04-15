@@ -1,7 +1,6 @@
 import type { DocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
-export * from './adapter'
 export * from './datasources'
 
 export interface SampleTemplateEntry {

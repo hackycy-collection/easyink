@@ -50,29 +50,3 @@ export interface DataUnionBinding {
   offsetY?: number
   props?: Record<string, unknown>
 }
-
-/**
- * Context passed to data adapters when loading data at runtime.
- */
-export interface DataLoadContext {
-  params?: Record<string, unknown>
-  signal?: AbortSignal
-}
-
-/**
- * Data adapter for fetching data at runtime.
- * Registered by host applications.
- */
-export interface DataAdapter {
-  id: string
-  match: (source: DataSourceDescriptor) => boolean
-  load: (source: DataSourceDescriptor, context: DataLoadContext) => Promise<unknown>
-}
-
-/**
- * Usage resolver transforms raw data values according to binding `usage` rules.
- */
-export interface UsageResolver {
-  id: string
-  resolve: (value: unknown, options?: Record<string, unknown>) => unknown
-}

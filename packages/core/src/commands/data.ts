@@ -1,5 +1,4 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
-import type { UsageRule } from '@easyink/shared'
 import type { Command } from '../command'
 import { deepClone, generateId } from '@easyink/shared'
 import { findNode } from './helpers'
@@ -58,49 +57,6 @@ export class ClearBindingCommand implements Command {
     if (!node)
       return
     node.binding = this.oldBinding
-  }
-}
-
-export class UpdateUsageCommand implements Command {
-  readonly id = generateId('cmd')
-  readonly type = 'update-usage'
-  readonly description = 'Update usage'
-  private oldUsage: UsageRule | undefined
-
-  constructor(
-    private elements: MaterialNode[],
-    private nodeId: string,
-    private bindIndex: number,
-    private usage: UsageRule,
-  ) {}
-
-  execute(): void {
-    const node = findNode(this.elements, this.nodeId)
-    if (!node)
-      return
-    const ref = this.getRef(node)
-    if (!ref)
-      return
-    this.oldUsage = deepClone(ref.usage)
-    ref.usage = deepClone(this.usage)
-  }
-
-  undo(): void {
-    const node = findNode(this.elements, this.nodeId)
-    if (!node)
-      return
-    const ref = this.getRef(node)
-    if (!ref)
-      return
-    ref.usage = this.oldUsage
-  }
-
-  private getRef(node: MaterialNode): BindingRef | undefined {
-    if (Array.isArray(node.binding))
-      return node.binding[this.bindIndex]
-    if (this.bindIndex === 0)
-      return node.binding
-    return undefined
   }
 }
 

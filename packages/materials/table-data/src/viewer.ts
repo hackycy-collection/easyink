@@ -1,6 +1,6 @@
 import type { BindingRef, MaterialNode, TableCellSchema, TableDataSchema, TableRowSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
-import { extractCollectionPath, resolveBindingValue, resolveFieldFromRecord } from '@easyink/datasource'
+import { extractCollectionPath, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
 import { computeRowScale, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 

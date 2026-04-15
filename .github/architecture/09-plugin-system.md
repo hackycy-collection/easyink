@@ -9,7 +9,7 @@ EasyInk 当前保留扩展抽象，但它的目标是支撑内置体系演进，
 - 内置物料包接入
 - Designer 面板和工具栏扩展
 - Viewer 运行时适配器扩展
-- 数据源适配器与模板库来源扩展
+- 数据源字段推荐扩展
 
 不在当前稳定扩展面中的能力：
 
@@ -33,8 +33,7 @@ Designer 与 Viewer 各自维护独立的物料注册表。Viewer 运行在 ifra
 
 ### 数据源扩展
 
-- 注册 `DataAdapter`
-- 扩展字段推荐和 `usage` 解释器
+- 扩展字段推荐
 - 扩展模板库示例数据来源
 
 ### 工作台扩展
@@ -80,8 +79,7 @@ interface MaterialExtensionRegistry {
 
 ```typescript
 interface DataSourceExtensionRegistry {
-  registerAdapter(adapter: DataAdapter): void
-  registerUsageResolver(resolver: UsageResolver): void
+  // 数据源扩展当前无注册方法，预留接口
 }
 
 interface DesignerExtensionRegistry {

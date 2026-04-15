@@ -1,3 +1,9 @@
+export {
+  extractCollectionPath,
+  resolveBindingValue,
+  resolveFieldFromRecord,
+  resolveNodeBindings,
+} from './binding-utils'
 export { CommandManager, CompositeCommand, createBatchCommand } from './command'
 export type { Command, HistoryEntry } from './command'
 export {
@@ -32,7 +38,6 @@ export {
   UpdateTableCellTypographyCommand,
   UpdateTableRowRoleCommand,
   UpdateTableVisibilityCommand,
-  UpdateUsageCommand,
   validateMerge,
 } from './commands'
 

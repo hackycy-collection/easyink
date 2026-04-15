@@ -183,9 +183,6 @@ importers:
 
   packages/datasource:
     dependencies:
-      '@easyink/schema':
-        specifier: workspace:*
-        version: link:../schema
       '@easyink/shared':
         specifier: workspace:*
         version: link:../shared
@@ -399,9 +396,6 @@ importers:
       '@easyink/core':
         specifier: workspace:*
         version: link:../../core
-      '@easyink/datasource':
-        specifier: workspace:*
-        version: link:../../datasource
       '@easyink/material-table-kernel':
         specifier: workspace:*
         version: link:../table-kernel
@@ -494,9 +488,6 @@ importers:
       '@easyink/core':
         specifier: workspace:*
         version: link:../core
-      '@easyink/datasource':
-        specifier: workspace:*
-        version: link:../datasource
       '@easyink/material-barcode':
         specifier: workspace:*
         version: link:../materials/barcode

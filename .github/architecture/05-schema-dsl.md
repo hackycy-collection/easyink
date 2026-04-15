@@ -217,7 +217,7 @@ interface BenchmarkElementCompatState {
 
 ## 5.5 绑定模型
 
-绑定必须能完整回放拖拽结果，包含数据源引用、字段路径、显示格式和多参数绑定位次。
+绑定必须能完整回放拖拽结果，包含数据源引用、字段路径和多参数绑定位次。
 
 ```typescript
 interface BindingRef {
@@ -227,31 +227,10 @@ interface BindingRef {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
-  usage?: UsageRule
   bindIndex?: number
-  union?: UnionBinding[]
   required?: boolean
   extensions?: Record<string, unknown>
 }
-
-interface UnionBinding {
-  sourceId?: string
-  sourceTag?: string
-  fieldPath: string
-  fieldKey?: string
-  fieldLabel?: string
-  use?: string
-  offsetX?: number
-  offsetY?: number
-  defaultProps?: Record<string, unknown>
-}
-
-type UsageRule =
-  | string
-  | {
-      id: string
-      options?: Record<string, unknown>
-    }
 ```
 
 设计要点：
@@ -259,34 +238,7 @@ type UsageRule =
 - `fieldPath` 采用 `/` 作为规范分隔符
 - 导入层兼容 `.`、混合路径和仅 `key` 的简化格式
 - `bindIndex` 用于二维码、BWIP、公式等多输入物料
-- `union` 用于一拖多生成场景，不应被塞成 Designer 私有逻辑
-
-### `union` 示例
-
-```typescript
-const receiptBaseBinding: BindingRef = {
-  sourceId: 'receipt',
-  sourceTag: 'apis/receipt.json',
-  fieldPath: 'base/name',
-  fieldLabel: '店铺名称',
-  union: [
-    {
-      fieldPath: 'base/time',
-      fieldLabel: '创建时间',
-      offsetX: 0,
-      offsetY: 40,
-      defaultProps: { width: 150, height: 20 },
-    },
-    {
-      fieldPath: 'base/cashier',
-      fieldLabel: '收银员',
-      offsetX: 160,
-      offsetY: 40,
-      defaultProps: { width: 80, height: 20 },
-    },
-  ],
-}
-```
+- `union` 仅存在于 `DataFieldNode`（数据源字段树），不持久化到 `BindingRef`
 
 ### `bindIndex` 示例
 

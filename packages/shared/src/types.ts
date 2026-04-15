@@ -56,17 +56,6 @@ export type MaterialUseToken
     | (string & {})
 
 /**
- * Usage rule for data binding format/aggregation.
- * Either a simple string identifier or an object with options.
- */
-export type UsageRule
-  = | string
-    | {
-      id: string
-      options?: Record<string, unknown>
-    }
-
-/**
  * Table row role for row-level semantics.
  */
 export type TableRowRole = 'normal' | 'header' | 'footer' | 'repeat-template'

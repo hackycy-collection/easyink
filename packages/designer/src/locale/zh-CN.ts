@@ -294,7 +294,6 @@ const zhCN: LocaleMessages = {
       source: '来源',
       field: '字段',
       path: '路径',
-      usage: '显示格式',
       sourceConflict: '数据源不匹配',
     },
     history: {
@@ -320,7 +319,6 @@ const zhCN: LocaleMessages = {
       resizeTableColumn: '调整列宽',
       updateTableCell: '修改单元格',
       updateTableSection: '修改表格区段',
-      updateUsage: '修改显示格式',
     },
     animation: {
       title: '动画',

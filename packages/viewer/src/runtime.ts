@@ -1,5 +1,4 @@
 import type { InternalHooks } from '@easyink/core'
-import type { DataAdapter, DataSourceDescriptor, UsageResolver } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type {
   ExportAdapter,
@@ -12,7 +11,6 @@ import type {
   ViewerRenderResult,
 } from './types'
 import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
-import { DataSourceRegistry } from '@easyink/datasource'
 import { traverseNodes, validateSchema } from '@easyink/schema'
 import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
@@ -24,11 +22,9 @@ export class ViewerRuntime {
   private _options: ViewerOptions
   private _schema?: DocumentSchema
   private _data: Record<string, unknown> = {}
-  private _dataSources: DataSourceDescriptor[] = []
   private _diagnosticHandler?: (event: ViewerDiagnosticEvent) => void
   private _exportAdapters: ExportAdapter[] = []
   private _printAdapters: PrintAdapter[] = []
-  private _registry = new DataSourceRegistry()
   private _materialRegistry = new MaterialRendererRegistry()
   private _fontManager: FontManager
   private _hooks: InternalHooks
@@ -41,7 +37,7 @@ export class ViewerRuntime {
   }
 
   // ---------------------------------------------------------------------------
-  // Public API (architecture doc 06 - ViewerRuntime interface)
+  // Public API
   // ---------------------------------------------------------------------------
 
   async open(input: ViewerOpenInput): Promise<void> {
@@ -65,29 +61,9 @@ export class ViewerRuntime {
     this._schema = normalizedSchema
 
     this._data = input.data || {}
-    this._dataSources = input.dataSources || []
     this._diagnosticHandler = input.onDiagnostic
 
-    // 3. Register data sources + adapters + usage resolvers
-    this._registry.clear()
-    for (const source of this._dataSources) {
-      this._registry.registerSource(source)
-    }
-    if (input.dataAdapters) {
-      for (const adapter of input.dataAdapters) {
-        this._registry.registerAdapter(adapter)
-      }
-    }
-    if (input.usageResolvers) {
-      for (const resolver of input.usageResolvers) {
-        this._registry.registerUsageResolver(resolver)
-      }
-    }
-
-    // 4. Load data through adapters (if any adapters registered)
-    await this.loadAdapterData()
-
-    // 5. Render (font loading + binding + page plan + DOM)
+    // 3. Render (font loading + binding + page plan + DOM)
     if (this._options.container) {
       await this.render()
     }
@@ -109,20 +85,19 @@ export class ViewerRuntime {
 
     const diagnostics: ViewerDiagnosticEvent[] = []
 
-    // Stage 1: Font loading (architecture doc 06 §6.2 step 2)
+    // Stage 1: Font loading
     await this.loadFonts(diagnostics)
 
-    // Stage 2: Binding projection (architecture doc 06 §6.2 steps 3-4)
+    // Stage 2: Binding projection
     const resolvedPropsMap = this.resolveAllBindings(diagnostics)
 
     // Stage 3: Hook - beforePagePlan
     this._hooks.beforePagePlan.call({ schema: this._schema, mode: this._schema.page.mode })
 
     // Stage 3.5: Measure elements that need expansion (e.g., table-data)
-    // Architecture ref: 07-layout-engine.md §7.3 — cooperative measure flow
     const measuredSchema = this.applyMeasure()
 
-    // Stage 4: Page planning (architecture doc 06 §6.2 step 5)
+    // Stage 4: Page planning
     const plan = createPagePlan(measuredSchema)
 
     for (const d of plan.diagnostics) {
@@ -134,7 +109,7 @@ export class ViewerRuntime {
       })
     }
 
-    // Stage 5: DOM rendering (architecture doc 06 §6.2 step 6)
+    // Stage 5: DOM rendering
     const pages = plan.pages.map(p => ({
       index: p.index,
       width: p.width,
@@ -183,7 +158,6 @@ export class ViewerRuntime {
       await adapter.print({
         schema: this._schema,
         data: this._data,
-        dataSources: this._dataSources,
         entry: 'preview',
       })
       return
@@ -325,7 +299,6 @@ export class ViewerRuntime {
     const context = {
       schema: this._schema,
       data: this._data,
-      dataSources: this._dataSources,
       entry: 'api' as const,
     }
 
@@ -340,8 +313,6 @@ export class ViewerRuntime {
     this._destroyed = true
     this._schema = undefined
     this._data = {}
-    this._dataSources = []
-    this._registry.clear()
     this._materialRegistry.clear()
     this._exportAdapters = []
     this._printAdapters = []
@@ -357,14 +328,6 @@ export class ViewerRuntime {
 
   registerMaterial(type: string, extension: MaterialViewerExtension): void {
     this._materialRegistry.register(type, extension)
-  }
-
-  registerDataAdapter(adapter: DataAdapter): void {
-    this._registry.registerAdapter(adapter)
-  }
-
-  registerUsageResolver(resolver: UsageResolver): void {
-    this._registry.registerUsageResolver(resolver)
   }
 
   registerExportAdapter(adapter: ExportAdapter): void {
@@ -403,10 +366,6 @@ export class ViewerRuntime {
   // Internal pipeline stages
   // ---------------------------------------------------------------------------
 
-  /**
-   * Stage: Measure — call measure() on materials that report expanded dimensions
-   * (e.g., table-data after row expansion). Returns a schema with adjusted element sizes.
-   */
   private applyMeasure(): DocumentSchema {
     if (!this._schema)
       return this._schema!
@@ -427,10 +386,6 @@ export class ViewerRuntime {
     return { ...this._schema, elements }
   }
 
-  /**
-   * Stage: Font loading — collect references from schema, load via FontManager,
-   * inject @font-face into the container's owner document.
-   */
   private async loadFonts(diagnostics: ViewerDiagnosticEvent[]): Promise<void> {
     if (!this._schema || !this._fontManager.provider)
       return
@@ -441,35 +396,13 @@ export class ViewerRuntime {
 
     const container = this._options.container
     if (!container)
-      return // No DOM target for @font-face injection
+      return
 
     const target = container.ownerDocument
     const fontDiags = await loadAndInjectFonts(families, this._fontManager, target)
     diagnostics.push(...fontDiags)
   }
 
-  /**
-   * Stage: Data adapter loading — for each registered data source,
-   * attempt to load data through matching adapters and merge into _data.
-   */
-  private async loadAdapterData(): Promise<void> {
-    for (const source of this._dataSources) {
-      try {
-        const result = await this._registry.loadData(source)
-        if (result && typeof result === 'object') {
-          Object.assign(this._data, result as Record<string, unknown>)
-        }
-      }
-      catch {
-        // No adapter matched or load failed — not fatal, data may be provided directly
-      }
-    }
-  }
-
-  /**
-   * Stage: Binding projection — resolve all element bindings against data,
-   * apply usage formatting, return a map of nodeId -> resolved props.
-   */
   private resolveAllBindings(diagnostics: ViewerDiagnosticEvent[]): Map<string, Record<string, unknown>> {
     const resolvedMap = new Map<string, Record<string, unknown>>()
     if (!this._schema)
@@ -482,7 +415,7 @@ export class ViewerRuntime {
       }
 
       try {
-        const projected = projectBindings(node, this._data, this._registry)
+        const projected = projectBindings(node, this._data)
         const resolvedProps = applyBindingsToProps(node.props, projected, node.type)
         resolvedMap.set(node.id, resolvedProps)
       }

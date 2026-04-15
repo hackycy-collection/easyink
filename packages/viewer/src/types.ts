@@ -1,9 +1,8 @@
 import type { FontProvider } from '@easyink/core'
-import type { DataAdapter, DataSourceDescriptor, UsageResolver } from '@easyink/datasource'
 import type { DocumentSchema, MaterialNode } from '@easyink/schema'
-import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase, UsageRule } from '@easyink/shared'
+import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
 
-export type { DataAdapter, DataSourceDescriptor, DocumentSchema, UsageResolver }
+export type { DocumentSchema }
 
 // ---------------------------------------------------------------------------
 // Viewer options & input
@@ -18,9 +17,6 @@ export interface ViewerOptions {
 export interface ViewerOpenInput {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
-  dataAdapters?: DataAdapter[]
-  usageResolvers?: UsageResolver[]
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
 
@@ -74,7 +70,6 @@ export interface ExportAdapter {
 export interface ViewerExportContext {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
 }
 
@@ -129,7 +124,5 @@ export interface ViewerMeasureResult {
 
 export interface ProjectedBinding {
   bindIndex: number
-  rawValue: unknown
-  formattedValue: unknown
-  usage?: UsageRule
+  value: unknown
 }

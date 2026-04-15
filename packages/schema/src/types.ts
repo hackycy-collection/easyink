@@ -8,7 +8,6 @@ import type {
   PrintBehavior,
   TableRowRole,
   UnitType,
-  UsageRule,
 } from '@easyink/shared'
 
 // ─── Document Schema ───────────────────────────────────────────────
@@ -141,23 +140,9 @@ export interface BindingRef {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
-  usage?: UsageRule
   bindIndex?: number
-  union?: UnionBinding[]
   required?: boolean
   extensions?: Record<string, unknown>
-}
-
-export interface UnionBinding {
-  sourceId?: string
-  sourceTag?: string
-  fieldPath: string
-  fieldKey?: string
-  fieldLabel?: string
-  use?: string
-  offsetX?: number
-  offsetY?: number
-  defaultProps?: Record<string, unknown>
 }
 
 // ─── Animation ─────────────────────────────────────────────────────

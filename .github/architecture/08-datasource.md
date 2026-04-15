@@ -1,16 +1,15 @@
 # 8. 数据源系统
 
-EasyInk 的数据源系统是一条独立主线，同时服务 Designer 和 Viewer。
+EasyInk 的数据源系统是 Designer 专属的设计时基础设施，负责字段树展示和拖拽绑定。Viewer 不依赖数据源系统，只消费 schema + data。
 
 ## 8.1 目标
 
-数据源系统要同时满足五种用途：
+数据源系统满足以下用途：
 
 - 字段树展示与搜索
 - 拖拽创建和拖拽绑定
-- 运行时取数与预览回放
 - 批量投放和多参数绑定
-- 显示格式、聚合规则和推荐物料
+- 推荐物料
 
 ## 8.2 规范协议
 
@@ -194,34 +193,33 @@ const bwipFields: DataFieldNode[] = [
 - `sourceTag`
 - `fieldPath`
 - `fieldLabel`
-- `usage`
 - `bindIndex`
 
 也就是说：
 
 - Designer 通过字段树帮助绑定
 - 模板通过绑定引用保持可回放性
-- Viewer 通过 `sourceId / sourceTag` 找到实际数据适配器
+- Viewer 通过绝对路径直接从 data 解析值，不依赖数据源系统
 
-## 8.9 数据适配器
+## 8.9 绑定解析函数
 
-Viewer 不应该假设数据一定是一个已经预处理好的扁平对象。它应该允许宿主接入适配器：
+绑定解析是通用能力，位于 `@easyink/core` 包，供 Viewer 和物料包使用：
 
 ```typescript
-interface DataAdapter {
-  id: string
-  match(source: DataSourceDescriptor): boolean
-  load(source: DataSourceDescriptor, context: DataLoadContext): Promise<unknown>
-}
+// @easyink/core
+
+function resolveBindingValue(
+  binding: BindingRef,
+  data: Record<string, unknown>
+): unknown
+
+function resolveNodeBindings(
+  bindings: BindingRef | BindingRef[],
+  data: Record<string, unknown>
+): Map<number, unknown>
 ```
 
-这让 EasyInk 可以支持：
-
-- 本地 mock 数据
-- HTTP 请求
-- 业务端传入内存对象
-- 模板库样例数据
-- 预览器 iframe 中的独立数据加载
+Viewer 不做异步数据加载，宿主负责在调用 `viewer.open({ schema, data })` 前准备好数据。
 
 ## 8.10 路径与格式规则
 
@@ -236,7 +234,7 @@ interface DataAdapter {
 
 ### `resolveBindingValue` 接口
 
-`resolveBindingValue` 统一按绝对路径从数据根解析，不再接受 `scope` 参数：
+`resolveBindingValue`（位于 `@easyink/core`）统一按绝对路径从数据根解析，不再接受 `scope` 参数：
 
 ```typescript
 function resolveBindingValue(
@@ -250,7 +248,7 @@ function resolveBindingValue(
 
 ### 集合路径推导工具函数
 
-`@easyink/datasource` 包提供两个运行时工具函数：
+`@easyink/core` 包提供两个运行时工具函数：
 
 ```typescript
 /** 从一组绝对路径中提取公共集合前缀。
@@ -266,7 +264,7 @@ function resolveFieldFromRecord(leafField: string, record: Record<string, unknow
 
 ### 格式规则
 
-- `usage` 表达数字格式化、前后缀、日期格式、聚合等安全声明式能力
+- 当前不支持格式化能力，后续独立设计
 - 不支持模板内直接写任意脚本
 
 ## 8.11 data-table 绑定模型
@@ -374,7 +372,7 @@ const cell: TableCellSchema = {
 Viewer 的 `resolveAllBindings` 阶段检测到 table-static 节点时：
 
 1. 遍历所有行的所有 cell，查找 `staticBinding` 字段
-2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（绝对路径）
+2. 对每个有 `staticBinding` 的 cell，调用 `resolveBindingValue(staticBinding, data)`（来自 `@easyink/core`，绝对路径）
 3. 结果存入 `ResolvedCellBindings`，key 格式 `${nodeId}:${rowIndex}:${colIndex}`
 
 ### Designer 交互
@@ -389,15 +387,16 @@ Viewer 的 `resolveAllBindings` 阶段检测到 table-static 节点时：
 - `BindStaticCellCommand`：设置 `cell.staticBinding`，同时清除 `cell.content.text`（用于 table-static 和 table-data 的 header/footer/normal 行）
 - `ClearStaticCellBindingCommand`：清除 `cell.staticBinding`，恢复 cell 为可手动编辑状态
 
-## 8.13 Designer 与 Viewer 共享协议
+## 8.13 Designer 与 Viewer 的边界
 
-新的原则是：
+核心原则：
 
-- Designer 不独占数据源协议
-- Viewer 不绕开数据源协议
+- `@easyink/datasource` 是 Designer 专属包，Viewer 不依赖它
+- Viewer 只消费 `schema + data`，通过 `@easyink/core` 的绑定解析函数从数据中取值
+- 绑定解析函数（`resolveBindingValue`、`extractCollectionPath`、`resolveFieldFromRecord`）位于 `@easyink/core`，Designer 和 Viewer 均可使用
 
-这样才能保证：
+这样保证：
 
 - 设计时看到的字段树与预览时加载的数据是一致的
 - 模板在脱离 Designer 后仍能独立回放
-- `union`、`bindIndex`、`use` 不会只在设计态存在、运行态失真
+- Viewer 无需理解数据源协议，只需理解 BindingRef + 数据对象

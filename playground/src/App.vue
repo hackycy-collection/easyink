@@ -40,7 +40,6 @@ function openPreview() {
   <PreviewOverlay
     v-if="showPreview && previewSchema"
     :schema="previewSchema"
-    :data-sources="sampleDataSources"
     :data="invoiceDemoData"
     @close="showPreview = false"
   />

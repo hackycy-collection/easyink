@@ -1,17 +1,13 @@
-import type { DataSourceRegistry } from '@easyink/datasource'
 import type { MaterialNode } from '@easyink/schema'
-import type { UsageRule } from '@easyink/shared'
 import type { ProjectedBinding } from './types'
-import { resolveBindingValue } from '@easyink/datasource'
+import { resolveBindingValue } from '@easyink/core'
 
 /**
- * Resolve all bindings for a material node against the provided data,
- * applying usage formatting rules through the registry.
+ * Resolve all bindings for a material node against the provided data.
  */
 export function projectBindings(
   node: MaterialNode,
   data: Record<string, unknown>,
-  registry: DataSourceRegistry,
 ): ProjectedBinding[] {
   if (!node.binding)
     return []
@@ -20,32 +16,14 @@ export function projectBindings(
   const results: ProjectedBinding[] = []
 
   for (const ref of refs) {
-    const rawValue = resolveBindingValue(ref, data)
-    let formattedValue = rawValue
-
-    if (ref.usage) {
-      formattedValue = applyUsage(rawValue, ref.usage, registry)
-    }
-
+    const value = resolveBindingValue(ref, data)
     results.push({
       bindIndex: ref.bindIndex ?? 0,
-      rawValue,
-      formattedValue,
-      usage: ref.usage,
+      value,
     })
   }
 
   return results
-}
-
-function applyUsage(
-  value: unknown,
-  usage: UsageRule,
-  registry: DataSourceRegistry,
-): unknown {
-  const usageId = typeof usage === 'string' ? usage : usage.id
-  const options = typeof usage === 'string' ? undefined : usage.options
-  return registry.resolveUsage(value, usageId, options)
 }
 
 /**
@@ -64,7 +42,7 @@ export function applyBindingsToProps(
   const result = { ...props }
 
   for (const binding of projected) {
-    if (binding.formattedValue === undefined)
+    if (binding.value === undefined)
       continue
 
     const propKey = binding.bindIndex === 0
@@ -72,9 +50,9 @@ export function applyBindingsToProps(
       : getIndexedBindProp(nodeType, binding.bindIndex)
 
     if (propKey) {
-      result[propKey] = typeof binding.formattedValue === 'object'
-        ? String(binding.formattedValue)
-        : binding.formattedValue
+      result[propKey] = typeof binding.value === 'object'
+        ? String(binding.value)
+        : binding.value
     }
   }
 

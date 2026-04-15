@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { DataSourceDescriptor, DocumentSchema } from '@easyink/viewer'
+import type { DocumentSchema } from '@easyink/viewer'
 import type { ViewerRuntime } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { createViewer, registerBuiltinViewerMaterials } from '@easyink/viewer'
 
 const props = defineProps<{
   schema: DocumentSchema
-  dataSources: DataSourceDescriptor[]
   data: Record<string, unknown>
 }>()
 
@@ -26,7 +25,6 @@ onMounted(async () => {
   await viewer.open({
     schema: props.schema,
     data: props.data,
-    dataSources: props.dataSources,
   })
 })
 

@@ -62,10 +62,6 @@ function handleClear() {
           <span class="ei-binding-section__label">{{ t('designer.dataSource.field') }}</span>
           <span class="ei-binding-section__value">{{ ref.fieldLabel || ref.fieldPath }}</span>
         </div>
-        <div v-if="ref.usage" class="ei-binding-section__row">
-          <span class="ei-binding-section__label">{{ t('designer.dataSource.usage') }}</span>
-          <span class="ei-binding-section__value">{{ typeof ref.usage === 'string' ? ref.usage : ref.usage.id }}</span>
-        </div>
       </div>
       <div class="ei-binding-section__actions">
         <EiButton size="sm" @click="handleClear">

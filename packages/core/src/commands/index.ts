@@ -2,7 +2,6 @@ export {
   BindFieldCommand,
   ClearBindingCommand,
   UnionDropCommand,
-  UpdateUsageCommand,
 } from './data'
 
 export {
