@@ -126,10 +126,11 @@ export class ViewerRuntime {
         this._materialRegistry,
         {
           container: this._options.container,
-          zoom: 1,
+          zoom: this.resolveZoom(),
           unit: this._schema.unit,
           data: this._data,
           resolvedPropsMap,
+          pageSchema: this._schema.page,
         },
         diagnostics,
       )
@@ -140,6 +141,9 @@ export class ViewerRuntime {
           page.element = dom.element
         }
       }
+
+      // Apply page-level viewport offset (preview only, not print)
+      this.applyViewportOffset(this._options.container)
     }
 
     // Emit all diagnostics
@@ -453,6 +457,54 @@ export class ViewerRuntime {
     if (this._destroyed) {
       throw new Error('ViewerRuntime has been destroyed')
     }
+  }
+
+  private resolveZoom(): number {
+    if (!this._schema)
+      return 1
+
+    const scale = this._schema.page.scale
+    if (scale == null || scale === 'auto')
+      return 1
+
+    if (typeof scale === 'number')
+      return scale
+
+    const container = this._options.container
+    if (!container)
+      return 1
+
+    const pxFactor = 96 / (UNIT_FACTOR[this._schema.unit] ?? 25.4)
+    const pageWidthPx = this._schema.page.width * pxFactor
+    const pageHeightPx = this._schema.page.height * pxFactor
+
+    if (scale === 'fit-width' && pageWidthPx > 0) {
+      return container.clientWidth / pageWidthPx
+    }
+
+    if (scale === 'fit-height' && pageHeightPx > 0) {
+      return container.clientHeight / pageHeightPx
+    }
+
+    return 1
+  }
+
+  private applyViewportOffset(container: HTMLElement): void {
+    if (!this._schema)
+      return
+
+    const ox = this._schema.page.offsetX ?? 0
+    const oy = this._schema.page.offsetY ?? 0
+
+    if (ox === 0 && oy === 0) {
+      container.style.paddingLeft = ''
+      container.style.paddingTop = ''
+      return
+    }
+
+    const pxFactor = 96 / (UNIT_FACTOR[this._schema.unit] ?? 25.4)
+    container.style.paddingLeft = `${ox * pxFactor}px`
+    container.style.paddingTop = `${oy * pxFactor}px`
   }
 
   private emitDiagnostic(event: ViewerDiagnosticEvent): void {
