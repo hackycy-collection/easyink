@@ -3,13 +3,20 @@ import type { ImageProps } from './schema'
 
 export function renderImage(node: MaterialNode) {
   const props = node.props as unknown as ImageProps
+  const borderStyle = props.borderWidth
+    ? `border:${props.borderWidth}px ${props.borderType || 'solid'} ${props.borderColor};`
+    : ''
+  const bgStyle = props.backgroundColor ? `background:${props.backgroundColor};` : ''
+
   if (!props.src) {
     return {
-      html: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f5f5f5;color:#999;font-size:12px;">[Image]</div>',
+      html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;${bgStyle || 'background:#f5f5f5;'}color:#999;font-size:12px;box-sizing:border-box;${borderStyle}">[Image]</div>`,
     }
   }
+
   return {
-    html: `<img src="${escapeAttr(props.src)}" alt="${escapeAttr(props.alt)}" style="width:100%;height:100%;object-fit:${props.fit};" />`,
+    html: `<div style="width:100%;height:100%;box-sizing:border-box;${borderStyle}${bgStyle}">`
+      + `<img src="${escapeAttr(props.src)}" alt="${escapeAttr(props.alt || '')}" style="width:100%;height:100%;object-fit:${props.fit};display:block;" /></div>`,
   }
 }
 
