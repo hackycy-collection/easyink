@@ -23,7 +23,7 @@ export function registerBuiltinViewerMaterials(viewer: ViewerRuntime): void {
   viewer.registerMaterial(IMAGE_TYPE, { render: node => renderImage(node) })
   viewer.registerMaterial(BARCODE_TYPE, { render: node => renderBarcode(node) })
   viewer.registerMaterial(QRCODE_TYPE, { render: node => renderQrcode(node) })
-  viewer.registerMaterial(LINE_TYPE, { render: node => renderLine(node) })
+  viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
   viewer.registerMaterial(RECT_TYPE, { render: node => renderRect(node) })
   viewer.registerMaterial(ELLIPSE_TYPE, { render: node => renderEllipse(node) })
   viewer.registerMaterial(CONTAINER_TYPE, { render: node => renderContainer(node) })

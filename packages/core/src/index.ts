@@ -85,6 +85,14 @@ export type {
   ToolbarAction,
 } from './material-extension'
 
+export type {
+  MaterialViewerExtension,
+  ViewerMeasureContext,
+  ViewerMeasureResult,
+  ViewerRenderContext,
+  ViewerRenderOutput,
+} from './material-viewer'
+
 export { createPagePlan } from './page-planner'
 
 export type { PagePlan, PagePlanDiagnostic, PagePlanEntry } from './page-planner'

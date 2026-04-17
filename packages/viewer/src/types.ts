@@ -1,8 +1,11 @@
-import type { FontProvider } from '@easyink/core'
+import type { FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from '@easyink/core'
 import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
 
-export type { DocumentSchema }
+export type { DocumentSchema, MaterialNode }
+
+// Re-export viewer-material contract types from core so host code can import from one place.
+export type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput }
 
 // ---------------------------------------------------------------------------
 // Viewer options & input
@@ -83,39 +86,6 @@ export interface ExportDispatchState {
 export interface PrintAdapter {
   id: string
   print: (context: ViewerExportContext) => Promise<void>
-}
-
-// ---------------------------------------------------------------------------
-// Material viewer extension (per-material render contract)
-// ---------------------------------------------------------------------------
-
-export interface MaterialViewerExtension {
-  render: (node: MaterialNode, context: ViewerRenderContext) => ViewerRenderOutput
-  measure?: (node: MaterialNode, context: ViewerMeasureContext) => ViewerMeasureResult
-}
-
-export interface ViewerRenderContext {
-  data: Record<string, unknown>
-  resolvedProps: Record<string, unknown>
-  pageIndex: number
-  unit: string
-  zoom: number
-}
-
-export interface ViewerRenderOutput {
-  html?: string
-  element?: HTMLElement
-}
-
-export interface ViewerMeasureContext {
-  data: Record<string, unknown>
-  unit: string
-}
-
-export interface ViewerMeasureResult {
-  width: number
-  height: number
-  overflow?: boolean
 }
 
 // ---------------------------------------------------------------------------
