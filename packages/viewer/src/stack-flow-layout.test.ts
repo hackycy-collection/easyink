@@ -190,4 +190,45 @@ describe('viewer runtime stack reflow', () => {
     const pxFactor = 96 / 25.4
     expect(Number.parseFloat(afterEl!.style.top)).toBeCloseTo(56 * pxFactor, 5)
   })
+
+  it('keeps legacy line templates visible by promoting lineWidth into render height', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    registerBuiltinViewerMaterials(viewer)
+
+    const schema: DocumentSchema = {
+      version: '1.0.0',
+      unit: 'mm',
+      page: {
+        mode: 'fixed',
+        width: 80,
+        height: 60,
+      },
+      guides: { x: [], y: [] },
+      elements: [
+        {
+          id: 'legacy-line',
+          type: 'line',
+          x: 5,
+          y: 10,
+          width: 60,
+          height: 0,
+          props: {
+            lineWidth: 0.5,
+            lineColor: '#333333',
+            lineType: 'solid',
+          },
+        },
+      ],
+    }
+
+    await viewer.open({ schema })
+
+    const lineEl = container.querySelector('[data-element-id="legacy-line"]') as HTMLElement | null
+    expect(lineEl).not.toBeNull()
+
+    const pxFactor = 96 / 25.4
+    expect(Number.parseFloat(lineEl!.style.height)).toBeCloseTo(0.5 * pxFactor, 5)
+    expect(lineEl!.querySelector('svg')).not.toBeNull()
+  })
 })

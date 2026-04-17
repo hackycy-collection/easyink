@@ -180,7 +180,6 @@ export const receiptTemplate: DocumentSchema = {
       width: 70,
       height: 1,
       props: {
-        lineWidth: 1,
         lineColor: '#000000',
         lineType: 'dashed',
       },

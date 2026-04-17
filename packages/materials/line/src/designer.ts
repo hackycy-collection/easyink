@@ -1,19 +1,21 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
+import type { MaterialNode } from '@easyink/schema'
 import type { LineProps } from './schema'
+import { getLineThickness } from './schema'
 
-function buildHtml(props: LineProps): string {
-  const h = `${props.lineWidth}px`
-  let innerStyle: string
-  if (props.lineType === 'dashed') {
-    innerStyle = `width:100%;height:${h};background-image:repeating-linear-gradient(90deg,${props.lineColor} 0,${props.lineColor} 6px,transparent 6px,transparent 9px);`
+function buildHtml(node: MaterialNode): string {
+  const props = node.props as Partial<LineProps>
+  const lineColor = props.lineColor || '#000000'
+  const lineType = props.lineType || 'solid'
+  let fillStyle = `background-color:${lineColor};`
+  if (lineType === 'dashed') {
+    fillStyle = `background-image:repeating-linear-gradient(90deg,${lineColor} 0,${lineColor} 12px,transparent 12px,transparent 20px);`
   }
-  else if (props.lineType === 'dotted') {
-    innerStyle = `width:100%;height:${h};background-image:repeating-linear-gradient(90deg,${props.lineColor} 0,${props.lineColor} 2px,transparent 2px,transparent 4px);`
+  else if (lineType === 'dotted') {
+    fillStyle = `background-image:repeating-linear-gradient(90deg,${lineColor} 0,${lineColor} 2px,transparent 2px,transparent 8px);`
   }
-  else {
-    innerStyle = `width:100%;height:${h};background-color:${props.lineColor};`
-  }
-  return `<div style="width:100%;height:100%;display:flex;align-items:center;"><div style="${innerStyle}"></div></div>`
+
+  return `<div style="position:relative;width:100%;height:100%;overflow:visible;"><div style="position:absolute;inset:0;${fillStyle}"></div></div>`
 }
 
 export function createLineExtension(_context: MaterialExtensionContext): MaterialDesignerExtension {
@@ -21,11 +23,14 @@ export function createLineExtension(_context: MaterialExtensionContext): Materia
     renderContent(nodeSignal, container) {
       function render() {
         const node = nodeSignal.get()
-        container.innerHTML = buildHtml(node.props as unknown as LineProps)
+        container.innerHTML = buildHtml(node)
       }
       render()
       const unsub = nodeSignal.subscribe(render)
       return unsub
+    },
+    getVisualHeight(node) {
+      return getLineThickness(node)
     },
   }
 }

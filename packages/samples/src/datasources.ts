@@ -340,9 +340,8 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       x: 10,
       y: 40,
       width: 190,
-      height: 0,
+      height: 0.5,
       props: {
-        lineWidth: 0.5,
         lineColor: '#cccccc',
         lineType: 'solid',
       },

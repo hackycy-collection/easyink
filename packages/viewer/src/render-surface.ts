@@ -2,6 +2,7 @@ import type { PagePlanEntry } from '@easyink/core'
 import type { MaterialNode, PageBackground, PageSchema } from '@easyink/schema'
 import type { MaterialRendererRegistry } from './material-registry'
 import type { ViewerDiagnosticEvent, ViewerRenderContext } from './types'
+import { getLineThickness, LINE_TYPE } from '@easyink/material-line'
 import { isTableNode } from '@easyink/schema'
 import { UNIT_FACTOR } from '@easyink/shared'
 
@@ -186,7 +187,8 @@ function createElementWrapper(
   wrapper.style.left = `${node.x * pxFactor * zoom}px`
   wrapper.style.top = `${relativeY * pxFactor * zoom}px`
   wrapper.style.width = `${node.width * pxFactor * zoom}px`
-  wrapper.style.height = `${node.height * pxFactor * zoom}px`
+  const renderHeight = node.type === LINE_TYPE ? getLineThickness(node) : node.height
+  wrapper.style.height = `${renderHeight * pxFactor * zoom}px`
   // Tables use border-collapse:collapse where outer borders overflow by half
   // the border width. Use overflow:visible to avoid clipping bottom/right borders.
   // Page-level overflow:hidden still prevents content from escaping the page.

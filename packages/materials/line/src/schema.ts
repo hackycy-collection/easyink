@@ -4,15 +4,30 @@ import { generateId } from '@easyink/shared'
 export const LINE_TYPE = 'line'
 
 export interface LineProps {
-  lineWidth: number
   lineColor: string
   lineType: 'solid' | 'dashed' | 'dotted'
 }
 
 export const LINE_DEFAULTS: LineProps = {
-  lineWidth: 1,
   lineColor: '#000000',
   lineType: 'solid',
+}
+
+function readPositiveNumber(value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null
+}
+
+export function getLineThickness(node: Pick<MaterialNode, 'height' | 'props'>): number {
+  const height = readPositiveNumber(node.height)
+  if (height != null)
+    return height
+
+  const legacyLineWidth = readPositiveNumber((node.props as Record<string, unknown>).lineWidth)
+  if (legacyLineWidth != null)
+    return legacyLineWidth
+
+  return 1
 }
 
 export function createLineNode(partial?: Partial<MaterialNode>): MaterialNode {
@@ -22,7 +37,7 @@ export function createLineNode(partial?: Partial<MaterialNode>): MaterialNode {
     x: 0,
     y: 0,
     width: 100,
-    height: 5,
+    height: 1,
     props: { ...LINE_DEFAULTS },
     ...partial,
   }

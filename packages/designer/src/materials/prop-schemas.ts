@@ -127,7 +127,6 @@ const QRCODE_PROP_SCHEMAS: PropSchema[] = [
 // ─── Line ────────────────────────────────────────────────────────────
 
 const LINE_PROP_SCHEMAS: PropSchema[] = [
-  { key: 'lineWidth', label: 'designer.property.lineWidth', type: 'number', group: 'appearance', min: 1, max: 20, step: 1 },
   { key: 'lineColor', label: 'designer.property.lineColor', type: 'color', group: 'appearance' },
   { key: 'lineType', label: 'designer.property.lineType', type: 'enum', group: 'appearance', enum: [
     { label: 'Solid', value: 'solid' },

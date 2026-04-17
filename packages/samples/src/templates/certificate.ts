@@ -86,9 +86,8 @@ export const certificateTemplate: DocumentSchema = {
       x: 40,
       y: 55,
       width: 217,
-      height: 0,
+      height: 0.5,
       props: {
-        lineWidth: 0.5,
         lineColor: '#c5a55a',
         lineType: 'solid',
       },
@@ -173,9 +172,8 @@ export const certificateTemplate: DocumentSchema = {
       x: 80,
       y: 104,
       width: 137,
-      height: 0,
+      height: 0.5,
       props: {
-        lineWidth: 0.5,
         lineColor: '#333333',
         lineType: 'solid',
       },
@@ -246,9 +244,8 @@ export const certificateTemplate: DocumentSchema = {
       x: 20,
       y: 158,
       width: 80,
-      height: 0,
+      height: 0.5,
       props: {
-        lineWidth: 0.5,
         lineColor: '#333333',
         lineType: 'solid',
       },
@@ -297,9 +294,8 @@ export const certificateTemplate: DocumentSchema = {
       x: 108,
       y: 158,
       width: 80,
-      height: 0,
+      height: 0.5,
       props: {
-        lineWidth: 0.5,
         lineColor: '#333333',
         lineType: 'solid',
       },
