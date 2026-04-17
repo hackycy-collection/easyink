@@ -178,6 +178,17 @@ function createInvoiceTableNode(): TableNode {
       stripedRows: false,
       stripedColor: '#fafafa',
       borderWidth: 0,
+      cellPadding: 0.53,
+      typography: {
+        fontSize: 3.18,
+        color: '#000000',
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        verticalAlign: 'middle',
+      },
     },
     table: {
       kind: 'data' as const,
@@ -223,7 +234,7 @@ function createInvoiceTableNode(): TableNode {
       },
       layout: {
         borderAppearance: 'all' as const,
-        borderWidth: 0.5,
+        borderWidth: 0.13,
         borderType: 'solid' as const,
         borderColor: '#cccccc',
       },
@@ -243,7 +254,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 10,
       props: {
         content: '{#公司名称}',
-        fontSize: 18,
+        fontSize: 6.35,
         fontWeight: 'bold',
         color: '#333333',
         verticalAlign: 'middle',
@@ -264,7 +275,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 6,
       props: {
         content: '{#地址}',
-        fontSize: 9,
+        fontSize: 3.18,
         color: '#666666',
         verticalAlign: 'middle',
       },
@@ -284,7 +295,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 10,
       props: {
         content: '发票',
-        fontSize: 22,
+        fontSize: 7.76,
         fontWeight: 'bold',
         textAlign: 'right',
         color: '#1a1a1a',
@@ -301,7 +312,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 6,
       props: {
         content: '{#发票编号}',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'right',
         color: '#666666',
         verticalAlign: 'middle',
@@ -322,7 +333,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 6,
       props: {
         content: '{#开票日期}',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'right',
         color: '#666666',
         verticalAlign: 'middle',
@@ -356,7 +367,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 6,
       props: {
         content: '致：{#客户名称}',
-        fontSize: 10,
+        fontSize: 3.53,
         color: '#333333',
         verticalAlign: 'middle',
       },
@@ -378,7 +389,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 8,
       props: {
         content: '合计：{#合计}',
-        fontSize: 14,
+        fontSize: 4.94,
         fontWeight: 'bold',
         textAlign: 'right',
         color: '#1a1a1a',
@@ -400,7 +411,7 @@ function createInvoiceElements(): DocumentSchema['elements'] {
       height: 12,
       props: {
         content: '{#备注}',
-        fontSize: 9,
+        fontSize: 3.18,
         color: '#999999',
         verticalAlign: 'middle',
       },

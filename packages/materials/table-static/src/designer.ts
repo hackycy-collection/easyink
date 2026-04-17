@@ -20,6 +20,7 @@ import {
 } from '@easyink/core'
 import { CELL_PROP_SCHEMAS, computeCellRect, createTableDeepEditing, escapeHtml, hitTestGridCell, renderTableHtml, resolveMergeOwner } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
+import { convertUnit } from '@easyink/shared'
 
 function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensionContext): string {
   if (!isTableNode(node)) {
@@ -116,7 +117,7 @@ function createDelegate(context: MaterialExtensionContext): TableDeepEditingDele
     },
     commitInsertRow(node, rowIndex) {
       const colCount = node.table.topology.columns.length
-      const avgHeight = node.table.topology.rows[rowIndex]?.height ?? 24
+      const avgHeight = node.table.topology.rows[rowIndex]?.height ?? convertUnit(8, 'mm', context.getSchema().unit)
       context.commitCommand(new InsertTableRowCommand(node, rowIndex, {
         height: avgHeight,
         role: 'normal',

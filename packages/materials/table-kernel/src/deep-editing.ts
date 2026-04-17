@@ -16,6 +16,7 @@ import {
   IconTextAlignLeft,
   IconTextAlignRight,
 } from '@easyink/icons/svg-strings'
+import { convertUnit } from '@easyink/shared'
 import { computeCellRect, computeRowScale, hitTestGridCell } from './geometry'
 import { resolveMergeOwner } from './topology'
 
@@ -934,6 +935,7 @@ function onColumnBorderPointerDown(
   const startScreenX = e.clientX
   const startRatio = tableNode.table.topology.columns[colIndex]!.ratio
   const startWidth = tableNode.width
+  const minColWidth = convertUnit(4, 'mm', shared.delegate.getUnit())
   // Use screenToDoc difference for unit-correct delta computation
   const baseDocX = shared.delegate.screenToDoc(startScreenX, 0, zoom)
 
@@ -942,7 +944,7 @@ function onColumnBorderPointerDown(
 
   function onPointerMove(ev: PointerEvent) {
     const deltaDoc = shared.delegate.screenToDoc(ev.clientX, 0, zoom) - baseDocX
-    const newRatio = Math.max(4 / startWidth, startRatio + deltaDoc / startWidth)
+    const newRatio = Math.max(minColWidth / startWidth, startRatio + deltaDoc / startWidth)
     tableNode.table.topology.columns[colIndex]!.ratio = newRatio
     tableNode.width = startWidth + (newRatio - startRatio) * startWidth
     onResizeMove?.()
@@ -978,6 +980,7 @@ function onRowBorderPointerDown(
   const startScreenY = e.clientY
   const startRowHeight = tableNode.table.topology.rows[rowIndex]!.height
   const startElementHeight = tableNode.height
+  const minRowHeight = convertUnit(4, 'mm', shared.delegate.getUnit())
   // Use screenToDoc difference for unit-correct delta computation
   const baseDocY = shared.delegate.screenToDoc(startScreenY, 0, zoom)
 
@@ -986,7 +989,7 @@ function onRowBorderPointerDown(
 
   function onPointerMove(ev: PointerEvent) {
     const deltaDoc = shared.delegate.screenToDoc(ev.clientY, 0, zoom) - baseDocY
-    const newHeight = Math.max(4, startRowHeight + deltaDoc)
+    const newHeight = Math.max(minRowHeight, startRowHeight + deltaDoc)
     tableNode.table.topology.rows[rowIndex]!.height = newHeight
     tableNode.height = startElementHeight + (newHeight - startRowHeight)
     onResizeMove?.()

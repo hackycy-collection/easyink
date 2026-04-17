@@ -72,7 +72,7 @@ export const badgeTemplate: DocumentSchema = {
       height: 10,
       props: {
         content: '{#公司}',
-        fontSize: 10,
+        fontSize: 3.53,
         fontWeight: 'bold',
         textAlign: 'center',
         verticalAlign: 'middle',
@@ -112,7 +112,7 @@ export const badgeTemplate: DocumentSchema = {
       height: 10,
       props: {
         content: '{#姓名}',
-        fontSize: 16,
+        fontSize: 5.64,
         fontWeight: 'bold',
         textAlign: 'left',
         verticalAlign: 'middle',
@@ -134,7 +134,7 @@ export const badgeTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '{#部门}',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'left',
         verticalAlign: 'middle',
         color: '#666666',
@@ -155,7 +155,7 @@ export const badgeTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '{#职位}',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'left',
         verticalAlign: 'middle',
         color: '#666666',
@@ -178,7 +178,7 @@ export const badgeTemplate: DocumentSchema = {
         value: 'EMP-20260001',
         format: 'CODE128',
         showText: true,
-        fontSize: 7,
+        fontSize: 2.47,
         lineColor: '#333333',
       },
       binding: {

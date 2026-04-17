@@ -1,7 +1,7 @@
 import type { TableCellSchema, TableTopologySchema } from '@easyink/schema'
 import type { TableBaseProps } from './types'
 import { computeRowScale, normalizeColumnRatios } from './geometry'
-import { TABLE_TYPOGRAPHY_DEFAULTS } from './types'
+import { TABLE_BASE_DEFAULTS, TABLE_TYPOGRAPHY_DEFAULTS } from './types'
 import { resolveCellTypography } from './typography'
 
 export function escapeAttr(str: string): string {
@@ -66,10 +66,10 @@ export interface RenderTableHtmlOptions {
  */
 export function renderTableHtml(options: RenderTableHtmlOptions): string {
   const { topology, props, unit, elementHeight, tableStyle, cellRenderer, rowDecorator, virtualRows } = options
-  const bw = props.borderWidth ?? 1
+  const bw = props.borderWidth ?? TABLE_BASE_DEFAULTS.borderWidth
   const bc = escapeAttr(props.borderColor || '#000')
   const bt = props.borderType || 'solid'
-  const pad = props.cellPadding ?? 4
+  const pad = props.cellPadding ?? TABLE_BASE_DEFAULTS.cellPadding
 
   const colgroup = buildColgroup(topology)
   const numCols = topology.columns.length

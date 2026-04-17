@@ -59,7 +59,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 194,
       props: {
         fillColor: 'transparent',
-        borderWidth: 2,
+        borderWidth: 0.53,
         borderColor: '#c5a55a',
         borderRadius: 0,
       },
@@ -74,7 +74,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 186,
       props: {
         fillColor: 'transparent',
-        borderWidth: 0.5,
+        borderWidth: 0.13,
         borderColor: '#c5a55a',
         borderRadius: 0,
       },
@@ -102,12 +102,12 @@ export const certificateTemplate: DocumentSchema = {
       height: 22,
       props: {
         content: '培训完成证书',
-        fontSize: 32,
+        fontSize: 11.29,
         fontWeight: 'bold',
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#333333',
-        letterSpacing: 4,
+        letterSpacing: 1.41,
       },
     },
     // Subtitle
@@ -120,11 +120,11 @@ export const certificateTemplate: DocumentSchema = {
       height: 10,
       props: {
         content: 'CERTIFICATE OF COMPLETION',
-        fontSize: 10,
+        fontSize: 3.53,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#999999',
-        letterSpacing: 3,
+        letterSpacing: 1.06,
       },
     },
     // "This is to certify that" text
@@ -137,7 +137,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '兹证明',
-        fontSize: 12,
+        fontSize: 4.23,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#666666',
@@ -153,7 +153,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 16,
       props: {
         content: '{#姓名}',
-        fontSize: 28,
+        fontSize: 9.88,
         fontWeight: 'bold',
         textAlign: 'center',
         verticalAlign: 'middle',
@@ -188,7 +188,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '已成功完成以下课程',
-        fontSize: 11,
+        fontSize: 3.88,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#666666',
@@ -204,7 +204,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 12,
       props: {
         content: '{#课程名称}',
-        fontSize: 16,
+        fontSize: 5.64,
         fontWeight: 'bold',
         textAlign: 'center',
         verticalAlign: 'middle',
@@ -226,7 +226,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '{#颁发日期}',
-        fontSize: 10,
+        fontSize: 3.53,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#666666',
@@ -260,7 +260,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '日期',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#999999',
@@ -276,7 +276,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '{#讲师}',
-        fontSize: 10,
+        fontSize: 3.53,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#666666',
@@ -310,7 +310,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '讲师签名',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#999999',
@@ -326,7 +326,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '{#证书编号}',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#999999',
@@ -367,7 +367,7 @@ export const certificateTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '{#颁发机构}',
-        fontSize: 11,
+        fontSize: 3.88,
         textAlign: 'center',
         verticalAlign: 'middle',
         color: '#666666',

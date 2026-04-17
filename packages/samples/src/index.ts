@@ -53,7 +53,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       height: 12,
       props: {
         content: '发票',
-        fontSize: 24,
+        fontSize: 8.47,
         fontWeight: 'bold',
         textAlign: 'center',
         verticalAlign: 'middle',
@@ -69,7 +69,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '日期：____',
-        fontSize: 10,
+        fontSize: 3.53,
         textAlign: 'right',
         verticalAlign: 'middle',
         color: '#666666',
@@ -84,7 +84,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '编号：____',
-        fontSize: 10,
+        fontSize: 3.53,
         textAlign: 'left',
         verticalAlign: 'middle',
         color: '#666666',
@@ -138,7 +138,7 @@ export const labelTemplate: DocumentSchema = {
       height: 6,
       props: {
         content: '商品名称',
-        fontSize: 9,
+        fontSize: 3.18,
         textAlign: 'center',
       },
     },
@@ -167,7 +167,7 @@ export const receiptTemplate: DocumentSchema = {
       height: 8,
       props: {
         content: '收据',
-        fontSize: 16,
+        fontSize: 5.64,
         fontWeight: 'bold',
         textAlign: 'center',
       },
