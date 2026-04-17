@@ -178,7 +178,7 @@ export const receiptTemplate: DocumentSchema = {
       x: 5,
       y: 16,
       width: 70,
-      height: 0,
+      height: 1,
       props: {
         lineWidth: 1,
         lineColor: '#000000',
