@@ -8,9 +8,9 @@ import {
   IconEllipse,
   IconImage,
   IconLine,
+  IconPageNumber,
   IconQrcode,
   IconRect,
-  IconRelation,
   IconSvg,
   IconTable,
   IconText,
@@ -36,13 +36,13 @@ const ICON_MAP: Record<string, Component> = {
   'table-data': IconDataTable,
   'chart': IconChart,
   'svg': IconSvg,
-  'relation': IconRelation,
+  'page-number': IconPageNumber,
 }
 
 const quickMaterials = computed<MaterialCatalogEntry[]>(() => store.getQuickMaterials())
 
 const groupedCategories = computed(() => {
-  const groups = ['data', 'chart', 'svg', 'relation'] as const
+  const groups = ['data', 'chart', 'svg', 'utility'] as const
   return groups.map(group => ({
     group,
     label: store.t(`designer.toolbar.${group}`),

@@ -32,4 +32,6 @@ export interface ViewerMeasureResult {
 export interface MaterialViewerExtension {
   render: (node: MaterialNode, context: ViewerRenderContext) => ViewerRenderOutput
   measure?: (node: MaterialNode, context: ViewerMeasureContext) => ViewerMeasureResult
+  /** When true, the element is replicated to every page by the pageAware post-processing step. */
+  pageAware?: boolean
 }

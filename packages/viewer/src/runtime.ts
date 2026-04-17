@@ -1,4 +1,4 @@
-import type { InternalHooks } from '@easyink/core'
+import type { InternalHooks, PagePlan } from '@easyink/core'
 import type { DocumentSchema } from '@easyink/schema'
 import type {
   ExportAdapter,
@@ -110,6 +110,9 @@ export class ViewerRuntime {
         message: d.message,
       })
     }
+
+    // Stage 4.5: Resolve page-aware elements (e.g., page-number)
+    this.resolvePageAwareElements(plan, resolvedPropsMap)
 
     // Stage 5: DOM rendering
     const pages = plan.pages.map(p => ({
@@ -383,6 +386,58 @@ export class ViewerRuntime {
   // ---------------------------------------------------------------------------
   // Internal pipeline stages
   // ---------------------------------------------------------------------------
+
+  /**
+   * Stage 4.5: Resolve page-aware elements.
+   * Collects elements whose material type is marked pageAware, removes them
+   * from their original page, then replicates them into every page with
+   * injected __pageNumber / __totalPages props.
+   */
+  private resolvePageAwareElements(
+    plan: PagePlan,
+    resolvedPropsMap: Map<string, Record<string, unknown>>,
+  ): void {
+    // Label mode does not support page-aware elements
+    if (plan.mode === 'label')
+      return
+
+    // Collect page-aware elements across all pages
+    const pageAwareElements: import('@easyink/schema').MaterialNode[] = []
+    for (const page of plan.pages) {
+      const kept: import('@easyink/schema').MaterialNode[] = []
+      for (const el of page.elements) {
+        if (this._materialRegistry.isPageAware(el.type)) {
+          pageAwareElements.push(el)
+        }
+        else {
+          kept.push(el)
+        }
+      }
+      page.elements = kept
+    }
+
+    if (pageAwareElements.length === 0)
+      return
+
+    const totalPages = plan.pages.length
+
+    // Replicate page-aware elements into every page
+    for (const page of plan.pages) {
+      for (const el of pageAwareElements) {
+        const virtualId = `${el.id}__p${page.index}`
+        const virtualNode = { ...el, id: virtualId }
+        page.elements.push(virtualNode)
+
+        // Inject page context into resolved props
+        const baseProps = resolvedPropsMap.get(el.id) ?? el.props
+        resolvedPropsMap.set(virtualId, {
+          ...baseProps,
+          __pageNumber: page.index + 1,
+          __totalPages: totalPages,
+        })
+      }
+    }
+  }
 
   private applyMeasureAndLayout(): { schema: DocumentSchema, diagnostics: ViewerDiagnosticEvent[] } {
     if (!this._schema)

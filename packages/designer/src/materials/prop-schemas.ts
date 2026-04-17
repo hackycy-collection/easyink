@@ -204,21 +204,34 @@ const SVG_PROP_SCHEMAS: PropSchema[] = [
   { key: 'fillColor', label: 'designer.property.fillColor', type: 'color', group: 'appearance' },
 ]
 
-// ─── Relation ────────────────────────────────────────────────────────
+// ─── Page Number ────────────────────────────────────────────────────
 
-const RELATION_PROP_SCHEMAS: PropSchema[] = [
-  { key: 'relationType', label: 'designer.property.relationType', type: 'enum', group: 'content', enum: [
-    { label: 'One-to-One', value: 'one-to-one' },
-    { label: 'One-to-Many', value: 'one-to-many' },
-    { label: 'Tree', value: 'tree' },
+const PAGE_NUMBER_PROP_SCHEMAS: PropSchema[] = [
+  { key: 'format', label: 'designer.property.format', type: 'string', group: 'content' },
+  { key: 'fontFamily', label: 'designer.property.font', type: 'font', group: 'typography' },
+  { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'typography', min: 1, max: 200, step: 1 },
+  { key: 'fontWeight', label: 'designer.property.fontWeight', type: 'enum', group: 'typography', enum: [
+    { label: 'Normal', value: 'normal' },
+    { label: 'Bold', value: 'bold' },
   ] },
-  { key: 'lineWidth', label: 'designer.property.lineWidth', type: 'number', group: 'appearance', min: 1, max: 10, step: 1 },
-  { key: 'lineColor', label: 'designer.property.lineColor', type: 'color', group: 'appearance' },
-  { key: 'lineType', label: 'designer.property.lineType', type: 'enum', group: 'appearance', enum: [
-    { label: 'Solid', value: 'solid' },
-    { label: 'Dashed', value: 'dashed' },
-    { label: 'Dotted', value: 'dotted' },
+  { key: 'fontStyle', label: 'designer.property.fontStyle', type: 'enum', group: 'typography', enum: [
+    { label: 'Normal', value: 'normal' },
+    { label: 'Italic', value: 'italic' },
   ] },
+  { key: 'textAlign', label: 'designer.property.textAlign', type: 'enum', group: 'typography', enum: [
+    { label: 'Left', value: 'left' },
+    { label: 'Center', value: 'center' },
+    { label: 'Right', value: 'right' },
+  ] },
+  { key: 'verticalAlign', label: 'designer.property.verticalAlign', type: 'enum', group: 'typography', enum: [
+    { label: 'Top', value: 'top' },
+    { label: 'Middle', value: 'middle' },
+    { label: 'Bottom', value: 'bottom' },
+  ] },
+  { key: 'lineHeight', label: 'designer.property.lineHeight', type: 'number', group: 'typography', min: 0.5, max: 5, step: 0.1 },
+  { key: 'letterSpacing', label: 'designer.property.letterSpacing', type: 'number', group: 'typography', min: -5, max: 20, step: 0.5 },
+  { key: 'color', label: 'designer.property.color', type: 'color', group: 'appearance' },
+  { key: 'backgroundColor', label: 'designer.property.background', type: 'color', group: 'appearance' },
 ]
 
 // ─── Table Static ────────────────────────────────────────────────────
@@ -320,7 +333,7 @@ const PROP_SCHEMA_REGISTRY: Record<string, PropSchema[]> = {
   'container': CONTAINER_PROP_SCHEMAS,
   'chart': CHART_PROP_SCHEMAS,
   'svg': SVG_PROP_SCHEMAS,
-  'relation': RELATION_PROP_SCHEMAS,
+  'page-number': PAGE_NUMBER_PROP_SCHEMAS,
   'table-static': TABLE_STATIC_PROP_SCHEMAS,
   'table-data': TABLE_DATA_PROP_SCHEMAS,
 }

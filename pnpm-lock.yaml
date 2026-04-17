@@ -216,15 +216,15 @@ importers:
       '@easyink/material-line':
         specifier: workspace:*
         version: link:../materials/line
+      '@easyink/material-page-number':
+        specifier: workspace:*
+        version: link:../materials/page-number
       '@easyink/material-qrcode':
         specifier: workspace:*
         version: link:../materials/qrcode
       '@easyink/material-rect':
         specifier: workspace:*
         version: link:../materials/rect
-      '@easyink/material-relation':
-        specifier: workspace:*
-        version: link:../materials/relation
       '@easyink/material-svg':
         specifier: workspace:*
         version: link:../materials/svg
@@ -340,6 +340,18 @@ importers:
         specifier: workspace:*
         version: link:../../shared
 
+  packages/materials/page-number:
+    dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@easyink/schema':
+        specifier: workspace:*
+        version: link:../../schema
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
   packages/materials/qrcode:
     dependencies:
       '@easyink/core':
@@ -356,18 +368,6 @@ importers:
         version: 2.0.4
 
   packages/materials/rect:
-    dependencies:
-      '@easyink/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@easyink/schema':
-        specifier: workspace:*
-        version: link:../../schema
-      '@easyink/shared':
-        specifier: workspace:*
-        version: link:../../shared
-
-  packages/materials/relation:
     dependencies:
       '@easyink/core':
         specifier: workspace:*
@@ -506,15 +506,15 @@ importers:
       '@easyink/material-line':
         specifier: workspace:*
         version: link:../materials/line
+      '@easyink/material-page-number':
+        specifier: workspace:*
+        version: link:../materials/page-number
       '@easyink/material-qrcode':
         specifier: workspace:*
         version: link:../materials/qrcode
       '@easyink/material-rect':
         specifier: workspace:*
         version: link:../materials/rect
-      '@easyink/material-relation':
-        specifier: workspace:*
-        version: link:../materials/relation
       '@easyink/material-svg':
         specifier: workspace:*
         version: link:../materials/svg

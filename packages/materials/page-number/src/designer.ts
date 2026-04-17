@@ -1,0 +1,44 @@
+import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
+import type { MaterialNode } from '@easyink/schema'
+import type { PageNumberProps } from './schema'
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function buildHtml(node: MaterialNode): string {
+  const p = node.props as unknown as PageNumberProps
+  const display = escapeHtml(p.format || '{current}/{total}')
+
+  const vAlignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
+
+  const style = [
+    'width:100%;height:100%',
+    'display:flex;position:relative',
+    `align-items:${vAlignMap[p.verticalAlign] || 'flex-start'}`,
+    'box-sizing:border-box;overflow:hidden',
+    `font-size:${p.fontSize}pt`,
+    p.fontFamily ? `font-family:${escapeHtml(p.fontFamily)}` : '',
+    `font-weight:${p.fontWeight}`,
+    `font-style:${p.fontStyle}`,
+    `color:${p.color}`,
+    p.backgroundColor ? `background:${p.backgroundColor}` : '',
+    `line-height:${p.lineHeight}`,
+    p.letterSpacing ? `letter-spacing:${p.letterSpacing}pt` : '',
+  ].filter(Boolean).join(';')
+
+  return `<div style="${style}"><span style="width:100%;text-align:${p.textAlign}">${display}</span></div>`
+}
+
+export function createPageNumberExtension(_context: MaterialExtensionContext): MaterialDesignerExtension {
+  return {
+    renderContent(nodeSignal, container) {
+      function render() {
+        container.innerHTML = buildHtml(nodeSignal.get())
+      }
+      render()
+      const unsub = nodeSignal.subscribe(render)
+      return unsub
+    },
+  }
+}

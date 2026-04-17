@@ -11,9 +11,9 @@ import {
   IconImage,
   IconLine,
   IconLock,
+  IconPageNumber,
   IconQrcode,
   IconRect,
-  IconRelation,
   IconSvg,
   IconTable,
   IconText,
@@ -36,7 +36,7 @@ const ICON_MAP: Record<string, Component> = {
   'table-data': IconDataTable,
   'chart': IconChart,
   'svg': IconSvg,
-  'relation': IconRelation,
+  'page-number': IconPageNumber,
 }
 
 const store = useDesignerStore()

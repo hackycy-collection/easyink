@@ -6,9 +6,9 @@ import { CONTAINER_TYPE, renderContainer } from '@easyink/material-container'
 import { ELLIPSE_TYPE, renderEllipse } from '@easyink/material-ellipse'
 import { IMAGE_TYPE, renderImage } from '@easyink/material-image'
 import { LINE_TYPE, renderLine } from '@easyink/material-line'
+import { PAGE_NUMBER_TYPE, renderPageNumber } from '@easyink/material-page-number'
 import { QRCODE_TYPE, renderQrcode } from '@easyink/material-qrcode'
 import { RECT_TYPE, renderRect } from '@easyink/material-rect'
-import { RELATION_TYPE, renderRelation } from '@easyink/material-relation'
 import { renderSvg, SVG_TYPE } from '@easyink/material-svg'
 import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { renderTableStatic, TABLE_STATIC_TYPE } from '@easyink/material-table-static'
@@ -34,5 +34,8 @@ export function registerBuiltinViewerMaterials(viewer: ViewerRuntime): void {
   })
   viewer.registerMaterial(CHART_TYPE, { render: node => renderChart(node) })
   viewer.registerMaterial(SVG_TYPE, { render: node => renderSvg(node) })
-  viewer.registerMaterial(RELATION_TYPE, { render: node => renderRelation(node) })
+  viewer.registerMaterial(PAGE_NUMBER_TYPE, {
+    render: (node, ctx) => renderPageNumber(node, ctx),
+    pageAware: true,
+  })
 }

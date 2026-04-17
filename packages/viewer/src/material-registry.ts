@@ -7,13 +7,18 @@ import type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult
  */
 export class MaterialRendererRegistry {
   private _renderers = new Map<string, MaterialViewerExtension>()
+  private _pageAwareTypes = new Set<string>()
 
   register(type: string, extension: MaterialViewerExtension): void {
     this._renderers.set(type, extension)
+    if (extension.pageAware) {
+      this._pageAwareTypes.add(type)
+    }
   }
 
   unregister(type: string): void {
     this._renderers.delete(type)
+    this._pageAwareTypes.delete(type)
   }
 
   has(type: string): boolean {
@@ -35,12 +40,17 @@ export class MaterialRendererRegistry {
     return ext.measure(node, context)
   }
 
+  isPageAware(type: string): boolean {
+    return this._pageAwareTypes.has(type)
+  }
+
   get registeredTypes(): string[] {
     return [...this._renderers.keys()]
   }
 
   clear(): void {
     this._renderers.clear()
+    this._pageAwareTypes.clear()
   }
 }
 

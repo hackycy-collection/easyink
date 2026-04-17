@@ -38,6 +38,12 @@ import {
   LINE_TYPE,
 } from '@easyink/material-line'
 import {
+  createPageNumberExtension,
+  createPageNumberNode,
+  PAGE_NUMBER_CAPABILITIES,
+  PAGE_NUMBER_TYPE,
+} from '@easyink/material-page-number'
+import {
   createQrcodeExtension,
   createQrcodeNode,
   QRCODE_CAPABILITIES,
@@ -49,12 +55,6 @@ import {
   RECT_CAPABILITIES,
   RECT_TYPE,
 } from '@easyink/material-rect'
-import {
-  createRelationExtension,
-  createRelationNode,
-  RELATION_CAPABILITIES,
-  RELATION_TYPE,
-} from '@easyink/material-relation'
 import {
   createSvgExtension,
   createSvgNode,
@@ -216,13 +216,13 @@ const MATERIALS: MaterialEntry[] = [
     factory: createSvgExtension,
   },
   {
-    type: RELATION_TYPE,
-    name: 'designer.toolbar.relation',
-    icon: 'relation',
-    category: 'relation',
-    capabilities: RELATION_CAPABILITIES,
-    createDefaultNode: createRelationNode,
-    factory: createRelationExtension,
+    type: PAGE_NUMBER_TYPE,
+    name: 'designer.toolbar.pageNumber',
+    icon: 'page-number',
+    category: 'utility',
+    capabilities: PAGE_NUMBER_CAPABILITIES,
+    createDefaultNode: createPageNumberNode,
+    factory: createPageNumberExtension,
   },
 ]
 
@@ -239,14 +239,14 @@ const QUICK_MATERIAL_TYPES = [
   BARCODE_TYPE,
 ]
 
-// Grouped catalog: data / chart / svg / relation
+// Grouped catalog: data / chart / svg / utility
 const GROUPED_CATALOG: Array<{ type: string, group: MaterialCatalogEntry['group'] }> = [
   { type: TABLE_STATIC_TYPE, group: 'data' },
   { type: TABLE_DATA_TYPE, group: 'data' },
   { type: CONTAINER_TYPE, group: 'data' },
   { type: CHART_TYPE, group: 'chart' },
   { type: SVG_TYPE, group: 'svg' },
-  { type: RELATION_TYPE, group: 'relation' },
+  { type: PAGE_NUMBER_TYPE, group: 'utility' },
 ]
 
 // ─── Registration function ───────────────────────────────────────────

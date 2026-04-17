@@ -144,7 +144,7 @@ export interface PropSchema {
 
 export interface MaterialCatalogEntry {
   id: string
-  group: 'quick' | 'data' | 'chart' | 'svg' | 'relation'
+  group: 'quick' | 'data' | 'chart' | 'svg' | 'utility'
   label: string
   icon: string
   materialType: string

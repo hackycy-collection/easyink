@@ -1,8 +1,8 @@
 {
-  "name": "@easyink/material-relation",
+  "name": "@easyink/material-page-number",
   "type": "module",
   "version": "0.0.0",
-  "description": "EasyInk relation material",
+  "description": "EasyInk page-number material",
   "author": "hackycy <hackycy@outlook.com>",
   "license": "MIT",
   "sideEffects": false,

@@ -37,12 +37,12 @@ export type PrintBehavior = 'each' | 'odd' | 'even' | 'first' | 'last'
 /**
  * Material catalog group classification.
  */
-export type MaterialGroup = 'quick' | 'data' | 'chart' | 'svg' | 'relation'
+export type MaterialGroup = 'quick' | 'data' | 'chart' | 'svg' | 'utility'
 
 /**
  * Material category for the material catalog.
  */
-export type MaterialCategory = 'basic' | 'data' | 'chart' | 'svg' | 'relation' | 'layout'
+export type MaterialCategory = 'basic' | 'data' | 'chart' | 'svg' | 'utility' | 'layout'
 
 /**
  * Material use token for recommended drag-create material type.
