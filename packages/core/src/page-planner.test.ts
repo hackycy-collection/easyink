@@ -72,26 +72,46 @@ describe('createPagePlan', () => {
   })
 
   describe('label mode', () => {
-    it('creates entries per copy with computed label width', () => {
+    it('aggregates copies into sheets with replicated elements per cell', () => {
       const schema = makeSchema({
         mode: 'label',
-        width: 210,
-        label: { columns: 3, gap: 5 },
-        copies: 6,
-      }, [makeNode('a')])
-      const plan = createPagePlan(schema)
-      expect(plan.mode).toBe('label')
-      expect(plan.pages).toHaveLength(6)
+        width: 68,
+        height: 40,
+        label: { columns: 3, gap: 2, rows: 2, rowGap: 4 },
+        copies: 9,
+      }, [makeNode('a', { x: 5, y: 5, width: 55, height: 20 })])
 
-      const expectedWidth = (210 - 5 * 2) / 3
-      expect(plan.pages[0]!.width).toBeCloseTo(expectedWidth, 5)
+      const plan = createPagePlan(schema)
+
+      expect(plan.mode).toBe('label')
+      // perSheet = 3 * 2 = 6 → 9 copies → ceil(9/6) = 2 sheets
+      expect(plan.pages).toHaveLength(2)
+
+      const sheetWidth = 68 * 3 + 2 * 2
+      const sheetHeight = 40 * 2 + 4 * 1
+      expect(plan.pages[0]!.width).toBeCloseTo(sheetWidth, 5)
+      expect(plan.pages[0]!.height).toBeCloseTo(sheetHeight, 5)
+
+      // Sheet 0: 6 cells × 1 element = 6 elements
+      expect(plan.pages[0]!.elements).toHaveLength(6)
+      // Cell (col=1, row=0) → xOffset = 1 * (68 + 2) = 70, yOffset = 0
+      expect(plan.pages[0]!.elements[1]!.x).toBeCloseTo(5 + 70, 5)
+      expect(plan.pages[0]!.elements[1]!.y).toBeCloseTo(5, 5)
+      // Cell (col=0, row=1) → xOffset = 0, yOffset = 1 * (40 + 4) = 44
+      expect(plan.pages[0]!.elements[3]!.x).toBeCloseTo(5, 5)
+      expect(plan.pages[0]!.elements[3]!.y).toBeCloseTo(5 + 44, 5)
+
+      // Sheet 1: remaining 3 copies → 3 elements
+      expect(plan.pages[1]!.elements).toHaveLength(3)
     })
 
-    it('defaults to 1 column and 1 copy', () => {
-      const schema = makeSchema({ mode: 'label' }, [makeNode('a')])
+    it('defaults to 1 column / 1 row / 1 copy', () => {
+      const schema = makeSchema({ mode: 'label', width: 80, height: 50 }, [makeNode('a')])
       const plan = createPagePlan(schema)
       expect(plan.pages).toHaveLength(1)
-      expect(plan.pages[0]!.width).toBe(210)
+      expect(plan.pages[0]!.width).toBe(80)
+      expect(plan.pages[0]!.height).toBe(50)
+      expect(plan.pages[0]!.elements).toHaveLength(1)
     })
   })
 })

@@ -120,6 +120,24 @@ const LABEL_COLUMNS_DESCRIPTOR: PagePropertyDescriptor = {
   },
 }
 
+const LABEL_ROWS_DESCRIPTOR: PagePropertyDescriptor = {
+  id: 'labelRows',
+  group: 'paper',
+  source: 'page',
+  path: 'label.rows',
+  label: 'designer.page.labelRows',
+  persisted: 'schema',
+  editor: 'number',
+  min: 1,
+  max: 50,
+  step: 1,
+  visible: ctx => ctx.document.page.mode === 'label',
+  normalize(value, ctx) {
+    const existing = ctx.document.page.label ?? { columns: 1, gap: 0 }
+    return { page: { label: { ...existing, rows: Number(value) } } }
+  },
+}
+
 const LABEL_GAP_DESCRIPTOR: PagePropertyDescriptor = {
   id: 'labelGap',
   group: 'paper',
@@ -135,6 +153,24 @@ const LABEL_GAP_DESCRIPTOR: PagePropertyDescriptor = {
   normalize(value, ctx) {
     const existing = ctx.document.page.label ?? { columns: 1, gap: 0 }
     return { page: { label: { ...existing, gap: Number(value) } } }
+  },
+}
+
+const LABEL_ROW_GAP_DESCRIPTOR: PagePropertyDescriptor = {
+  id: 'labelRowGap',
+  group: 'paper',
+  source: 'page',
+  path: 'label.rowGap',
+  label: 'designer.page.labelRowGap',
+  persisted: 'schema',
+  editor: 'number',
+  min: 0,
+  max: 100,
+  step: 0.5,
+  visible: ctx => ctx.document.page.mode === 'label',
+  normalize(value, ctx) {
+    const existing = ctx.document.page.label ?? { columns: 1, gap: 0 }
+    return { page: { label: { ...existing, rowGap: Number(value) } } }
   },
 }
 
@@ -427,7 +463,9 @@ export const PAGE_PROPERTY_DESCRIPTORS: PagePropertyDescriptor[] = [
   HEIGHT_DESCRIPTOR,
   RADIUS_DESCRIPTOR,
   LABEL_COLUMNS_DESCRIPTOR,
+  LABEL_ROWS_DESCRIPTOR,
   LABEL_GAP_DESCRIPTOR,
+  LABEL_ROW_GAP_DESCRIPTOR,
   // print
   OFFSET_X_DESCRIPTOR,
   OFFSET_Y_DESCRIPTOR,

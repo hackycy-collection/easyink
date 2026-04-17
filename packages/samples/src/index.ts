@@ -95,17 +95,22 @@ export const simpleInvoiceTemplate: DocumentSchema = {
 
 /**
  * 标签模板（多列）。
+ *
+ * `page.width/height` 为单个标签的尺寸；整张标签纸尺寸由 columns/rows/gap 派生。
+ * copies=9 + columns=3,rows=1 → 聚合为 3 张 A4 横向标签纸（每张 3 个标签）。
  */
 export const labelTemplate: DocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {
     mode: 'label',
-    width: 210,
+    width: 68,
     height: 40,
     label: {
       columns: 3,
       gap: 2,
+      rows: 1,
+      rowGap: 0,
     },
     copies: 9,
   },

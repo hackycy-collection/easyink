@@ -148,27 +148,54 @@ function createLabelPagePlan(
   diagnostics: PagePlanDiagnostic[],
 ): PagePlan {
   const columns = page.label?.columns || 1
-  const gap = page.label?.gap || 0
-  const copies = page.copies || 1
+  const rows = page.label?.rows || 1
+  const gapX = page.label?.gap || 0
+  const gapY = page.label?.rowGap || 0
+  const copies = Math.max(page.copies || 1, 1)
 
-  if (columns <= 0) {
+  if (columns <= 0 || rows <= 0) {
     diagnostics.push({
-      code: 'INVALID_LABEL_COLUMNS',
+      code: 'INVALID_LABEL_GRID',
       severity: 'error',
-      message: 'Label columns must be positive',
+      message: 'Label columns and rows must be positive',
     })
   }
 
-  const labelWidth = (page.width - gap * (columns - 1)) / columns
-  const entries: PagePlanEntry[] = []
+  // page.width / page.height now describe a single label cell.
+  const cellW = page.width
+  const cellH = page.height
+  const sheetWidth = cellW * columns + gapX * Math.max(columns - 1, 0)
+  const sheetHeight = cellH * rows + gapY * Math.max(rows - 1, 0)
+  const perSheet = Math.max(columns * rows, 1)
+  const sheetCount = Math.max(Math.ceil(copies / perSheet), 1)
 
-  for (let c = 0; c < copies; c++) {
+  const entries: PagePlanEntry[] = []
+  let remaining = copies
+  for (let s = 0; s < sheetCount; s++) {
+    const cellsOnSheet = Math.min(perSheet, remaining)
+    remaining -= cellsOnSheet
+
+    const sheetElements: MaterialNode[] = []
+    for (let cellIdx = 0; cellIdx < cellsOnSheet; cellIdx++) {
+      const col = cellIdx % columns
+      const row = Math.floor(cellIdx / columns)
+      const xOffset = col * (cellW + gapX)
+      const yOffset = row * (cellH + gapY)
+      for (const el of elements) {
+        sheetElements.push({
+          ...el,
+          x: el.x + xOffset,
+          y: el.y + yOffset,
+        })
+      }
+    }
+
     entries.push({
-      index: entries.length,
-      width: labelWidth,
-      height: page.height,
-      elements,
-      copyIndex: c,
+      index: s,
+      width: sheetWidth,
+      height: sheetHeight,
+      elements: sheetElements,
+      copyIndex: s,
       yOffset: 0,
     })
   }

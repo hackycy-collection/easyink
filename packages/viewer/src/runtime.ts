@@ -217,8 +217,20 @@ export class ViewerRuntime {
 
     // Convert page dimensions to mm for @page size
     const factor = UNIT_FACTOR[schema.unit] ?? 25.4
-    const wMm = page.width * 25.4 / factor
-    const hMm = page.height * 25.4 / factor
+    // In label mode, page.width/height describe a single cell; the physical
+    // sheet is derived from columns/rows/gaps. See LabelPageConfig.
+    let sheetW = page.width
+    let sheetH = page.height
+    if (page.mode === 'label') {
+      const cols = page.label?.columns || 1
+      const rows = page.label?.rows || 1
+      const gapX = page.label?.gap || 0
+      const gapY = page.label?.rowGap || 0
+      sheetW = page.width * cols + gapX * Math.max(cols - 1, 0)
+      sheetH = page.height * rows + gapY * Math.max(rows - 1, 0)
+    }
+    const wMm = sheetW * 25.4 / factor
+    const hMm = sheetH * 25.4 / factor
 
     // Print offset from PagePrintConfig
     const hOff = page.print?.horizontalOffset ?? 0
