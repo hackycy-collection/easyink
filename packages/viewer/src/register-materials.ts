@@ -19,15 +19,15 @@ import { renderText, TEXT_TYPE } from '@easyink/material-text'
  * Each material's render function is adapted to the MaterialViewerExtension interface.
  */
 export function registerBuiltinViewerMaterials(viewer: ViewerRuntime): void {
-  viewer.registerMaterial(TEXT_TYPE, { render: (node, ctx) => renderText(node, ctx.data) })
-  viewer.registerMaterial(IMAGE_TYPE, { render: node => renderImage(node) })
+  viewer.registerMaterial(TEXT_TYPE, { render: (node, ctx) => renderText(node, ctx.data, ctx.unit) })
+  viewer.registerMaterial(IMAGE_TYPE, { render: (node, ctx) => renderImage(node, ctx.unit) })
   viewer.registerMaterial(BARCODE_TYPE, { render: node => renderBarcode(node) })
   viewer.registerMaterial(QRCODE_TYPE, { render: node => renderQrcode(node) })
   viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
-  viewer.registerMaterial(RECT_TYPE, { render: node => renderRect(node) })
-  viewer.registerMaterial(ELLIPSE_TYPE, { render: node => renderEllipse(node) })
-  viewer.registerMaterial(CONTAINER_TYPE, { render: node => renderContainer(node) })
-  viewer.registerMaterial(TABLE_STATIC_TYPE, { render: node => renderTableStatic(node) })
+  viewer.registerMaterial(RECT_TYPE, { render: (node, ctx) => renderRect(node, ctx.unit) })
+  viewer.registerMaterial(ELLIPSE_TYPE, { render: (node, ctx) => renderEllipse(node, ctx.unit) })
+  viewer.registerMaterial(CONTAINER_TYPE, { render: (node, ctx) => renderContainer(node, ctx.unit) })
+  viewer.registerMaterial(TABLE_STATIC_TYPE, { render: (node, ctx) => renderTableStatic(node, ctx.unit) })
   viewer.registerMaterial(TABLE_DATA_TYPE, {
     render: (node, ctx) => renderTableData(node, ctx),
     measure: (node, ctx) => measureTableData(node, ctx),

@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const TEXT_TYPE = 'text'
 
@@ -27,7 +27,7 @@ export interface TextProps {
 
 export const TEXT_DEFAULTS: TextProps = {
   content: '',
-  fontSize: 12,
+  fontSize: 4.23,
   fontFamily: '',
   fontWeight: 'normal',
   fontStyle: 'normal',
@@ -47,15 +47,20 @@ export const TEXT_DEFAULTS: TextProps = {
   borderType: 'solid',
 }
 
-export function createTextNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createTextNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('text'),
     type: TEXT_TYPE,
     x: 0,
     y: 0,
-    width: 80,
-    height: 20,
-    props: { ...TEXT_DEFAULTS },
+    width: c(80),
+    height: c(20),
+    props: {
+      ...TEXT_DEFAULTS,
+      fontSize: c(TEXT_DEFAULTS.fontSize),
+      letterSpacing: c(TEXT_DEFAULTS.letterSpacing),
+    },
     ...partial,
   }
 }

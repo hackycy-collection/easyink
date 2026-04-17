@@ -41,8 +41,9 @@ function buildErrorPlaceholder(p: BarcodeProps, value: string): string {
 
 function buildHtml(node: MaterialNode, context: MaterialExtensionContext): string {
   const p = node.props as unknown as BarcodeProps
+  const unit = context.getSchema().unit
   const DASH_MAP: Record<string, string> = { dashed: 'dashed', dotted: 'dotted' }
-  const borderStyle = p.borderWidth ? `border:${p.borderWidth}px ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor};box-sizing:border-box;` : ''
+  const borderStyle = p.borderWidth ? `border:${p.borderWidth}${unit} ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor};box-sizing:border-box;` : ''
 
   let label: string | undefined
   if (node.binding) {

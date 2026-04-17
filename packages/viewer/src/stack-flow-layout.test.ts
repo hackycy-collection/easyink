@@ -187,8 +187,8 @@ describe('viewer runtime stack reflow', () => {
     const afterEl = container.querySelector('[data-element-id="after"]') as HTMLElement | null
     expect(afterEl).not.toBeNull()
 
-    const pxFactor = 96 / 25.4
-    expect(Number.parseFloat(afterEl!.style.top)).toBeCloseTo(56 * pxFactor, 5)
+    // Position is now in document units (mm), not px
+    expect(afterEl!.style.top).toBe('56mm')
   })
 
   it('keeps legacy line templates visible by promoting lineWidth into render height', async () => {
@@ -227,8 +227,8 @@ describe('viewer runtime stack reflow', () => {
     const lineEl = container.querySelector('[data-element-id="legacy-line"]') as HTMLElement | null
     expect(lineEl).not.toBeNull()
 
-    const pxFactor = 96 / 25.4
-    expect(Number.parseFloat(lineEl!.style.height)).toBeCloseTo(0.5 * pxFactor, 5)
+    // Height is now in document units (mm), not px
+    expect(lineEl!.style.height).toBe('0.5mm')
     expect(lineEl!.querySelector('svg')).not.toBeNull()
   })
 })

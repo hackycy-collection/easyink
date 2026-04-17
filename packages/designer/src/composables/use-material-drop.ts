@@ -55,7 +55,7 @@ export function useMaterialDrop(ctx: MaterialDropContext) {
     const node = definition.createDefaultNode({
       x: Math.max(0, docX),
       y: Math.max(0, docY),
-    })
+    }, store.schema.unit)
 
     const cmd = new AddMaterialCommand(store.schema.elements, node)
     store.commands.execute(cmd)

@@ -62,7 +62,7 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
       for (let ci = 0; ci < repeatRow.cells.length; ci++) {
         const cell = repeatRow.cells[ci]!
         const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
-        cells += `<td${cs} style="border:${bw}px ${bt} ${bc};padding:${pad}px;background:rgba(0,0,0,0.04);">&nbsp;</td>`
+        cells += `<td${cs} style="border:${bw}${unit} ${bt} ${bc};padding:${pad}${unit};background:rgba(0,0,0,0.04);">&nbsp;</td>`
       }
       placeholderRowsHtml += `<tr style="height:${scaledRepeatHeight}${unit};pointer-events:none">${cells}</tr>`
     }

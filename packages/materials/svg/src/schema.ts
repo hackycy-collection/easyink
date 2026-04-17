@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const SVG_TYPE = 'svg'
 
@@ -17,14 +17,15 @@ export const SVG_DEFAULTS: SvgProps = {
   fillColor: '#000000',
 }
 
-export function createSvgNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createSvgNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('svg'),
     type: SVG_TYPE,
     x: 0,
     y: 0,
-    width: 100,
-    height: 100,
+    width: c(100),
+    height: c(100),
     props: { ...SVG_DEFAULTS },
     ...partial,
   }

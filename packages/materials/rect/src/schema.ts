@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const RECT_TYPE = 'rect'
 
@@ -13,21 +13,25 @@ export interface RectProps {
 
 export const RECT_DEFAULTS: RectProps = {
   fillColor: 'transparent',
-  borderWidth: 1,
+  borderWidth: 0.26,
   borderColor: '#000000',
   borderType: 'solid',
   borderRadius: 0,
 }
 
-export function createRectNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createRectNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('rect'),
     type: RECT_TYPE,
     x: 0,
     y: 0,
-    width: 100,
-    height: 60,
-    props: { ...RECT_DEFAULTS },
+    width: c(100),
+    height: c(60),
+    props: {
+      ...RECT_DEFAULTS,
+      borderWidth: c(RECT_DEFAULTS.borderWidth),
+    },
     ...partial,
   }
 }

@@ -8,8 +8,9 @@ function escapeAttr(str: string): string {
 
 function buildHtml(node: MaterialNode, context: MaterialExtensionContext): string {
   const p = node.props as unknown as ImageProps
+  const unit = context.getSchema().unit
   const DASH_MAP: Record<string, string> = { dashed: 'dashed', dotted: 'dotted' }
-  const borderStyle = p.borderWidth ? `border:${p.borderWidth}px ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor};` : ''
+  const borderStyle = p.borderWidth ? `border:${p.borderWidth}${unit} ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor};` : ''
   const bgStyle = p.backgroundColor ? `background:${p.backgroundColor};` : ''
 
   if (node.binding) {

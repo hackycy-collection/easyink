@@ -217,9 +217,8 @@ export class ViewerRuntime {
   private buildPrintStyles(): string {
     const schema = this._schema!
     const page = schema.page
+    const unit = schema.unit
 
-    // Convert page dimensions to mm for @page size
-    const factor = UNIT_FACTOR[schema.unit] ?? 25.4
     // In label mode, page.width/height describe a single cell; the physical
     // sheet is derived from columns/rows/gaps. See LabelPageConfig.
     let sheetW = page.width
@@ -232,19 +231,17 @@ export class ViewerRuntime {
       sheetW = page.width * cols + gapX * Math.max(cols - 1, 0)
       sheetH = page.height * rows + gapY * Math.max(rows - 1, 0)
     }
-    const wMm = sheetW * 25.4 / factor
-    const hMm = sheetH * 25.4 / factor
 
     // Print offset from PagePrintConfig
     const hOff = page.print?.horizontalOffset ?? 0
     const vOff = page.print?.verticalOffset ?? 0
     const offsetCSS = (hOff !== 0 || vOff !== 0)
-      ? `transform: translate(${hOff * 25.4 / factor}mm, ${vOff * 25.4 / factor}mm) !important;`
+      ? `transform: translate(${hOff}${unit}, ${vOff}${unit}) !important;`
       : ''
 
     return `@media print {
   @page {
-    size: ${wMm}mm ${hMm}mm;
+    size: ${sheetW}${unit} ${sheetH}${unit};
     margin: 0;
   }
   [data-ei-print-ancestor] {
@@ -283,9 +280,15 @@ export class ViewerRuntime {
     border: none !important;
     box-shadow: none !important;
   }
+  .ei-viewer-page-zoom {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   .ei-viewer-page {
     box-shadow: none !important;
     margin: 0 !important;
+    transform: none !important;
     break-after: page;
     break-inside: avoid;
     -webkit-print-color-adjust: exact !important;
@@ -569,9 +572,9 @@ export class ViewerRuntime {
       return
     }
 
-    const pxFactor = 96 / (UNIT_FACTOR[this._schema.unit] ?? 25.4)
-    container.style.paddingLeft = `${ox * pxFactor}px`
-    container.style.paddingTop = `${oy * pxFactor}px`
+    const unit = this._schema.unit
+    container.style.paddingLeft = `${ox}${unit}`
+    container.style.paddingTop = `${oy}${unit}`
   }
 
   private emitDiagnostic(event: ViewerDiagnosticEvent): void {

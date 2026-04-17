@@ -60,7 +60,7 @@ function handleAddMaterial(entry: MaterialCatalogEntry) {
   const node = definition.createDefaultNode({
     x: 50,
     y: 50,
-  })
+  }, store.schema.unit)
   const cmd = new AddMaterialCommand(store.schema.elements, node)
   store.commands.execute(cmd)
   store.selection.select(node.id)

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { createLineNode, getLineThickness } from './schema'
 import { renderLine } from './viewer'
 
-const PX_PER_MM = 96 / 25.4
-
 describe('renderLine', () => {
   it('uses element height as the line thickness in runtime output', () => {
     const node = createLineNode({
@@ -24,8 +22,9 @@ describe('renderLine', () => {
 
     expect(output.html).toContain('<svg')
     expect(output.html).toContain('display:block')
-    expect(output.html).toContain(`viewBox="0 0 ${100 * PX_PER_MM} ${Math.max(1, 0.5 * PX_PER_MM)}"`)
-    expect(output.html).toContain(`<rect x="0" y="0" width="${100 * PX_PER_MM}" height="${Math.max(1, 0.5 * PX_PER_MM)}" fill="#333333" />`)
+    // viewBox uses document-unit values directly (no px conversion)
+    expect(output.html).toContain(`viewBox="0 0 ${node.width} 0.5"`)
+    expect(output.html).toContain(`<rect x="0" y="0" width="${node.width}" height="0.5" fill="#333333" />`)
   })
 
   it('keeps dashed and dotted line types in viewer output', () => {
@@ -48,21 +47,23 @@ describe('renderLine', () => {
       data: {},
       resolvedProps: dashed.props,
       pageIndex: 0,
-      unit: 'px',
+      unit: 'mm',
       zoom: 1,
     })
     const dottedOutput = renderLine(dotted, {
       data: {},
       resolvedProps: dotted.props,
       pageIndex: 0,
-      unit: 'px',
+      unit: 'mm',
       zoom: 1,
     })
 
-    expect(dashedOutput.html).toContain('<rect x="0" y="0" width="12" height="1" fill="#111111" />')
-    expect(dashedOutput.html).toContain('<rect x="20" y="0" width="12" height="1" fill="#111111" />')
-    expect(dottedOutput.html).toContain('<rect x="0" y="0" width="2" height="1" fill="#222222" />')
-    expect(dottedOutput.html).toContain('<rect x="8" y="0" width="2" height="1" fill="#222222" />')
+    // Dashed: segment=3, gap=2 in document units
+    expect(dashedOutput.html).toContain('<rect x="0" y="0" width="3" height="1" fill="#111111" />')
+    expect(dashedOutput.html).toContain('<rect x="5" y="0" width="3" height="1" fill="#111111" />')
+    // Dotted: segment=0.5, gap=1.5 in document units
+    expect(dottedOutput.html).toContain('<rect x="0" y="0" width="0.5" height="1" fill="#222222" />')
+    expect(dottedOutput.html).toContain('<rect x="2" y="0" width="0.5" height="1" fill="#222222" />')
   })
 
   it('falls back to legacy lineWidth when old templates still have zero height', () => {

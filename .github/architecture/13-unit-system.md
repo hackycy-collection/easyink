@@ -24,7 +24,7 @@
 ```typescript
 class UnitManager {
   /** 当前模板单位 */
-  readonly unit: 'mm' | 'inch' | 'pt'
+  readonly unit: 'mm' | 'inch' | 'pt' | 'px'
 
   /**
    * 将模板单位值转换为屏幕像素值
@@ -100,6 +100,7 @@ Viewer 输出的 DOM 中，所有坐标和尺寸直接使用顶层 `unit` 对应
 | `mm`      | `mm`        | 浏览器原生支持，最可靠 |
 | `pt`      | `pt`        | 浏览器原生支持（1pt = 1/72in） |
 | `inch`    | `in`        | 浏览器原生支持 |
+| `px`      | `px`        | CSS 像素（1px = 1/96in），屏幕预览最精确 |
 
 - CSS 物理单位让浏览器打印引擎直接处理物理尺寸映射，无需手动 DPI 换算
 - 不同浏览器对屏幕上物理单位的渲染可能有微小差异，但打印输出是一致的；框架不做屏幕预览补偿
@@ -154,11 +155,12 @@ Viewer 自动注入 `@page` 规则，单位跟随顶层 `unit`：
 
 设计器需要将屏幕像素坐标转换为顶层 `unit` 对应的值。CSS 标准定义了固定映射：
 
-| 单位   | 与 CSS px 的关系    | unitFactor |
+| mm     | 与 CSS px 的关系    | unitFactor |
 |--------|--------------------|-----------|
 | mm     | 1mm = 96/25.4 px   | 25.4      |
 | pt     | 1pt = 96/72 px     | 72        |
 | inch   | 1in = 96 px        | 1         |
+| px     | 1px = 1 px         | 96        |
 
 ```typescript
 // 屏幕 px -> document unit
@@ -180,6 +182,19 @@ UnitManager 仍用于：
 - 单位切换时的 schema 数值批量转换
 
 但**渲染路径**不经过 UnitManager 的 toPixels() 转换，Viewer 直接读顶层 `unit` 输出对应 CSS 单位。
+
+### 13.3.6 物料属性与单位
+
+所有物料的尺寸相关属性（fontSize、letterSpacing、borderWidth、padding、gap、cellPadding 等）在 schema 中以顶层 `unit` 对应的数值存储，渲染时直接拼接 `${value}${unit}`。
+
+默认值以 mm 为基准定义在各物料的 `XXX_DEFAULTS` 常量中。`createXxxNode(partial?, unit?)` 在创建节点时，若 `unit !== 'mm'`，通过 `convertUnit()` 将 mm 基准值转换为目标单位。
+
+```typescript
+// 示例：TEXT_DEFAULTS.fontSize = 4.23 (mm, 约等于 12pt)
+const node = createTextNode({}, 'pt')
+// → node.props.fontSize ≈ 12 (pt)
+// → node.width ≈ 226.77 (pt, 从 80mm 转换)
+```
 
 ## 13.4 精度策略
 

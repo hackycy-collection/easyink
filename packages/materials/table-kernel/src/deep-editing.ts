@@ -372,7 +372,7 @@ function createContentEditingPhase(shared: SharedState): TableDeepEditingPhase {
       inputEl.value = snapshotText
       const props = node.props as Record<string, unknown>
       const typo = props.typography as Record<string, unknown> | undefined
-      inputEl.style.cssText = `width:100%;height:100%;box-sizing:border-box;border:2px solid var(--ei-primary,#1890ff);background:#fff;outline:none;font-size:${typo?.fontSize ?? 12}pt;color:${typo?.color || '#000000'};padding:${props.cellPadding ?? 4}px;`
+      inputEl.style.cssText = `width:100%;height:100%;box-sizing:border-box;border:2px solid var(--ei-primary,#1890ff);background:#fff;outline:none;font-size:${typo?.fontSize ?? 4.23}${u};color:${typo?.color || '#000000'};padding:${props.cellPadding ?? 1.06}${u};`
 
       wrapper.appendChild(inputEl)
       containers.overlay.appendChild(wrapper)

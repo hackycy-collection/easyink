@@ -49,6 +49,21 @@ export interface PaperPreset {
   height: number
 }
 
+/**
+ * Convert a numeric value between document units.
+ * Uses mm as the intermediate representation.
+ */
+export function convertUnit(value: number, from: string, to: string): number {
+  if (from === to || value === 0)
+    return value
+  const f = UNIT_FACTOR[from]
+  const t = UNIT_FACTOR[to]
+  if (!f || !t)
+    return value
+  // value * (inch/from) * (to/inch)  →  value * (t / f)
+  return value * t / f
+}
+
 export const PAPER_PRESETS: PaperPreset[] = [
   { name: 'A3', width: 297, height: 420 },
   { name: 'A4', width: 210, height: 297 },

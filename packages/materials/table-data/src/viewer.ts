@@ -90,7 +90,7 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
   const html = renderTableHtml({
     topology: { columns: node.table.topology.columns, rows: visibleRows },
     props,
-    unit: 'mm',
+    unit: context?.unit ?? 'mm',
     elementHeight: node.height,
     cellRenderer: cell => cell.content?.text || '',
     rowDecorator: (ri) => {

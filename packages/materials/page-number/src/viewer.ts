@@ -37,13 +37,13 @@ export function renderPageNumber(node: MaterialNode, context: ViewerRenderContex
   const innerStyle = [
     'width:100%',
     `text-align:${props.textAlign}`,
-    `font-size:${props.fontSize}pt`,
+    `font-size:${props.fontSize}${context.unit}`,
     props.fontFamily ? `font-family:${escapeHtml(props.fontFamily)}` : '',
     `font-weight:${props.fontWeight}`,
     `font-style:${props.fontStyle}`,
     `color:${props.color}`,
     `line-height:${props.lineHeight}`,
-    props.letterSpacing ? `letter-spacing:${props.letterSpacing}pt` : '',
+    props.letterSpacing ? `letter-spacing:${props.letterSpacing}${context.unit}` : '',
   ].filter(Boolean).join(';')
 
   return {

@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const CONTAINER_TYPE = 'container'
 
@@ -14,8 +14,8 @@ export interface ContainerProps {
 }
 
 export const CONTAINER_DEFAULTS: ContainerProps = {
-  padding: 8,
-  gap: 4,
+  padding: 2.12,
+  gap: 1.06,
   direction: 'column',
   fillColor: 'transparent',
   borderWidth: 0,
@@ -23,15 +23,20 @@ export const CONTAINER_DEFAULTS: ContainerProps = {
   borderType: 'solid',
 }
 
-export function createContainerNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createContainerNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('ctn'),
     type: CONTAINER_TYPE,
     x: 0,
     y: 0,
-    width: 200,
-    height: 150,
-    props: { ...CONTAINER_DEFAULTS },
+    width: c(200),
+    height: c(150),
+    props: {
+      ...CONTAINER_DEFAULTS,
+      padding: c(CONTAINER_DEFAULTS.padding),
+      gap: c(CONTAINER_DEFAULTS.gap),
+    },
     children: [],
     ...partial,
   }

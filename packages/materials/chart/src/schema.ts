@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const CHART_TYPE = 'chart'
 
@@ -17,14 +17,15 @@ export const CHART_DEFAULTS: ChartProps = {
   backgroundColor: '#ffffff',
 }
 
-export function createChartNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createChartNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('chart'),
     type: CHART_TYPE,
     x: 0,
     y: 0,
-    width: 200,
-    height: 150,
+    width: c(200),
+    height: c(150),
     props: { ...CHART_DEFAULTS },
     ...partial,
   }

@@ -1,10 +1,10 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { ImageProps } from './schema'
 
-export function renderImage(node: MaterialNode) {
+export function renderImage(node: MaterialNode, unit = 'mm') {
   const props = node.props as unknown as ImageProps
   const borderStyle = props.borderWidth
-    ? `border:${props.borderWidth}px ${props.borderType || 'solid'} ${props.borderColor};`
+    ? `border:${props.borderWidth}${unit} ${props.borderType || 'solid'} ${props.borderColor};`
     : ''
   const bgStyle = props.backgroundColor ? `background:${props.backgroundColor};` : ''
 

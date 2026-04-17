@@ -8,6 +8,7 @@ function escapeHtml(str: string): string {
 
 function buildHtml(node: MaterialNode, context: MaterialExtensionContext): string {
   const p = node.props as unknown as TextProps
+  const unit = context.getSchema().unit
   const prefix = p.prefix ? escapeHtml(p.prefix) : ''
   const suffix = p.suffix ? escapeHtml(p.suffix) : ''
 
@@ -28,17 +29,17 @@ function buildHtml(node: MaterialNode, context: MaterialExtensionContext): strin
     'display:flex;position:relative',
     `align-items:${vAlignMap[p.verticalAlign] || 'flex-start'}`,
     'box-sizing:border-box;overflow:hidden',
-    `font-size:${p.fontSize}pt`,
+    `font-size:${p.fontSize}${unit}`,
     p.fontFamily ? `font-family:${escapeHtml(p.fontFamily)}` : '',
     `font-weight:${p.fontWeight}`,
     `font-style:${p.fontStyle}`,
     `color:${p.color}`,
     p.backgroundColor ? `background:${p.backgroundColor}` : '',
     `line-height:${p.lineHeight}`,
-    p.letterSpacing ? `letter-spacing:${p.letterSpacing}pt` : '',
+    p.letterSpacing ? `letter-spacing:${p.letterSpacing}${unit}` : '',
     p.autoWrap ? 'word-break:break-word' : 'white-space:nowrap',
     p.overflow === 'ellipsis' ? 'text-overflow:ellipsis' : '',
-    p.borderWidth ? `border:${p.borderWidth}px ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor}` : '',
+    p.borderWidth ? `border:${p.borderWidth}${unit} ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor}` : '',
   ].filter(Boolean).join(';')
 
   return `<div style="${style}"><span style="width:100%;text-align:${p.textAlign}">${display || '&nbsp;'}</span></div>`

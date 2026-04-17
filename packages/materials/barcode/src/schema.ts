@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const BARCODE_TYPE = 'barcode'
 
@@ -27,14 +27,15 @@ export const BARCODE_DEFAULTS: BarcodeProps = {
   borderType: 'solid',
 }
 
-export function createBarcodeNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createBarcodeNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('bc'),
     type: BARCODE_TYPE,
     x: 0,
     y: 0,
-    width: 150,
-    height: 60,
+    width: c(150),
+    height: c(60),
     props: { ...BARCODE_DEFAULTS },
     ...partial,
   }

@@ -2,7 +2,7 @@
  * Unit types supported by the document model.
  * Schema stores values in the declared unit without normalization.
  */
-export type UnitType = 'mm' | 'pt' | 'px'
+export type UnitType = 'mm' | 'pt' | 'px' | 'inch'
 
 /**
  * Page layout modes.

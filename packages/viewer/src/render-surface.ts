@@ -23,6 +23,8 @@ export interface PageDOM {
 /**
  * Render all pages into the container element.
  * Each page becomes a positioned div with child element wrappers inside.
+ * All positioning uses CSS physical units (mm/pt/in) directly.
+ * Zoom is applied via transform: scale() on each page element.
  */
 export function renderPages(
   pages: PagePlanEntry[],
@@ -33,11 +35,10 @@ export function renderPages(
   const { container, zoom, unit, data, resolvedPropsMap, pageSchema } = options
   container.innerHTML = ''
 
-  const pxFactor = getPxFactor(unit)
   const pageDOMs: PageDOM[] = []
 
   for (const page of pages) {
-    const pageEl = createPageElement(page, pageSchema, pxFactor, zoom)
+    const { wrapper, pageEl } = createPageElement(page, pageSchema, unit, zoom)
 
     const context: ViewerRenderContext = {
       data,
@@ -74,48 +75,76 @@ export function renderPages(
         output = { html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff3f3;border:1px dashed #ff4d4f;color:#ff4d4f;font-size:11px;box-sizing:border-box;">[Render Error]</div>` }
       }
 
-      const wrapper = createElementWrapper(node, page, pxFactor, zoom)
+      const elWrapper = createElementWrapper(node, page, unit)
       if (output.element) {
-        wrapper.appendChild(output.element)
+        elWrapper.appendChild(output.element)
       }
       else if (output.html) {
-        wrapper.innerHTML = output.html
+        elWrapper.innerHTML = output.html
       }
 
-      pageEl.appendChild(wrapper)
+      pageEl.appendChild(elWrapper)
     }
 
-    container.appendChild(pageEl)
+    container.appendChild(wrapper)
     pageDOMs.push({ pageIndex: page.index, element: pageEl })
   }
 
   return pageDOMs
 }
 
-function createPageElement(page: PagePlanEntry, pageSchema: PageSchema, pxFactor: number, zoom: number): HTMLElement {
-  const el = document.createElement('div')
-  el.className = 'ei-viewer-page'
-  el.setAttribute('data-page-index', String(page.index))
-  el.style.position = 'relative'
-  el.style.width = `${page.width * pxFactor * zoom}px`
-  el.style.height = `${page.height * pxFactor * zoom}px`
-  el.style.overflow = 'hidden'
-  el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'
-  el.style.margin = '0 auto 16px auto'
-  el.style.boxSizing = 'border-box'
+function createPageElement(
+  page: PagePlanEntry,
+  pageSchema: PageSchema,
+  unit: string,
+  zoom: number,
+): { wrapper: HTMLElement, pageEl: HTMLElement } {
+  const pageEl = document.createElement('div')
+  pageEl.className = 'ei-viewer-page'
+  pageEl.setAttribute('data-page-index', String(page.index))
+  pageEl.style.position = 'relative'
+  pageEl.style.width = `${page.width}${unit}`
+  pageEl.style.height = `${page.height}${unit}`
+  pageEl.style.overflow = 'hidden'
+  pageEl.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'
+  pageEl.style.boxSizing = 'border-box'
 
   // Background
-  applyPageBackground(el, pageSchema.background, pxFactor, zoom)
+  applyPageBackground(pageEl, pageSchema.background, unit)
 
   // Border radius
   if (pageSchema.radius) {
-    el.style.borderRadius = pageSchema.radius
+    pageEl.style.borderRadius = pageSchema.radius
   }
 
-  return el
+  // Zoom via transform: scale() — print CSS resets this to none
+  if (zoom !== 1) {
+    pageEl.style.transform = `scale(${zoom})`
+    pageEl.style.transformOrigin = 'top left'
+  }
+
+  // Zoom wrapper: adjusts flow layout dimensions since transform doesn't affect flow.
+  // Uses px because the parent container reports size in px (clientWidth/clientHeight).
+  let wrapper: HTMLElement
+  if (zoom !== 1) {
+    wrapper = document.createElement('div')
+    wrapper.className = 'ei-viewer-page-zoom'
+    const pxFactor = getPxFactorForLayout(unit)
+    wrapper.style.width = `${page.width * pxFactor * zoom}px`
+    wrapper.style.height = `${page.height * pxFactor * zoom}px`
+    wrapper.style.margin = '0 auto 16px auto'
+    wrapper.style.overflow = 'hidden'
+    wrapper.appendChild(pageEl)
+  }
+  else {
+    wrapper = pageEl
+    pageEl.style.margin = '0 auto 16px auto'
+  }
+
+  return { wrapper, pageEl }
 }
 
-function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, pxFactor: number, zoom: number): void {
+function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, unit: string): void {
   if (!bg) {
     el.style.background = 'white'
     return
@@ -128,7 +157,7 @@ function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, px
   if (bg.image) {
     el.style.backgroundImage = `url(${bg.image})`
 
-    // Repeat mode → CSS background-repeat + background-size
+    // Repeat mode -> CSS background-repeat + background-size
     const repeat = bg.repeat || 'none'
     if (repeat === 'full') {
       el.style.backgroundSize = '100% 100%'
@@ -148,23 +177,23 @@ function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, px
         el.style.backgroundRepeat = 'no-repeat'
       }
 
-      // Explicit image dimensions
+      // Explicit image dimensions in document units
       if (bg.width != null && bg.height != null) {
-        el.style.backgroundSize = `${bg.width * pxFactor * zoom}px ${bg.height * pxFactor * zoom}px`
+        el.style.backgroundSize = `${bg.width}${unit} ${bg.height}${unit}`
       }
       else if (bg.width != null) {
-        el.style.backgroundSize = `${bg.width * pxFactor * zoom}px auto`
+        el.style.backgroundSize = `${bg.width}${unit} auto`
       }
       else if (bg.height != null) {
-        el.style.backgroundSize = `auto ${bg.height * pxFactor * zoom}px`
+        el.style.backgroundSize = `auto ${bg.height}${unit}`
       }
     }
 
-    // Background position offset
+    // Background position offset in document units
     if (bg.offsetX != null || bg.offsetY != null) {
-      const x = (bg.offsetX ?? 0) * pxFactor * zoom
-      const y = (bg.offsetY ?? 0) * pxFactor * zoom
-      el.style.backgroundPosition = `${x}px ${y}px`
+      const x = bg.offsetX ?? 0
+      const y = bg.offsetY ?? 0
+      el.style.backgroundPosition = `${x}${unit} ${y}${unit}`
     }
   }
 }
@@ -172,8 +201,7 @@ function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, px
 function createElementWrapper(
   node: MaterialNode,
   page: PagePlanEntry,
-  pxFactor: number,
-  zoom: number,
+  unit: string,
 ): HTMLElement {
   const wrapper = document.createElement('div')
   wrapper.className = 'ei-viewer-element'
@@ -184,11 +212,11 @@ function createElementWrapper(
   const relativeY = node.y - page.yOffset
 
   wrapper.style.position = 'absolute'
-  wrapper.style.left = `${node.x * pxFactor * zoom}px`
-  wrapper.style.top = `${relativeY * pxFactor * zoom}px`
-  wrapper.style.width = `${node.width * pxFactor * zoom}px`
+  wrapper.style.left = `${node.x}${unit}`
+  wrapper.style.top = `${relativeY}${unit}`
+  wrapper.style.width = `${node.width}${unit}`
   const renderHeight = node.type === LINE_TYPE ? getLineThickness(node) : node.height
-  wrapper.style.height = `${renderHeight * pxFactor * zoom}px`
+  wrapper.style.height = `${renderHeight}${unit}`
   // Tables use border-collapse:collapse where outer borders overflow by half
   // the border width. Use overflow:visible to avoid clipping bottom/right borders.
   // Page-level overflow:hidden still prevents content from escaping the page.
@@ -207,10 +235,10 @@ function createElementWrapper(
 }
 
 /**
- * CSS pixels per document unit.
- * CSS reference: 96 dpi.
+ * CSS pixels per document unit. Only used for zoom wrapper flow layout,
+ * NOT for content rendering. CSS reference: 96 dpi.
  */
-function getPxFactor(unit: string): number {
+function getPxFactorForLayout(unit: string): number {
   const factor = UNIT_FACTOR[unit]
   if (!factor)
     return 1

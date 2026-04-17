@@ -101,7 +101,7 @@ export interface MaterialDefinition {
   category: MaterialCategory
   capabilities: MaterialCapabilities
   props: PropSchema[]
-  createDefaultNode: (input?: Partial<MaterialNode>) => MaterialNode
+  createDefaultNode: (input?: Partial<MaterialNode>, unit?: string) => MaterialNode
   /**
    * Dynamic filter for PropertiesPanel sections.
    * Return false to hide a section. When absent, all sections are shown.

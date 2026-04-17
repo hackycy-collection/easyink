@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const LINE_TYPE = 'line'
 
@@ -27,17 +27,18 @@ export function getLineThickness(node: Pick<MaterialNode, 'height' | 'props'>): 
   if (legacyLineWidth != null)
     return legacyLineWidth
 
-  return 1
+  return 0.26
 }
 
-export function createLineNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createLineNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('line'),
     type: LINE_TYPE,
     x: 0,
     y: 0,
-    width: 100,
-    height: 1,
+    width: c(100),
+    height: c(0.26),
     props: { ...LINE_DEFAULTS },
     ...partial,
   }

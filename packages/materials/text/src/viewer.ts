@@ -9,7 +9,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export function renderText(node: MaterialNode, _data?: Record<string, unknown>) {
+export function renderText(node: MaterialNode, _data?: Record<string, unknown>, unit = 'mm') {
   const props = node.props as unknown as TextProps
   const prefix = props.prefix ? escapeHtml(props.prefix) : ''
   const suffix = props.suffix ? escapeHtml(props.suffix) : ''
@@ -27,19 +27,19 @@ export function renderText(node: MaterialNode, _data?: Record<string, unknown>) 
     'box-sizing:border-box',
     'overflow:hidden',
     props.backgroundColor ? `background:${props.backgroundColor}` : '',
-    props.borderWidth ? `border:${props.borderWidth}px ${DASH_MAP[props.borderType] || 'solid'} ${props.borderColor}` : '',
+    props.borderWidth ? `border:${props.borderWidth}${unit} ${DASH_MAP[props.borderType] || 'solid'} ${props.borderColor}` : '',
   ].filter(Boolean).join(';')
 
   const innerStyle = [
     'width:100%',
     `text-align:${props.textAlign}`,
-    `font-size:${props.fontSize}pt`,
+    `font-size:${props.fontSize}${unit}`,
     props.fontFamily ? `font-family:${escapeHtml(props.fontFamily)}` : '',
     `font-weight:${props.fontWeight}`,
     `font-style:${props.fontStyle}`,
     `color:${props.color}`,
     `line-height:${props.lineHeight}`,
-    props.letterSpacing ? `letter-spacing:${props.letterSpacing}pt` : '',
+    props.letterSpacing ? `letter-spacing:${props.letterSpacing}${unit}` : '',
     props.autoWrap ? 'word-break:break-word' : 'white-space:nowrap',
     props.overflow === 'ellipsis' ? 'text-overflow:ellipsis' : '',
   ].filter(Boolean).join(';')

@@ -14,7 +14,7 @@ export interface TableBaseProps {
 }
 
 export const TABLE_TYPOGRAPHY_DEFAULTS: TableTypography = {
-  fontSize: 9,
+  fontSize: 3.18,
   color: '#000000',
   fontWeight: 'normal',
   fontStyle: 'normal',
@@ -25,10 +25,10 @@ export const TABLE_TYPOGRAPHY_DEFAULTS: TableTypography = {
 }
 
 export const TABLE_BASE_DEFAULTS: TableBaseProps = {
-  borderWidth: 1,
+  borderWidth: 0.26,
   borderColor: '#000000',
   borderType: 'solid',
-  cellPadding: 2,
+  cellPadding: 0.53,
   typography: { ...TABLE_TYPOGRAPHY_DEFAULTS },
   equalizeCells: false,
 }

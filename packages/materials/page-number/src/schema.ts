@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import { generateId } from '@easyink/shared'
+import { convertUnit, generateId } from '@easyink/shared'
 
 export const PAGE_NUMBER_TYPE = 'page-number'
 
@@ -19,7 +19,7 @@ export interface PageNumberProps {
 
 export const PAGE_NUMBER_DEFAULTS: PageNumberProps = {
   format: '{current}/{total}',
-  fontSize: 10,
+  fontSize: 3.53,
   fontFamily: '',
   fontWeight: 'normal',
   fontStyle: 'normal',
@@ -31,15 +31,20 @@ export const PAGE_NUMBER_DEFAULTS: PageNumberProps = {
   letterSpacing: 0,
 }
 
-export function createPageNumberNode(partial?: Partial<MaterialNode>): MaterialNode {
+export function createPageNumberNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
   return {
     id: generateId('pgnum'),
     type: PAGE_NUMBER_TYPE,
     x: 0,
     y: 0,
-    width: 60,
-    height: 16,
-    props: { ...PAGE_NUMBER_DEFAULTS },
+    width: c(60),
+    height: c(16),
+    props: {
+      ...PAGE_NUMBER_DEFAULTS,
+      fontSize: c(PAGE_NUMBER_DEFAULTS.fontSize),
+      letterSpacing: c(PAGE_NUMBER_DEFAULTS.letterSpacing),
+    },
     ...partial,
   }
 }
