@@ -45,6 +45,7 @@
 | 19 | [测试策略](./19-testing.md) | 单元测试、E2E 测试 |
 | 20 | [性能策略](./20-performance.md) | 架构层预留、性能目标 |
 | 21 | [安全模型](./21-security.md) | 数据路径安全、富文本安全、渲染安全 |
+| 22 | [编辑行为架构](./22-editing-behavior.md) | EditingSession、类型化 Selection、Geometry 协议、Behavior 中间件、Surfaces 与 Transaction（替代旧 deepEditing FSM） |
 
 ## 补充说明
 
