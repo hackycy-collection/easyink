@@ -67,6 +67,9 @@ catalogs:
     lucide-vue-next:
       specifier: ^1.0.0
       version: 1.0.0
+    preact:
+      specifier: ^10.25.0
+      version: 10.29.1
     qrcode-generator:
       specifier: ^2.0.4
       version: 2.0.4
@@ -180,6 +183,9 @@ importers:
       '@easyink/shared':
         specifier: workspace:*
         version: link:../shared
+      preact:
+        specifier: catalog:framework
+        version: 10.29.1
 
   packages/datasource:
     dependencies:
@@ -408,6 +414,9 @@ importers:
 
   packages/materials/table-kernel:
     dependencies:
+      '@easyink/core':
+        specifier: workspace:*
+        version: link:../../core
       '@easyink/icons':
         specifier: workspace:*
         version: link:../../icons
@@ -2708,6 +2717,9 @@ packages:
   postcss@8.5.8:
     resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
     engines: {node: ^10 || ^12 || >=14}
+
+  preact@10.29.1:
+    resolution: {integrity: sha512-gQCLc/vWroE8lIpleXtdJhTFDogTdZG9AjMUpVkDf2iTCNwYNWA+u16dL41TqUDJO4gm2IgrcMv3uTpjd4Pwmg==}
 
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
@@ -5588,6 +5600,8 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  preact@10.29.1: {}
 
   prelude-ls@1.2.1: {}
 

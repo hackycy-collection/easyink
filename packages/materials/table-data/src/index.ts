@@ -1,5 +1,5 @@
 export * from './datasource'
 export * from './designer'
-export * from './layout'
+export * from './extension'
 export * from './schema'
 export * from './viewer'

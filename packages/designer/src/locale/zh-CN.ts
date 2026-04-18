@@ -244,6 +244,8 @@ const zhCN: LocaleMessages = {
       mergeRight: '向右合并',
       mergeDown: '向下合并',
       split: '拆分',
+      editText: '编辑文本',
+      clearText: '清空文本',
       alignLeft: '左对齐',
       alignCenter: '居中对齐',
       alignRight: '右对齐',

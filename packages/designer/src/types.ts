@@ -86,12 +86,6 @@ export interface StatusBarState {
 /** Identifiers for the sections in PropertiesPanel. */
 export type PanelSectionId = 'geometry' | 'props' | 'overlay' | 'binding' | 'visibility'
 
-/** Context passed to MaterialDefinition.sectionFilter for dynamic decisions. */
-export interface SectionFilterContext {
-  node: MaterialNode
-  deepEditing: DeepEditingRuntimeState
-}
-
 // ─── Material Definition ───────────────────────────────────────────
 
 export interface MaterialDefinition {
@@ -102,11 +96,6 @@ export interface MaterialDefinition {
   capabilities: MaterialCapabilities
   props: PropSchema[]
   createDefaultNode: (input?: Partial<MaterialNode>, unit?: string) => MaterialNode
-  /**
-   * Dynamic filter for PropertiesPanel sections.
-   * Return false to hide a section. When absent, all sections are shown.
-   */
-  sectionFilter?: (sectionId: PanelSectionId, context: SectionFilterContext) => boolean
 }
 
 export interface MaterialCapabilities {
@@ -159,36 +148,16 @@ export type {
   DatasourceDropHandler,
   DatasourceDropZone,
   DatasourceFieldInfo,
-  DeepEditingDefinition,
-  DeepEditingPhase,
-  InternalResizeHandle,
-  InternalResizeHandler,
-  KeyboardRouteHandler,
   MaterialDesignerExtension,
   MaterialExtensionContext,
   MaterialExtensionFactory,
   NodeSignal,
-  PhaseContainers,
-  PhaseTransition,
   PropertyPanelOverlay,
   PropertyPanelRequest,
   PropSchemaLike,
   SelectionSnapshot,
-  SubSelectionHandler,
-  SubSelectionResult,
   ToolbarAction,
 } from '@easyink/core'
-
-// ─── Deep Editing Runtime State ───────────────────────────────────
-
-/** Deep editing runtime state managed by the designer store. */
-export interface DeepEditingRuntimeState {
-  nodeId?: string
-  materialType?: string
-  currentPhase?: string
-  /** Opaque state managed by the material FSM */
-  materialState?: unknown
-}
 
 // ─── Designer Panel / Toolbar ──────────────────────────────────────
 

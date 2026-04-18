@@ -40,9 +40,12 @@ export {
   validateMerge,
 } from './commands'
 
-export { FontManager } from './font'
+// ─── Editor Core（新内核，见 22-editor-core 架构文档） ───────────────
+export * from './editor'
 
+export { FontManager } from './font'
 export type { FontDescriptor, FontProvider, FontSource } from './font'
+
 export {
   distance,
   getBoundingRect,
@@ -65,23 +68,14 @@ export type {
   DatasourceDropHandler,
   DatasourceDropZone,
   DatasourceFieldInfo,
-  DeepEditingDefinition,
-  DeepEditingPhase,
-  InternalResizeHandle,
-  InternalResizeHandler,
-  KeyboardRouteHandler,
   MaterialDesignerExtension,
   MaterialExtensionContext,
   MaterialExtensionFactory,
   NodeSignal,
-  PhaseContainers,
-  PhaseTransition,
   PropertyPanelOverlay,
   PropertyPanelRequest,
   PropSchemaLike,
   SelectionSnapshot,
-  SubSelectionHandler,
-  SubSelectionResult,
   ToolbarAction,
 } from './material-extension'
 
@@ -94,8 +88,8 @@ export type {
 } from './material-viewer'
 
 export { createPagePlan } from './page-planner'
-
 export type { PagePlan, PagePlanDiagnostic, PagePlanEntry } from './page-planner'
+
 export { SelectionModel } from './selection'
 
 export { UnitManager } from './unit'

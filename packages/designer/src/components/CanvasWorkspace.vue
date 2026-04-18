@@ -1,32 +1,38 @@
 <script setup lang="ts">
 import type { MarqueeRect } from '../composables/use-marquee-select'
 import type { ResizeHandle } from '../composables/use-element-resize'
-import { computed, nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref } from 'vue'
+import {
+  buildTableDataViewModel,
+  buildTableStaticViewModel,
+  tableCellSelection,
+} from '@easyink/material-table-kernel'
+import { isTableNode } from '@easyink/schema'
 import { useDesignerStore } from '../composables'
-import { useDeepEditing } from '../composables/use-deep-editing'
 import { useElementDrag } from '../composables/use-element-drag'
 import { useElementResize } from '../composables/use-element-resize'
 import { useElementRotate } from '../composables/use-element-rotate'
 import { useMarqueeSelect } from '../composables/use-marquee-select'
 import { useDatasourceDrop } from '../composables/use-datasource-drop'
 import { useMaterialDrop } from '../composables/use-material-drop'
+import { makeBridgeState } from '../store/editor-bridge'
 import { CANVAS_CONTAINER_KEY } from './canvas-container'
-import GridOverlay from './GridOverlay.vue'
-import SnapLineOverlay from './SnapLineOverlay.vue'
-import GuideOverlay from './GuideOverlay.vue'
-import CanvasRuler from './CanvasRuler.vue'
 import CanvasContextMenu from './CanvasContextMenu.vue'
-import WorkspaceWindow from './WorkspaceWindow.vue'
-import PropertiesPanel from './PropertiesPanel.vue'
-import StructureTree from './StructureTree.vue'
-import DataSourcePanel from './DataSourcePanel.vue'
-import HistoryPanel from './HistoryPanel.vue'
-import MinimapPanel from './MinimapPanel.vue'
-import DebugPanel from './DebugPanel.vue'
-import ToolbarManager from './ToolbarManager.vue'
-import MaterialPanel from './MaterialPanel.vue'
-import DeepEditDragHandle from './DeepEditDragHandle.vue'
 import CanvasElementContent from './CanvasElementContent.vue'
+import CanvasRuler from './CanvasRuler.vue'
+import CellOverlay from './CellOverlay.vue'
+import DataSourcePanel from './DataSourcePanel.vue'
+import DebugPanel from './DebugPanel.vue'
+import GridOverlay from './GridOverlay.vue'
+import GuideOverlay from './GuideOverlay.vue'
+import HistoryPanel from './HistoryPanel.vue'
+import MaterialPanel from './MaterialPanel.vue'
+import MinimapPanel from './MinimapPanel.vue'
+import PropertiesPanel from './PropertiesPanel.vue'
+import SnapLineOverlay from './SnapLineOverlay.vue'
+import StructureTree from './StructureTree.vue'
+import ToolbarManager from './ToolbarManager.vue'
+import WorkspaceWindow from './WorkspaceWindow.vue'
 
 const store = useDesignerStore()
 const containerRef = ref<HTMLElement | null>(null)
@@ -77,17 +83,6 @@ const { onDragOver: onMaterialDragOver, onDrop: onMaterialDrop } = useMaterialDr
   getPageEl: () => pageRef.value,
 })
 
-// ─── Deep Editing ────────────────────────────────────────────────
-const deepEditOverlayRef = ref<HTMLElement | null>(null)
-const deepEditToolbarRef = ref<HTMLElement | null>(null)
-
-const deepEditing = useDeepEditing({
-  store,
-  getPageEl: () => pageRef.value,
-  getScrollEl: () => scrollRef.value,
-  getOverlayEl: () => deepEditOverlayRef.value,
-  getToolbarEl: () => deepEditToolbarRef.value,
-})
 
 function handlePageDragOver(e: DragEvent) {
   onPageDragOver(e)
@@ -120,21 +115,6 @@ const pageStyle = computed(() => {
 
 const elements = computed(() => store.getElements())
 
-const deepEditNode = computed(() => {
-  const nodeId = store.deepEditing.nodeId
-  if (!nodeId)
-    return null
-  return store.getElementById(nodeId) ?? null
-})
-
-/** Visual height of the deep-edit overlay, accounting for virtual placeholder rows in table-data. */
-const deepEditOverlayHeight = computed(() => {
-  const node = deepEditNode.value
-  if (!node)
-    return 0
-  return store.getVisualHeight(node)
-})
-
 const marqueeStyle = computed(() => {
   if (!marqueeRect.value)
     return null
@@ -163,21 +143,39 @@ function isResizable(kind: string): boolean {
 function handleScrollPointerDown(e: PointerEvent) {
   // Only trigger marquee on empty space (the scroll area or page background)
   if (e.target === scrollRef.value || e.target === pageRef.value) {
-    if (deepEditing.isActive()) {
-      deepEditing.exit()
-    }
+    // Exit cell edit mode when clicking blank canvas
+    if (store.cellSelection)
+      store.exitCellEdit()
     onCanvasPointerDown(e)
   }
 }
 
-/** Guards against the click event routing to cell selection when deep editing was just entered on pointerdown. */
-let deepEditEnteredOnPointerDown = false
+/**
+ * Hit-test a click within a table element to find the target cell.
+ * Returns [row, col] on hit (skipping virtual placeholder rows), or null.
+ */
+function hitTestTableCell(e: PointerEvent | MouseEvent, elementId: string): [number, number] | null {
+  const n = store.getElementById(elementId)
+  if (!n || !isTableNode(n))
+    return null
+  const target = e.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const visualHeight = store.getVisualHeight(n)
+  const localX = ((e.clientX - rect.left) / rect.width) * n.width
+  const localY = ((e.clientY - rect.top) / rect.height) * visualHeight
+  const vm = n.type === 'table-data'
+    ? buildTableDataViewModel(n)
+    : buildTableStaticViewModel(n)
+  const hit = vm.hitTest({ x: localX, y: localY })
+  if (!hit || hit.virtual)
+    return null
+  return [hit.path[0], hit.path[1]]
+}
 
 function handleElementPointerDown(e: PointerEvent, elementId: string) {
   e.stopPropagation()
-  deepEditEnteredOnPointerDown = false
 
-  // Right-click: preserve current selection for context menu, skip deep editing and drag
+  // Right-click: preserve current selection for context menu, skip drag
   if (e.button === 2) {
     if (!store.selection.has(elementId)) {
       store.selection.select(elementId)
@@ -185,39 +183,27 @@ function handleElementPointerDown(e: PointerEvent, elementId: string) {
     return
   }
 
-  // During deep editing for this element, don't start element drag
-  if (deepEditing.isActive() && deepEditing.getNodeId() === elementId) {
-    return
-  }
-  // If deep editing another element, exit first
-  if (deepEditing.isActive() && deepEditing.getNodeId() !== elementId) {
-    deepEditing.exit()
-  }
-
-  // For deep-edit-capable elements, enter deep editing immediately
-  if (!(e.ctrlKey || e.metaKey)) {
-    const ext = store.getDesignerExtension(store.getElementById(elementId)?.type ?? '')
-    if (ext?.deepEditing) {
-      // Step 1: set store state (triggers reactive updates for overlay positioning)
-      if (deepEditing.enter(elementId)) {
-        deepEditEnteredOnPointerDown = true
-        // Step 2: after Vue renders the overlay/toolbar, mount the FSM phase
-        nextTick(() => deepEditing.mountCurrentPhase())
+  // Cell-edit mode: clicking INSIDE the same table → switch cell, skip drag.
+  // Clicking OTHER elements → exit cell edit, then proceed normally.
+  const cs = store.cellSelection
+  if (cs) {
+    if (cs.nodeId === elementId) {
+      const hit = hitTestTableCell(e, elementId)
+      if (hit) {
+        store.enterCellEdit(elementId, hit[0], hit[1])
         return
       }
+      // Missed hit (e.g. virtual row) — stay in cell mode, no-op
+      return
     }
+    store.exitCellEdit()
   }
+
   onElementPointerDown(e, elementId)
 }
 
 function handleElementClick(e: MouseEvent, elementId: string) {
   e.stopPropagation()
-
-  // Skip cell routing if deep editing was just entered on this same pointerdown->click cycle
-  if (deepEditEnteredOnPointerDown) {
-    deepEditEnteredOnPointerDown = false
-    return
-  }
 
   // Normal selection / narrow-down logic
   if (e.ctrlKey || e.metaKey) {
@@ -288,11 +274,81 @@ function handleMouseLeave() {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (deepEditing.isActive()) {
-    const handled = deepEditing.handleKeyDown(e)
-    if (handled)
+  // Ignore when the user is typing inside an input / textarea / contenteditable
+  // (e.g. property panel inputs, cell inline editor).
+  const target = e.target as HTMLElement | null
+  if (target && (
+    target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+    || target.isContentEditable
+  ))
+    return
+
+  // Escape: exit cell edit first, then clear element selection.
+  if (e.key === 'Escape') {
+    if (store.cellSelection) {
+      store.exitCellEdit()
+      e.preventDefault()
       return
+    }
   }
+
+  // Route to plugin.keymap when a table cell is selected.
+  const cs = store.cellSelection
+  if (!cs)
+    return
+  const node = store.getElementById(cs.nodeId)
+  if (!node)
+    return
+  const ext = store.getMaterialExtension(node.type)
+  if (!ext)
+    return
+  const plugin = ext.plugins[0]
+  const keymap = plugin?.keymap
+  if (!keymap)
+    return
+
+  const keyStr = buildKeyString(e)
+  const handler = keymap[keyStr]
+  if (!handler)
+    return
+  const state = makeBridgeState(
+    store.schema,
+    tableCellSelection(cs.nodeId, cs.row, cs.col),
+    ext.plugins,
+  )
+  const dispatched = handler(state, (tr) => {
+    store.dispatchTransaction(tr, `key:${keyStr}`)
+  }, e)
+  if (dispatched)
+    e.preventDefault()
+}
+
+function buildKeyString(e: KeyboardEvent): string {
+  const parts: string[] = []
+  if (e.ctrlKey || e.metaKey)
+    parts.push('Mod')
+  if (e.shiftKey)
+    parts.push('Shift')
+  if (e.altKey)
+    parts.push('Alt')
+  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key
+  parts.push(key === ' ' ? 'Space' : key)
+  return parts.join('-')
+}
+
+function handleElementDblClick(e: MouseEvent, elementId: string) {
+  e.stopPropagation()
+  const node = store.getElementById(elementId)
+  if (!node || !isTableNode(node))
+    return
+  const ext = store.getMaterialExtension(node.type)
+  if (!ext)
+    return
+  const hit = hitTestTableCell(e, elementId)
+  if (!hit)
+    return
+  store.enterCellEdit(node.id, hit[0], hit[1])
 }
 
 function handleRulerHover(hover: { axis: 'x' | 'y', position: number } | null) {
@@ -340,12 +396,15 @@ onMounted(() => {
   if (scrollRef.value) {
     handleScroll()
   }
+  // Listen for keymap at window level so Escape / plugin keys work without canvas focus.
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   containerObserver.disconnect()
   cursorPos.value = null
   cleanupOverlay()
+  window.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
@@ -383,7 +442,7 @@ onUnmounted(() => {
             'ei-canvas-element--selected': store.selection.has(el.id),
             'ei-canvas-element--locked': el.locked,
             'ei-canvas-element--hidden': el.hidden,
-            'ei-canvas-element--deep-editing': store.deepEditing.nodeId === el.id,
+            'ei-canvas-element--deep-editing': store.cellSelection?.nodeId === el.id,
           }"
           :style="{
             left: `${el.x}${store.schema.unit}`,
@@ -396,13 +455,14 @@ onUnmounted(() => {
           }"
           @pointerdown="handleElementPointerDown($event, el.id)"
           @click="handleElementClick($event, el.id)"
+          @dblclick="handleElementDblClick($event, el.id)"
         >
           <div class="ei-canvas-element__content">
             <CanvasElementContent :node-id="el.id" />
           </div>
 
           <!-- Selection border, resize handles & rotation handle -->
-          <template v-if="store.selection.has(el.id) && store.deepEditing.nodeId !== el.id">
+          <template v-if="store.selection.has(el.id) && store.cellSelection?.nodeId !== el.id">
             <div class="ei-canvas-element__selection-border" />
 
             <!-- 8 resize handles -->
@@ -430,28 +490,8 @@ onUnmounted(() => {
         <!-- Snap line overlay -->
         <SnapLineOverlay />
 
-        <!-- Deep editing containers (always in DOM; v-show controls visibility) -->
-        <div
-          ref="deepEditOverlayRef"
-          v-show="store.isInDeepEditing && deepEditNode"
-          class="ei-deep-edit-overlay"
-          :style="deepEditNode ? {
-            left: `${deepEditNode.x}${store.schema.unit}`,
-            top: `${deepEditNode.y}${store.schema.unit}`,
-            width: `${deepEditNode.width}${store.schema.unit}`,
-            height: `${deepEditOverlayHeight}${store.schema.unit}`,
-          } : undefined"
-        />
-        <div
-          ref="deepEditToolbarRef"
-          v-show="store.isInDeepEditing && deepEditNode"
-          class="ei-deep-edit-toolbar"
-          :style="deepEditNode ? {
-            left: `${deepEditNode.x}${store.schema.unit}`,
-            top: `${deepEditNode.y}${store.schema.unit}`,
-          } : undefined"
-        />
-        <DeepEditDragHandle v-if="store.isInDeepEditing && deepEditNode" :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
+        <!-- Cell-level deep-edit overlay (table-static / table-data) -->
+        <CellOverlay />
 
         <!-- Marquee selection rectangle -->
         <div

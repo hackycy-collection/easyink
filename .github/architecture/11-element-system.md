@@ -194,21 +194,21 @@ table-static:  rotatable=false, resizable=true, bindable=true, multiBinding=true
 table-data:    rotatable=false, resizable=true, bindable=true, multiBinding=true
 ```
 
-深度编辑能力通过扩展协议的 `deepEditing` FSM 定义声明，不再通过 capability 标志。
+子路径编辑能力通过 plugin 注册 `selectionTypes: ['table-cell']` 与 view plugin 的 overlay 层渲染表达，不再通过独立的 deepEditing / FSM 协议或 capability 标志。详见 [§11.6](#116-designer-扩展面) 与 [22-editor-core](./22-editor-core.md)。
 
 ### 表格 DatasourceDropHandler 实现
 
-table-data 和 table-static 均实现 `DatasourceDropHandler` 协议：
+table-data 和 table-static 均实现 `DatasourceDropHandler`（协议见 [§11.6.8](#1168-datasourcedrophandler)）：
 
 **table-data**：
-- `onDragOver`：hitTestGridCell -> resolveMergeOwner -> computeCellRect。repeat-template 行检查字段集合前缀一致性（`getFieldCollectionPrefix`），不一致返回 `rejected`；header/footer/normal 行直接 `accepted`。
-- `onDrop`：repeat-template 行通过 `UpdateTableCellCommand` 设置 `cell.binding`；header/footer/normal 行通过 `BindStaticCellCommand` 设置 `cell.staticBinding`。
+- `onDragOver`：`viewModel.hitTest(local)` -> 得到 cellPath -> `viewModel.rectOf(cellPath)`。repeat-template 行检查字段集合前缀一致性（`getFieldCollectionPrefix`），不一致返回 `rejected`；header/footer/normal 行直接 `accepted`。
+- `onDrop`：repeat-template 行通过 `table/set-cell-binding` step（`kind: 'binding'`）写入绑定；header/footer/normal 行通过 `table/set-cell-binding` step（`kind: 'staticBinding'`）写入。
 
 **table-static**：
-- `onDragOver`：hitTestGridCell -> resolveMergeOwner -> computeCellRect，无约束，直接 `accepted`。
-- `onDrop`：`BindStaticCellCommand` 设置 `cell.staticBinding`。
+- `onDragOver`：`viewModel.hitTest(local)`，无约束，直接 `accepted`。
+- `onDrop`：`table/set-cell-binding` step（`kind: 'staticBinding'`）写入绑定。
 
-复用 `@easyink/material-table-kernel` 的 `hitTestGridCell`、`resolveMergeOwner`、`computeCellRect` 函数。
+ViewModel 内部复用 `@easyink/material-table-kernel` 的 `hitTestGridCell / resolveMergeOwner / computeCellRect` 纯函数。
 
 ### 深度编辑工具栏
 
@@ -234,25 +234,26 @@ Header/Footer 区域选中时：
 
 ### 数据区占位行渲染
 
-table-data 的 Designer Extension 在 repeat-template 行下方额外渲染 2 行纯视觉占位区域：
+table-data 的 ViewModel（`buildTableDataViewModel`）在 repeat-template 行下方派生出 2 行纯视觉占位区域：
 
 - 占位行高度 = repeat-template 行的 `row.height`
 - 占位行单元格边框/宽度克隆自 repeat-template 行对应 cell
 - 占位行整体施加灰色半透明叠加层（如 `background: rgba(0,0,0,0.04)`）
-- 占位行不参与 hit-test、不可选中、不可编辑（完全惰性）
-- schema 中 element.height 仅反映实际行（不含虚拟行），占位行仅影响设计态视觉高度
+- 占位行不出现在 `viewModel.hitRegions`，天然不可选中、不可编辑
+- Schema 中 `element.height` 仅反映实际行（不含占位行），占位行仅影响 ViewModel 派生视觉高度
+- Schema 不感知占位行：绝不在 hit-test / rectOf 计算里做手工 ±placeholder 高度的补丁
 
-### 深度编辑元素的通用交互模型
+### 子路径编辑的通用交互模型
 
-深度编辑由统一扩展协议驱动，物料通过声明式 FSM 定义自己的编辑阶段，不再依赖 capability 标志。
+复杂物料的子路径编辑完全由 EditorCore 的 Selection + Plugin 机制承载：
 
-1. **声明式 FSM**：每个复杂物料通过 `DeepEditingDefinition` 声明内部编辑 phase 和转换规则。Designer 提供基础状态机（idle / selected / deep-editing），物料在 deep-editing 内部扩展子 phase。
-2. **Overlay 与 Toolbar 自渲染**：物料在 phase 的 `onEnter` 回调中接收 Designer 提供的定位好的 DOM 容器（overlay + toolbar），自行 mount 渲染内容。Designer 不参与物料内部 UI 渲染。
-3. **职责划分**：Designer 管理选区框、resize 把手、对齐、拖拽；物料管理内容渲染和深度编辑 UI。
-4. **通信机制**：物料通过 `MaterialExtensionContext` 的查询方法读取状态，通过 `commitCommand` / `emit` 发送指令。
-5. **Extension 注册**：物料通过工厂函数 `createExtension(context)` 注册，返回 `MaterialDesignerExtension` 实例。
-6. **Phase 生命周期**：每个 phase 通过 `onEnter` / `onExit` 回调管理挂载和清理。
-7. **互斥约束**：同一时刻只有一个元素可进入深度编辑。多选状态与深度编辑互斥。
+1. **子路径 selection**：物料通过 `selectionTypes` 注册自定义 selection type（table-cell / container-child / relation-node），path 形状由物料自定义。
+2. **Overlay 与 Toolbar 渲染**：view plugin 在 `ctx.layers.overlay / toolbar` 上 push 纯函数 VNode，由 Designer 通过 preact reconciler 统一挂载与定位。
+3. **职责划分**：Designer 管理元素级选区框、对齐辅助、元素拖动、元素级 resize；物料 plugin 管理 content 渲染、子选区高亮、内部 resize 把手、浮动工具条。
+4. **通信机制**：view plugin 的 `render(ctx)` 读 `ctx.state`，通过 `ctx.dispatch(tr)` 写；不存在命令式 delegate / emit / on。
+5. **Extension 注册**：物料通过 `defineMaterial({ definition, plugins })` 注册 一组 Plugin。
+6. **生命周期**：随 selection 自然进出——selection 指向物料子路径 → overlay/toolbar 自动出现；selection 离开 → 自动消失。无需 phase onEnter/onExit。
+7. **互斥约束**：`state.selection` 天然单一，多选状态是独立 selection type（`element-range`），与子路径 selection 互斥。
 
 ### `container`
 
@@ -376,54 +377,171 @@ interface PropSchema {
 
 ## 11.6 Designer 扩展面
 
-物料通过工厂函数注册 extension，Designer 提供上下文能力，物料自行渲染和管理深度编辑。
+> 本节于 Editor Core 重构后整节重写。
+> 物料不再提供 `MaterialDesignerExtension / DeepEditingDefinition / NodeSignal / delegate` 这些旧协议，改为通过 **`defineMaterial`** 组装一组 **Plugin**，由 EditorCore 统一调度。
+> 完整协议、类型、示例见 [22-editor-core](./22-editor-core.md)。本节只陈述物料体系关心的 WHAT，不重复 HOW。
+
+### 11.6.1 物料 = `MaterialDefinition` + `Plugin[]`
 
 ```typescript
-/** 物料通过工厂函数注册 extension */
-type MaterialExtensionFactory = (context: MaterialExtensionContext) => MaterialDesignerExtension
-
-interface MaterialExtensionContext {
-  /** 查询能力：读取 schema、获取选中状态 */
-  getSchema(): DocumentSchema
-  getNode(id: string): MaterialNode | undefined
-  getSelection(): SelectionState
-  /** 指令能力：提交 command、请求属性面板切换 */
-  commitCommand(command: Command): void
-  /** 推送属性面板叠加层（PropertyPanelOverlay），用于 deep editing 阶段展示上下文相关属性。
-   *  推送 null 清除叠加层。详见 10-designer-interaction 10.5 节 PropertyPanelOverlay 动态叠加层。 */
-  requestPropertyPanel(overlay: PropertyPanelOverlay | null): void
-  emit(event: string, payload: unknown): void
-  on(event: string, handler: (...args: unknown[]) => void): () => void
+interface MaterialDefinition {
+  type: string
+  name: string
+  icon: string
+  category: MaterialCategory
+  capabilities: MaterialCapabilities
+  props: PropSchema[]
+  createDefaultNode: (input?: Partial<MaterialNode>) => MaterialNode
 }
 
-interface MaterialDesignerExtension {
-  /** 设计态内容渲染：设计器提供定位好的内容 DOM 容器，物料自行渲染。
-   *  nodeSignal 提供框架无关的响应式订阅：调用 nodeSignal.subscribe(callback) 监听节点变化，
-   *  调用 nodeSignal.get() 获取当前值。物料在首次调用时完成 DOM 挂载，后续通过 subscribe 增量更新。
-   *  返回 cleanup 函数，在元素从画布移除时调用。 */
-  renderContent(nodeSignal: NodeSignal, container: HTMLElement): () => void
+function defineMaterial(config: {
+  definition: MaterialDefinition
+  plugins: Plugin[]
+}): MaterialRegistration
+```
 
-  /** 声明式 FSM 定义（可选，仅复杂物料提供） */
-  deepEditing?: DeepEditingDefinition
+物料包对外导出一个 `MaterialRegistration`；宿主（playground / designer 消费方）通过 `editor.plugins` 注入即可完成注册。
 
-  /** 数据源拖拽绑定协议（可选）。
-   *  未实现时自动回退到默认行为：整个元素作为 drop zone、drop 时 BindFieldCommand 绑定到 node.binding。
-   *  复杂物料（table/chart/container）通过此协议自定义 drop 行为。 */
-  datasourceDrop?: DatasourceDropHandler
-}
+### 11.6.2 Plugin 按职责分解
 
-/** 数据源拖拽处理器 */
+物料内部不要求实现一个巨型 extension，而是把能力拆成若干独立 Plugin（ProseMirror 风）。常见职责：
+
+| Plugin | 职责 |
+|--------|------|
+| view plugin | `render(ctx)` 向 `ctx.layers.{content, overlay, toolbar, handles}` push 出 VNode |
+| selection plugin | 通过 `selectionTypes` 注册自定义 selection type（如 `table-cell`） |
+| step plugin | 通过 `stepTypes` 注册自定义 Step（如 `table/insert-row`） |
+| keymap plugin | 处理 selection 上下文内的按键（如 Tab 切 cell） |
+| propertyPanel plugin | 按 selection 返回 `PanelContribution[]` |
+| drop plugin | 实现 `DatasourceDropHandler` |
+| state plugin | 维护 plugin-local state slot（如 `editingCell` 纯文本草稿） |
+
+职责可以合并到同一 Plugin 对象中，也可以拆分成多个 Plugin 对象，自由组合。dependencies 字段显式声明依赖（如 keymap 依赖 state）。
+
+### 11.6.3 设计态渲染（Design-time Rendering）
+
+设计态渲染 = view plugin 往 `ctx.layers.content` push 的 VNode 树。设计态与 Viewer 仍是两套独立实现，原因不变：
+
+- 设计态不执行数据绑定解析，绑定值显示为字段标签（如 `{#订单编号}`）
+- 设计态不执行分页、字体加载、数据源拉取
+- 复杂物料在设计态使用静态缩略图或简化占位，不引入第三方渲染库
+- 设计态响应编辑交互（悬停、选中、编辑态样式变化）
+- 设计态渲染运行在主线程，必须轻量快速
+
+**渲染方式**：view plugin 是**纯函数** —— `render(ctx)` 读 `ctx.state`，往 `ctx.layers` push VNode。**禁止** 闭包可变状态；DOM 副作用（focus/select/滚动）必须通过 `ref / onMount / onCleanup` 回调完成。
+
+preact 的 `h` / `Fragment` / `onMount` / `onCleanup` 由 `@easyink/core/view` 薄封装 re-export，extension 不直接依赖 preact：
+
+```typescript
+import { h, Fragment, onMount } from '@easyink/core/view'
+```
+
+**各类物料的设计态渲染策略**（不变）：
+
+| 物料类别 | 设计态渲染 | 与 Viewer 的差异 |
+|---|---|---|
+| text | 根据 props 渲染文字样式；绑定值显示为 `{#字段标签}` | Viewer 替换为真实数据 |
+| image | 有 src 时显示缩略图，无 src 时显示图标占位 | 无差异 |
+| barcode / qrcode | 显示静态示意图 + 值标签 | Viewer 调用渲染库生成真实码 |
+| line / rect / ellipse | 根据 props 直接渲染图形 | 基本无差异 |
+| table-static | 渲染表格格线结构和格子内容；有 staticBinding 的 cell 显示 `{#字段标签}` | Viewer 替换为真实数据 |
+| table-data | 渲染表格格线结构；header/footer 显示文本或绑定标签；数据区编辑行显示绑定标签，下方 2 行灰色占位（由 ViewModel 产出） | Viewer 执行数据展开、分页、重复头 |
+| container | 渲染容器边界 + 递归渲染子元素 | 基本无差异 |
+| chart | 显示图表类型图标 + 静态缩略图占位 | Viewer 调用图表库 |
+| svg | 直接渲染 SVG 内容 | 基本无差异 |
+| relation | 显示关系类型图标 + 结构占位 | Viewer 渲染完整连线和锚点 |
+
+**回退策略**：
+
+- 物料未注册 view plugin → 画布显示类型名占位块
+- 未知物料始终显示诊断占位，不静默消失
+
+**画布调用流程**：
+
+```
+EditorView raf tick
+  → reconcile(state):
+      for each plugin in topological order:
+        plugin.view?.render(ctx) // ctx.layers.* 由 core 按 node 维度分配
+  → 合并得到页面级 VNode 树
+  → preact.render(vnodeTree, canvasMount)
+```
+
+Canvas 层内部不使用 Vue 响应式。
+
+### 11.6.4 ViewModel：结构物料的视觉派生层
+
+结构物料（table / container）**必须**提供 ViewModel（`buildViewModel(node) => { rows, cells, hitRegions, rectOf, hitTest, extras }`）。
+
+ViewModel 负责：
+
+- 把 Schema topology 展开为"逻辑行/列/单元格"流
+- 生成设计态专有视觉元素（如 table-data 的 2 行灰色占位行；container 的空 slot 占位）
+- 提供 `hitTest(local)` 与 `rectOf(path)`，供 Designer 的 pointer 层和 view 层共用
+
+**Schema 不感知设计态占位**。旧实现里 `computeCellRectWithPlaceholders` / `hitTestWithPlaceholders` 的手工 ±placeholder 高度全部移除，占位逻辑完全收束在 `buildTableDataViewModel` 内部。
+
+### 11.6.5 Selection 扩展
+
+子路径选区通过 selection plugin 注册：
+
+```typescript
+// 表格：注册 table-cell 类型
+selectionTypes: [{
+  type: 'table-cell',
+  fromJSON(json) { /* ... */ },
+}]
+```
+
+子路径 path 形状由物料自行定义（如 `[row, col]`）。Designer 层仅通过 `selection.type / nodeId` 识别所属物料，内部 path 对 Designer 透明。
+
+"深度编辑"不再是一个独立概念，它就是画布当前 selection.type 指向物料内部子路径时的视觉约定。详见 [§10.7](./10-designer-interaction.md)。
+
+### 11.6.6 Step 扩展（结构性修改）
+
+物料负责的拓扑级修改（插入行列、合并、resize 等）通过自定义 Step 注册：
+
+```typescript
+stepTypes: [
+  TableInsertRowStep,
+  TableRemoveRowStep,
+  TableInsertColStep,
+  // ...
+]
+```
+
+每个 Step 必须实现 `apply / invert / getMap / toJSON`。core 负责 transaction 组合、mapping 连缀与 history invert；物料不再维护 Command 类。
+
+通用字段修改走 core 提供的通用 step（`set-prop / patch-array` 等），不需要物料自定义。
+
+### 11.6.7 Commands（语义化 tx 工厂）
+
+Plugin 通过 `commands: Record<string, CommandFactory>` 暴露语义命令（如 `insertRowBelow`、`mergeCells`、`resizeColumn`）。UI / keymap / 测试统一通过 commands 发起变更，从不手写 Step。
+
+```typescript
+const tr = tableCommands.insertRowBelow(editor.state, { nodeId, row })
+if (tr) editor.dispatch(tr)
+```
+
+### 11.6.8 DatasourceDropHandler
+
+```typescript
 interface DatasourceDropHandler {
-  /** dragOver 时调用，返回 drop zone 描述符或 null（不接受） */
-  onDragOver(field: DatasourceFieldInfo, point: { x: number; y: number }, node: MaterialNode): DatasourceDropZone | null
-  /** drop 时调用，执行绑定命令 */
-  onDrop(field: DatasourceFieldInfo, point: { x: number; y: number }, node: MaterialNode): void
+  onDragOver: (ctx: DropContext) => DropZone | null
+  onDrop: (ctx: DropContext) => void
 }
 
-interface DatasourceDropZone {
+interface DropContext {
+  state: EditorState
+  dispatch: (tr: Transaction) => void
+  field: DatasourceFieldInfo
+  local: { x: number, y: number }
+  node: MaterialNode
+}
+
+interface DropZone {
   status: 'accepted' | 'rejected'
-  /** 物料局部坐标的高亮矩形 */
-  rect: { x: number; y: number; w: number; h: number }
+  rect: { x: number, y: number, w: number, h: number }
   label?: string
 }
 
@@ -436,134 +554,32 @@ interface DatasourceFieldInfo {
   fieldLabel: string
   use?: string
 }
-
-> **右键菜单**由 Designer 统一管理（`CanvasContextMenu`），提供通用操作（复制/剪切/粘贴/克隆/删除/层级/锁定），物料不参与右键菜单注册。物料特有的操作应通过深度编辑或属性面板暴露。
-
-/** 框架无关的节点响应式信号 */
-interface NodeSignal {
-  /** 获取当前节点快照 */
-  get(): MaterialNode
-  /** 订阅节点变化，返回取消订阅函数 */
-  subscribe(callback: (node: MaterialNode) => void): () => void
-}
-
-/** 声明式有限状态机定义 */
-interface DeepEditingDefinition {
-  /** 物料内部 phases + 转换规则 */
-  phases: DeepEditingPhase[]
-  /** 初始 phase（进入 deep editing 时） */
-  initialPhase: string
-}
-
-interface DeepEditingPhase {
-  id: string
-  /** Phase 进入时，设计器提供 DOM 容器，物料自行 mount overlay/toolbar */
-  onEnter(containers: PhaseContainers, node: MaterialNode): void
-  /** Phase 退出时 cleanup */
-  onExit(): void
-  /** 子选择协议：物料声明当前 phase 支持的子元素选择逻辑 */
-  subSelection?: SubSelectionHandler
-  /** Resize 协议：物料声明内部可 resize 区域 */
-  internalResize?: InternalResizeHandler
-  /** Keyboard 路由：物料声明对按键事件的响应 */
-  keyboardHandler?: KeyboardRouteHandler
-  /** 转换规则：声明从当前 phase 可以转换到哪些 phase 及触发条件 */
-  transitions: PhaseTransition[]
-}
-
-interface PhaseContainers {
-  /** overlay DOM 容器（覆盖在元素上方，绝对定位） */
-  overlay: HTMLElement
-  /** toolbar DOM 容器（位于元素上方的浮动区域） */
-  toolbar: HTMLElement
-}
-
-interface SubSelectionHandler {
-  hitTest(point: { x: number; y: number }, node: MaterialNode): SubSelectionResult | null
-  getSelectedPath(): unknown
-  clearSelection(): void
-}
-
-interface InternalResizeHandler {
-  getResizeHandles(node: MaterialNode): ResizeHandle[]
-  onResize(handle: ResizeHandle, delta: { dx: number; dy: number }): void
-  onResizeEnd(handle: ResizeHandle): void
-}
-
-interface KeyboardRouteHandler {
-  handleKey(event: KeyboardEvent, node: MaterialNode): boolean
-}
-
-interface PhaseTransition {
-  to: string
-  trigger: 'click' | 'double-click' | 'escape' | 'custom'
-  guard?: (event: unknown, node: MaterialNode) => boolean
-}
 ```
 
-### 11.6.1 设计态渲染（Design-time Rendering）
+`onDrop` 由 plugin 自行构造 Transaction 并 dispatch（`setSetBinding / setCellStaticBinding / insert-node` 等）。未实现 dropHandler 的物料回退到"整个元素 drop zone + 写 `node.binding` 单值绑定"。
 
-设计态渲染是画布中物料的视觉内容呈现，与 Viewer 渲染是两套独立实现。
+### 11.6.9 属性面板贡献
 
-**为什么不复用 Viewer 渲染器：**
+plugin 的 `propertyPanel(ctx)` 按当前 selection 返回 `PanelContribution[]`。纯函数，无 push、无漏推，随 undo 自动回放。详见 [§10.5 属性面板贡献](./10-designer-interaction.md) 与 [§22.11](./22-editor-core.md)。
 
-- 设计态不执行数据绑定解析，绑定值显示为字段标签（如 `{#订单编号}`）
-- 设计态不执行分页、字体加载、数据源拉取等运行时流程
-- 复杂物料（图表、关系图）在设计态使用静态缩略图或简化占位，不引入第三方渲染库
-- 设计态需要响应编辑交互（悬停、选中、编辑态样式变化），Viewer 渲染器不关心这些
-- 设计态渲染运行在画布主线程，必须轻量快速
+### 11.6.10 右键菜单
 
-**渲染方式：**
+右键菜单由 Designer 统一管理（`CanvasContextMenu`），提供通用操作（复制/剪切/粘贴/克隆/删除/层级/锁定）。物料不参与右键菜单注册；物料特有的操作应通过子选区 + toolbar 或属性面板暴露。
 
-`renderContent(nodeSignal, container)` 接收 Designer 提供的已定位 DOM 容器和框架无关的节点信号。物料在首次调用时挂载 DOM，后续通过 `nodeSignal.subscribe()` 监听变化并增量更新，无需重建。返回 cleanup 函数用于元素移除时的清理。不返回 HTML 字符串。
+### 11.6.11 结构物料的额外职责
 
-Designer 内部将 Vue computed 包装为 `NodeSignal` 接口，extension 代码不依赖 Vue。
+对表格 / container / relation 这类结构物料，还要求：
 
-**各类物料的设计态渲染策略：**
+- 实现子路径 selection type（table-cell / container-child / relation-node ...）
+- 实现 ViewModel（hitRegions、rectOf、hitTest）
+- 实现结构性自定义 Step + invert
+- view plugin 在 `overlay` 层渲染子选区高亮与内部 handle；在 `toolbar` 层渲染浮动工具条
+- keymap 处理子选区相关按键（Tab / Enter / Delete / Arrow）
 
-| 物料类别 | 设计态渲染 | 与 Viewer 的差异 |
-|---|---|---|
-| text | 根据 props 渲染文字样式（字号/字体/颜色/对齐）；绑定值显示为 `{#字段标签}`，使用用户设置的样式渲染 | Viewer 会替换为真实数据 |
-| image | 有 src 时显示图片缩略图，无 src 时显示图标占位 | 无差异 |
-| barcode / qrcode | 显示静态示意图 + 值标签 | Viewer 调用渲染库生成真实码 |
-| line / rect / ellipse | 根据 props 直接渲染图形（颜色、边框、圆角） | 基本无差异 |
-| table-static | 渲染表格格线结构和格子内容；有 staticBinding 的 cell 显示 `{#字段标签}`，无绑定的 cell 显示手动编辑文本 | Viewer 替换为真实数据 |
-| table-data | 渲染表格格线结构；header/footer 显示文本或绑定标签；数据区编辑行显示绑定标签，下方 2 行灰色占位 | Viewer 执行数据展开、分页、重复头 |
-| container | 渲染容器边界 + 递归渲染子元素 | 基本无差异 |
-| chart | 显示图表类型图标 + 静态缩略图占位 | Viewer 调用图表库渲染真实图表 |
-| svg | 直接渲染 SVG 内容 | 基本无差异 |
-| relation | 显示关系类型图标 + 结构占位 | Viewer 渲染完整连线和锚点 |
+表格特有：
 
-**回退策略：**
-
-- 如果物料未提供 `renderContent()`，画布显示类型名占位块（当前行为）
-- 未知物料始终显示诊断占位，不静默消失
-
-**画布调用流程：**
-
-```
-CanvasWorkspace 遍历 elements
-  → 为每个元素创建定位好的内容 DOM 容器
-  → 创建 NodeSignal：包装 Vue computed 为 { get(), subscribe() }
-  → 查找 MaterialDesignerExtension.renderContent
-  → 有：调用 cleanup = renderContent(nodeSignal, container)，物料自行渲染到容器内
-  → 无：在容器内显示类型名占位
-  → 叠加选区边框、拖拽手柄、绑定角标等交互层
-  → 元素移除时调用 cleanup() 清理
-```
-
-对于结构物料，还需要支持：
-
-- 局部选区
-- 子树结构树映射
-- 专属快捷键
-
-对表格物料，还需要额外支持：
-
-- 表壳、格子、格子内容三层编辑上下文
-- 格子内文本进入内联编辑时，属性壳层仍保持 `table-static/table-data` 上下文
-- 表格浮动工具条与属性面板共享同一份表格编辑状态，而不是各自维护一套临时状态
-- 深度编辑 phase 的 overlay/toolbar 通过 `PhaseContainers` 挂载，由 Designer 管理定位
+- 表壳、格子、格子内容三层属性 contribution 在 order 50-79 区间分别注册
+- 格子内纯文本编辑通过 plugin state slot `editingCell` 管理草稿（纯文本内容字段），commit 时构造 `table/update-cell` step
 
 ## 11.7 Viewer 扩展面
 

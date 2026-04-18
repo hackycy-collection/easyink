@@ -1,0 +1,5 @@
+export { InsertNodeStep, RemoveNodeStep } from './insert-node'
+export { MoveNodeStep, ReplaceNodeStep } from './move-replace'
+export type { PatchArrayOp } from './patch-array'
+export { PatchArrayStep } from './patch-array'
+export { SetPropStep } from './set-prop'

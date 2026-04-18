@@ -1,6 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { ViewerDiagnosticEvent } from './types'
-import { getTableDataDesignerVisualHeight, isTableDataNodeForLayout } from '@easyink/material-table-data'
+import { getTableDataDesignerVisualHeight, isTableDataNodeForLayout } from './table-data-layout'
 
 export type StackLayoutMode = 'flow' | 'fixed'
 

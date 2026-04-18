@@ -200,6 +200,11 @@ export interface TableDataSchema extends TableSchema {
   showHeader?: boolean
   /** Footer visibility. false = viewer skips footer. Default true */
   showFooter?: boolean
+  /**
+   * Minimum height (mm) for repeat-template rows when expanded by viewer.
+   * 0 / undefined = use the topology row height as-is. See `.github/architecture/23-table-interaction.md` §23.7.
+   */
+  repeatMinRowHeight?: number
 }
 
 export interface TableTopologySchema {

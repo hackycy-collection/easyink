@@ -1,12 +1,20 @@
+import type { MaterialExtension, Step, Transaction } from '@easyink/core'
 import type { DocumentSchema, MaterialNode } from '@easyink/schema'
-import type { DeepEditingRuntimeState, LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, PropertyPanelOverlay } from '../types'
+import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, PropertyPanelOverlay } from '../types'
 import { CommandManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
 import { createDefaultSchema } from '@easyink/schema'
 import { markRaw } from 'vue'
 import { createMaterialExtensionContext } from '../materials/extension-context'
 import { applyPersistedWorkbench, loadWorkbenchPreferences } from './preference-persistence'
-import { createDefaultDeepEditing, createDefaultSaveBranchMenu, createDefaultWorkbenchState } from './workbench'
+import { createDefaultSaveBranchMenu, createDefaultWorkbenchState } from './workbench'
+
+/** 子选区（当前只支持 table cell，后续可扩展 container slot 等）。 */
+export interface CellSelectionState {
+  nodeId: string
+  row: number
+  col: number
+}
 
 /**
  * DesignerStore is the central state manager for the designer.
@@ -32,15 +40,16 @@ export class DesignerStore {
   private _materials = new Map<string, MaterialDefinition>()
   private _materialFactories = new Map<string, MaterialExtensionFactory>()
   private _cachedExtensions = new Map<string, MaterialDesignerExtension>()
+  /** 新式 plugin 协议扩展；当前仅表格已迁移，其它物料走 _cachedExtensions。 */
+  private _materialExtensions = new Map<string, MaterialExtension>()
   private _catalog: MaterialCatalogEntry[] = []
-
-  // ─── Generic deep editing ─────────────────────────────────────
-  readonly deepEditing: DeepEditingRuntimeState = createDefaultDeepEditing()
-  /** Registered callback for FSM-level cleanup before resetting deep editing state. */
-  private _deepEditingCleanup: (() => void) | null = null
 
   // ─── Property panel overlay (pushed by materials) ────────────
   private _propertyOverlay: PropertyPanelOverlay | null = null
+
+  // ─── Sub-element (cell) selection ────────────────────────────
+  /** 仅用于 cell 级深度编辑；element 级选区仍走 `selection`。 */
+  cellSelection: CellSelectionState | null = null
 
   // ─── Page element provider (for coordinate conversion) ──────
   private _pageElProvider: () => HTMLElement | null = () => null
@@ -53,6 +62,7 @@ export class DesignerStore {
     markRaw(this._materials)
     markRaw(this._materialFactories)
     markRaw(this._cachedExtensions)
+    markRaw(this._materialExtensions)
     markRaw(this.dataSourceRegistry)
 
     // Apply persisted workbench state if available
@@ -74,7 +84,8 @@ export class DesignerStore {
     this._schema = schema
     this.selection.clear()
     this.commands.clear()
-    this.exitDeepEditing()
+    this._propertyOverlay = null
+    this.cellSelection = null
   }
 
   // ─── Element operations ───────────────────────────────────────
@@ -97,9 +108,6 @@ export class DesignerStore {
       return undefined
     const [removed] = this._schema.elements.splice(idx, 1)
     this.selection.remove(id)
-    if (this.deepEditing.nodeId === id) {
-      this.exitDeepEditing()
-    }
     return removed
   }
 
@@ -158,6 +166,109 @@ export class DesignerStore {
     return ext
   }
 
+  // ─── New-style MaterialExtension (plugin protocol) ────────────
+
+  /** Register a new-style `MaterialExtension` (plugins + defineMaterial). */
+  registerMaterialExtension(ext: MaterialExtension): void {
+    this._materialExtensions.set(ext.type, ext)
+  }
+
+  /** Get a new-style `MaterialExtension` by material type. */
+  getMaterialExtension(type: string): MaterialExtension | undefined {
+    return this._materialExtensions.get(type)
+  }
+
+  // ─── Cell selection ───────────────────────────────────────────
+
+  /** Enter deep-edit mode on a specific table cell. */
+  enterCellEdit(nodeId: string, row: number, col: number): void {
+    this.cellSelection = { nodeId, row, col }
+    // Keep element selection so the canvas outline stays visible.
+    this.selection.select(nodeId)
+  }
+
+  /** Exit cell-edit mode (but keep element selection). */
+  exitCellEdit(): void {
+    this.cellSelection = null
+  }
+
+  // ─── Transaction dispatch ─────────────────────────────────────
+
+  /**
+   * Apply a Transaction's steps to the schema and record an undo entry.
+   *
+   * v1 bridge: does NOT go through EditorState.apply; instead it pipes each
+   * step through step.apply/step.invert directly and swaps `_schema` atomically.
+   * This preserves Vue reactivity and CommandManager-based history while we
+   * transition to a real EditorView in a later milestone.
+   */
+  dispatchTransaction(tr: Transaction, description: string): void {
+    const steps = tr.steps
+    if (steps.length === 0) {
+      // Selection-only transaction; sync cellSelection then bail out.
+      this.syncCellSelectionFromTx(tr)
+      return
+    }
+
+    const forwardSteps = steps.slice()
+    // Pre-compute inverse chain (in reverse order for undo).
+    const inverseSteps: Step[] = []
+    let cursor: DocumentSchema = this._schema
+    for (const step of forwardSteps) {
+      inverseSteps.unshift(step.invert(cursor))
+      const result = step.apply(cursor)
+      if (result.failed) {
+        console.error('[designer-store] step failed:', result.failed, step)
+        return
+      }
+      cursor = result.doc ?? cursor
+    }
+
+    const docAfter = cursor
+    const docBefore = this._schema
+
+    const nextSelection = tr.selectionSet ? tr.selection : null
+
+    const applyForward = (): void => {
+      this._schema = docAfter
+      if (nextSelection)
+        this.syncCellSelectionFromSelection(nextSelection)
+    }
+
+    const applyInverse = (): void => {
+      this._schema = docBefore
+      // Restore selection prior to tx.
+      // For v1 bridge we just drop cellSelection on undo; element selection is kept.
+      this.cellSelection = null
+    }
+
+    this.commands.execute({
+      id: `${description}:${Date.now()}`,
+      type: 'step',
+      description,
+      execute: applyForward,
+      undo: applyInverse,
+    })
+  }
+
+  private syncCellSelectionFromTx(tr: Transaction): void {
+    if (!tr.selectionSet)
+      return
+    this.syncCellSelectionFromSelection(tr.selection)
+  }
+
+  private syncCellSelectionFromSelection(sel: { type: string, nodeId: string | null, path: readonly unknown[] | null }): void {
+    if (sel.type === 'table-cell' && sel.nodeId && Array.isArray(sel.path)) {
+      const [row, col] = sel.path as readonly unknown[]
+      if (typeof row === 'number' && typeof col === 'number') {
+        this.cellSelection = { nodeId: sel.nodeId, row, col }
+        return
+      }
+    }
+    if (sel.type === 'empty' || sel.type === 'element')
+      this.cellSelection = null
+  }
+
   // ─── Locale ───────────────────────────────────────────────────
 
   setLocale(locale: LocaleMessages): void {
@@ -185,7 +296,7 @@ export class DesignerStore {
     return ext?.getVisualHeight?.(node) ?? node.height
   }
 
-  // ─── Deep Editing ───────────────────────────────────────────────
+  // ─── Page element provider ───────────────────────────────────────
 
   /** Register the page DOM element provider (called by CanvasWorkspace on mount). */
   setPageElProvider(provider: () => HTMLElement | null): void {
@@ -195,61 +306,6 @@ export class DesignerStore {
   /** Get the page DOM element for coordinate conversion. */
   getPageEl(): HTMLElement | null {
     return this._pageElProvider()
-  }
-
-  /** Whether a deep editing session is active. */
-  get isInDeepEditing(): boolean {
-    return this.deepEditing.nodeId !== undefined
-  }
-
-  /** Get the node ID being deep-edited. */
-  get deepEditingNodeId(): string | undefined {
-    return this.deepEditing.nodeId
-  }
-
-  /** Enter deep editing for an element with a declared FSM. */
-  enterDeepEditing(nodeId: string): boolean {
-    const node = this.getElementById(nodeId)
-    if (!node)
-      return false
-
-    const ext = this.getDesignerExtension(node.type)
-    if (!ext?.deepEditing)
-      return false
-
-    // Deep editing and multi-selection are mutually exclusive
-    this.selection.clear()
-    this.selection.add(nodeId)
-
-    this.deepEditing.nodeId = nodeId
-    this.deepEditing.materialType = node.type
-    this.deepEditing.currentPhase = ext.deepEditing.initialPhase
-    this.deepEditing.materialState = undefined
-    return true
-  }
-
-  /** Exit deep editing, reset to idle. */
-  exitDeepEditing(): void {
-    if (this._deepEditingCleanup) {
-      this._deepEditingCleanup()
-    }
-    this._propertyOverlay = null
-    this.deepEditing.nodeId = undefined
-    this.deepEditing.materialType = undefined
-    this.deepEditing.currentPhase = undefined
-    this.deepEditing.materialState = undefined
-  }
-
-  /** Register a callback for FSM-level phase cleanup (called before state reset in exitDeepEditing). */
-  setDeepEditingCleanup(fn: (() => void) | null): void {
-    this._deepEditingCleanup = fn
-  }
-
-  /** Transition to a specific phase within the active deep editing FSM. */
-  transitionPhase(phaseId: string): void {
-    if (!this.deepEditing.nodeId)
-      return
-    this.deepEditing.currentPhase = phaseId
   }
 
   // ─── Property Panel Overlay ──────────────────────────────────
@@ -273,9 +329,10 @@ export class DesignerStore {
     this._materials.clear()
     this._materialFactories.clear()
     this._cachedExtensions.clear()
+    this._materialExtensions.clear()
     this._catalog = []
     this.clipboard = []
     this._propertyOverlay = null
-    this.exitDeepEditing()
+    this.cellSelection = null
   }
 }

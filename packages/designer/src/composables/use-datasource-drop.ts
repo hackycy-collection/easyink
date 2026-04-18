@@ -1,7 +1,8 @@
 import type { DatasourceDropZone, DatasourceFieldInfo } from '@easyink/core'
 import type { BindingRef } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
-import { BindFieldCommand, pointInRect, UnitManager } from '@easyink/core'
+import { BindFieldCommand, elementSelection, pointInRect, UnitManager } from '@easyink/core'
+import { makeBridgeState } from '../store/editor-bridge'
 
 /**
  * MIME type used for datasource field drag data.
@@ -192,7 +193,38 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
 
     // Get extension for custom drop handler
     const ext = store.getDesignerExtension(target.type)
+    const newExt = store.getMaterialExtension(target.type)
+    const newPlugin = newExt?.plugins[0]
+    const newDropHandler = (newPlugin?.dropHandler ?? null) as {
+      onDragOver?: (ctx: { state: unknown, field: DatasourceFieldInfo, local: { x: number, y: number }, node: typeof target }) => DatasourceDropZone | null
+      onDrop?: (ctx: {
+        state: unknown
+        dispatch: (tr: unknown) => void
+        field: DatasourceFieldInfo & { [k: string]: unknown }
+        local: { x: number, y: number }
+        node: typeof target
+      }) => void
+    } | null
     const visualHeight = store.getVisualHeight(target)
+    if (newExt && newDropHandler?.onDragOver) {
+      const localX = docX - target.x
+      const localY = docY - target.y
+      const fieldInfo: DatasourceFieldInfo = { sourceId: '', fieldPath: '' }
+      const state = makeBridgeState(store.schema, elementSelection(target.id), newExt.plugins)
+      const zone = newDropHandler.onDragOver({ state, field: fieldInfo, local: { x: localX, y: localY }, node: target })
+      if (zone) {
+        const elScreenLeft = pageRect.left + unitManager.documentToScreen(target.x, 0, 0, zoom)
+        const elScreenTop = pageRect.top + unitManager.documentToScreen(target.y, 0, 0, zoom)
+        const elScreenWidth = unitManager.documentToScreen(target.width, 0, 0, zoom)
+        const elScreenHeight = unitManager.documentToScreen(visualHeight, 0, 0, zoom)
+        const elementRect = new DOMRect(elScreenLeft, elScreenTop, elScreenWidth, elScreenHeight)
+        showDropZone(zone, elementRect, zoom, unitManager)
+      }
+      else {
+        hideDropZone()
+      }
+      return
+    }
     if (ext?.datasourceDrop) {
       // Try to parse field data for dragOver feedback
       // During dragOver, getData may return empty on some browsers,
@@ -268,6 +300,33 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
 
     // Check for custom handler
     const ext = store.getDesignerExtension(target.type)
+    const newExt = store.getMaterialExtension(target.type)
+    const newPlugin = newExt?.plugins[0]
+    const newDrop = (newPlugin?.dropHandler ?? null) as {
+      onDrop?: (ctx: {
+        state: unknown
+        dispatch: (tr: import('@easyink/core').Transaction) => void
+        field: DatasourceFieldInfo & { [k: string]: unknown }
+        local: { x: number, y: number }
+        node: typeof target
+      }) => void
+    } | null
+    if (newExt && newDrop?.onDrop) {
+      const localX = docX - target.x
+      const localY = docY - target.y
+      const state = makeBridgeState(store.schema, elementSelection(target.id), newExt.plugins)
+      newDrop.onDrop({
+        state,
+        dispatch: (tr) => {
+          store.dispatchTransaction(tr, 'datasource-drop')
+        },
+        field: toFieldInfo(fieldData) as DatasourceFieldInfo & { [k: string]: unknown },
+        local: { x: localX, y: localY },
+        node: target,
+      })
+      store.selection.select(target.id)
+      return
+    }
     if (ext?.datasourceDrop) {
       const localX = docX - target.x
       const localY = docY - target.y

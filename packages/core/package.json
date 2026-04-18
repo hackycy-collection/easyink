@@ -8,6 +8,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
+    "./view": "./dist/view.mjs",
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@easyink/schema": "workspace:*",
-    "@easyink/shared": "workspace:*"
+    "@easyink/shared": "workspace:*",
+    "preact": "catalog:framework"
   }
 }

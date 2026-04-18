@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
+import type { PanelContribution, PropertyPanelContext } from '@easyink/core'
 import type { PanelSectionId, PropSchema } from '../types'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
 import { ClearBindingCommand, getByPath, setByPath, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialPropsCommand, UpdatePageCommand, UpdateTableVisibilityCommand } from '@easyink/core'
+import { tableCellSelection } from '@easyink/material-table-kernel'
 import { deepClone, PAPER_PRESETS } from '@easyink/shared'
 import { isTableNode } from '@easyink/schema'
 import { EiNumberInput, EiPanel, EiSwitch } from '@easyink/ui'
@@ -10,6 +12,7 @@ import { computed, shallowRef, watch, watchEffect } from 'vue'
 import { useDesignerStore } from '../composables'
 import { getPropSchemas, groupPropSchemas } from '../materials/prop-schemas'
 import { defaultDocumentPatch, defaultPagePatch, filterVisible, groupDescriptors, PAGE_PROPERTY_DESCRIPTORS, readPageProperty, splitPatch } from '../page-properties'
+import { makeBridgeState } from '../store/editor-bridge'
 import BindingSection from './BindingSection.vue'
 import PagePropertyEditor from './PagePropertyEditor.vue'
 import PropSchemaEditor from './PropSchemaEditor.vue'
@@ -29,17 +32,11 @@ const selectedElement = computed(() =>
 
 const overlay = computed(() => store.propertyOverlay)
 
-// Auto-clear overlay when deep editing state changes
+// Auto-clear overlay when the primary selection changes.
 watch(
-  () => ({
-    nodeId: store.deepEditing.nodeId,
-    phase: store.deepEditing.currentPhase,
-  }),
-  (newState, oldState) => {
-    if (!newState.nodeId || newState.nodeId !== oldState?.nodeId
-      || newState.phase !== oldState?.phase) {
-      store.setPropertyOverlay(null)
-    }
+  () => store.selection.ids.join(','),
+  () => {
+    store.setPropertyOverlay(null)
   },
   { flush: 'sync' },
 )
@@ -92,19 +89,87 @@ function handleClearExternalBinding(bindIndex?: number) {
   overlay.value?.clearBinding?.(bindIndex)
 }
 
+// ─── Plugin-based cell panel contribution ───────────────────────
+
+/**
+ * 当 `store.cellSelection` 激活时，从对应 MaterialExtension 的 plugin.propertyPanel
+ * 采集 PanelContribution 列表。该贡献是 v1 cell 级深度编辑属性面板的唯一来源，
+ * 取代旧 `propertyOverlay` 推送模型。见 .github/architecture/22-editor-core.md §22.11。
+ */
+const cellPanelContributions = computed<PanelContribution[]>(() => {
+  const cs = store.cellSelection
+  if (!cs)
+    return []
+  const node = store.getElementById(cs.nodeId)
+  if (!node)
+    return []
+  const ext = store.getMaterialExtension(node.type)
+  if (!ext || ext.plugins.length === 0)
+    return []
+  const plugin = ext.plugins[0]!
+  if (!plugin.propertyPanel)
+    return []
+  const state = makeBridgeState(
+    store.schema,
+    tableCellSelection(cs.nodeId, cs.row, cs.col),
+    ext.plugins,
+  )
+  const ctx: PropertyPanelContext = {
+    state,
+    pluginState: undefined,
+    dispatch: tr => store.dispatchTransaction(tr, 'cell-prop'),
+    t: store.t.bind(store),
+  }
+  return plugin.propertyPanel(ctx) ?? []
+})
+
+const cellPanelGroupedSchemas = computed(() => {
+  const list = cellPanelContributions.value
+  if (list.length === 0)
+    return new Map<string, PropSchema[]>()
+  // v1：合并所有 contribution 的 schemas 为一组（后续按 contribution.id 分组）
+  const all: PropSchema[] = []
+  for (const c of list)
+    all.push(...(c.schemas as PropSchema[]))
+  return groupPropSchemas(all)
+})
+
+function readCellPanelValue(schema: PropSchema): unknown {
+  for (const c of cellPanelContributions.value) {
+    const match = (c.schemas as PropSchema[]).some(s => s.key === schema.key)
+    if (match)
+      return c.readValue(schema.key)
+  }
+  return undefined
+}
+
+function writeCellPanelValue(key: string, value: unknown): void {
+  for (const c of cellPanelContributions.value) {
+    const match = (c.schemas as PropSchema[]).some(s => s.key === key)
+    if (match) {
+      c.writeValue(key, value)
+      return
+    }
+  }
+}
+
+function clearCellPanelBinding(_nodeId: string): void {
+  for (const c of cellPanelContributions.value) {
+    c.clearBinding?.()
+  }
+}
+
+const cellPanelBinding = computed(() => {
+  const c = cellPanelContributions.value[0]
+  if (!c)
+    return null
+  return (c.binding ?? null) as unknown
+})
+
 // ─── Section Filter ─────────────────────────────────────────────────
 
-function isSectionVisible(sectionId: PanelSectionId): boolean {
-  const el = selectedElement.value
-  if (!el)
-    return true
-  const def = store.getMaterial(el.type)
-  if (!def?.sectionFilter)
-    return true
-  return def.sectionFilter(sectionId, {
-    node: el,
-    deepEditing: store.deepEditing,
-  })
+function isSectionVisible(_sectionId: PanelSectionId): boolean {
+  return true
 }
 
 // ─── Page property descriptor system ─────────────────────────────
@@ -432,7 +497,7 @@ function readPropValue(schema: PropSchema): unknown {
       </EiPanel>
 
       <!-- Material-specific properties (PropSchema-driven) -->
-      <template v-if="isSectionVisible('props')">
+      <template v-if="isSectionVisible('props') && !store.cellSelection">
       <EiPanel
         v-for="[group, schemas] in groupedSchemas"
         :key="group"
@@ -454,6 +519,45 @@ function readPropValue(schema: PropSchema): unknown {
           />
         </div>
       </EiPanel>
+      </template>
+
+      <!-- Cell-level PropSchema (plugin.propertyPanel contribution) -->
+      <template v-if="store.cellSelection && cellPanelContributions.length > 0">
+        <EiPanel
+          v-for="[group, schemas] in cellPanelGroupedSchemas"
+          :key="`cell-${group}`"
+          :title="groupLabel(group)"
+          collapsible
+          flat
+        >
+          <div class="ei-properties-panel__fields">
+            <PropSchemaEditor
+              v-for="schema in schemas"
+              :key="schema.key"
+              :schema="schema"
+              :value="readCellPanelValue(schema)"
+              :fonts="fontList"
+              :t="store.t.bind(store)"
+              @preview="writeCellPanelValue"
+              @change="writeCellPanelValue"
+            />
+          </div>
+        </EiPanel>
+        <EiPanel
+          v-if="cellPanelBinding !== null"
+          :title="store.t('designer.property.dataBinding')"
+          collapsible
+          flat
+        >
+          <BindingSection
+            :element="selectedElement"
+            :t="store.t.bind(store)"
+            :external-binding="cellPanelBinding"
+            :has-external-binding="true"
+            @clear-binding="clearCellPanelBinding"
+            @clear-external-binding="clearCellPanelBinding"
+          />
+        </EiPanel>
       </template>
 
       <!-- Overlay layer: deep editing context properties -->

@@ -1,8 +1,8 @@
 import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
-import { getTableDataDesignerVisualHeight } from '@easyink/material-table-data'
 import { describe, expect, it } from 'vitest'
 import { createViewer, registerBuiltinViewerMaterials } from './index'
 import { applyStackFlowLayout } from './stack-flow-layout'
+import { getTableDataDesignerVisualHeight } from './table-data-layout'
 
 function makeNode(id: string, overrides: Partial<MaterialNode> = {}): MaterialNode {
   return {
@@ -126,7 +126,9 @@ describe('applyStackFlowLayout', () => {
     ])
   })
 
-  it('preserves the designer visual gap for table-data placeholder rows', () => {
+  it('expands flow nodes below table-data when measured height grows (no designer placeholder)', () => {
+    // Per .github/architecture/23-table-interaction.md §8, designer no longer reserves
+    // placeholder rows. Viewer measure-time growth pushes flow neighbors downward.
     const originalTable = makeTableNode('table', { y: 56, height: 24 })
     const measuredTable = makeTableNode('table', { y: 56, height: 56 })
     const originalGap = 4
@@ -140,10 +142,10 @@ describe('applyStackFlowLayout', () => {
       makeNode('grand-total', { y: originalBottom + originalGap, x: 140, width: 60, height: 8 }),
     ]
 
+    const delta = measuredTable.height - originalTable.height
     const result = applyStackFlowLayout(original, measured)
-    const table = result.elements.find(node => node.id === 'table')!
     const total = result.elements.find(node => node.id === 'grand-total')!
-    expect(total.y - (table.y + table.height)).toBe(originalGap)
+    expect(total.y).toBe(originalBottom + originalGap + delta)
   })
 })
 
@@ -187,8 +189,10 @@ describe('viewer runtime stack reflow', () => {
     const afterEl = container.querySelector('[data-element-id="after"]') as HTMLElement | null
     expect(afterEl).not.toBeNull()
 
-    // Position is now in document units (mm), not px
-    expect(afterEl!.style.top).toBe('56mm')
+    // Position is now in document units (mm), not px.
+    // Designer no longer reserves placeholder rows (.github/architecture/23-table-interaction.md §8),
+    // so measure-time growth pushes downstream flow nodes by the same delta.
+    expect(afterEl!.style.top).toBe('72mm')
   })
 
   it('keeps legacy line templates visible by promoting lineWidth into render height', async () => {

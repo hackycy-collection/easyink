@@ -282,13 +282,14 @@ interface PagePropertyPatch {
 - 派生控件写回时必须经过 `normalize`，避免把 `A4`、`毫米(mm)` 这类展示值直接写进模板
 - benchmark 中尚未稳定归一的页面项，先走 `compat` 或 `extensions`，不要在 Designer 层偷偷丢掉
 
-#### PropertyPanelOverlay 动态叠加层
+#### 属性面板贡献（PanelContribution）
 
-静态 `PropSchema[]` 无法覆盖 deep editing 阶段的动态属性需求（如表格 cell-selected 需要展示单元格级 typography/border/binding）。通过命令式推送叠加层解决：
+静态 `PropSchema[]` 无法覆盖子选区动态属性需求（如 table-cell 选中时要展示单元格 typography/border/binding）。属性面板由 **state 驱动、插件贡献**，完整协议见 [22-editor-core §22.11](./22-editor-core.md)。
 
 ```typescript
-interface PropertyPanelOverlay {
+interface PanelContribution {
   id: string
+  order: number
   title?: string
   schemas: PropSchema[]
   readValue: (key: string) => unknown
@@ -297,53 +298,29 @@ interface PropertyPanelOverlay {
   clearBinding?: (bindIndex?: number) => void
   editors?: Record<string, Component>
 }
+
+// Plugin 声明：
+propertyPanel?: (ctx: PropertyPanelContext) => PanelContribution[]
 ```
 
-物料通过 `ctx.requestPropertyPanel(overlay)` 推送，`null` 清除叠加层。
+**渲染模型**：Designer 在 `EditorState` 变化时（selection / pluginStates / doc 改变）对所有 plugin 的 `propertyPanel` 跑一次纯函数求值，收集 `PanelContribution[]` 按 `order` 升序依次渲染。
 
-**渲染模型**（从上到下）：
+**基础 plugin 已占用 order**：
 
-1. **Geometry** -- 位置/尺寸，始终显示
-2. **基础层** -- `MaterialDefinition.props` 驱动，始终显示
-3. **叠加层** -- `PropertyPanelOverlay.schemas` 驱动，仅 deep editing 推送时显示
-4. **BindingSection** -- 按规则显隐（见下）
-5. **可见性/锁定** -- 始终显示
+| order | 来源 | 内容 |
+|-------|------|------|
+| 0-9 | `core/geometry` | 位置/尺寸/旋转/透明度 |
+| 10-49 | `core/material-props` | 当前物料 `MaterialDefinition.props` |
+| 50-89 | 物料 plugin | 自选区间（表级 50-59、行级 60-69、cell 级 70-79 等） |
+| 90-99 | `core/visibility` | hidden / locked / print |
 
-**BindingSection 显隐规则**：
+**BindingSection 显隐**：当贡献项包含 `binding !== null` 时渲染该 section；`binding === null` 显式隐藏；缺省时由基础 plugin 根据元素 `bindable` 能力决定。
 
-- overlay 提供 `binding` 且非 `null` → 展示推送的 binding
-- overlay 提供 `binding === null` → 隐藏 BindingSection
-- 无 overlay 且 `material.capabilities.bindable === false` → 隐藏
-- 否则 → 展示元素顶层 binding
+**自动刷新**：由于面板是 state 派生，selection / plugin state 变化都会重新求值，物料无需"主动推送" / "清除叠加"。undo/redo 时面板也自然回放。
 
-**自动清除**：PropertiesPanel watch `deepEditing` 状态，phase 变化或退出时自动 `setPropertyOverlay(null)`。物料在新 phase 的 `onEnter` 或 sub-selection 变化时重新推送。
+**自定义编辑器**：通过 `editors` 映射传入。面板按 `PropSchema.editor` 字段查找，匹配时使用自定义组件。允许 Vue 组件或 preact 组件（Designer 外壳 Vue，对 preact 用适配器包裹）。
 
-**自定义编辑器**：物料包可定义 Vue 组件，通过 `editors` 映射传入。面板按 `PropSchema.editor` 字段查找，匹配到自定义编辑器时渲染该组件。
-
-**sectionFilter 声明**：
-
-`MaterialDefinition` 可选声明 `sectionFilter` 控制面板 section 显隐：
-
-```typescript
-sectionFilter?: (sectionId: PanelSectionId, context: SectionFilterContext) => boolean
-// PanelSectionId = 'geometry' | 'props' | 'overlay' | 'binding' | 'visibility'
-// SectionFilterContext = { node: MaterialNode, deepEditing: DeepEditingRuntimeState }
-```
-
-返回 `false` 隐藏该 section。表格物料注册时声明 `sectionFilter: (id) => id !== 'binding'`，因为表格绑定粒度是单元格级而非元素级（cell 级 binding 通过 `PropertyPanelOverlay.binding` 在 cell-selected 阶段展示）。
-
-**状态管理**：
-
-```typescript
-// DesignerStore 新增 reactive 状态
-private _propertyOverlay: PropertyPanelOverlay | null = null
-setPropertyOverlay(overlay: PropertyPanelOverlay | null): void
-get propertyOverlay(): PropertyPanelOverlay | null
-```
-
-`MaterialExtensionContext.requestPropertyPanel(overlay)` 内部调用 `store.setPropertyOverlay(overlay)`。
-
-**约束**：当前仅支持单叠加层、仅 deep editing 上下文、仅单选、自定义编辑器限 Vue 组件。
+**去重与顺序**：同 `id` 的 contribution 后者覆盖前者（用于允许高优先级 plugin 覆写默认 section）；相同 `order` 按注册拓扑顺序。
 
 ### 结构树窗口
 
@@ -385,181 +362,184 @@ get propertyOverlay(): PropertyPanelOverlay | null
 
 这样可以避免把业务权限模型、模板管理策略和设计器工作台状态混在一起。
 
-## 10.7 深度编辑（Deep Editing）
+## 10.7 深度编辑（Selection-driven）
 
-深度编辑不是表格专属能力。所有复杂物料（table/chart/container/relation）通过同一套扩展协议进入深度编辑模式。
+> 本节于 Editor Core 重构后整节重写。协议与状态机细节见 [22-editor-core](./22-editor-core.md)。
+>
+> **"深度编辑"不再是一个独立状态机**，它是画布当前 `Selection.type` 的一种呈现：当 `selection.type` 指向一个**物料内部的子路径**（如 `table-cell`）时，Designer 自然切换到"深度编辑的视觉约定"；回到 `element` / `empty` 时视觉约定自然解除。
+>
+> Designer 层再也不持有 `idle / selected / deep-editing` 三态枚举，也没有 phase 转换字符串、没有 delegate 回调。
 
-### 10.7.1 统一深度编辑协议
+### 10.7.1 Selection 驱动的视觉约定
 
-Designer 提供基础状态机，包含三个顶层阶段：`idle`、`selected`、`deep-editing`。
+画布根据 `state.selection.type` 应用一组**纯展示性**的约定，没有任何隐藏状态：
 
-当物料在其 extension 中声明 `deepEditing` 时，进入 `deep-editing` 阶段后控制权委托给物料自身的 FSM：
+| Selection.type | 元素级 8 个 resize handle | 旋转手柄 | 拖动整个元素 | 物料 overlay 层 | 物料 toolbar 层 |
+|---|---|---|---|---|---|
+| `empty` | 隐藏 | 隐藏 | — | 不渲染 | 不渲染 |
+| `element` / `element-range` | 显示 | 显示 | 启用 | 不渲染 | 不渲染 |
+| `<物料子路径>`（如 `table-cell`） | 隐藏 | 隐藏 | **保留启用** | 渲染 | 渲染 |
 
-```
-idle --click element--> selected
-selected --trigger deep edit--> deep-editing (delegate to material FSM)
-deep-editing --click outside / exit--> idle
-```
+"深度编辑态"的所有旧约束（element resize 把手收起、toolbar 出现、overlay 内子选区高亮）都是这张表的一行，无需独立建模。
 
-职责划分：
+**互斥约束**由 Selection 的性质天然保证：
 
-**Designer 管理：**
-- 选区边框（selection box）
-- element 级 resize handle
-- 对齐辅助线
-- 拖拽移动（drag movement）
-- deep-editing 的进入/退出生命周期
-- overlay 容器和 toolbar 容器的 DOM 分配
+- `state.selection` 任何时候只有一份
+- 选中另一个元素 = `dispatch(setSelection(elementSelection(nodeId)))`，原来的子路径选区自然被替换
+- 多选（`element-range`）与子路径选区互斥，因为它们是不同的 `type`
 
-**物料 FSM 管理：**
-- 内容渲染（content rendering）
-- overlay 渲染（自行挂载到 Designer 提供的 overlay DOM 容器）
-- toolbar 渲染（自行挂载到 Designer 提供的 toolbar DOM 容器）
-- 内部 resize handle（如列/行边线手柄）
-- 子选中（sub-selection，如单元格选中）
-- 键盘路由（进入 deep-editing 后键盘事件先经过物料 FSM）
+### 10.7.2 运行时状态在哪里
 
-进入 deep-editing 时：
-- element 级 8 个 resize handle 和 rotate handle 隐藏
-- 外部拖拽把手保持显示，用于移动元素
-- overlay DOM 通过 teleport 挂载到页面级专用 overlay 容器，绝对定位基于元素在页面上的位置计算
-- 提升元素 z-index，确保 overlay 不被其他元素遮挡
-- 同一时刻只有一个元素可进入 deep-editing
-- 多选元素状态与 deep-editing 互斥：进入前必须先取消多选
-
-### 10.7.2 深度编辑运行时状态
+旧 `DeepEditingState` 已删除。相关信息全部由 `EditorState.selection` 直接表达：
 
 ```typescript
-interface DeepEditingState {
-	nodeId: string
-	materialType: string
-	currentPhase: string
-	materialState: unknown  // 不透明状态，由物料 FSM 自行管理
+// 替代 { nodeId, materialType, currentPhase, materialState }
+// ─────────────────────────────────────────────────────────
+state.selection // 判别联合类型，对应 22.5
+// 例如 cell-selected 状态等价于：
+// { type: 'table-cell', nodeId: 'tbl-1', path: [row, col] }
+
+// 对应旧 "content-editing" 阶段的额外标记，由插件 state slot 存放：
+state.getPluginState<TableState>('material-table-data')?.editingCell
+// → 'idle' | { nodeId, row, col, draftText }
+```
+
+两个推论：
+
+- `selection` 是 JSON-serializable，所有"当前选中哪里"随 undo/redo 回放
+- `editingCell` 放在插件 state slot，也经 Transaction 更新、随 undo/redo 一起回放，不再游离
+
+### 10.7.3 Designer 的职责
+
+Designer 外壳只做三件事：
+
+1. **Pointer 路由**：画布顶层 pointer 事件先走 ViewModel hit-test（见 [22-editor-core §22.9](./22-editor-core.md)），命中结果转成 `setSelection(...)` 的 Transaction
+2. **键盘路由**：按 Selection 分层调 plugin keymap，最内层优先，见 [22-editor-core §22.10](./22-editor-core.md)
+3. **层分配**：画布为每个物料提供 `content / overlay / toolbar / handles` 四层 preact 挂载点，plugin view 把 VNode push 到对应 `ctx.layers.*`，Designer 负责 raf reconcile
+
+Designer 不持有 delegate、不管 phase 切换、不维护"进入深度编辑"回调。
+
+### 10.7.4 示例：表格深度编辑等价映射
+
+> 说明旧 FSM 阶段在新模型下的对应位置。读者用这张表把旧的理解快速平移到新协议。
+
+| 旧 phase | 新 Selection | 视觉体现 |
+|----------|-------------|---------|
+| `idle` / `selected`（在表格上） | `{ type: 'element', nodeId: <table> }` | 元素选中框 + element resize handle |
+| `table-selected`（虚线框指示） | 同上 + `pluginState.deepMark = true`（由点击元素内部触发） | 虚线边框指示"将进入" |
+| `cell-selected` | `{ type: 'table-cell', nodeId, path: [row, col] }` | 单元格高亮 + 右/下 resize 手柄 + toolbar |
+| `content-editing` | `{ type: 'table-cell', path }` + `pluginState.editingCell = { row, col, draftText }` | 原位 `<input>` overlay，toolbar 隐藏 |
+
+进入"表格选中"和"单元格选中"是同一个 `click`，由 `ViewModel.hitTest` 区分：
+
+- 点击 table 的空白边距 → `setSelection(element(tableId))`
+- 点击 table 的单元格区域 → `setSelection(tableCell(tableId, [row, col]))`
+
+双击触发进入编辑：
+
+- 双击同一单元格 → `dispatch(tableCommands.enterContentEditing(state))`，即写入 `pluginState.editingCell`
+
+Esc 用 plugin keymap 处理：
+
+```typescript
+keymap: {
+  'Escape': (state, dispatch) => {
+    const tState = state.getPluginState<TableState>('material-table-data')
+    if (tState?.editingCell) {
+      dispatch(tableCommands.exitContentEditing(state))
+      return true
+    }
+    if (state.selection.type === 'table-cell') {
+      dispatch(tableCommands.selectElement(state))  // 回到 element selection
+      return true
+    }
+    return false
+  },
 }
 ```
 
-注意：Schema 不感知 FSM -- 此状态纯粹属于运行时/交互上下文，不进入 Schema 也不进入命令历史。
+### 10.7.5 示例：表格事件分发
 
-### 10.7.3 示例：表格物料的 FSM 实现
+> 表格 plugin 的 view / keymap 内部逻辑。
 
-> 以下是表格物料内部的阶段定义，属于物料自身的 FSM，不是 Designer 级协议。其他复杂物料（chart/container/relation）各自定义自己的内部阶段。
+**`selection.type === 'table-cell'` 时：**
 
-表格物料声明三个内部阶段：
+- 单击另一个格子 → pointer 层 hit-test 命中 → dispatch `setSelection(tableCell(...))` 切换 path
+- 双击格子 → dispatch `enterContentEditing`
+- 拖拽列边线 → resize 手柄 `onPointerDown` → 连续 dispatch `resizeColumn` tr（带 `historyGroup`）
+- 拖拽行边线 → 同上 `resizeRow`
 
-**`table-selected`：**
-- 显示表格级属性，element resize handle 可见
-- 尚未进入 deep-editing（仍在 Designer 的 `selected` 阶段）
-- overlay 仅渲染微妙的虚线边框指示器（无 grid lines、无 resize handles），表明已进入深度编辑
-- 点击任意单元格区域触发转换到 `cell-selected`
+**`selection.type === 'element' && selection.nodeId === table.id` 时：**
 
-**`cell-selected`：**
-- 进入 deep-editing
-- overlay 由两层构成：
-  - **透明点击捕获层**：覆盖整个表格区域，负责路由对其他单元格的点击事件，无视觉效果
-  - **单元格 overlay**：仅覆盖被选中的单元格区域，包含蓝色高亮边框+背景、该单元格右列边和下行边的 resize 手柄（手柄长度仅等于单元格宽/高）
-- resize 手柄在拖拽过程中命令式同步更新位置和尺寸（overlay 容器、高亮区、手柄位置在 pointermove 回调中实时更新）
-- element 级 handle 隐藏
-- 浮动工具条挂载到 toolbar 容器（固定在表格上方，不随单元格移动）
-- 属性面板在表格级属性基础上动态追加格子级属性分组
+- 单击格子 → hit-test 命中单元格 → dispatch `setSelection(tableCell(...))`
+- 拖拽 element resize handle → Designer 的通用 resize（修改 element width/height），列宽按 ratio 等比伸缩
 
-**`content-editing`：**
-- onEnter 在单元格位置创建原生 input overlay 进行原位文本编辑
-- 同样使用透明点击捕获层 + 单元格高亮（无 resize 手柄）
-- 属性面板仍保持表格壳层
+### 10.7.6 示例：表格列 resize 语义（不变）
 
-阶段转换：
+语义维持：
 
-```
-table-selected --click cell--> cell-selected
-cell-selected --double-click cell--> content-editing
-cell-selected --Esc--> table-selected
-content-editing --Esc--> cell-selected
-任意阶段 --click outside table--> Designer 退出 deep-editing（回到 idle）
+- 拖拽列右边线 = 修改该列 `ratio`，右侧列平移，`element.width` 随之变化（不是"相邻列此消彼长"）
+- 最小列宽约束 `ratio * element.width < 4px` → 停止响应
+- **undo 合并**通过 `tr.setMeta('historyGroup', 'resize-col:<nodeId>:<colIndex>')` 实现，连续拖拽压缩为一条 undo
+
+代码形态：
+
+```typescript
+onPointerMove(e) {
+  const newRatio = computeNewRatio(e)
+  const tr = tableCommands.resizeColumn(state, { nodeId, colIndex, newRatio, newWidth })
+  dispatch(tr)
+}
 ```
 
-### 10.7.4 示例：表格事件分发
+无需 "CompositeCommand merge" 概念。
 
-> 以下是表格物料 FSM 内部的事件处理逻辑。
+### 10.7.7 示例：列操作与合并单元格（不变）
 
-**cell-selected 阶段：**
-- 单击另一个格子 → 直接切换 cellPath（跨 row role 时同时更新行上下文）
-- 双击格子 → 进入 `content-editing`
-- 拖拽列边线 → 列 resize（修改当前列 ratio，推动右侧列位置，改变 element.width）
-- 拖拽行边线 → 行 resize（修改 row.height，改变 element.height）
+语义不变：
 
-**table-selected 阶段：**
-- 单击格子区域 → 进入 `cell-selected`（记录 cellPath，推断行 role 上下文）
-- 拖拽 element resize handle → 调整表格整体尺寸，列宽等比伸缩
+- 插入列时，跨该位的合并单元格自动扩展 `colSpan`
+- 删除列时，涉及的合并单元格自动收缩 `colSpan`
 
-### 10.7.5 示例：表格格子态 affordance
-
-> 以下是表格物料在 cell-selected 阶段自行渲染到 overlay/toolbar 容器中的 UI 元素。
-
-进入 `cell-selected` 后，表格物料挂载：
-
-- 透明点击捕获层（覆盖整个表格，pointer-events:auto，无视觉效果，路由对其他单元格的点击/双击事件）
-- 单元格高亮边框+背景（仅覆盖选中单元格区域，pointer-events:none）
-- 右列边 resize 手柄（仅在选中单元格的右列边缘，长度等于单元格高度）
-- 下行边 resize 手柄（仅在选中单元格的下行边缘，长度等于单元格宽度）
-- resize 手柄在拖拽期间实时更新位置（命令式同步：overlay 容器、高亮、手柄位置在 pointermove 中更新）
-- 绑定字段拖拽句柄
-- 删除当前绑定字段动作
-- 浮动工具条（挂载到 toolbar 容器，固定在表格上方），v1 覆盖：添加/删除行列、合并/拆分单元格、单边边框显隐、内容对齐
-
-### 10.7.6 示例：表格列 resize 交互语义
-
-> 以下是表格物料内部的列 resize 逻辑。
-
-- 拖拽列右边线时，修改当前列的 ratio 值
-- 右侧所有列位置平移，表格元素总宽（element.width）随之变化
-- 这不是”左右列此消彼长”模式
-- 最小列宽约束：计算 `ratio * element.width` 的实际像素值，当低于下限（如 4px）时拖拽停止响应
-- 列 resize 命令支持 merge，连续拖拽期间的中间值压缩为一条 undo 记录
-
-### 10.7.7 示例：表格列操作与合并单元格的交互
-
-> 以下是表格物料内部的列操作逻辑。
-
-- 插入列时，已有合并单元格（colSpan > 1）自动扩展 colSpan
-- 删除列时，涉及的合并单元格自动收缩 colSpan（colSpan 减到 1 则变回普通单元格）
-- 这些批量修改由 CompositeCommand 包装，undo 时整体回滚
+实现形态变成**单个自定义 Step**：`table/insert-col` 的 `apply` 内部完成行遍历和 colSpan 调整，`invert` 返回对应的 `table/remove-col` 并附带被影响的 merge 快照。这等价于旧的"CompositeCommand 包装"，但由单个可序列化 step 承载，天然原子。
 
 ### 10.7.8 示例：表格属性壳层行为
 
-> 以下是表格物料与属性面板的协作方式。
+属性面板不再需要"phase 切换时推送 overlay"。tablePlugin 按 selection 返回 contribution：
 
-格子态下属性面板不应切换成”另一个单元格编辑器页面”，而应保持同一壳层：
+- `selection.type === 'element' && node.type === 'table-*'`：返回表级 contribution（order 50-59）
+- `selection.type === 'table-cell'`：叠加返回单元格 contribution（order 70）
+- `pluginState.editingCell` 存在：额外追加内容编辑 contribution（仅显示当前 cell 的内容字段）
 
-- 上半段仍是表格级属性
-- 下半段根据 `DeepEditingState.currentPhase` 动态追加格子背景、格子操作、格子内容等局部属性组
-- `cell-selected` 时自动追加格子属性组
-- `table-selected` 时仅显示表格级属性
-- 属性面板使用展开/折叠组分离不同层级的属性
+三者在同一面板中按 order 依次渲染，不需要"壳层保持"的特殊处理——**面板本身就是状态派生**，selection 变更时自然只保留相关 section。
 
-行角色级属性（显隐、重复）不需要独立的交互态。用户点击不同 role 行中的 cell 时，属性面板的表级属性区自动反映当前行的 role 上下文。
+### 10.7.9 示例：表格格子内容编辑（v1 纯文本）
 
-### 10.7.9 示例：表格格子内容编辑
+- 双击单元格 → dispatch `enterContentEditing` → `pluginState.editingCell = { row, col, draftText: cell.content.text ?? '' }`
+- view 层看到 `editingCell` 就在单元格位置挂一个原生 `<input>`，其 `onInput` 回调 dispatch `updateDraft`，Enter dispatch `commitContentEditing`，Esc dispatch `cancelContentEditing`
+- commit 时构造 tr：
+  - `table/update-cell` step 写入新文本
+  - 同时 `pluginState.editingCell = 'idle'`
+  - `setMeta('historyGroup', 'cell-content:<nodeId>:<row>:<col>')`
 
-> 以下是表格物料 content-editing 阶段的实现。
+连续 typing 同一 cell 合并为单条 undo，切换单元格截断合并窗口。
 
-v1 表格格子内容仅支持纯文本：
-
-- 双击单元格后，在单元格位置覆盖一个原生 input 元素
-- input 的位置和尺寸与单元格对齐，由 overlay 层管理
-- 回车键确认编辑，Esc 退出到 `cell-selected`
-- 编辑完成后通过 `UpdateTableCellCommand` 写入 cell 的 content
-- 右侧属性面板仍显示表格壳层属性，不切成独立文本属性页
-
-Cell 内容为纯文本，不支持嵌套子物料。
+Cell 内容仅纯文本；富文本在**属性面板**里通过按钮弹出独立的大编辑器（v1 不实现，仅预留属性）。
 
 ### 10.7.10 示例：表格键盘交互（v1 最小集）
 
-> 以下是表格物料 FSM 内部的键盘路由。
+由 table plugin 的 keymap 实现：
 
-- **Esc**：逐层退出（content-editing -> cell-selected -> table-selected -> idle）
-- **Tab**：cell-selected 时切换到下一个单元格（按行优先顺序，末尾回绕到首格）
-- **Enter**：cell-selected 时进入 content-editing；content-editing 时确认编辑并退出到 cell-selected
-- **Delete**：cell-selected 时删除当前格子内容
+| 按键 | 条件 | 行为 |
+|------|------|------|
+| **Esc** | `pluginState.editingCell` 存在 | 退出内容编辑 |
+| **Esc** | `selection.type === 'table-cell'` | 退回 element selection |
+| **Tab** | `selection.type === 'table-cell'` | 切换到下一单元格（行优先，末尾回绕到首格） |
+| **Enter** | `selection.type === 'table-cell'` 且无 editingCell | 进入内容编辑 |
+| **Enter** | editingCell 存在 | 提交并退出内容编辑 |
+| **Delete** | `selection.type === 'table-cell'` | 清空当前 cell 内容 |
+
+顶级"Esc 退出全部选中"由 Designer 外壳兜底，当 plugin keymap 全部返回 `false` 时走默认 `setSelection(empty())`。
 
 ## 10.8 绑定交互
 
@@ -611,11 +591,11 @@ EasyInk 存在两套独立的物料渲染能力：
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Designer 画布                                        │
-│  MaterialDesignerExtension.renderContent(nodeSignal, container)   │
-│  - 轻量、快速、不依赖运行时数据流                      │
+│  view plugin.render(ctx) → ctx.layers.content       │
+│  - 纯函数，preact h() 产 VNode，raf 批 reconcile      │
 │  - 绑定值显示为字段标签 {#字段名}                      │
 │  - 复杂物料使用简化占位                               │
-│  - 叠加选区/拖拽/编辑态交互层                          │
+│  - overlay / toolbar / handles 层叠加交互视觉         │
 └─────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────┐
@@ -641,14 +621,17 @@ EasyInk 存在两套独立的物料渲染能力：
 ### 10.9.2 画布元素渲染流程
 
 ```
-CanvasWorkspace 遍历 elements
-  → store.getDesignerExtension(el.type)
-  → extension.renderContent 存在？
-     ├─ 是：创建 NodeSignal 并传入 renderContent(nodeSignal, container)
-     │     物料首次挂载 DOM，后续通过 subscribe 增量更新
-     └─ 否：显示类型名占位块 + 虚线边框（回退）
-  → 叠加交互层：选区边框、8 向缩放手柄、旋转手柄、绑定角标
+EditorView raf tick
+  → reconcile(state)
+     遍历已注册 plugins（拓扑顺序）
+       调 plugin.view?.render(ctx)
+       plugin 把 VNode push 到 ctx.layers.{content, overlay, toolbar, handles}
+  → 合并得到页面级 VNode 树
+  → preact.render(vnodeTree, <CanvasEditorMount>)
+  → 未注册 view plugin 的物料：core 在 content 层渲染类型名占位（回退）
 ```
+
+所有 DOM 副作用（focus / select / 滚动到选区）通过 preact 的 `ref` + `onMount / onCleanup` 完成，不允许在闭包里持有可变 DOM 状态。
 
 ### 10.9.3 设计态绑定值显示
 
@@ -659,16 +642,16 @@ CanvasWorkspace 遍历 elements
 - 条码/二维码：显示示意图 + `{#字段标签}`
 - 表格数据区：每个绑定单元格显示 `{#字段标签}`
 
-绑定标签由 `DesignerRenderContext.getBindingLabel()` 统一提供，格式为 `bindingRef.fieldLabel || bindingRef.fieldPath`。
+绑定标签由 view context 的 `utils.getBindingLabel(ref)` 统一提供，格式为 `bindingRef.fieldLabel || bindingRef.fieldPath`。
 
 ### 10.9.4 编辑态过渡
 
-部分物料支持双击进入内容编辑态（物料 extension 声明 `deepEditing` 能力）：
+"编辑态"不是一个独立能力，它就是 `state.selection.type` 切换到物料子路径时的视觉约定：
 
-- 文本：双击进入富文本编辑
-- 表格：先进入格子态，再由格子内内容触发原位编辑（与 10.7 表格深度编辑衔接）
+- 文本：双击触发 dispatch `text/enter-edit`，view 层在该元素位置挂原位编辑 overlay
+- 表格：先进入 `table-cell` selection，再由单元格内容触发 `editingCell` plugin state 写入原位 input（见 §10.7）
 
-编辑态下，交互层（手柄、选区边框）退到背景或隐藏，聚焦在内容操作上。
+selection 离开该节点时自动回落到只读展示。无需 phase 进入/退出回调。
 
 ## 10.10 预览由宿主引入 Viewer
 
