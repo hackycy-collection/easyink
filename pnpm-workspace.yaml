@@ -30,7 +30,7 @@ catalogs:
     turbo: ^2.8.21
     typescript: ^6.0.2
     unplugin-vue: ^7.1.1
-    vite: ^7.2.1
+    vite: ^7.3.2
     vue-tsc: ^3.2.6
   framework:
     jsbarcode: ^3.12.3
