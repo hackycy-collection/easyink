@@ -387,7 +387,7 @@ get propertyOverlay(): PropertyPanelOverlay | null
 
 ## 10.7 深度编辑（Deep Editing）
 
-深度编辑不是表格专属能力。所有复杂物料（table/chart/container/relation）通过同一套扩展协议进入深度编辑模式。编辑行为的正式协议已迁移至 [22 章 编辑行为架构](./22-editing-behavior.md)，本节保留设计器侧顶层交互模型和物料级示例。
+深度编辑不是表格专属能力。所有复杂物料（table/chart/container）通过同一套扩展协议进入深度编辑模式。编辑行为的正式协议已迁移至 [22 章 编辑行为架构](./22-editing-behavior.md)，本节保留设计器侧顶层交互模型和物料级示例。
 
 ### 10.7.1 统一编辑会话协议
 
@@ -443,7 +443,7 @@ interface EditingSessionState {
 
 ### 10.7.3 示例：表格物料的 Behavior 实现
 
-> 以下是表格物料内部的行为实现，通过 22 章 behavior middleware 注册。其他复杂物料（chart/container/relation）各自定义自己的 behavior 链。
+> 以下是表格物料内部的行为实现，通过 22 章 behavior middleware 注册。其他复杂物料（chart/container）各自定义自己的 behavior 链。
 
 表格物料注册以下 behavior middleware（按 priority 排序执行）：
 

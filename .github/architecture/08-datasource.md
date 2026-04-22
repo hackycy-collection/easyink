@@ -112,7 +112,6 @@ type MaterialUseToken =
   | 'rich-text'
   | 'chart/*'
   | 'svg/*'
-  | 'relation/*'
   | string
 ```
 

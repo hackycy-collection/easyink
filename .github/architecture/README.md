@@ -11,7 +11,7 @@
 - 页面模型完整覆盖 `viewer / width / height / pages / scale / radius / offsets / copies / blank / label / grid / background` 这组真实打印语义，并容忍 `scale/scaleType`、背景偏移字段和空白页策略的历史别名
 - 数据源协议覆盖 `id / name / tag / title / expand / headless / fields / use / props / union / bindIndex`
 - 顶部物料栏建模为"高频直达物料 + 分组目录物料"的混合入口
-- `table`、`container`、`chart`、`svg`、`relation` 都是一级结构系统
+- `table`、`container`、`chart`、`svg` 都是一级结构系统
 - 属性面板在同一窗口壳层中互斥展示"元素属性"与"页面属性"，支持 PropertyPanelOverlay 动态叠加层
 - 画布中的每个物料必须根据 props 展示近似真实的视觉效果（设计态渲染）
 - 设计态渲染（`MaterialDesignerExtension.renderContent`）与 Viewer 渲染（`MaterialViewerExtension.render`）是两套独立实现
