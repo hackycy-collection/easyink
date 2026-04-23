@@ -6,7 +6,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { EasyInkDesigner } from '@easyink/designer'
 import { createLocalStoragePreferenceProvider } from '@easyink/designer'
 import zhCN from '@easyink/designer/locale/zh-CN'
-import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSources } from '@easyink/samples'
+import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSources, sampleTemplates } from '@easyink/samples'
 import DataEditorModal from './components/DataEditor.vue'
 import TemplateGallery from './components/TemplateGallery.vue'
 import PreviewOverlay from './PreviewOverlay.vue'
@@ -34,10 +34,7 @@ const mergedDataSources = computed(() => [
   ...customDataSources.value,
 ])
 
-const previewData = computed(() => ({
-  ...invoiceDemoData,
-  ...customData.value,
-}))
+const previewData = computed(() => customData.value)
 
 // Auto-save debounce
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -63,6 +60,18 @@ onBeforeUnmount(() => {
     clearTimeout(saveTimer)
 })
 
+function applyDemoData(data: Record<string, unknown>) {
+  customData.value = data
+  customDataSources.value = [jsonToDataSource(data)]
+}
+
+function getDemoDataForTemplate(template: StoredTemplate): Record<string, unknown> | undefined {
+  if (!template.fromSample)
+    return undefined
+  const sample = sampleTemplates.find(s => s.id === template.fromSample)
+  return sample?.demoData
+}
+
 // Initialize: load last template or first sample
 async function initTemplate() {
   const lastId = getLastTemplateId()
@@ -71,6 +80,9 @@ async function initTemplate() {
     if (stored) {
       currentTemplate.value = stored
       schema.value = stored.schema
+      const demoData = getDemoDataForTemplate(stored)
+      if (demoData)
+        applyDemoData(demoData)
       return
     }
   }
@@ -81,6 +93,9 @@ async function initTemplate() {
     currentTemplate.value = all[0]
     schema.value = all[0]!.schema
     setLastTemplateId(all[0]!.id)
+    const demoData = getDemoDataForTemplate(all[0]!)
+    if (demoData)
+      applyDemoData(demoData)
     return
   }
 
@@ -99,15 +114,18 @@ async function initTemplate() {
   currentTemplate.value = initial
   schema.value = initial.schema
   setLastTemplateId(initial.id)
+  applyDemoData(invoiceDemoData)
 }
 
 initTemplate()
 
 // Template gallery actions
-function handleSelectTemplate(template: StoredTemplate) {
+function handleSelectTemplate(template: StoredTemplate, demoData?: Record<string, unknown>) {
   currentTemplate.value = template
   schema.value = template.schema
   setLastTemplateId(template.id)
+  if (demoData)
+    applyDemoData(demoData)
   showTemplateGallery.value = false
 }
 
@@ -150,8 +168,7 @@ function openDataEditor() {
 }
 
 function handleDataUpdate(data: Record<string, unknown>) {
-  customData.value = data
-  customDataSources.value = [jsonToDataSource(data)]
+  applyDemoData(data)
 }
 </script>
 
@@ -202,4 +219,3 @@ function handleDataUpdate(data: Record<string, unknown>) {
     @close="showDataEditor = false"
   />
 </template>
-

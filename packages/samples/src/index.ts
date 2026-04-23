@@ -1,12 +1,14 @@
 import type { DocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 import { flowInvoiceTemplate } from './datasources'
-import { badgeTemplate } from './templates/badge'
-import { certificateTemplate } from './templates/certificate'
+import { badgeDemoData, badgeTemplate } from './templates/badge'
+import { certificateDemoData, certificateTemplate } from './templates/certificate'
+import { supermarketDemoData, supermarketReceiptTemplate } from './templates/supermarket-receipt'
 
 export * from './datasources'
 export { badgeDataSource, badgeDemoData, badgeTemplate } from './templates/badge'
 export { certificateDataSource, certificateDemoData, certificateTemplate } from './templates/certificate'
+export { supermarketDataSource, supermarketDemoData, supermarketReceiptTemplate } from './templates/supermarket-receipt'
 
 export interface SampleTemplateEntry {
   id: string
@@ -14,6 +16,7 @@ export interface SampleTemplateEntry {
   category: string
   thumbnail?: string
   schema: DocumentSchema
+  demoData?: Record<string, unknown>
 }
 
 /**
@@ -234,6 +237,7 @@ export const sampleTemplates: SampleTemplateEntry[] = [
     name: '流式发票',
     category: 'business',
     schema: flowInvoiceTemplate,
+    demoData: invoiceDemoData,
   },
   {
     id: 'label-3col',
@@ -248,15 +252,24 @@ export const sampleTemplates: SampleTemplateEntry[] = [
     schema: receiptTemplate,
   },
   {
+    id: 'supermarket-receipt',
+    name: '超市小票',
+    category: 'receipt',
+    schema: supermarketReceiptTemplate,
+    demoData: supermarketDemoData,
+  },
+  {
     id: 'certificate',
     name: '培训证书',
     category: 'certificate',
     schema: certificateTemplate,
+    demoData: certificateDemoData,
   },
   {
     id: 'badge',
     name: '工牌',
     category: 'badge',
     schema: badgeTemplate,
+    demoData: badgeDemoData,
   },
 ]

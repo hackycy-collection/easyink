@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [template: StoredTemplate]
+  select: [template: StoredTemplate, demoData?: Record<string, unknown>]
   createBlank: []
   duplicate: [template: StoredTemplate]
   close: []
@@ -17,6 +17,9 @@ const emit = defineEmits<{
 
 const userTemplates = ref<StoredTemplate[]>([])
 const loading = ref(true)
+
+// Pending sample selection waiting for confirm
+const pending = ref<{ template: StoredTemplate, demoData: Record<string, unknown> } | null>(null)
 
 onMounted(async () => {
   userTemplates.value = await listTemplates()
@@ -40,7 +43,7 @@ function handleSelectSample(sampleId: string) {
     return
 
   const now = Date.now()
-  emit('select', {
+  const template: StoredTemplate = {
     id: `user-${now}`,
     name: `${sample.name} (副本)`,
     category: sample.category,
@@ -48,7 +51,26 @@ function handleSelectSample(sampleId: string) {
     createdAt: now,
     updatedAt: now,
     fromSample: sample.id,
-  })
+  }
+
+  if (sample.demoData && Object.keys(sample.demoData).length > 0) {
+    pending.value = { template, demoData: sample.demoData }
+  }
+  else {
+    emit('select', template)
+  }
+}
+
+function confirmUseDemoData() {
+  if (!pending.value) return
+  emit('select', pending.value.template, pending.value.demoData)
+  pending.value = null
+}
+
+function confirmKeepCurrentData() {
+  if (!pending.value) return
+  emit('select', pending.value.template)
+  pending.value = null
 }
 
 function handleSelectUser(template: StoredTemplate) {
@@ -85,7 +107,7 @@ function getModeLabel(mode: string): string {
 
 <template>
   <div class="fixed inset-0 z-[10000] flex items-center justify-center bg-bg-overlay" @click="handleOverlayClick">
-    <div class="w-[720px] max-w-[90vw] max-h-[80vh] flex flex-col bg-white rounded-lg shadow-modal">
+    <div class="w-[720px] max-w-[90vw] max-h-[80vh] flex flex-col bg-white rounded-lg shadow-modal relative">
       <div class="flex items-center justify-between px-5 py-4 border-b border-border-light">
         <h2 class="m-0 text-base font-semibold text-text-primary">选择模板</h2>
         <div class="flex items-center gap-2">
@@ -149,7 +171,33 @@ function getModeLabel(mode: string): string {
           </div>
         </section>
       </div>
+
+      <!-- Confirm dialog: reset data? -->
+      <div
+        v-if="pending"
+        class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30"
+      >
+        <div class="w-[320px] bg-white rounded-lg shadow-modal px-6 py-5 flex flex-col gap-4">
+          <div>
+            <p class="m-0 text-[14px] font-semibold text-text-primary">是否使用示例数据？</p>
+            <p class="m-0 mt-1.5 text-[13px] text-text-tertiary leading-relaxed">该模板附带示例数据，可直接看到真实打印效果。使用后将替换当前数据编辑器中的内容。</p>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button
+              class="px-3.5 py-1.5 text-[13px] border border-border-dark rounded bg-white cursor-pointer text-text-secondary hover:bg-bg-tertiary"
+              @click="confirmKeepCurrentData"
+            >
+              保留当前数据
+            </button>
+            <button
+              class="px-3.5 py-1.5 text-[13px] border border-primary rounded bg-primary cursor-pointer text-white hover:bg-primary-hover hover:border-primary-hover"
+              @click="confirmUseDemoData"
+            >
+              使用示例数据
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
-
