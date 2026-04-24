@@ -77,6 +77,17 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
   // Scale row heights to sum exactly to elementHeight, matching geometry layer
   const rowScale = computeRowScale(topology.rows, elementHeight)
 
+  // Precompute scaled per-row heights so rowSpan cells can sum across rows.
+  const scaledRowHeights = topology.rows.map(r => r.height * rowScale)
+
+  // Map verticalAlign → flex justify-content so the inner block enforces the
+  // requested vertical alignment within the fixed-height container.
+  const vAlignToJustify: Record<string, string> = {
+    top: 'flex-start',
+    middle: 'center',
+    bottom: 'flex-end',
+  }
+
   // Pre-compute cells covered by another cell's colSpan/rowSpan — these must
   // NOT emit a <td> because the spanning cell already occupies those slots.
   const spanned = new Set<number>()
@@ -115,14 +126,15 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
         rowExtraStyle = dec.rowStyle
     }
 
-    const scaledHeight = row.height * rowScale
+    const scaledHeight = scaledRowHeights[ri]!
 
     let cells = ''
     for (let ci = 0; ci < row.cells.length; ci++) {
       if (spanned.has(ri * numCols + ci))
         continue
       const cell = row.cells[ci]!
-      const rs = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
+      const rowSpan = cell.rowSpan && cell.rowSpan > 1 ? cell.rowSpan : 1
+      const rs = rowSpan > 1 ? ` rowspan="${rowSpan}"` : ''
       const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
       const content = cellRenderer(cell, ri, ci)
       const typo = resolveCellTypography(cell, props.typography ?? TABLE_TYPOGRAPHY_DEFAULTS)
@@ -131,7 +143,18 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
       const borderRight = cb?.right !== false ? `${bw}${unit} ${bt} ${bc}` : 'none'
       const borderBottom = cb?.bottom !== false ? `${bw}${unit} ${bt} ${bc}` : 'none'
       const borderLeft = cb?.left !== false ? `${bw}${unit} ${bt} ${bc}` : 'none'
-      cells += `<td${rs}${cs} style="border-top:${borderTop};border-right:${borderRight};border-bottom:${borderBottom};border-left:${borderLeft};padding:${pad}${unit};font-size:${typo.fontSize}${unit};color:${typo.color};font-weight:${typo.fontWeight};font-style:${typo.fontStyle};line-height:${typo.lineHeight};letter-spacing:${typo.letterSpacing}${unit};text-align:${typo.textAlign};vertical-align:${typo.verticalAlign}${cellStyle}">${content}</td>`
+
+      // Inner block has explicit height = sum of scaled spanned row heights.
+      // It is the source of truth for cell height; <td> padding is zeroed so
+      // the rendered <tr> cannot exceed schema row.height (overflow:hidden
+      // clips text that doesn't fit).
+      let cellHeight = 0
+      for (let r = ri; r < Math.min(ri + rowSpan, scaledRowHeights.length); r++)
+        cellHeight += scaledRowHeights[r]!
+      const justify = vAlignToJustify[typo.verticalAlign] ?? 'center'
+      const innerStyle = `display:flex;flex-direction:column;justify-content:${justify};box-sizing:border-box;height:${cellHeight}${unit};padding:${pad}${unit};overflow:hidden;text-align:${typo.textAlign}`
+
+      cells += `<td${rs}${cs} style="border-top:${borderTop};border-right:${borderRight};border-bottom:${borderBottom};border-left:${borderLeft};padding:0;font-size:${typo.fontSize}${unit};color:${typo.color};font-weight:${typo.fontWeight};font-style:${typo.fontStyle};line-height:${typo.lineHeight};letter-spacing:${typo.letterSpacing}${unit};vertical-align:top${cellStyle}"><div style="${innerStyle}">${content}</div></td>`
     }
     rows += `<tr style="height:${scaledHeight}${unit}${rowExtraStyle}">${cells}</tr>`
 

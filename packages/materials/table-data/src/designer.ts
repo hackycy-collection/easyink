@@ -64,12 +64,16 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     const scaledRepeatHeight = repeatRow.height * rowScale
 
     let placeholderRowsHtml = ''
+    // Wrap placeholder content in a fixed-height inner div to match the main
+    // renderer — keeps <tr> from growing past schema row.height (otherwise
+    // &nbsp; + padding can exceed the requested row height when small).
     for (let pr = 0; pr < 2; pr++) {
       let cells = ''
       for (let ci = 0; ci < repeatRow.cells.length; ci++) {
         const cell = repeatRow.cells[ci]!
         const cs = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
-        cells += `<td${cs} style="border:${bw}${unit} ${bt} ${bc};padding:${pad}${unit};background:rgba(0,0,0,0.04);">&nbsp;</td>`
+        const innerStyle = `box-sizing:border-box;height:${scaledRepeatHeight}${unit};padding:${pad}${unit};overflow:hidden`
+        cells += `<td${cs} style="border:${bw}${unit} ${bt} ${bc};padding:0;background:rgba(0,0,0,0.04);vertical-align:top"><div style="${innerStyle}">&nbsp;</div></td>`
       }
       placeholderRowsHtml += `<tr style="height:${scaledRepeatHeight}${unit};pointer-events:none">${cells}</tr>`
     }
