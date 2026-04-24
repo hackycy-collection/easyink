@@ -50,9 +50,10 @@ export function applyBindingsToProps(
       : getIndexedBindProp(nodeType, binding.bindIndex)
 
     if (propKey) {
-      result[propKey] = typeof binding.value === 'object'
-        ? String(binding.value)
-        : binding.value
+      // Bindings deliver raw data values (any JS type), but material renderers
+      // assume their primary content prop is a string. Coerce here at the
+      // boundary so renderers can rely on `String.prototype` methods.
+      result[propKey] = binding.value == null ? '' : String(binding.value)
     }
   }
 
