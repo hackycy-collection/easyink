@@ -1,3 +1,4 @@
+import type { TableDataSchema } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
 import { ResizeMaterialCommand, UnitManager } from '@easyink/core'
 import { isTableNode } from '@easyink/schema'
@@ -54,9 +55,24 @@ export function useElementResize(ctx: ElementResizeContext) {
     const origW = node.width
     const origH = node.height
 
-    // For table nodes, snapshot original row heights so we can scale them proportionally
+    // For table nodes, snapshot original row heights so we can scale them proportionally.
+    // table-data with hidden header/footer: those rows' schema heights stay frozen during
+    // resize (so reopening them later restores the same proportions).
     const tableInfo = isTableNode(node)
-      ? { node, origRowHeights: node.table.topology.rows.map(r => r.height) }
+      ? {
+          node,
+          origRowHeights: node.table.topology.rows.map(r => r.height),
+          hiddenMask: node.type === 'table-data'
+            ? node.table.topology.rows.map((r) => {
+                const td = node.table as TableDataSchema
+                if (r.role === 'header' && td.showHeader === false)
+                  return true
+                if (r.role === 'footer' && td.showFooter === false)
+                  return true
+                return false
+              })
+            : node.table.topology.rows.map(() => false),
+        }
       : null
 
     const MIN_SIZE = 1
@@ -118,11 +134,14 @@ export function useElementResize(ctx: ElementResizeContext) {
       node!.width = newW
       node!.height = newH
 
-      // Scale table row heights proportionally to maintain topology invariant
+      // Scale table row heights proportionally to maintain topology invariant.
+      // Hidden rows are frozen — their schema height does not change.
       if (tableInfo && newH !== origH) {
         const scale = newH / origH
         const { rows } = tableInfo.node.table.topology
         for (let i = 0; i < rows.length; i++) {
+          if (tableInfo.hiddenMask[i])
+            continue
           rows[i]!.height = tableInfo.origRowHeights[i]! * scale
         }
       }
@@ -155,6 +174,8 @@ export function useElementResize(ctx: ElementResizeContext) {
       if (tableInfo) {
         const { rows } = tableInfo.node.table.topology
         for (let i = 0; i < rows.length; i++) {
+          if (tableInfo.hiddenMask[i])
+            continue
           rows[i]!.height = tableInfo.origRowHeights[i]!
         }
       }

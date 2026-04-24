@@ -153,7 +153,7 @@ interface MaterialCapabilities {
 
 - Cell 级绝对路径绑定，repeat-template 行内各 cell 的 fieldPath 必须共享相同的集合前缀（Designer 拖拽时通过 `getFieldCollectionPrefix()` 校验）
 - Row role 标记 (normal/header/footer/repeat-template)，header 和 footer 各强制单行（schema + 命令层双层强制）
-- 头尾可见性控制（`showHeader` / `showFooter`），隐藏时 Viewer 完全不渲染对应行
+- 头尾可见性控制（`showHeader` / `showFooter`）：Designer 与 Viewer 一致，隐藏时完全不渲染对应行（不占位、不可点击、不可拖入数据源、键盘导航跳过），同时由 `UpdateTableVisibilityCommand` 在同一 transaction 内联动调整 `node.height`，保证可见行的视觉高度不变；schema 中的 `row.height` 与 binding 保留，恢复显示后无损还原
 - Header/footer/normal 行 cell 使用 `staticBinding`（与 table-static 共用同一机制）
 - 表头/尾编辑：支持手动编辑或拖拽数据源，仅允许左右列方向合并
 - 数据区编辑：设计态展示 3 行（1 行编辑区 + 2 行灰色占位），编辑区仅接受数据源绑定，不允许手动编辑和合并

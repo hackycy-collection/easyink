@@ -29,6 +29,7 @@ export function createTableCellSelectBehavior(delegate: TableEditingDelegate): B
         localPoint.x,
         localPoint.y,
         delegate.getPlaceholderRowCount(),
+        delegate.getHiddenRowMask?.(node),
       )
       if (!gridCell)
         return next()
@@ -47,7 +48,7 @@ export function createTableCellSelectBehavior(delegate: TableEditingDelegate): B
 
 // ─── Keyboard Navigation ──────────────────────────────────────────
 
-export function createTableKeyboardNavBehavior(_delegate: TableEditingDelegate): BehaviorRegistration {
+export function createTableKeyboardNavBehavior(delegate: TableEditingDelegate): BehaviorRegistration {
   return {
     id: 'table.keyboard-nav',
     eventKinds: ['key-down'],
@@ -60,6 +61,8 @@ export function createTableKeyboardNavBehavior(_delegate: TableEditingDelegate):
         return next()
 
       const payload = ctx.selection.payload as TableCellPayload
+      const hidden = delegate.getHiddenRowMask?.(node)
+      const isHidden = (r: number) => Boolean(hidden?.[r])
 
       if (event.key === 'Tab') {
         event.originalEvent.preventDefault()
@@ -67,26 +70,25 @@ export function createTableKeyboardNavBehavior(_delegate: TableEditingDelegate):
         const { row, col } = payload
         const cols = node.table.topology.columns.length
         const rows = node.table.topology.rows.length
-        let nextCol: number
-        let nextRow: number
-        if (event.originalEvent.shiftKey) {
-          // Shift+Tab moves backward (row-major)
-          nextCol = col - 1
-          nextRow = row
-          if (nextCol < 0) {
-            nextCol = cols - 1
-            nextRow = (nextRow - 1 + rows) % rows
-          }
-        }
-        else {
-          // Tab moves forward (row-major)
-          nextCol = col + 1
-          nextRow = row
+        // Step forward/backward, skipping hidden rows entirely.
+        const dir = event.originalEvent.shiftKey ? -1 : 1
+        let nextCol = col
+        let nextRow = row
+        for (let step = 0; step < cols * rows; step++) {
+          nextCol += dir
           if (nextCol >= cols) {
             nextCol = 0
             nextRow = (nextRow + 1) % rows
           }
+          else if (nextCol < 0) {
+            nextCol = cols - 1
+            nextRow = (nextRow - 1 + rows) % rows
+          }
+          if (!isHidden(nextRow))
+            break
         }
+        if (isHidden(nextRow))
+          return
         const owner = resolveMergeOwner(node.table.topology, nextRow, nextCol)
         ctx.selectionStore.set({
           type: 'table.cell',
@@ -103,14 +105,25 @@ export function createTableKeyboardNavBehavior(_delegate: TableEditingDelegate):
         const rows = node.table.topology.rows.length
         let nextRow = payload.row
         let nextCol = payload.col
-        if (event.key === 'ArrowUp')
-          nextRow = Math.max(0, nextRow - 1)
-        else if (event.key === 'ArrowDown')
-          nextRow = Math.min(rows - 1, nextRow + 1)
-        else if (event.key === 'ArrowLeft')
+        if (event.key === 'ArrowUp') {
+          // Find previous visible row; if none, stay
+          let r = nextRow - 1
+          while (r >= 0 && isHidden(r)) r--
+          if (r >= 0)
+            nextRow = r
+        }
+        else if (event.key === 'ArrowDown') {
+          let r = nextRow + 1
+          while (r < rows && isHidden(r)) r++
+          if (r < rows)
+            nextRow = r
+        }
+        else if (event.key === 'ArrowLeft') {
           nextCol = Math.max(0, nextCol - 1)
-        else if (event.key === 'ArrowRight')
+        }
+        else if (event.key === 'ArrowRight') {
           nextCol = Math.min(cols - 1, nextCol + 1)
+        }
         const owner = resolveMergeOwner(node.table.topology, nextRow, nextCol)
         ctx.selectionStore.set({
           type: 'table.cell',

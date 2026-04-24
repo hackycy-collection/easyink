@@ -15,11 +15,21 @@ export function normalizeColumnRatios(columns: TableColumnSchema[]): number {
 /**
  * Compute the scale factor to map declared row heights to the element's actual height.
  * Browser `<table>` with `height:100%` distributes height proportionally across rows.
+ *
+ * Optional `hidden` mask (per-row boolean) excludes hidden rows from the denominator,
+ * so that visible rows expand to fill `elementHeight` exactly.
  */
-export function computeRowScale(rows: TableRowSchema[], elementHeight: number): number {
+export function computeRowScale(
+  rows: TableRowSchema[],
+  elementHeight: number,
+  hidden?: readonly boolean[],
+): number {
   let total = 0
-  for (const row of rows)
-    total += row.height
+  for (let i = 0; i < rows.length; i++) {
+    if (hidden?.[i])
+      continue
+    total += rows[i]!.height
+  }
   return total > 0 ? elementHeight / total : 1
 }
 
@@ -33,10 +43,16 @@ export function computeColumnWidths(columns: TableColumnSchema[], elementWidth: 
 
 /**
  * Get scaled absolute row heights from declared row heights and total element height.
+ * Hidden rows (per `hidden` mask) report height 0; visible rows are scaled so their sum
+ * equals `elementHeight`.
  */
-export function computeRowHeights(rows: TableRowSchema[], elementHeight: number): number[] {
-  const scale = computeRowScale(rows, elementHeight)
-  return rows.map(row => row.height * scale)
+export function computeRowHeights(
+  rows: TableRowSchema[],
+  elementHeight: number,
+  hidden?: readonly boolean[],
+): number[] {
+  const scale = computeRowScale(rows, elementHeight, hidden)
+  return rows.map((row, i) => hidden?.[i] ? 0 : row.height * scale)
 }
 
 /**
@@ -55,13 +71,20 @@ export function computeColBorderPositions(columns: TableColumnSchema[], elementW
 
 /**
  * Y positions of row borders between rows (excludes top and bottom edges).
+ * Hidden rows (height 0) collapse and do not produce a border position.
  */
-export function computeRowBorderPositions(rows: TableRowSchema[], elementHeight: number): number[] {
-  const heights = computeRowHeights(rows, elementHeight)
+export function computeRowBorderPositions(
+  rows: TableRowSchema[],
+  elementHeight: number,
+  hidden?: readonly boolean[],
+): number[] {
+  const heights = computeRowHeights(rows, elementHeight, hidden)
   const positions: number[] = []
   let acc = 0
   for (let i = 0; i < heights.length - 1; i++) {
     acc += heights[i]!
+    if (hidden?.[i])
+      continue
     positions.push(acc)
   }
   return positions
@@ -70,7 +93,7 @@ export function computeRowBorderPositions(rows: TableRowSchema[], elementHeight:
 /**
  * Compute the rectangle of a cell at (row, col) relative to the table element,
  * accounting for colSpan and rowSpan.
- * Returns null if the coordinates are out of range.
+ * Returns null if the coordinates are out of range or the row is hidden.
  */
 export function computeCellRect(
   topology: TableTopologySchema,
@@ -78,13 +101,16 @@ export function computeCellRect(
   elementHeight: number,
   row: number,
   col: number,
+  hidden?: readonly boolean[],
 ): CellRect | null {
   const { columns, rows } = topology
   if (row >= rows.length || col >= columns.length)
     return null
+  if (hidden?.[row])
+    return null
 
   const colWidths = computeColumnWidths(columns, elementWidth)
-  const rowHeights = computeRowHeights(rows, elementHeight)
+  const rowHeights = computeRowHeights(rows, elementHeight, hidden)
 
   let x = 0
   for (let c = 0; c < col; c++)
@@ -112,6 +138,8 @@ export function computeCellRect(
 /**
  * Pure coordinate-to-cell lookup. Given a point (relX, relY) relative to the
  * table element's top-left corner, returns the grid cell containing that point.
+ * Hidden rows (per `hidden` mask) are skipped: points landing in their (zero-height)
+ * region cannot be hit, and rows below them remap based on their own scaled heights.
  * Does NOT resolve merge-owners -- call `resolveMergeOwner` on the result if needed.
  */
 export function hitTestGridCell(
@@ -120,12 +148,13 @@ export function hitTestGridCell(
   elementHeight: number,
   relX: number,
   relY: number,
+  hidden?: readonly boolean[],
 ): { row: number, col: number } | null {
   if (relX < 0 || relY < 0 || relX > elementWidth || relY > elementHeight)
     return null
 
   const colWidths = computeColumnWidths(topology.columns, elementWidth)
-  const rowHeights = computeRowHeights(topology.rows, elementHeight)
+  const rowHeights = computeRowHeights(topology.rows, elementHeight, hidden)
 
   // Find column
   let col = -1
@@ -140,18 +169,30 @@ export function hitTestGridCell(
   if (col < 0)
     col = colWidths.length - 1
 
-  // Find row
+  // Find row (skip hidden rows; their height is 0 so the loop naturally moves past)
   let row = -1
   let accY = 0
   for (let r = 0; r < rowHeights.length; r++) {
-    if (relY >= accY && relY < accY + rowHeights[r]!) {
+    const h = rowHeights[r]!
+    if (h <= 0)
+      continue
+    if (relY >= accY && relY < accY + h) {
       row = r
       break
     }
-    accY += rowHeights[r]!
+    accY += h
   }
-  if (row < 0)
-    row = rowHeights.length - 1
+  if (row < 0) {
+    // Find last visible row as fallback
+    for (let r = rowHeights.length - 1; r >= 0; r--) {
+      if (rowHeights[r]! > 0) {
+        row = r
+        break
+      }
+    }
+    if (row < 0)
+      return null
+  }
 
   return { row, col }
 }

@@ -33,15 +33,30 @@ const ROLE_BG_MAP: Record<string, keyof TableDataProps> = {
   footer: 'summaryBackground',
 }
 
+/**
+ * Build per-row hidden mask from showHeader/showFooter switches.
+ * Row index aligns with `node.table.topology.rows`.
+ */
+function getHiddenRowMask(node: TableNode): boolean[] {
+  const td = node.table as TableDataSchema
+  const headerHidden = td.showHeader === false
+  const footerHidden = td.showFooter === false
+  return node.table.topology.rows.map((row) => {
+    if (row.role === 'header')
+      return headerHidden
+    if (row.role === 'footer')
+      return footerHidden
+    return false
+  })
+}
+
 function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensionContext): string {
   if (!isTableNode(node)) {
     return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px">table-data</div>`
   }
 
   const p = node.props as unknown as TableDataProps
-  const tableData = node.table as TableDataSchema
-  const showHeader = tableData.showHeader !== false
-  const showFooter = tableData.showFooter !== false
+  const hidden = getHiddenRowMask(node)
 
   // Find the repeat-template row for placeholder rendering
   let repeatTemplateIndex = -1
@@ -60,7 +75,9 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     const bc = p.borderColor || '#000'
     const bt = p.borderType || 'solid'
     const pad = p.cellPadding ?? 4
-    const rowScale = computeRowScale(node.table.topology.rows, node.height)
+    // rowScale must use the SAME hidden mask as renderTableHtml so the
+    // placeholder height matches the actually-rendered repeat-template row.
+    const rowScale = computeRowScale(node.table.topology.rows, node.height, hidden)
     const scaledRepeatHeight = repeatRow.height * rowScale
 
     let placeholderRowsHtml = ''
@@ -105,10 +122,11 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
       const row = node.table.topology.rows[ri]
       if (!row)
         return {}
-      if (row.role === 'header' && !showHeader)
-        return { cellStyle: ';opacity:0.4;text-decoration:line-through' }
-      if (row.role === 'footer' && !showFooter)
-        return { cellStyle: ';opacity:0.4;text-decoration:line-through' }
+      // Hidden header/footer rows: skip rendering entirely (no DOM node).
+      // node.height is already adjusted by UpdateTableVisibilityCommand so
+      // visible rows fill the element exactly.
+      if (hidden[ri])
+        return { skip: true }
       const bgKey = ROLE_BG_MAP[row.role]
       const bg = bgKey ? (p as unknown as Record<string, string>)[bgKey] || '' : ''
       if (bg)
@@ -140,6 +158,7 @@ function createDelegate(context: MaterialExtensionContext): TableEditingDelegate
     getUnit: () => context.getSchema().unit,
     getPlaceholderRowCount: () => PLACEHOLDER_ROW_COUNT,
     t: (key: string) => context.t(key),
+    getHiddenRowMask: node => getHiddenRowMask(node),
   }
 }
 
@@ -149,19 +168,23 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
       if (!isTableNode(node))
         return null
 
-      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, PLACEHOLDER_ROW_COUNT)
+      const hidden = getHiddenRowMask(node)
+      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, PLACEHOLDER_ROW_COUNT, hidden)
       if (!gridCell)
         return null
       const cell = resolveMergeOwner(node.table.topology, gridCell.row, gridCell.col)
       const row = node.table.topology.rows[cell.row]
       if (!row)
         return null
+      // Hidden header/footer rows reject any drop.
+      if (hidden[cell.row])
+        return null
 
       if (row.role === 'repeat-template' && field.sourceId && field.fieldPath) {
         const incomingPrefix = getFieldCollectionPrefix(field.fieldPath)
         const existingPrefixes = getRowCollectionPrefixes(row)
         if (existingPrefixes.length > 0 && existingPrefixes[0] !== incomingPrefix) {
-          const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col, PLACEHOLDER_ROW_COUNT)
+          const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col, PLACEHOLDER_ROW_COUNT, hidden)
           if (!cellRect)
             return null
           return {
@@ -172,7 +195,7 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
         }
       }
 
-      const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col, PLACEHOLDER_ROW_COUNT)
+      const cellRect = computeCellRectWithPlaceholders(node, cell.row, cell.col, PLACEHOLDER_ROW_COUNT, hidden)
       if (!cellRect)
         return null
       return { status: 'accepted', rect: cellRect, label: field.fieldLabel }
@@ -182,12 +205,15 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
       if (!isTableNode(node))
         return
 
-      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, PLACEHOLDER_ROW_COUNT)
+      const hidden = getHiddenRowMask(node)
+      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, PLACEHOLDER_ROW_COUNT, hidden)
       if (!gridCell)
         return
       const cell = resolveMergeOwner(node.table.topology, gridCell.row, gridCell.col)
       const row = node.table.topology.rows[cell.row]
       if (!row)
+        return
+      if (hidden[cell.row])
         return
 
       const binding: BindingRef = {
@@ -275,7 +301,7 @@ export function createTableDataExtension(context: MaterialExtensionContext): Mat
     getVisualHeight(node) {
       if (!isTableNode(node))
         return node.height
-      return node.height + computePlaceholderHeight(node, PLACEHOLDER_ROW_COUNT)
+      return node.height + computePlaceholderHeight(node, PLACEHOLDER_ROW_COUNT, getHiddenRowMask(node))
     },
   }
 }

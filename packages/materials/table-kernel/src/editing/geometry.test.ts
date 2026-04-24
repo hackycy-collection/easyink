@@ -231,3 +231,78 @@ describe('createTableGeometry', () => {
     expect(geo.hitTest({ x: 50, y: 25 }, node as any)).toBeNull()
   })
 })
+
+// ─── Hidden row mask (table-data showHeader/showFooter) ──────────
+
+describe('hidden row mask', () => {
+  it('placeholder height uses visible-row scale (header hidden)', () => {
+    // 3 rows of height 30 each, node.height already adjusted to 60 (only repeat+footer visible).
+    // visible-row scale = 60 / (30+30) = 1; placeholder h = 30 * 1 * 2 = 60
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    expect(computePlaceholderHeight(node, 2, hidden)).toBe(60)
+  })
+
+  it('cell rect for hidden row returns null', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    expect(computeCellRectWithPlaceholders(node, 0, 0, 2, hidden)).toBeNull()
+  })
+
+  it('repeat-template cell sits at top when header hidden', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    // Visible rows: repeat (idx 1) and footer (idx 2). repeat starts at y=0.
+    expect(computeCellRectWithPlaceholders(node, 1, 0, 2, hidden))
+      .toEqual({ x: 0, y: 0, w: 100, h: 30 })
+  })
+
+  it('footer cell offset by placeholder height when header hidden', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    // repeatBottom = 30, placeholder = 60, footer at y = 30 + 60 = 90
+    expect(computeCellRectWithPlaceholders(node, 2, 0, 2, hidden))
+      .toEqual({ x: 0, y: 90, w: 100, h: 30 })
+  })
+
+  it('hitTest in zero-height hidden row region falls into next visible row', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    // y=5 is now in repeat-template (was header before hide), col 0
+    expect(hitTestWithPlaceholders(node, 50, 5, 2, hidden)).toEqual({ row: 1, col: 0 })
+  })
+
+  it('hitTest in placeholder region returns null', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    // repeatBottom=30, placeholder=60. y=60 is in placeholder region.
+    expect(hitTestWithPlaceholders(node, 50, 60, 2, hidden)).toBeNull()
+  })
+
+  it('hitTest after placeholder maps to footer row', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    // y=120 in visual, remap to y=120-60=60 in original; repeat=[0,30) footer=[30,60)
+    expect(hitTestWithPlaceholders(node, 50, 100, 2, hidden)).toEqual({ row: 2, col: 0 })
+  })
+
+  it('createTableGeometry honors delegate.getHiddenRowMask', () => {
+    const node = makeTableNode({ height: 60 })
+    const hidden = [true, false, false]
+    const delegate: TableEditingDelegate = {
+      ...makeDelegate(2, node),
+      getHiddenRowMask: () => hidden,
+    }
+    const geo = createTableGeometry(delegate)
+
+    // contentBox includes placeholder
+    expect(geo.getContentLayout(node).contentBox).toEqual({ x: 10, y: 20, width: 200, height: 120 })
+
+    // hidden header cell cannot be located
+    expect(geo.resolveLocation({ type: 'table.cell', nodeId: 'table1', payload: { row: 0, col: 0 } }, node)).toEqual([])
+
+    // hitTest in old header region picks up repeat-template
+    expect(geo.hitTest({ x: 50, y: 5 }, node))
+      .toEqual({ type: 'table.cell', nodeId: 'table1', payload: { row: 1, col: 0 } })
+  })
+})

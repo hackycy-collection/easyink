@@ -1,8 +1,26 @@
-import type { MaterialNode, TableNode } from '@easyink/schema'
+import type { MaterialNode, TableDataSchema, TableNode } from '@easyink/schema'
 import { computeRowScale } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 export const TABLE_DATA_PLACEHOLDER_ROW_COUNT = 2
+
+/**
+ * Build per-row hidden mask aligned with `node.table.topology.rows`.
+ * Mirrors the logic in designer.ts so layout helpers and designer agree on
+ * which rows contribute to height/scale.
+ */
+function buildHiddenMask(node: TableNode): boolean[] {
+  const td = node.table as TableDataSchema
+  const headerHidden = td.showHeader === false
+  const footerHidden = td.showFooter === false
+  return node.table.topology.rows.map((row) => {
+    if (row.role === 'header')
+      return headerHidden
+    if (row.role === 'footer')
+      return footerHidden
+    return false
+  })
+}
 
 export function getTableDataPlaceholderHeight(node: MaterialNode, placeholderRowCount = TABLE_DATA_PLACEHOLDER_ROW_COUNT): number {
   if (!isTableNode(node) || node.type !== 'table-data' || placeholderRowCount <= 0)
@@ -12,7 +30,8 @@ export function getTableDataPlaceholderHeight(node: MaterialNode, placeholderRow
   if (!repeatRow)
     return 0
 
-  const scale = computeRowScale(node.table.topology.rows, node.height)
+  const hidden = buildHiddenMask(node)
+  const scale = computeRowScale(node.table.topology.rows, node.height, hidden)
   return repeatRow.height * scale * placeholderRowCount
 }
 

@@ -8,14 +8,22 @@ import { resolveMergeOwner } from '../topology'
 /**
  * Compute extra visual height from virtual placeholder rows.
  * Returns 0 when there are no placeholder rows.
+ *
+ * The placeholder row inherits the visual height of the repeat-template row,
+ * which is `repeatRow.height * rowScale` where rowScale is computed against
+ * VISIBLE rows (matching the rest of the geometry/render layer).
  */
-export function computePlaceholderHeight(node: TableNode, placeholderCount: number): number {
+export function computePlaceholderHeight(
+  node: TableNode,
+  placeholderCount: number,
+  hidden?: readonly boolean[],
+): number {
   if (placeholderCount <= 0)
     return 0
   const repeatRow = node.table.topology.rows.find(r => r.role === 'repeat-template')
   if (!repeatRow)
     return 0
-  const rowScale = computeRowScale(node.table.topology.rows, node.height)
+  const rowScale = computeRowScale(node.table.topology.rows, node.height, hidden)
   return repeatRow.height * rowScale * placeholderCount
 }
 
@@ -28,8 +36,9 @@ export function computeCellRectWithPlaceholders(
   row: number,
   col: number,
   placeholderCount: number,
+  hidden?: readonly boolean[],
 ): { x: number, y: number, w: number, h: number } | null {
-  const rect = computeCellRect(node.table.topology, node.width, node.height, row, col)
+  const rect = computeCellRect(node.table.topology, node.width, node.height, row, col, hidden)
   if (!rect)
     return null
 
@@ -40,7 +49,7 @@ export function computeCellRectWithPlaceholders(
   if (repeatIdx < 0 || row <= repeatIdx)
     return rect
 
-  const ph = computePlaceholderHeight(node, placeholderCount)
+  const ph = computePlaceholderHeight(node, placeholderCount, hidden)
   return { x: rect.x, y: rect.y + ph, w: rect.w, h: rect.h }
 }
 
@@ -54,28 +63,32 @@ export function hitTestWithPlaceholders(
   relX: number,
   relY: number,
   placeholderCount: number,
+  hidden?: readonly boolean[],
 ): { row: number, col: number } | null {
   if (placeholderCount <= 0)
-    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY)
+    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY, hidden)
 
   const repeatIdx = node.table.topology.rows.findIndex(r => r.role === 'repeat-template')
   if (repeatIdx < 0)
-    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY)
+    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY, hidden)
 
-  const ph = computePlaceholderHeight(node, placeholderCount)
-  const rowScale = computeRowScale(node.table.topology.rows, node.height)
+  const ph = computePlaceholderHeight(node, placeholderCount, hidden)
+  const rowScale = computeRowScale(node.table.topology.rows, node.height, hidden)
 
   let repeatBottom = 0
-  for (let i = 0; i <= repeatIdx; i++)
+  for (let i = 0; i <= repeatIdx; i++) {
+    if (hidden?.[i])
+      continue
     repeatBottom += node.table.topology.rows[i]!.height * rowScale
+  }
 
   if (relY <= repeatBottom)
-    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY)
+    return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY, hidden)
 
   if (relY <= repeatBottom + ph)
     return null
 
-  return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY - ph)
+  return hitTestGridCell(node.table.topology, node.width, node.height, relX, relY - ph, hidden)
 }
 
 /**
@@ -86,12 +99,15 @@ export function hitTestWithPlaceholders(
  * - hitTest receives material-local coords (already converted by GeometryService.canvasToLocal)
  */
 export function createTableGeometry(delegate: TableEditingDelegate): MaterialGeometry {
+  const getHidden = (node: TableNode) => delegate.getHiddenRowMask?.(node)
+
   return {
     getContentLayout(node: MaterialNode) {
       if (!isTableNode(node)) {
         return { contentBox: { x: node.x, y: node.y, width: node.width, height: node.height } }
       }
-      const ph = computePlaceholderHeight(node, delegate.getPlaceholderRowCount())
+      const hidden = getHidden(node)
+      const ph = computePlaceholderHeight(node, delegate.getPlaceholderRowCount(), hidden)
       return {
         contentBox: { x: node.x, y: node.y, width: node.width, height: node.height + ph },
       }
@@ -102,7 +118,8 @@ export function createTableGeometry(delegate: TableEditingDelegate): MaterialGeo
         return []
 
       const payload = selection.payload as TableCellPayload
-      const rect = computeCellRectWithPlaceholders(node, payload.row, payload.col, delegate.getPlaceholderRowCount())
+      const hidden = getHidden(node)
+      const rect = computeCellRectWithPlaceholders(node, payload.row, payload.col, delegate.getPlaceholderRowCount(), hidden)
       if (!rect)
         return []
 
@@ -115,7 +132,8 @@ export function createTableGeometry(delegate: TableEditingDelegate): MaterialGeo
       if (!isTableNode(node))
         return null
 
-      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, delegate.getPlaceholderRowCount())
+      const hidden = getHidden(node)
+      const gridCell = hitTestWithPlaceholders(node, point.x, point.y, delegate.getPlaceholderRowCount(), hidden)
       if (!gridCell)
         return null
 

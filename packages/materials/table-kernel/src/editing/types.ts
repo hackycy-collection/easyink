@@ -27,4 +27,10 @@ export interface TableEditingDelegate {
   getPageEl: () => HTMLElement | null
   /** Translate i18n key. */
   t: (key: string) => string
+  /**
+   * Optional per-row visibility mask aligned with `node.table.topology.rows`.
+   * Returns `true` for hidden rows. table-data builds this from
+   * `showHeader` / `showFooter`. Omitted/undefined means all rows visible.
+   */
+  getHiddenRowMask?: (node: TableNode) => readonly boolean[] | undefined
 }

@@ -74,11 +74,26 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
   const colgroup = buildColgroup(topology)
   const numCols = topology.columns.length
 
-  // Scale row heights to sum exactly to elementHeight, matching geometry layer
-  const rowScale = computeRowScale(topology.rows, elementHeight)
+  // Pre-compute which rows are skipped so row scaling uses only visible rows.
+  // This matches the geometry layer (computeRowScale with hidden mask).
+  const skippedMask: boolean[] = Array.from({ length: topology.rows.length }, () => false)
+  const decoratorResults: Array<{ cellStyle?: string, rowStyle?: string, skip?: boolean } | null> = []
+  if (rowDecorator) {
+    for (let ri = 0; ri < topology.rows.length; ri++) {
+      const dec = rowDecorator(ri)
+      decoratorResults.push(dec)
+      if (dec.skip)
+        skippedMask[ri] = true
+    }
+  }
+
+  // Scale row heights to sum exactly to elementHeight, matching geometry layer.
+  // Hidden/skipped rows are excluded from the denominator so visible rows fill the element.
+  const rowScale = computeRowScale(topology.rows, elementHeight, skippedMask)
 
   // Precompute scaled per-row heights so rowSpan cells can sum across rows.
-  const scaledRowHeights = topology.rows.map(r => r.height * rowScale)
+  // Skipped rows render at height 0 and contribute 0 to spans.
+  const scaledRowHeights = topology.rows.map((r, i) => skippedMask[i] ? 0 : r.height * rowScale)
 
   // Map verticalAlign → flex justify-content so the inner block enforces the
   // requested vertical alignment within the fixed-height container.
@@ -116,8 +131,8 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
     // Row decorator can skip rows (hidden bands) or add styles (background)
     let cellStyle = ''
     let rowExtraStyle = ''
-    if (rowDecorator) {
-      const dec = rowDecorator(ri)
+    const dec = decoratorResults[ri] ?? null
+    if (dec) {
       if (dec.skip)
         continue
       if (dec.cellStyle)
