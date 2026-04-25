@@ -1,5 +1,7 @@
 import type { Anthropic } from '@anthropic-ai/sdk'
-import type { DataSourceGenerationInput, DataSourceGenerationOutput, LLMConfig, LLMProvider, SchemaGenerationInput, SchemaGenerationOutput } from './types'
+import type { DataSourceGenerationInput, DataSourceGenerationOutput, LLMConfig, LLMProgressEvent, LLMProvider, SchemaGenerationInput, SchemaGenerationOutput } from './types'
+
+const PROGRESS_THROTTLE_MS = 1000
 
 const TOOL_GENERATE_SCHEMA = {
   name: 'generate_schema',
@@ -63,6 +65,7 @@ const TOOL_GENERATE_DATASOURCE = {
 
 export class ClaudeProvider implements LLMProvider {
   readonly name = 'claude'
+  readonly supportsStreaming = true
   private client: Anthropic
   private model: string
 
@@ -77,30 +80,27 @@ export class ClaudeProvider implements LLMProvider {
   }
 
   async generateSchema(input: SchemaGenerationInput): Promise<SchemaGenerationOutput> {
-    const { prompt, currentSchema, systemPrompt } = input
+    const { prompt, currentSchema, systemPrompt, signal, onProgress } = input
 
     const userContent = currentSchema
       ? `Current schema context:\n${JSON.stringify(currentSchema, null, 2)}\n\nUser request: ${prompt}`
       : prompt
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }],
-      tools: [TOOL_GENERATE_SCHEMA],
-      tool_choice: { type: 'tool', name: 'generate_schema' },
-    })
-
-    const toolBlock = response.content.find(
-      (block: { type: string, name?: string, input?: unknown }) =>
-        block.type === 'tool_use' && block.name === 'generate_schema',
+    const toolInput = await this.streamToolUse(
+      {
+        model: this.model,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userContent }],
+        tools: [TOOL_GENERATE_SCHEMA],
+        tool_choice: { type: 'tool', name: 'generate_schema' },
+      },
+      'generate_schema',
+      signal,
+      onProgress,
     )
-    if (!toolBlock || toolBlock.type !== 'tool_use') {
-      throw new Error('Claude did not return a tool_use block for generate_schema')
-    }
 
-    const result = toolBlock.input as { schema: unknown, expectedDataSource: unknown }
+    const result = toolInput as { schema?: unknown, expectedDataSource?: unknown }
     if (!result.schema || !result.expectedDataSource) {
       throw new Error('Claude returned incomplete tool_use result')
     }
@@ -112,29 +112,77 @@ export class ClaudeProvider implements LLMProvider {
   }
 
   async generateDataSource(input: DataSourceGenerationInput): Promise<DataSourceGenerationOutput> {
-    const { systemPrompt, expectedDataSource } = input
+    const { systemPrompt, expectedDataSource, signal, onProgress } = input
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{
-        role: 'user',
-        content: `Generate a complete DataSourceDescriptor based on this expected structure:\n${JSON.stringify(expectedDataSource, null, 2)}`,
-      }],
-      tools: [TOOL_GENERATE_DATASOURCE],
-      tool_choice: { type: 'tool', name: 'generate_datasource' },
-    })
-
-    const toolBlock = response.content.find(
-      (block: { type: string, name?: string, input?: unknown }) =>
-        block.type === 'tool_use' && block.name === 'generate_datasource',
+    const toolInput = await this.streamToolUse(
+      {
+        model: this.model,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: `Generate a complete DataSourceDescriptor based on this expected structure:\n${JSON.stringify(expectedDataSource, null, 2)}`,
+        }],
+        tools: [TOOL_GENERATE_DATASOURCE],
+        tool_choice: { type: 'tool', name: 'generate_datasource' },
+      },
+      'generate_datasource',
+      signal,
+      onProgress,
     )
-    if (!toolBlock || toolBlock.type !== 'tool_use') {
-      throw new Error('Claude did not return a tool_use block for generate_datasource')
+
+    const result = toolInput as { dataSource?: unknown }
+    if (!result.dataSource) {
+      throw new Error('Claude returned incomplete tool_use result for generate_datasource')
+    }
+    return result.dataSource as DataSourceGenerationOutput
+  }
+
+  /**
+   * Drive a streaming Claude messages.create call that produces a single
+   * tool_use block. Aggregates the tool input deltas and emits throttled
+   * progress so the MCP request timeout can be reset.
+   */
+  private async streamToolUse(
+    params: Anthropic.Messages.MessageCreateParamsNonStreaming,
+    expectedToolName: string,
+    signal: AbortSignal | undefined,
+    onProgress: ((event: LLMProgressEvent) => void) | undefined,
+  ): Promise<unknown> {
+    onProgress?.({ phase: 'llm-start', tokens: 0, message: 'Calling Claude...' })
+
+    const stream = this.client.messages.stream(params, { signal })
+
+    let lastEmit = Date.now()
+    let deltaCount = 0
+    let charCount = 0
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta') {
+        deltaCount++
+        charCount += event.delta.partial_json.length
+        const now = Date.now()
+        if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
+          lastEmit = now
+          onProgress?.({
+            phase: 'llm-delta',
+            tokens: deltaCount,
+            message: `Received ${deltaCount} chunks (${charCount} chars)`,
+          })
+        }
+      }
     }
 
-    const result = toolBlock.input as { dataSource: unknown }
-    return result.dataSource as DataSourceGenerationOutput
+    const finalMessage = await stream.finalMessage()
+    onProgress?.({ phase: 'llm-done', tokens: deltaCount, message: `Total ${charCount} chars` })
+
+    const toolBlock = finalMessage.content.find(
+      (block): block is Anthropic.Messages.ToolUseBlock =>
+        block.type === 'tool_use' && block.name === expectedToolName,
+    )
+    if (!toolBlock) {
+      throw new Error(`Claude did not return a tool_use block for ${expectedToolName}`)
+    }
+    return toolBlock.input
   }
 }

@@ -79,7 +79,7 @@ export async function startStdioServer(server: McpServerType): Promise<void> {
 }
 
 export async function startHTTPServer(
-  server: McpServerType,
+  serverFactory: () => Promise<McpServerType>,
   port?: number,
 ): Promise<void> {
   const { createServer } = await import('node:http')
@@ -89,32 +89,73 @@ export async function startHTTPServer(
 
   const port_ = port ?? (Number(process.env.MCP_HTTP_PORT) || 3000)
 
-  // Create the transport in stateless mode (no sessionIdGenerator)
-  const transport = new StreamableHTTPServerTransport()
-
-  await server.connect(transport)
-
   const httpServer = createServer(async (req, res) => {
-    if (req.method === 'POST' && req.url === '/mcp') {
-      // Collect body
+    // Permissive CORS: this server is intended for local/dev use by browser clients.
+    const origin = req.headers.origin ?? '*'
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers']
+      ?? 'Content-Type, Authorization, mcp-session-id, mcp-protocol-version, last-event-id',
+    )
+    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id, mcp-protocol-version')
+    res.setHeader('Access-Control-Max-Age', '86400')
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end()
+      return
+    }
+
+    if (req.url !== '/mcp') {
+      res.writeHead(404).end('Not Found')
+      return
+    }
+
+    // Stateless mode: create a fresh server + transport per request, dispose after.
+    // Reusing a single connected transport across requests is unsupported by the SDK
+    // and results in 500 errors on the second initialize.
+    let body: unknown
+    if (req.method === 'POST') {
       const chunks: Buffer[] = []
       for await (const chunk of req) {
         chunks.push(chunk)
       }
-      const body = chunks.length > 0
+      body = chunks.length > 0
         ? JSON.parse(Buffer.concat(chunks).toString())
         : undefined
+    }
 
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    })
+    let server: McpServerType | null = null
+    try {
+      server = await serverFactory()
+      res.on('close', () => {
+        transport.close().catch(() => {})
+        server?.close().catch(() => {})
+      })
+      await server.connect(transport)
       await transport.handleRequest(req, res, body)
     }
-    else if (req.method === 'GET' && req.url === '/mcp') {
-      await transport.handleRequest(req, res)
-    }
-    else if (req.method === 'DELETE' && req.url === '/mcp') {
-      await transport.handleRequest(req, res)
-    }
-    else {
-      res.writeHead(404).end('Not Found')
+    catch (err) {
+      process.stderr.write(`MCP request error: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`)
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: err instanceof Error ? err.message : 'Internal error' },
+          id: null,
+        }))
+      }
+      else {
+        try {
+          res.end()
+        }
+        catch {}
+      }
     }
   })
 

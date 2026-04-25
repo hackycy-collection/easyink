@@ -136,9 +136,18 @@ export class MCPClient {
   /**
    * Generate a template using the connected MCP server.
    * Calls the generateSchema tool via MCP protocol.
+   *
+   * The MCP SDK has a default 60s per-request timeout. LLM calls easily
+   * exceed that, so we:
+   *   - subscribe to `notifications/progress` (server emits ~once per second
+   *     while streaming the LLM response),
+   *   - enable `resetTimeoutOnProgress` so each progress event resets the
+   *     60s static timeout,
+   *   - cap total wait at 5 minutes via `maxTotalTimeout` to bound runaway
+   *     calls.
    */
   async generate(options: GenerateOptions): Promise<GenerateResult> {
-    const { serverId, prompt, currentSchema, signal } = options
+    const { serverId, prompt, currentSchema, signal, onProgress } = options
 
     const client = this.clients.get(serverId)
     if (!client) {
@@ -162,7 +171,15 @@ export class MCPClient {
           },
         },
         undefined,
-        { signal },
+        {
+          signal,
+          timeout: 60_000,
+          maxTotalTimeout: 5 * 60 * 1000,
+          resetTimeoutOnProgress: true,
+          onprogress: (p) => {
+            onProgress?.({ progress: p.progress, total: p.total, message: p.message })
+          },
+        },
       )
 
       // Parse the text content from the tool result
@@ -219,13 +236,13 @@ export class MCPClient {
       }
     }
     catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      const errorMsg = classifyMcpError(error, signal)
       this.addSessionMessage(serverId, {
         role: 'assistant',
         content: '',
         error: errorMsg,
       })
-      throw error
+      throw new Error(errorMsg, { cause: error })
     }
   }
 
@@ -301,4 +318,26 @@ export class MCPClient {
         : {}),
     }))
   }
+}
+
+/**
+ * Translate raw MCP/SDK errors into user-meaningful messages, distinguishing
+ * cancellation, static-timeout (no progress in 60s), hard-timeout (>5min),
+ * and server-side errors. Avoids the bare `MCP error -32001: Request timed
+ * out` string the SDK produces.
+ */
+function classifyMcpError(error: unknown, signal: AbortSignal | undefined): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  const code = (error as { code?: number } | null)?.code
+  if (signal?.aborted) {
+    return '已取消生成'
+  }
+  // ErrorCode.RequestTimeout === -32001
+  if (code === -32001 || /timed out/i.test(raw)) {
+    return '生成超时：服务端 60 秒内未发送进度，可能是 LLM 接口阻塞或网络异常。请检查 mcp-server 日志后重试。'
+  }
+  if (/abort/i.test(raw)) {
+    return '已取消生成'
+  }
+  return raw
 }

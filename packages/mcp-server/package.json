@@ -21,7 +21,10 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch"
+    "dev": "tsdown --watch",
+    "start:stdio": "tsx src/bin/server.ts",
+    "start:http": "MCP_TRANSPORT=http tsx src/bin/server.ts",
+    "test:local": "tsx scripts/test-local.ts"
   },
   "dependencies": {
     "@easyink/datasource": "workspace:*",
@@ -29,6 +32,7 @@
     "@easyink/schema-tools": "workspace:*",
     "@easyink/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:framework",
+    "dotenv": "catalog:framework",
     "zod": "catalog:framework"
   },
   "optionalDependencies": {
@@ -37,6 +41,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:types",
-    "tsdown": "catalog:cli"
+    "tsdown": "catalog:cli",
+    "tsx": "catalog:cli"
   }
 }

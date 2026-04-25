@@ -10,8 +10,8 @@ const BUILTIN_SERVERS: MCPServerConfig[] = [
     id: 'template-generator',
     name: '模板生成服务',
     type: 'http',
-    url: 'http://localhost:3001/mcp',
-    enabled: false,
+    url: 'http://localhost:3000/mcp',
+    enabled: true,
     description: '基于 AI 的模板生成服务，支持自然语言描述生成文档模板',
   },
 ]
@@ -48,26 +48,24 @@ export class ServerRegistry {
 
   /**
    * Update an existing server configuration.
+   * Updating a builtin promotes it to a user override (so the change persists).
    */
   updateServer(id: string, updates: Partial<MCPServerConfig>): boolean {
     const index = this._servers.findIndex(s => s.id === id)
-    if (index < 0) {
-      // Check builtin servers
-      const builtinIndex = this._builtinServers.findIndex(s => s.id === id)
-      if (builtinIndex >= 0) {
-        // Update builtin (but don't persist builtin changes)
-        this._builtinServers[builtinIndex] = {
-          ...this._builtinServers[builtinIndex],
-          ...updates,
-        }
-        return true
-      }
-      return false
+    if (index >= 0) {
+      this._servers[index] = { ...this._servers[index], ...updates }
+      this.save()
+      return true
     }
 
-    this._servers[index] = { ...this._servers[index], ...updates }
-    this.save()
-    return true
+    const builtin = this._builtinServers.find(s => s.id === id)
+    if (builtin) {
+      this._servers.push({ ...builtin, ...updates })
+      this.save()
+      return true
+    }
+
+    return false
   }
 
   /**
@@ -84,17 +82,19 @@ export class ServerRegistry {
   }
 
   /**
-   * Get a server by ID.
+   * Get a server by ID. User override wins over builtin.
    */
   getServer(id: string): MCPServerConfig | undefined {
     return this._servers.find(s => s.id === id) ?? this._builtinServers.find(s => s.id === id)
   }
 
   /**
-   * Get all registered servers (user + builtin).
+   * Get all registered servers (builtin + user, user overrides by id).
    */
   getServers(): MCPServerConfig[] {
-    return [...this._builtinServers, ...this._servers]
+    const userIds = new Set(this._servers.map(s => s.id))
+    const builtinsKept = this._builtinServers.filter(s => !userIds.has(s.id))
+    return [...builtinsKept, ...this._servers]
   }
 
   /**

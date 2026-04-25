@@ -1,7 +1,11 @@
-import type { DataSourceGenerationInput, DataSourceGenerationOutput, LLMConfig, LLMProvider, SchemaGenerationInput, SchemaGenerationOutput } from './types'
+import type { DataSourceGenerationInput, DataSourceGenerationOutput, LLMConfig, LLMProgressEvent, LLMProvider, SchemaGenerationInput, SchemaGenerationOutput } from './types'
+
+/** Minimum interval between `llm-delta` progress emissions, in ms. */
+const PROGRESS_THROTTLE_MS = 1000
 
 export class OpenAIProvider implements LLMProvider {
   readonly name = 'openai'
+  readonly supportsStreaming = true
   private client: import('openai').OpenAI
   private model: string
 
@@ -16,26 +20,25 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async generateSchema(input: SchemaGenerationInput): Promise<SchemaGenerationOutput> {
-    const { prompt, currentSchema, systemPrompt } = input
+    const { prompt, currentSchema, systemPrompt, signal, onProgress } = input
 
     const userContent = currentSchema
       ? `Current schema context:\n${JSON.stringify(currentSchema, null, 2)}\n\nUser request: ${prompt}`
       : prompt
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      max_tokens: 8192,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      response_format: { type: 'json_object' },
-    })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('OpenAI returned empty response')
-    }
+    const content = await this.streamJSON(
+      {
+        model: this.model,
+        max_tokens: 8192,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        response_format: { type: 'json_object' },
+      },
+      signal,
+      onProgress,
+    )
 
     let parsed: { schema?: unknown, expectedDataSource?: unknown }
     try {
@@ -56,25 +59,24 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async generateDataSource(input: DataSourceGenerationInput): Promise<DataSourceGenerationOutput> {
-    const { systemPrompt, expectedDataSource } = input
+    const { systemPrompt, expectedDataSource, signal, onProgress } = input
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      max_tokens: 4096,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: `Generate a complete DataSourceDescriptor based on this expected structure:\n${JSON.stringify(expectedDataSource, null, 2)}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-    })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('OpenAI returned empty response')
-    }
+    const content = await this.streamJSON(
+      {
+        model: this.model,
+        max_tokens: 4096,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: `Generate a complete DataSourceDescriptor based on this expected structure:\n${JSON.stringify(expectedDataSource, null, 2)}`,
+          },
+        ],
+        response_format: { type: 'json_object' },
+      },
+      signal,
+      onProgress,
+    )
 
     let parsed: { dataSource?: unknown }
     try {
@@ -89,5 +91,53 @@ export class OpenAIProvider implements LLMProvider {
     }
 
     return parsed.dataSource as DataSourceGenerationOutput
+  }
+
+  /**
+   * Drive a streaming chat completion, accumulate the assistant text, and
+   * relay throttled progress to the caller. Returns the concatenated content.
+   *
+   * `signal` is forwarded to the OpenAI HTTP request so that aborting the
+   * MCP request also aborts the upstream LLM call (no wasted spend).
+   */
+  private async streamJSON(
+    params: import('openai/resources/chat/completions').ChatCompletionCreateParamsBase,
+    signal: AbortSignal | undefined,
+    onProgress: ((event: LLMProgressEvent) => void) | undefined,
+  ): Promise<string> {
+    onProgress?.({ phase: 'llm-start', tokens: 0, message: 'Calling OpenAI...' })
+
+    const stream = await this.client.chat.completions.create(
+      { ...params, stream: true },
+      { signal },
+    )
+
+    let buffer = ''
+    let lastEmit = Date.now()
+    let chunks = 0
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content
+      if (delta) {
+        buffer += delta
+        chunks++
+        const now = Date.now()
+        if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
+          lastEmit = now
+          onProgress?.({
+            phase: 'llm-delta',
+            tokens: chunks,
+            message: `Received ${chunks} chunks (${buffer.length} chars)`,
+          })
+        }
+      }
+    }
+
+    if (!buffer) {
+      throw new Error('OpenAI returned empty response')
+    }
+
+    onProgress?.({ phase: 'llm-done', tokens: chunks, message: `Total ${buffer.length} chars` })
+    return buffer
   }
 }

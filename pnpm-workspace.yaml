@@ -36,6 +36,7 @@ catalogs:
     '@anthropic-ai/sdk': ^0.91.0
     '@modelcontextprotocol/sdk': ^1.29.0
     '@vueuse/core': ^14.2.1
+    dotenv: ^17.2.5
     jsbarcode: ^3.12.3
     lucide-static: ^1.0.0
     lucide-vue-next: ^1.0.0

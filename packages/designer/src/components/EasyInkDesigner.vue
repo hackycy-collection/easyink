@@ -22,7 +22,7 @@ const props = defineProps<{
   contributions?: Contribution[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:schema': [schema: DocumentSchema]
 }>()
 
@@ -66,6 +66,17 @@ provide(CONTRIBUTION_REGISTRY_KEY, {
 watch(() => props.schema, (newSchema) => {
   if (newSchema !== store.schema) {
     store.setSchema(newSchema)
+  }
+})
+
+// Sync schema replacement back to the parent so `v-model:schema` reflects
+// programmatic mutations (e.g. AI generation calling `store.setSchema`).
+// In-place mutations of the same object reach the parent automatically
+// because props are passed by reference; this watcher only fires when the
+// internal _schema is reassigned to a new object identity.
+watch(() => store.schema, (newSchema) => {
+  if (newSchema !== props.schema) {
+    emit('update:schema', newSchema)
   }
 })
 

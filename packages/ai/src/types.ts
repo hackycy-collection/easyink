@@ -115,6 +115,23 @@ export interface GenerateOptions {
   context?: GenerateContext
   /** Cancellation signal */
   signal?: AbortSignal
+  /**
+   * Receives streamed progress events from the MCP server. Called once per
+   * `notifications/progress` while the long-running tool runs.
+   */
+  onProgress?: (event: GenerateProgress) => void
+}
+
+/**
+ * Progress event delivered to {@link GenerateOptions.onProgress}.
+ *
+ * `progress` is a monotonically-increasing counter (per request) — not a
+ * percentage — because the server cannot know total token count up front.
+ */
+export interface GenerateProgress {
+  progress: number
+  total?: number
+  message?: string
 }
 
 /**

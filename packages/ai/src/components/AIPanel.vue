@@ -34,6 +34,20 @@ const sessionMessages = ref<SessionMessage[]>([])
 const showServerConfig = ref(false)
 const selectedServerId = ref<string | null>(null)
 
+/**
+ * Live status while a generation is in flight. Shown as a single line in
+ * the header of the panel; cleared when the request finishes (success,
+ * failure, or cancellation).
+ */
+const progressMessage = ref<string>('')
+const progressCount = ref(0)
+const progressStartedAt = ref(0)
+let progressTimer: ReturnType<typeof setInterval> | undefined
+const elapsedSeconds = ref(0)
+
+/** Active AbortController for the in-flight generation, if any. */
+let activeAbort: AbortController | undefined
+
 // Server Config Form
 const serverForm = ref<Partial<MCPServerConfig>>({
   type: 'http',
@@ -41,16 +55,67 @@ const serverForm = ref<Partial<MCPServerConfig>>({
 })
 const serverFormErrors = ref<string[]>([])
 
-// Computed
-const servers = computed(() => serverRegistry.getServers())
+// Reactive snapshot of the registry. The registry itself stores plain arrays,
+// so we re-read it explicitly via refreshServers() after every mutation.
+const servers = ref<MCPServerConfig[]>(serverRegistry.getServers())
+function refreshServers() {
+  servers.value = serverRegistry.getServers()
+}
+
+// Per-server connection state, mirrored from MCPClient for UI reactivity.
+const serverStates = ref<Record<string, 'disconnected' | 'connecting' | 'connected' | 'error'>>({})
+const serverErrors = ref<Record<string, string | undefined>>({})
+
 const enabledServers = computed(() => servers.value.filter(s => s.enabled))
+const selectedServer = computed(() =>
+  selectedServerId.value
+    ? servers.value.find(s => s.id === selectedServerId.value) ?? null
+    : null,
+)
 const canGenerate = computed(() =>
   prompt.value.trim().length > 0
-  && selectedServerId.value !== null
+  && selectedServer.value !== null
+  && selectedServer.value.enabled
   && !isGenerating.value,
 )
 
-// Methods
+async function ensureConnected(serverId: string): Promise<void> {
+  const status = mcpClient.getServerStatus(serverId)
+  if (status?.state === 'connected')
+    return
+
+  const config = serverRegistry.getServer(serverId)
+  if (!config)
+    throw new Error(`服务器配置不存在: ${serverId}`)
+  if (!config.enabled)
+    throw new Error(`服务器已禁用: ${config.name}`)
+
+  serverStates.value = { ...serverStates.value, [serverId]: 'connecting' }
+  serverErrors.value = { ...serverErrors.value, [serverId]: undefined }
+  try {
+    await mcpClient.connect(config)
+    serverStates.value = { ...serverStates.value, [serverId]: 'connected' }
+  }
+  catch (err) {
+    const message = err instanceof Error ? err.message : 'Connection failed'
+    serverStates.value = { ...serverStates.value, [serverId]: 'error' }
+    serverErrors.value = { ...serverErrors.value, [serverId]: message }
+    throw new Error(`连接 MCP 服务器失败 (${config.name}): ${message}`)
+  }
+}
+
+async function handleToggleEnabled(server: MCPServerConfig, enabled: boolean) {
+  serverRegistry.setEnabled(server.id, enabled)
+  refreshServers()
+  if (!enabled) {
+    try {
+      await mcpClient.disconnect(server.id)
+    }
+    catch {}
+    serverStates.value = { ...serverStates.value, [server.id]: 'disconnected' }
+  }
+}
+
 function handleClose() {
   emit('update:open', false)
 }
@@ -70,7 +135,21 @@ async function handleGenerate() {
   error.value = null
   canRetry.value = false
 
+  // Reset progress state and start the elapsed-time ticker.
+  progressMessage.value = '准备中...'
+  progressCount.value = 0
+  progressStartedAt.value = Date.now()
+  elapsedSeconds.value = 0
+  progressTimer = setInterval(() => {
+    elapsedSeconds.value = Math.floor((Date.now() - progressStartedAt.value) / 1000)
+  }, 500)
+
+  activeAbort = new AbortController()
+
   try {
+    // 0. Ensure the selected server is connected (lazy connect).
+    await ensureConnected(selectedServerId.value!)
+
     // 1. Add user message
     const userMsg: SessionMessage = {
       id: generateId('msg'),
@@ -88,6 +167,12 @@ async function handleGenerate() {
       currentSchema: props.store.schema,
       context: {
         sessionHistory: sessionMessages.value,
+      },
+      signal: activeAbort.signal,
+      onProgress: (p) => {
+        progressCount.value = p.progress
+        if (p.message)
+          progressMessage.value = p.message
       },
     })
 
@@ -183,7 +268,16 @@ async function handleGenerate() {
   }
   finally {
     isGenerating.value = false
+    if (progressTimer) {
+      clearInterval(progressTimer)
+      progressTimer = undefined
+    }
+    activeAbort = undefined
   }
+}
+
+function handleCancel() {
+  activeAbort?.abort()
 }
 
 function handleRetry() {
@@ -224,6 +318,9 @@ function handleEditServer(id: string) {
 
 function handleDeleteServer(id: string) {
   serverRegistry.removeServer(id)
+  refreshServers()
+  mcpClient.disconnect(id).catch(() => {})
+  serverStates.value = { ...serverStates.value, [id]: 'disconnected' }
   if (selectedServerId.value === id) {
     selectedServerId.value = null
   }
@@ -236,9 +333,14 @@ function handleSaveServerConfig() {
     return
   }
 
+  const id = serverForm.value.id!
   serverRegistry.addServer(serverForm.value as MCPServerConfig)
+  // Config changed: drop any existing connection so next generate reconnects.
+  mcpClient.disconnect(id).catch(() => {})
+  serverStates.value = { ...serverStates.value, [id]: 'disconnected' }
+  refreshServers()
   showServerConfig.value = false
-  selectedServerId.value = serverForm.value.id ?? null
+  selectedServerId.value = id
 }
 
 function handleCancelServerConfig() {
@@ -283,9 +385,30 @@ onMounted(() => {
           :class="{ 'mcp-panel__server-item--selected': selectedServerId === server.id }"
           @click="handleSelectServer(server.id)"
         >
+          <input
+            type="checkbox"
+            class="mcp-panel__server-toggle"
+            :checked="server.enabled"
+            :title="server.enabled ? '点击禁用' : '点击启用'"
+            @click.stop
+            @change="(e) => handleToggleEnabled(server, (e.target as HTMLInputElement).checked)"
+          >
           <span class="mcp-panel__server-name">{{ server.name }}</span>
           <span
-            v-if="!server.enabled"
+            v-if="serverStates[server.id] === 'connecting'"
+            class="mcp-panel__server-badge"
+          >连接中</span>
+          <span
+            v-else-if="serverStates[server.id] === 'connected'"
+            class="mcp-panel__server-badge mcp-panel__server-badge--ok"
+          >已连接</span>
+          <span
+            v-else-if="serverStates[server.id] === 'error'"
+            class="mcp-panel__server-badge mcp-panel__server-badge--err"
+            :title="serverErrors[server.id]"
+          >连接失败</span>
+          <span
+            v-else-if="!server.enabled"
             class="mcp-panel__server-badge"
           >已禁用</span>
           <button
@@ -324,14 +447,35 @@ onMounted(() => {
       <div class="mcp-panel__input-actions">
         <span class="mcp-panel__hint">Ctrl+Enter 快捷生成</span>
         <button
+          v-if="isGenerating"
+          class="mcp-panel__generate mcp-panel__generate--cancel"
+          @click="handleCancel"
+        >
+          取消
+        </button>
+        <button
+          v-else
           class="mcp-panel__generate"
           :disabled="!canGenerate"
           @click="handleGenerate"
         >
-          <span v-if="isGenerating">生成中...</span>
-          <span v-else>生成模板</span>
+          生成模板
         </button>
       </div>
+    </div>
+
+    <!-- Progress Display -->
+    <div
+      v-if="isGenerating"
+      class="mcp-panel__progress"
+    >
+      <span class="mcp-panel__progress-spinner" />
+      <span class="mcp-panel__progress-text">
+        {{ progressMessage || '生成中...' }}
+      </span>
+      <span class="mcp-panel__progress-meta">
+        {{ elapsedSeconds }}s · {{ progressCount }} 进度
+      </span>
     </div>
 
     <!-- Error Display -->
@@ -603,6 +747,21 @@ onMounted(() => {
   color: var(--ei-text-secondary, #6b7280);
 }
 
+.mcp-panel__server-badge--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mcp-panel__server-badge--err {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.mcp-panel__server-toggle {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
 .mcp-panel__server-action {
   background: none;
   border: none;
@@ -697,6 +856,52 @@ onMounted(() => {
 .mcp-panel__generate:disabled {
   background: var(--ei-bg-tertiary, #e5e7eb);
   cursor: not-allowed;
+}
+
+.mcp-panel__generate--cancel {
+  background: var(--ei-danger, #dc2626);
+}
+
+.mcp-panel__generate--cancel:hover {
+  background: #b91c1c;
+}
+
+.mcp-panel__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 12px;
+  padding: 10px 12px;
+  background: var(--ei-bg-secondary, #f9fafb);
+  border: 1px solid var(--ei-border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ei-text-secondary, #6b7280);
+}
+
+.mcp-panel__progress-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ei-border, #e5e7eb);
+  border-top-color: var(--ei-primary, #4f46e5);
+  border-radius: 50%;
+  animation: mcp-spin 0.8s linear infinite;
+}
+
+@keyframes mcp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.mcp-panel__progress-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-panel__progress-meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--ei-text-quaternary, #9ca3af);
 }
 
 .mcp-panel__error {
