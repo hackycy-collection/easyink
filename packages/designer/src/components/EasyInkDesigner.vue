@@ -1,33 +1,30 @@
 <script setup lang="ts">
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
+import type { Contribution } from '../contributions'
 import type { LocaleMessages, PreferenceProvider } from '../types'
-import { defineAsyncComponent, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
+import { onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue'
 import { provideDesignerStore } from '../composables'
 import { useWorkbenchPersistence } from '../composables/use-workbench-persistence'
+import { ContributionRegistry } from '../contributions/contribution-registry'
+import { CONTRIBUTION_REGISTRY_KEY } from '../contributions/injection'
 import { registerBuiltinMaterials } from '../materials/registry'
 import { DesignerStore } from '../store/designer-store'
-import { TemplateHistoryManager } from '../store/template-history'
 import CanvasWorkspace from './CanvasWorkspace.vue'
 import StatusBar from './StatusBar.vue'
 import TopBarB from './TopBarB.vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   schema: DocumentSchema
   dataSources?: DataSourceDescriptor[]
   preferenceProvider?: PreferenceProvider
   locale?: LocaleMessages
-  enableMCP?: boolean
-}>(), {
-  enableMCP: false,
-})
+  contributions?: Contribution[]
+}>()
 
 const emit = defineEmits<{
   'update:schema': [schema: DocumentSchema]
 }>()
-
-// Async component for MCP Panel to avoid circular dependencies
-const MCPPanel = defineAsyncComponent(() => import('./mcp/MCPPanel.vue'))
 
 const store = reactive(new DesignerStore(props.schema, props.preferenceProvider)) as DesignerStore
 // EditingSessionManager was constructed before the reactive proxy existed;
@@ -52,15 +49,34 @@ if (props.dataSources) {
   }
 }
 
-// Template History Manager
-const templateHistory = shallowRef(new TemplateHistoryManager())
-
-// MCP Panel state
-const showMCPPanel = ref(false)
+// Contribution registry (panels / toolbar actions / commands)
+const contributionRegistry = shallowRef(new ContributionRegistry())
+if (props.contributions && props.contributions.length > 0) {
+  contributionRegistry.value.activate(props.contributions, store)
+}
+provide(CONTRIBUTION_REGISTRY_KEY, {
+  registry: contributionRegistry.value,
+  // Lazy access — only resolved when a toolbar action is clicked, by which
+  // point at least one contribution must have been activated.
+  get context() {
+    return contributionRegistry.value.context
+  },
+})
 
 watch(() => props.schema, (newSchema) => {
   if (newSchema !== store.schema) {
     store.setSchema(newSchema)
+  }
+})
+
+// Sync schema replacement back to the parent so `v-model:schema` reflects
+// programmatic mutations (e.g. AI generation calling `store.setSchema`).
+// In-place mutations of the same object reach the parent automatically
+// because props are passed by reference; this watcher only fires when the
+// internal _schema is reassigned to a new object identity.
+watch(() => store.schema, (newSchema) => {
+  if (newSchema !== props.schema) {
+    emit('update:schema', newSchema)
   }
 })
 
@@ -70,72 +86,34 @@ watch(() => props.locale, (newLocale) => {
 })
 
 onBeforeUnmount(() => {
+  contributionRegistry.value.dispose()
   store.destroy()
 })
-
-// MCP Panel event handlers
-function handleSchemaApply(schema: DocumentSchema, versionId: string) {
-  // Save to template history
-  templateHistory.value.saveVersion(schema, {
-    source: 'mcp',
-    prompt: 'MCP generated template',
-    metadata: { versionId },
-  })
-
-  // Emit schema update
-  emit('update:schema', schema)
-
-  // Also update store directly
-  store.setSchema(schema)
-}
-
-function handleDatasourceRegister(dataSource: DataSourceDescriptor, namespace: string) {
-  // Register via Provider Factory pattern
-  const factory = {
-    id: dataSource.id,
-    namespace,
-    resolve: async () => dataSource,
-  }
-  store.dataSourceRegistry.registerProviderFactory(factory)
-}
-
-function handleMCPError(error: { message: string, canRetry: boolean }) {
-  console.error('MCP generation error:', error.message)
-}
-
-function toggleMCPPanel() {
-  showMCPPanel.value = !showMCPPanel.value
-}
 </script>
 
 <template>
   <div class="ei-designer">
     <slot name="topbar" />
-    <TopBarB @toggle-mcp-panel="toggleMCPPanel" />
+    <TopBarB />
     <CanvasWorkspace />
     <StatusBar />
 
-    <!-- MCP Panel (conditionally rendered when enabled) -->
-    <div
-      v-if="enableMCP && showMCPPanel"
-      class="ei-designer__mcp-overlay"
+    <!-- Overlay root for contribution-registered panels (Vue Teleport target). -->
+    <div id="ei-overlay-root" class="ei-designer__overlay-root" />
+
+    <!-- Mount registered panels via Teleport. The contribution owns layout.
+         `defer` waits for the overlay-root sibling above to be mounted. -->
+    <template
+      v-for="panel in contributionRegistry.panels"
+      :key="panel.id"
     >
-      <Suspense>
-        <MCPPanel
-          :open="showMCPPanel"
-          :current-schema="store.schema"
-          @update:open="showMCPPanel = $event"
-          @schema-apply="handleSchemaApply"
-          @datasource-register="handleDatasourceRegister"
-          @error="handleMCPError"
+      <Teleport defer :to="panel.teleportTarget ?? '#ei-overlay-root'">
+        <component
+          :is="panel.component"
+          v-bind="{ store, ...(panel.props ?? {}) }"
         />
-        <template #fallback>
-          <div class="ei-designer__mcp-loading">
-            Loading MCP Panel...
-          </div>
-        </template>
-      </Suspense>
-    </div>
+      </Teleport>
+    </template>
   </div>
 </template>
 
@@ -152,29 +130,14 @@ function toggleMCPPanel() {
   position: relative;
 }
 
-.ei-designer__mcp-overlay {
+.ei-designer__overlay-root {
   position: fixed;
   inset: 0;
   z-index: 999;
   pointer-events: none;
 }
 
-.ei-designer__mcp-overlay > * {
+.ei-designer__overlay-root > * {
   pointer-events: auto;
-}
-
-.ei-designer__mcp-loading {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 400px;
-  height: 100vh;
-  background: var(--ei-bg, #fff);
-  border-left: 1px solid var(--ei-border, #e5e7eb);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ei-text-secondary, #6b7280);
-  font-size: 14px;
 }
 </style>

@@ -13,7 +13,9 @@ easyink/
 │   ├── designer/               # @easyink/designer — 设计器工作台 Vue 组件
 │   ├── ui/                     # @easyink/ui — 面板、表单、工作台基础组件
 │   ├── icons/                  # @easyink/icons — 图标资产
-│   ├── mcp/                    # @easyink/mcp — MCP Client、Server Registry、Schema Validator、DataSource Aligner
+│   ├── ai/                     # @easyink/ai — AI 对话面板、MCP Client、Server Registry、Designer Contribution
+│   ├── schema-tools/           # @easyink/schema-tools — Schema 校验、DataSource 对齐（Node + 浏览器双端）
+│   ├── mcp-server/             # @easyink/mcp-server — MCP Server、LLM Provider、Docker 部署
 │   ├── samples/                # @easyink/samples — 示例 schema、data 与 datasource
 │   └── materials/
 │       ├── text/
@@ -65,6 +67,7 @@ easyink/
 - 顶部工具栏、画布、面板系统、概览图、历史记录
 - 管理设计态工作台状态
 - 通过插槽和 `useDesignerStore()` 暴露宿主集成点，不在包级直接依赖 `@easyink/viewer`
+- 暴露 **Contribution API**（`Contribution` / `ContributionRegistry`）作为唯一外部扩展协议；不直接依赖 `@easyink/ai` 或 `@easyink/schema-tools`
 
 ### `@easyink/material-*`
 
@@ -72,14 +75,31 @@ easyink/
 - 包内同时提供 Schema 默认值、属性描述、Designer 交互、Viewer 渲染器
 - 先服务内置体系，第三方开放后再稳定契约
 
-### `@easyink/mcp`
+### `@easyink/schema-tools`
 
-- MCP (Model Context Protocol) 客户端实现
-- Server Registry：动态服务器配置管理，支持 localStorage 持久化
-- Schema Validator：Schema 校验器，支持 Auto-fix 策略
-- DataSource Aligner：数据源字段对齐工具，支持模糊匹配
-- MCPPanel：AI 模板生成面板组件（位于 `@easyink/designer`）
-- 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`（面板组件除外）
+- Schema 三层校验器（structure / semantic / binding），`validate()` 无副作用，`autoFix()` 操作 deep clone
+- DataSource 字段对齐工具，支持模糊匹配
+- 无 Vue 依赖，被 `@easyink/ai`（生成结果二次校验）和 `@easyink/mcp-server`（LLM 输出兜底校验）共同消费
+- 依赖 `datasource`、`schema`、`shared`
+
+### `@easyink/ai`
+
+- 浏览器端 AI 集成：MCP Client（`@modelcontextprotocol/sdk` + `StreamableHTTPClientTransport`）、Server Registry（localStorage 持久化）
+- AIPanel：模板对话生成面板组件，按需挂载
+- `createAIContribution()`：返回 designer Contribution，注册 toolbar 按钮、命令、面板
+- 依赖 `datasource`、`schema`、`schema-tools`、`shared`、`designer`（仅类型）、`vue`、`@modelcontextprotocol/sdk`
+
+### `@easyink/mcp-server`
+
+- MCP Server 实现（基于 `@modelcontextprotocol/sdk` 的 `McpServer`），支持 stdio 和 HTTP/SSE 两种 transport
+- LLM Provider 抽象层：通过 async factory pattern 动态加载 Claude / OpenAI SDK，避免 `require()`
+- 物料知识通过 `config/materials.json` 注入 system prompt
+- 暴露 `generateSchema` 和 `generateDataSource` 两个 MCP Tool
+- 无状态设计：schema 进出，无文件 IO，单机无认证
+- 依赖 `datasource`、`schema`、`schema-tools`、`shared`、`@modelcontextprotocol/sdk`、`zod`
+- LLM SDK（`@anthropic-ai/sdk`、`openai`）为 optionalDependencies，用户按需安装
+- Docker 部署：多阶段构建 + `pnpm deploy`，`docker-compose.yml` 一键启动
+- CLI 入口：`npx easyink-mcp-server`，通过 `MCP_TRANSPORT` 环境变量选择传输模式
 
 ## 3.2 物料包内部结构
 
@@ -110,10 +130,12 @@ core        datasource
 material-* ── core + schema + shared (+ datasource 按需)
   ↑
 designer ─── core + datasource + schema + shared + ui + icons + material-*
-  ↑           ↑
-mcp ──────────┘           (mcp 依赖 datasource + schema + shared)
   ↑
-playground ── designer + viewer + samples + schema + mcp
+ai ──────── designer (仅类型) + datasource + schema + schema-tools + shared + vue + @modelcontextprotocol/sdk
+
+mcp-server ─── schema-tools + datasource + schema + shared + @modelcontextprotocol/sdk + zod
+
+playground ── designer + ai + viewer + samples + schema
 ```
 
 依赖原则：
@@ -122,7 +144,9 @@ playground ── designer + viewer + samples + schema + mcp
 - `viewer` 依赖 `core`、`datasource`、`schema`、`shared`，不依赖 `material-*`（Viewer 物料渲染器由调用方注册）
 - `ui` 依赖 `icons` 和 `shared`，不依赖 `designer`；方向为 designer 依赖 ui
 - `samples` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`
-- `mcp` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`（但 MCPPanel 组件在 designer 包内）
+- `schema-tools` 仅依赖 `datasource`、`schema`、`shared`；无 Vue 依赖；可在 Node 与浏览器双端运行
+- `ai` 依赖 `schema-tools`（校验/对齐）、`designer`（仅 `Contribution` 与 `DesignerStore` 类型）、`vue`、`@modelcontextprotocol/sdk`；通过 `createAIContribution()` 注入 designer，**designer 不反向依赖 ai**
+- `mcp-server` 依赖 `schema-tools`（兜底校验）、`datasource`、`schema`、`shared`、`@modelcontextprotocol/sdk`、`zod`。LLM SDK 为 optionalDependencies（`@anthropic-ai/sdk`、`openai`），按运行时环境变量选择加载
 
 ## 3.4 对外消费方式
 

@@ -13,3 +13,4 @@ cache
 .eslintcache
 .playwright-mcp
 .turbo
+.env.local
