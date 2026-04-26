@@ -1,3 +1,31 @@
+export function buildPlanSystemPrompt(profileSummary: string): string {
+  return `You are an EasyInk template plan resolver.
+Decide the deterministic generation plan for the user's request: domain, paper size, page mode, and table strategy.
+
+## Output via tool
+Call the generate_plan tool. Return JSON with fields:
+- domain: short kebab-case identifier. Prefer one of the registered domains below; otherwise propose a new identifier.
+- page.mode: one of "fixed" | "stack" | "label" | "continuous"
+  - fixed: A4 / business documents
+  - stack: receipts that grow vertically (thermal paper, ~60-110mm wide)
+  - label: small adhesive labels (~30-150mm)
+  - continuous: very tall continuous rolls
+- page.width / page.height: millimetres. Be realistic for the medium (no A4 for receipts, no 80mm for invoices).
+- page.reason: one English sentence explaining why this paper fits.
+- tableStrategy: "table-data-for-arrays" | "table-static-for-fixed" | "avoid-table".
+- confidence: "high" | "medium" | "low".
+
+## Registered domains (for reference)
+${profileSummary}
+
+## Critical rules
+1. Never default unfamiliar receipts/labels to A4. Pick the smallest paper that fits.
+2. Use table-data-for-arrays whenever the document repeats item rows.
+3. Use avoid-table for labels and certificates.
+4. Respond ONLY via the tool call.
+`
+}
+
 export function buildSystemPrompt(materialContext: string): string {
   // Accuracy depends on deterministic context first: canonical material facts,
   // confirmed generation plan, and explicit rejection of legacy schema shapes.
@@ -115,6 +143,9 @@ Your task is to convert the user's natural language request into a compact Templ
 4. For arrays/detail lists, create an array field with children and an array-table section that points to the array path.
 5. expected sample data is not required, but if you provide sampleData it must match fields exactly.
 6. Follow the supplied EasyInk generation plan for domain, page mode, paper size, and table strategy.
+7. When the user request implies repeating items (商品/明细/菜品/服务), include an array field with the typical columns; do not skip it.
+8. Trust the resolved domain: when the plan domain is supermarket-receipt / restaurant-receipt, include items + total at minimum, since the deterministic builder treats them as required.
+9. When asked to fix issues from a previous attempt, address every listed issue without dropping previously included fields.
 
 ## TemplateIntent Shape
 \`\`\`json

@@ -38,8 +38,37 @@ export interface TemplateIntentGenerationInput {
   currentSchema?: DocumentSchema
   systemPrompt: string
   generationPlan?: AIGenerationPlan
+  /**
+   * Optional override of the model temperature. Used by the retry loop to
+   * bump diversity on the second attempt.
+   */
+  temperature?: number
+  /**
+   * Issues from the previous attempt that the model should fix. Rendered as
+   * an additional user message before the original prompt so the LLM can
+   * react without losing the original instruction.
+   */
+  feedbackMessages?: string[]
   signal?: AbortSignal
   onProgress?: (event: LLMProgressEvent) => void
+}
+
+export interface PlanGenerationInput {
+  prompt: string
+  systemPrompt: string
+  signal?: AbortSignal
+  onProgress?: (event: LLMProgressEvent) => void
+}
+
+/**
+ * Raw plan shape returned by the LLM. Validated and clamped via
+ * `coerceLLMPlan` before use, so the type intentionally stays loose.
+ */
+export interface PlanGenerationOutput {
+  domain?: string
+  page?: { mode?: string, width?: number, height?: number, reason?: string }
+  tableStrategy?: string
+  confidence?: 'high' | 'medium' | 'low'
 }
 
 export interface SchemaGenerationOutput {
@@ -64,6 +93,7 @@ export interface LLMProvider {
    * time-based heartbeat.
    */
   readonly supportsStreaming: boolean
+  generatePlan: (input: PlanGenerationInput) => Promise<PlanGenerationOutput>
   generateTemplateIntent: (input: TemplateIntentGenerationInput) => Promise<TemplateGenerationIntent>
   generateSchema: (input: SchemaGenerationInput) => Promise<SchemaGenerationOutput>
   generateDataSource: (

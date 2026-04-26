@@ -1,5 +1,13 @@
 export { DataSourceAligner } from './datasource-aligner'
 export type { AlignmentResult, UnalignedBinding } from './datasource-aligner'
+export {
+  coerceLLMPlan,
+  getDomainProfile,
+  inferAIGenerationPlan,
+  listDomainProfiles,
+  registerDomainProfile,
+} from './domain-profile'
+export type { DomainFieldSpec, DomainProfile } from './domain-profile'
 export { repairGeneratedSchema, validateGeneratedSchemaAccuracy } from './generation-accuracy'
 export type { GenerationAccuracyIssue, GenerationAccuracyOptions, GenerationRepairIssue } from './generation-accuracy'
 export { normalizeAllFieldPaths, SchemaValidator } from './schema-validator'

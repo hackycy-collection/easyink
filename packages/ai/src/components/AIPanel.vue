@@ -3,8 +3,8 @@ import type { DesignerStore } from '@easyink/designer'
 import type { AIGenerationPlan } from '@easyink/shared'
 import type { MCPServerConfig, SessionMessage } from '../types'
 import { AI_NAMESPACE } from '@easyink/datasource'
-import { DataSourceAligner, SchemaValidator } from '@easyink/schema-tools'
-import { generateId, inferAIGenerationPlan } from '@easyink/shared'
+import { DataSourceAligner, getDomainProfile, SchemaValidator } from '@easyink/schema-tools'
+import { generateId } from '@easyink/shared'
 import { computed, onMounted, ref } from 'vue'
 import { MCPClient } from '../mcp-client'
 import { ServerRegistry, validateServerConfig } from '../server-registry'
@@ -130,15 +130,7 @@ function handlePromptKeydown(e: KeyboardEvent) {
 }
 
 function formatDomain(domain: AIGenerationPlan['domain']): string {
-  const labels: Record<AIGenerationPlan['domain'], string> = {
-    'supermarket-receipt': '商超/便利店小票',
-    'restaurant-receipt': '餐饮小票',
-    'shipping-label': '快递/商品标签',
-    'business-document': '发票/报价单/订单',
-    'certificate': '证书/奖状',
-    'generic': '通用文档',
-  }
-  return labels[domain]
+  return getDomainProfile(domain).label
 }
 
 function formatTableStrategy(strategy: AIGenerationPlan['tableStrategy']): string {
@@ -153,13 +145,11 @@ function formatTableStrategy(strategy: AIGenerationPlan['tableStrategy']): strin
 async function handleGenerate() {
   if (!canGenerate.value)
     return
-
-  const generationPlan = inferAIGenerationPlan(prompt.value)
-  lastGenerationPlan.value = generationPlan
-  await runGenerate(generationPlan)
+  // Plan inference now lives on the server; the client just sends prompt.
+  await runGenerate()
 }
 
-async function runGenerate(generationPlan: AIGenerationPlan) {
+async function runGenerate() {
   isGenerating.value = true
   error.value = null
   canRetry.value = false
@@ -189,12 +179,12 @@ async function runGenerate(generationPlan: AIGenerationPlan) {
     }
     sessionMessages.value.push(userMsg)
 
-    // 2. Generate using MCP
+    // 2. Generate using MCP. Plan derivation is delegated to the server
+    // so that the keyword/LLM inference logic stays single-sourced.
     const result = await mcpClient.generate({
       serverId: selectedServerId.value!,
       prompt: prompt.value,
       currentSchema: props.store.schema,
-      generationPlan,
       context: {
         sessionHistory: sessionMessages.value,
       },
@@ -205,6 +195,12 @@ async function runGenerate(generationPlan: AIGenerationPlan) {
           progressMessage.value = p.message
       },
     })
+
+    // Surface the server-resolved plan so the user can review the
+    // assumptions that drove this generation.
+    const assumptions = result.metadata?.assumptions as AIGenerationPlan | undefined
+    if (assumptions)
+      lastGenerationPlan.value = assumptions
 
     // 3. Validate
     const validator = new SchemaValidator({
@@ -272,7 +268,7 @@ async function runGenerate(generationPlan: AIGenerationPlan) {
     const assistantMsg: SessionMessage = {
       id: generateId('msg'),
       role: 'assistant',
-      content: `模板已生成: ${generationPlan.domain}`,
+      content: `模板已生成: ${assumptions?.domain ?? 'generic'}`,
       timestamp: Date.now(),
       toolsUsed: result.toolsUsed,
       schemaSnapshot: alignment.schema,

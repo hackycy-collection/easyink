@@ -1,6 +1,6 @@
 import type { DocumentSchema } from '@easyink/schema'
-import { inferAIGenerationPlan } from '@easyink/shared'
 import { describe, expect, it } from 'vitest'
+import { inferAIGenerationPlan } from './domain-profile'
 import { repairGeneratedSchema, validateGeneratedSchemaAccuracy } from './generation-accuracy'
 
 const allowedMaterialTypes = new Set(['text', 'line', 'table-data', 'table-static'])

@@ -1,6 +1,6 @@
 import type { TableNode } from '@easyink/schema'
-import { inferAIGenerationPlan } from '@easyink/shared'
 import { describe, expect, it } from 'vitest'
+import { inferAIGenerationPlan } from './domain-profile'
 import { buildSchemaFromTemplateIntent } from './template-intent'
 
 describe('template intent builder', () => {

@@ -1,6 +1,8 @@
 import type { BindingRef, DocumentSchema, ExpectedDataSource, ExpectedField, MaterialNode, PageSchema } from '@easyink/schema'
 import type { AIGenerationPlan } from '@easyink/shared'
+import type { DomainFieldSpec, DomainProfile } from './domain-profile'
 import { BLOCKED_PATH_KEYS, FIELD_PATH_SEPARATOR } from '@easyink/shared'
+import { getDomainProfile } from './domain-profile'
 
 export type TemplateIntentSectionKind = 'title' | 'text' | 'field-list' | 'array-table' | 'summary' | 'footer' | 'code'
 
@@ -53,50 +55,21 @@ export interface TemplateBuildResult {
   schema: DocumentSchema
   expectedDataSource: ExpectedDataSource
   intent: Required<Pick<TemplateGenerationIntent, 'dataSourceName' | 'fields' | 'sections' | 'warnings'>> & TemplateGenerationIntent
+  /**
+   * Required field paths that the LLM omitted. The deterministic builder
+   * still injects them so the schema stays usable, but the mcp-server tool
+   * uses this to decide whether a single LLM retry is worthwhile.
+   */
+  missingRequiredPaths: string[]
 }
-
-const RECEIPT_FIELD_DEFAULTS: TemplateIntentField[] = [
-  {
-    name: 'store',
-    title: '门店',
-    type: 'object',
-    path: 'store',
-    children: [
-      { name: 'name', title: '店铺名称', type: 'string', path: 'store/name', required: true },
-      { name: 'address', title: '门店地址', type: 'string', path: 'store/address' },
-      { name: 'phone', title: '联系电话', type: 'string', path: 'store/phone' },
-    ],
-  },
-  { name: 'receiptNo', title: '小票号', type: 'string', path: 'receiptNo', required: true },
-  { name: 'datetime', title: '交易时间', type: 'string', path: 'datetime', required: true },
-  { name: 'cashier', title: '收银员', type: 'string', path: 'cashier' },
-  {
-    name: 'items',
-    title: '商品明细',
-    type: 'array',
-    path: 'items',
-    required: true,
-    children: [
-      { name: 'name', title: '商品', type: 'string', path: 'items/name', required: true },
-      { name: 'barcode', title: '条码', type: 'string', path: 'items/barcode' },
-      { name: 'quantity', title: '数量', type: 'number', path: 'items/quantity', required: true },
-      { name: 'unitPrice', title: '单价', type: 'number', path: 'items/unitPrice', required: true },
-      { name: 'subtotal', title: '小计', type: 'number', path: 'items/subtotal', required: true },
-    ],
-  },
-  { name: 'subtotal', title: '商品合计', type: 'number', path: 'subtotal', required: true },
-  { name: 'discount', title: '优惠金额', type: 'number', path: 'discount' },
-  { name: 'total', title: '应付合计', type: 'number', path: 'total', required: true },
-  { name: 'paymentMethod', title: '支付方式', type: 'string', path: 'paymentMethod' },
-  { name: 'paidAmount', title: '实收金额', type: 'number', path: 'paidAmount' },
-  { name: 'change', title: '找零', type: 'number', path: 'change' },
-]
 
 export function buildSchemaFromTemplateIntent(
   rawIntent: TemplateGenerationIntent,
   options: TemplateBuildOptions,
 ): TemplateBuildResult {
   elementCounter = 0
+  const profile = getDomainProfile(rawIntent.domain ?? options.plan.domain)
+  const missingRequiredPaths = computeMissingRequiredPaths(rawIntent.fields, profile)
   const intent = normalizeTemplateIntent(rawIntent, options)
   const page = resolvePage(intent, options.plan)
   const schema: DocumentSchema = {
@@ -109,7 +82,7 @@ export function buildSchemaFromTemplateIntent(
 
   const dataSourceName = intent.dataSourceName
   const layout = createLayoutCursor(page)
-  const title = intent.name || titleForDomain(options.plan.domain)
+  const title = intent.name || profile.label
   addTitle(schema.elements, title, layout, dataSourceName)
 
   for (const section of intent.sections) {
@@ -124,25 +97,34 @@ export function buildSchemaFromTemplateIntent(
     sampleData: createSampleData(intent.fields),
   }
 
-  return { schema, expectedDataSource, intent }
+  return { schema, expectedDataSource, intent, missingRequiredPaths }
 }
 
 export function normalizeTemplateIntent(
   rawIntent: TemplateGenerationIntent,
   options: TemplateBuildOptions,
 ): TemplateBuildResult['intent'] {
-  const dataSourceName = sanitizeIdentifier(rawIntent.dataSourceName || defaultDataSourceName(options.plan.domain))
-  const defaults = defaultsForPlan(options.plan)
+  const profile = getDomainProfile(rawIntent.domain ?? options.plan.domain)
+  const dataSourceName = sanitizeIdentifier(rawIntent.dataSourceName || profile.dataSourceName)
   const intentFields = [
     ...(Array.isArray(rawIntent.fields) ? rawIntent.fields : []),
     ...extractFieldsFromSections(rawIntent.sections),
   ]
-  const rawFields = intentFields.length > 0 ? intentFields : defaults
-  const fields = mergeDefaultFields(normalizeFields(rawFields), normalizeFields(defaults), options.plan)
+  const llmProvidedFields = intentFields.length > 0
+  // Trust LLM output: when the LLM produced any fields, only inject required
+  // fields that are missing. Suggested fields are only used as a complete
+  // fallback when the LLM produced nothing.
+  const baseFields = llmProvidedFields
+    ? normalizeFields(intentFields)
+    : normalizeFields([
+        ...(profile.requiredFields ?? []),
+        ...(profile.suggestedFields ?? []),
+      ])
+  const fields = injectMissingRequired(baseFields, profile)
   const sections = normalizeSections(rawIntent.sections, fields, options.plan)
   const warnings = [
     ...(rawIntent.warnings ?? []),
-    ...(rawFields === defaults ? ['Intent fields were filled from the deterministic profile defaults.'] : []),
+    ...(!llmProvidedFields ? ['Intent fields were filled from the deterministic profile defaults.'] : []),
   ]
 
   return {
@@ -195,45 +177,50 @@ function addSection(
 }
 
 function addTitle(elements: MaterialNode[], title: string, layout: LayoutCursor, dataSourceName: string): void {
+  // fontSize is in page.unit (mm). 4-5mm ≈ 11-14pt for compact / standard.
+  const fontSize = layout.compact ? 4 : 5
+  const height = fontSize * 1.6
   elements.push({
     id: nextElementId('txt-title'),
     type: 'text',
     x: layout.margin,
     y: layout.y,
     width: layout.contentWidth,
-    height: 9,
+    height,
     props: {
       content: title,
-      fontSize: layout.compact ? 10 : 16,
+      fontSize,
       fontWeight: 'bold',
       textAlign: 'center',
       verticalAlign: 'middle',
       color: '#111827',
     },
   })
-  layout.y += 11
+  layout.y += height + 1.5
   void dataSourceName
 }
 
 function addText(elements: MaterialNode[], text: string, layout: LayoutCursor, dataSourceName: string): void {
   if (!text.trim())
     return
+  const fontSize = layout.compact ? 2.6 : 3.2
+  const height = fontSize * 1.6
   elements.push({
     id: nextElementId('txt-note'),
     type: 'text',
     x: layout.margin,
     y: layout.y,
     width: layout.contentWidth,
-    height: 6,
+    height,
     props: {
       content: text,
-      fontSize: layout.compact ? 6.5 : 10,
+      fontSize,
       textAlign: 'center',
       verticalAlign: 'middle',
       color: '#374151',
     },
   })
-  layout.y += 7
+  layout.y += height + 1
   void dataSourceName
 }
 
@@ -244,9 +231,13 @@ function addFieldRows(
   dataSourceName: string,
   emphasize: boolean,
 ): void {
+  // Standard text 3mm ≈ 8.5pt; emphasized 3.6mm ≈ 10pt; compact halved.
+  const fontSize = layout.compact
+    ? (emphasize ? 3 : 2.6)
+    : (emphasize ? 3.6 : 3)
+  const rowHeight = fontSize * 1.6
+  const labelWidth = layout.contentWidth * 0.42
   for (const field of fields) {
-    const rowHeight = emphasize ? 7 : 5.5
-    const labelWidth = layout.contentWidth * 0.42
     elements.push(createTextNode({
       prefix: 'txt-label',
       x: layout.margin,
@@ -254,7 +245,7 @@ function addFieldRows(
       width: labelWidth,
       height: rowHeight,
       content: `${fieldTitle(field)}:`,
-      fontSize: emphasize ? 8 : 6.5,
+      fontSize,
       fontWeight: emphasize ? 'bold' : 'normal',
       textAlign: 'left',
     }))
@@ -265,7 +256,7 @@ function addFieldRows(
       width: layout.contentWidth - labelWidth,
       height: rowHeight,
       content: '',
-      fontSize: emphasize ? 8 : 6.5,
+      fontSize,
       fontWeight: emphasize ? 'bold' : 'normal',
       textAlign: 'right',
       binding: createBinding(dataSourceName, field.path!, fieldTitle(field)),
@@ -285,7 +276,9 @@ function addArrayTable(
   if (columns.length === 0)
     return
 
-  const rowHeight = layout.compact ? 6 : 8
+  // Table cell typography is also in page.unit (mm).
+  const cellFontSize = layout.compact ? 2.6 : 3
+  const rowHeight = cellFontSize * 1.8
   const tableHeight = rowHeight * 2
   elements.push({
     id: nextElementId('tbl-items'),
@@ -302,7 +295,7 @@ function addArrayTable(
       borderWidth: 0.2,
       cellPadding: layout.compact ? 1 : 1.5,
       typography: {
-        fontSize: layout.compact ? 6 : 9,
+        fontSize: cellFontSize,
         color: '#111827',
         fontWeight: 'normal',
         fontStyle: 'normal',
@@ -429,12 +422,17 @@ function normalizeSections(
 function deriveSections(fields: TemplateIntentField[], plan: AIGenerationPlan): TemplateIntentSection[] {
   const arrayFields = fields.filter(field => field.type === 'array')
   const scalarFields = collectScalarLeaves(fields)
-
+  // Receipts conventionally split scalars into a header field-list (store /
+  // datetime / cashier ...) and a summary block (subtotal / total / payment
+  // ...). Detect by path keywords so the rule still applies for any user-
+  // declared receipt domain.
   if (plan.domain === 'supermarket-receipt' || plan.domain === 'restaurant-receipt') {
+    const headerKeys = /^(?:store\/|receiptNo|orderNo|datetime|cashier|tableNo|guests)/i
+    const summaryKeys = /^(?:subtotal|discount|total|paymentMethod|paidAmount|change)$/i
     return [
-      { kind: 'field-list', fields: scalarFields.filter(field => ['store/name', 'store/address', 'store/phone', 'receiptNo', 'datetime', 'cashier'].includes(field.path!)) },
+      { kind: 'field-list', fields: scalarFields.filter(field => headerKeys.test(field.path!)) },
       ...arrayFields.map(field => ({ kind: 'array-table' as const, sourcePath: field.path })),
-      { kind: 'summary', fields: scalarFields.filter(field => ['subtotal', 'discount', 'total', 'paymentMethod', 'paidAmount', 'change'].includes(field.path!)) },
+      { kind: 'summary', fields: scalarFields.filter(field => summaryKeys.test(field.path!)) },
       { kind: 'footer', text: '谢谢惠顾' },
     ]
   }
@@ -461,26 +459,64 @@ function normalizeFields(fields: TemplateIntentField[], parentPath = ''): Templa
   })
 }
 
-function mergeDefaultFields(fields: TemplateIntentField[], defaults: TemplateIntentField[], plan: AIGenerationPlan): TemplateIntentField[] {
-  if (plan.domain !== 'supermarket-receipt' && plan.domain !== 'restaurant-receipt')
+function injectMissingRequired(
+  fields: TemplateIntentField[],
+  profile: DomainProfile,
+): TemplateIntentField[] {
+  const required = profile.requiredFields
+  if (!required?.length)
     return ensureArrayChildren(fields)
 
   const byPath = new Map(fields.map(field => [field.path, field]))
-  for (const defaultField of defaults) {
-    const existingField = byPath.get(defaultField.path)
-    if (!existingField) {
-      fields.push(defaultField)
+  for (const requiredField of normalizeFields(required as TemplateIntentField[])) {
+    const existing = byPath.get(requiredField.path)
+    if (!existing) {
+      fields.push(requiredField)
+      byPath.set(requiredField.path, requiredField)
       continue
     }
-    if (defaultField.children?.length) {
-      existingField.children = mergeDefaultFields(
-        existingField.children ?? [],
-        defaultField.children,
-        plan,
+    if (requiredField.children?.length) {
+      existing.children = injectMissingRequired(
+        existing.children ?? [],
+        { ...profile, requiredFields: requiredField.children as DomainFieldSpec[] },
       )
     }
   }
   return ensureArrayChildren(fields)
+}
+
+function computeMissingRequiredPaths(
+  rawFields: TemplateIntentField[] | undefined,
+  profile: DomainProfile,
+): string[] {
+  const required = profile.requiredFields
+  if (!required?.length)
+    return []
+  const presentPaths = new Set<string>()
+  for (const field of normalizeFields(rawFields ?? []))
+    collectPaths(field, presentPaths)
+  const missing: string[] = []
+  for (const requiredField of normalizeFields(required as TemplateIntentField[]))
+    collectMissing(requiredField, presentPaths, missing)
+  return missing
+}
+
+function collectPaths(field: TemplateIntentField, set: Set<string>): void {
+  if (field.path)
+    set.add(field.path)
+  for (const child of field.children ?? [])
+    collectPaths(child, set)
+}
+
+function collectMissing(
+  field: TemplateIntentField,
+  presentPaths: Set<string>,
+  acc: string[],
+): void {
+  if (field.path && !presentPaths.has(field.path))
+    acc.push(field.path)
+  for (const child of field.children ?? [])
+    collectMissing(child, presentPaths, acc)
 }
 
 function extractFieldsFromSections(sections: TemplateIntentSection[] | undefined): TemplateIntentField[] {
@@ -502,25 +538,8 @@ function ensureArrayChildren(fields: TemplateIntentField[]): TemplateIntentField
   return fields
 }
 
-function defaultsForPlan(plan: AIGenerationPlan): TemplateIntentField[] {
-  if (plan.domain === 'supermarket-receipt' || plan.domain === 'restaurant-receipt')
-    return RECEIPT_FIELD_DEFAULTS
-  return [
-    { name: 'title', title: '标题', type: 'string', path: 'title' },
-    {
-      name: 'items',
-      title: '明细',
-      type: 'array',
-      path: 'items',
-      children: [
-        { name: 'name', title: '名称', type: 'string', path: 'items/name' },
-        { name: 'quantity', title: '数量', type: 'number', path: 'items/quantity' },
-        { name: 'amount', title: '金额', type: 'number', path: 'items/amount' },
-      ],
-    },
-    { name: 'total', title: '合计', type: 'number', path: 'total' },
-  ]
-}
+// `defaultsForPlan` and `defaultDataSourceName` were folded into
+// `getDomainProfile()` from `domain-profile.ts`.
 
 function normalizeColumns(columns: TemplateIntentColumn[] | undefined, arrayField: TemplateIntentField): TemplateIntentColumn[] {
   if (columns?.length) {
@@ -718,25 +737,8 @@ function isKnownSection(kind: string): kind is TemplateIntentSectionKind {
   return ['title', 'text', 'field-list', 'array-table', 'summary', 'footer', 'code'].includes(kind)
 }
 
-function defaultDataSourceName(domain: AIGenerationPlan['domain']): string {
-  if (domain === 'supermarket-receipt' || domain === 'restaurant-receipt')
-    return 'receipt'
-  if (domain === 'business-document')
-    return 'document'
-  return 'templateData'
-}
-
-function titleForDomain(domain: AIGenerationPlan['domain']): string {
-  const titles: Record<AIGenerationPlan['domain'], string> = {
-    'supermarket-receipt': '购物小票',
-    'restaurant-receipt': '消费小票',
-    'shipping-label': '物流标签',
-    'business-document': '业务单据',
-    'certificate': '证书',
-    'generic': '模板',
-  }
-  return titles[domain]
-}
+// `defaultDataSourceName` and `titleForDomain` were folded into
+// `DomainProfile.dataSourceName` and `DomainProfile.label`.
 
 interface LayoutCursor {
   margin: number
