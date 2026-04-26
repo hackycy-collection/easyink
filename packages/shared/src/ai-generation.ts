@@ -23,6 +23,21 @@ export interface AIPageAssumption {
 }
 
 /**
+ * Compact projection of a domain's required field used to give the intent
+ * stage a concrete checklist. Carrying it on the plan keeps the prompt
+ * grounded in deterministic facts instead of relying on the LLM to recall
+ * domain conventions from its training data.
+ */
+export interface DomainFieldHint {
+  name: string
+  path: string
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object'
+  required: boolean
+  title?: string
+  children?: DomainFieldHint[]
+}
+
+/**
  * Deterministic generation plan shared between the AI panel and the
  * mcp-server. The plan is derived (by keyword inference, by an LLM call,
  * or supplied by the caller) before the intent stage so that paper size,
@@ -38,6 +53,13 @@ export interface AIGenerationPlan {
   sampleData: 'required'
   materialHints: string[]
   warnings: string[]
+  /**
+   * Required-field checklist projected from the resolved domain profile.
+   * The intent stage relies on this list to avoid skipping structurally
+   * essential fields (e.g. a receipt without items+total). Empty when no
+   * domain profile is registered for the resolved domain.
+   */
+  requiredFieldHints?: DomainFieldHint[]
 }
 
 export interface AIMaterialDescriptor {

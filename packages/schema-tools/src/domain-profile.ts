@@ -1,4 +1,4 @@
-import type { AIGenerationPlan, AIPageAssumption } from '@easyink/shared'
+import type { AIGenerationPlan, AIPageAssumption, DomainFieldHint } from '@easyink/shared'
 
 /**
  * Field shape used by domain profiles to declare required and suggested
@@ -295,6 +295,30 @@ function planFromProfile(profile: DomainProfile, confidence: AIGenerationPlan['c
     sampleData: 'required',
     materialHints: profile.materialHints,
     warnings,
+    requiredFieldHints: projectRequiredFieldHints(profile.requiredFields),
+  }
+}
+
+/**
+ * Project the profile's required-field tree into the lighter `DomainFieldHint`
+ * shape that travels on the plan. We only carry the hints (name/path/type/
+ * required/title) so the prompt stays compact and decoupled from the
+ * `DomainFieldSpec` that drives the deterministic builder.
+ */
+function projectRequiredFieldHints(specs: DomainFieldSpec[] | undefined): DomainFieldHint[] | undefined {
+  if (!specs || specs.length === 0)
+    return undefined
+  return specs.map(spec => projectFieldHint(spec))
+}
+
+function projectFieldHint(spec: DomainFieldSpec): DomainFieldHint {
+  return {
+    name: spec.name,
+    path: spec.path ?? spec.name,
+    type: spec.type ?? 'string',
+    required: spec.required ?? true,
+    title: spec.title ?? spec.fieldLabel,
+    children: spec.children?.length ? spec.children.map(child => projectFieldHint(child)) : undefined,
   }
 }
 
@@ -334,6 +358,9 @@ export function coerceLLMPlan(raw: unknown, prompt: string): AIGenerationPlan {
     sampleData: 'required',
     materialHints: profile?.materialHints ?? fallback.materialHints,
     warnings: profile ? [] : [`Unknown LLM-proposed domain "${domain}", using inferred profile.`],
+    requiredFieldHints: profile
+      ? projectRequiredFieldHints(profile.requiredFields)
+      : fallback.requiredFieldHints,
   }
 }
 

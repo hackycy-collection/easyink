@@ -189,3 +189,6 @@ Contribution API 不绑定 AI；后续若引入“审计面板”“素材市场
 - **Server 统一数据源描述**：`generateSchema` 返回完整 `DataSourceDescriptor`，并保持 `dataSource.id === schema binding.sourceId` 的稳定 slug；AI client 只在兼容旧服务时从 `expectedDataSource` 本地转换。
 - **确定性表格构建优先**：数组/明细字段由 Intent builder 生成合法 `table-data`，固定包含 header row 与 repeat-template row。生成后仍只对直接 LLM schema 做低风险修复；表格结构不再依赖模型临场拼装。
 - **字段命名规范**：中文需求下，字段 path 使用英文 camelCase/斜杠路径，`fieldLabel`/`title` 使用中文。例如 `store/name` + `店铺名称`、`items/subtotal` + `小计`。
+- **Plan 携带必备字段提示**：`AIGenerationPlan.requiredFieldHints?: DomainFieldHint[]` 由 domain profile 的 `requiredFields` 投影而成（`{ name, path, type, required, title?, children? }`），随 plan 一并送入 intent system prompt。LLM 必须在 `TemplateIntent.fields` 中覆盖这些路径；缺失时 server 会以指令式反馈触发一次重试，不再裸抛 `MISSING_REQUIRED_FIELD` 错误码。新增 domain 时只需在 profile 上声明 `requiredFields`，无需改动提示词。
+- **指令式重试反馈**：可由 LLM 修复的校验码（`UNKNOWN_MATERIAL_TYPE` / `INVALID_TABLE_DATA_SCHEMA` / `INVALID_TABLE_STATIC_SCHEMA` / `STATIC_BINDING_ON_ELEMENT` / `LEGACY_TABLE_SCHEMA`）在喂给下一轮重试前，会经 `FEEDBACK_INSTRUCTIONS` 翻译成具体修复指令（例如「不要使用 `type: "table"`，改用 table-data 并填充 topology」），显著提升二次成功率。
+- **低置信度回执**：当 plan.confidence = `low`（generic profile 兜底）时，`generateSchema` 仍返回 schema，但 payload 多带 `needsClarification: { reason, questions[] }`。调用方（通常是上层 LLM）应在提交前先向用户回放这些问题，避免把无信号的 prompt 直接落到通用模板。该字段在中/高置信度下不存在。

@@ -29,6 +29,48 @@ const RETRY_TRIGGER_CODES = new Set([
   'LEGACY_TABLE_SCHEMA',
 ])
 
+/**
+ * Translate raw validator codes into the imperative behavior instructions
+ * the LLM responds best to. Mirrors the "Common Mistakes" section in the
+ * intent system prompt so the second attempt sees consistent guidance.
+ */
+const FEEDBACK_INSTRUCTIONS: Record<string, string> = {
+  UNKNOWN_MATERIAL_TYPE: 'Replace the unknown material type with a canonical one from the material context (e.g. text, image, table-data, table-static, container, qrcode, barcode, line, rect).',
+  INVALID_TABLE_DATA_SCHEMA: 'Fix the table-data structure: include table.kind="data", a topology with column ratios, header + repeat-template rows, and cells that bind to the array path.',
+  INVALID_TABLE_STATIC_SCHEMA: 'Fix the table-static structure: include table.kind="static", explicit rows with fixed heights, and cells that use content.text or staticBinding.',
+  STATIC_BINDING_ON_ELEMENT: 'Remove staticBinding from this non-table element. staticBinding is reserved for cells inside table-static. Put the value in props.content or set up a real binding instead.',
+  LEGACY_TABLE_SCHEMA: 'Do not use type="table" or legacy column/headerStyle props. Use canonical table-data (with topology + cells) for repeating rows, or table-static for fixed grids.',
+}
+
+function describeFeedback(code: string, path: string, fallbackMessage: string): string {
+  const instruction = FEEDBACK_INSTRUCTIONS[code]
+  if (instruction)
+    return `At ${path}: ${instruction}`
+  return `At ${path}: ${fallbackMessage}`
+}
+
+/**
+ * When the resolved plan is low-confidence (e.g. the user said "make a
+ * template" with no domain signal) we still ship a result so the caller
+ * can preview it, but we surface a focused list of clarifying questions.
+ * The caller — typically the host LLM driving this MCP tool — decides
+ * whether to ask the user before committing the generated schema.
+ */
+function buildClarification(plan: AIGenerationPlan): { reason: string, questions: string[] } | undefined {
+  if (plan.confidence !== 'low')
+    return undefined
+  const questions: string[] = [
+    'What kind of document is this — receipt, invoice/order, label, certificate, or something else?',
+    `Is the paper size right (currently ${plan.page.mode}, ${plan.page.width}x${plan.page.height}mm)? If not, what should it be?`,
+  ]
+  if (plan.tableStrategy === 'table-data-for-arrays')
+    questions.push('What columns should the item table show, and is there a fixed column order?')
+  return {
+    reason: 'Low-confidence plan: assumptions were taken from a generic profile. Confirm before committing.',
+    questions,
+  }
+}
+
 const MAX_INTENT_ATTEMPTS = 2
 
 export function registerGenerateSchemaTool(
@@ -118,12 +160,12 @@ export function registerGenerateSchemaTool(
           const retryReasons: string[] = []
           if (lastBuild.missingRequiredPaths.length > 0) {
             retryReasons.push(
-              `MISSING_REQUIRED_FIELD: the intent must include these field paths: ${lastBuild.missingRequiredPaths.join(', ')}`,
+              `Add these required field paths to your TemplateIntent (declared by the resolved domain profile): ${lastBuild.missingRequiredPaths.join(', ')}. Keep their declared types and any nested children.`,
             )
           }
           for (const issue of lastAccuracyIssues) {
             if (RETRY_TRIGGER_CODES.has(issue.code))
-              retryReasons.push(`${issue.code} at ${issue.path}: ${issue.message}`)
+              retryReasons.push(describeFeedback(issue.code, issue.path, issue.message))
           }
 
           if (retryReasons.length === 0)
@@ -206,6 +248,7 @@ export function registerGenerateSchemaTool(
           assumptions: plan,
           intent,
           attempts: attempt,
+          needsClarification: buildClarification(plan),
           validation: {
             valid: validation.valid,
             errors: validation.errors,
