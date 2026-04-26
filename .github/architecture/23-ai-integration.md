@@ -145,7 +145,7 @@ packages/schema-tools/src/
 
 `McpServer` 的主工具是 `generateSchema`（plan -> TemplateIntent -> deterministic schema/expectedDataSource/DataSourceDescriptor -> repair/validate）。同时注册研发调试工具：`resolvePlan`、`generateIntent`、`buildSchemaFromIntent`、`validateGeneratedSchema`，用于定位生成偏差发生在 plan、intent、确定性构建还是校验阶段。`generateDataSource` 保留为兼容工具，但现在只做确定性 `ExpectedDataSource -> DataSourceDescriptor` 转换，不再额外调用 LLM。
 
-Transport 通过 `MCP_TRANSPORT` 在 stdio / HTTP 间切换；LLM Provider 通过 `MCP_PROVIDER` 在 Claude / OpenAI 间切换。HTTP 默认监听 `0.0.0.0` 并返回 `Access-Control-Allow-Origin: *`，不提供 Origin allowlist 或 MCP 级 API key 配置。浏览器客户端可通过 `X-EasyInk-Provider`、`X-EasyInk-Provider-Key`、`X-EasyInk-Model`、`X-EasyInk-Base-URL` 按请求传入 provider 配置；未传入时回落到 `MCP_PROVIDER`、`MCP_API_KEY`、`MCP_MODEL`、`MCP_BASE_URL`。结构化输出默认开启，`MCP_STRICT_OUTPUTS=false` 可回退到 JSON mode 兼容 OpenAI-like provider。详见 `packages/mcp-server/README.md`。
+Transport 通过 `MCP_TRANSPORT` 在 stdio / HTTP 间切换；LLM Provider 通过 `MCP_PROVIDER` 在 Claude / OpenAI 间切换。HTTP 默认监听 `0.0.0.0` 并返回 `Access-Control-Allow-Origin: *`，不提供 Origin allowlist 或 MCP 级 API key 配置。浏览器客户端可通过 `X-EasyInk-Provider`、`X-EasyInk-Provider-Key`、`X-EasyInk-Model`、`X-EasyInk-Base-URL` 按请求传入 provider 配置；未传入时回落到 `MCP_PROVIDER`、`MCP_API_KEY`、`MCP_MODEL`、`MCP_BASE_URL`。结构化输出默认开启；OpenAI-like provider 若拒绝 strict `json_schema` 会自动降级到 `json_object`，必要时再移除 `response_format`，也可通过 `MCP_STRICT_OUTPUTS=false` 直接从 JSON mode 开始。详见 `packages/mcp-server/README.md`。
 
 ## 23.6 命名空间
 

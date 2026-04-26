@@ -193,7 +193,11 @@ export class MCPClient {
         throw new Error('Server returned no text content')
       }
 
-      const data = JSON.parse(textBlock.text) as {
+      if (result.isError) {
+        throw new Error(`Schema generation failed: ${extractToolErrorMessage(textBlock.text)}`)
+      }
+
+      let data: {
         schema: DocumentSchema
         expectedDataSource: { name: string, fields: Array<Record<string, unknown>>, sampleData?: Record<string, unknown> }
         dataSource?: DataSourceDescriptor
@@ -201,6 +205,12 @@ export class MCPClient {
         intent?: Record<string, unknown>
         validation?: { valid: boolean, errors?: Array<Record<string, unknown>>, warnings?: Array<Record<string, unknown>> }
         error?: string
+      }
+      try {
+        data = JSON.parse(textBlock.text) as typeof data
+      }
+      catch {
+        throw new Error(`Server returned invalid JSON: ${textBlock.text.slice(0, 200)}`)
       }
 
       if (data.error) {
@@ -371,4 +381,16 @@ function classifyMcpError(error: unknown, signal: AbortSignal | undefined): stri
     return '已取消生成'
   }
   return raw
+}
+
+function extractToolErrorMessage(text: string): string {
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown, message?: unknown }
+    if (typeof parsed.error === 'string')
+      return parsed.error
+    if (typeof parsed.message === 'string')
+      return parsed.message
+  }
+  catch {}
+  return text
 }

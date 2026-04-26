@@ -19,7 +19,7 @@ HTTP mode defaults to `http://0.0.0.0:3000/mcp` and allows browser requests from
 | `MCP_PROVIDER` | no | `claude` | `claude` or `openai`; fallback when `X-EasyInk-Provider` is not sent. |
 | `MCP_MODEL` | no | provider default | Model name fallback when `X-EasyInk-Model` is not sent. |
 | `MCP_BASE_URL` | no | provider default | Custom provider-compatible endpoint fallback when `X-EasyInk-Base-URL` is not sent. |
-| `MCP_STRICT_OUTPUTS` | no | `true` | Set to `false` to fall back from strict structured output to JSON mode where supported. |
+| `MCP_STRICT_OUTPUTS` | no | `true` | Set to `false` to start directly in JSON mode. OpenAI-compatible endpoints that reject strict `json_schema` are automatically retried with `json_object`, then without `response_format` if needed. |
 | `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http`. |
 | `MCP_HTTP_HOST` | no | `0.0.0.0` | HTTP bind host. |
 | `MCP_HTTP_PORT` | no | `3000` | HTTP port. |
