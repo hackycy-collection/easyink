@@ -3,23 +3,18 @@
   "commit": false,
   "fixed": [
     [
-      "@easyink/material-barcode",
-      "@easyink/material-chart",
-      "@easyink/material-container",
-      "@easyink/material-ellipse",
-      "@easyink/material-image",
-      "@easyink/material-line",
-      "@easyink/material-page-number",
-      "@easyink/material-qrcode",
-      "@easyink/material-rect",
-      "@easyink/material-svg",
-      "@easyink/material-table-data",
-      "@easyink/material-table-kernel",
-      "@easyink/material-table-static",
-      "@easyink/material-text"
+      "@easyink/material-*",
+      "@easyink/viewer-materials-builtin"
     ]
   ],
-  "linked": [],
+  "linked": [
+    [
+      "@easyink/ai",
+      "@easyink/designer",
+      "@easyink/icons",
+      "@easyink/ui"
+    ]
+  ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
