@@ -82,7 +82,7 @@ defineExpose({ focus: () => textareaRef.value?.focus() })
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-input {
   display: flex;
   align-items: center;
@@ -92,70 +92,70 @@ defineExpose({ focus: () => textareaRef.value?.focus() })
   border-radius: 12px;
   background: var(--ei-bg, #fff);
   transition: border-color 0.15s, box-shadow 0.15s;
-}
 
-.ai-input:focus-within {
-  border-color: var(--ei-primary, #4f46e5);
-  box-shadow: 0 0 0 3px var(--ei-primary-light, rgba(79, 70, 229, 0.1));
-}
+  &:focus-within {
+    border-color: var(--ei-primary, #4f46e5);
+    box-shadow: 0 0 0 3px var(--ei-primary-light, rgba(79, 70, 229, 0.1));
+  }
 
-.ai-input__textarea {
-  flex: 1;
-  border: none;
-  outline: none;
-  resize: none;
-  font-size: 13px;
-  font-family: inherit;
-  line-height: 1.5;
-  background: transparent;
-  color: var(--ei-text, #111827);
-  max-height: 136px;
-  min-height: 20px;
-  padding: 0;
-}
+  &__textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.5;
+    background: transparent;
+    color: var(--ei-text, #111827);
+    max-height: 136px;
+    min-height: 20px;
+    padding: 0;
 
-.ai-input__textarea::placeholder {
-  color: var(--ei-text-quaternary, #9ca3af);
-}
+    &::placeholder {
+      color: var(--ei-text-quaternary, #9ca3af);
+    }
 
-.ai-input__textarea:disabled {
-  cursor: not-allowed;
-  color: var(--ei-text-secondary, #6b7280);
-}
+    &:disabled {
+      cursor: not-allowed;
+      color: var(--ei-text-secondary, #6b7280);
+    }
+  }
 
-.ai-input__btn {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #fff;
-  transition: background 0.15s;
-}
+  &__btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.15s;
 
-.ai-input__btn--send {
-  background: var(--ei-primary, #4f46e5);
-}
+    &--send {
+      background: var(--ei-primary, #4f46e5);
 
-.ai-input__btn--send:hover:not(:disabled) {
-  background: var(--ei-primary-hover, #4338ca);
-}
+      &:hover:not(:disabled) {
+        background: var(--ei-primary-hover, #4338ca);
+      }
 
-.ai-input__btn--send:disabled {
-  background: var(--ei-bg-tertiary, #e5e7eb);
-  color: var(--ei-text-quaternary, #9ca3af);
-  cursor: not-allowed;
-}
+      &:disabled {
+        background: var(--ei-bg-tertiary, #e5e7eb);
+        color: var(--ei-text-quaternary, #9ca3af);
+        cursor: not-allowed;
+      }
+    }
 
-.ai-input__btn--cancel {
-  background: var(--ei-danger, #dc2626);
-}
+    &--cancel {
+      background: var(--ei-danger, #dc2626);
 
-.ai-input__btn--cancel:hover {
-  background: #b91c1c;
+      &:hover {
+        background: #b91c1c;
+      }
+    }
+  }
 }
 </style>

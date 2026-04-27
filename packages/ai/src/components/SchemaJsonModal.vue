@@ -53,7 +53,7 @@ function copy() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-json {
   position: fixed;
   inset: 0;
@@ -62,60 +62,63 @@ function copy() {
   align-items: center;
   justify-content: center;
   z-index: 1100;
-}
 
-.ai-json__panel {
-  width: 720px;
-  max-width: 92vw;
-  height: 80vh;
-  background: var(--ei-bg, #fff);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+  &__panel {
+    width: 720px;
+    max-width: 92vw;
+    height: 80vh;
+    background: var(--ei-bg, #fff);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-.ai-json__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--ei-border, #e5e7eb);
-}
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ei-border, #e5e7eb);
 
-.ai-json__header h4 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ei-text, #111827);
-}
+    h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ei-text, #111827);
+    }
+  }
 
-.ai-json__actions { display: flex; gap: 4px; }
+  &__actions {
+    display: flex;
+    gap: 4px;
+  }
 
-.ai-json__btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  color: var(--ei-text-secondary, #6b7280);
-  display: flex;
-}
+  &__btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    color: var(--ei-text-secondary, #6b7280);
+    display: flex;
 
-.ai-json__btn:hover {
-  background: var(--ei-bg-hover, #f3f4f6);
-  color: var(--ei-primary, #4f46e5);
-}
+    &:hover {
+      background: var(--ei-bg-hover, #f3f4f6);
+      color: var(--ei-primary, #4f46e5);
+    }
+  }
 
-.ai-json__pre {
-  flex: 1;
-  overflow: auto;
-  margin: 0;
-  padding: 16px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ei-text, #111827);
-  background: var(--ei-bg-secondary, #f9fafb);
+  &__pre {
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ei-text, #111827);
+    background: var(--ei-bg-secondary, #f9fafb);
+  }
 }
 </style>
