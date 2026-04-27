@@ -36,13 +36,6 @@
 | [@easyink/material-table-static](packages/materials/table-static) | [![npm][material-table-static-npm-version-src]][material-table-static-npm-version-href] |
 | [@easyink/material-text](packages/materials/text) | [![npm][material-text-npm-version-src]][material-text-npm-version-href] |
 
-## Release
-
-1. 为需要发布的变更添加 changeset：`pnpm changeset`。
-2. 合并到 `main` 后，GitHub Actions 会创建 Changesets release PR。
-3. 合并 release PR 后，发布 workflow 会先执行 `pnpm build`，再通过 GitHub OIDC + npm Trusted Publishing 发布到 npm。
-4. 新包首次发布需要维护者先手动发布一次，并在 npmjs.com 为对应包配置 Trusted Publisher；之后不再使用 `NPM_TOKEN`。
-
 ## Development
 
 ```bash
