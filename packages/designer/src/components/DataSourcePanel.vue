@@ -97,69 +97,69 @@ function childKey(source: DataSourceDescriptor, child: DataFieldNode): string {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-datasource-panel {
   font-size: 12px;
-}
 
-.ei-datasource-panel__source {
-  margin-bottom: 4px;
-}
+  &__source {
+    margin-bottom: 4px;
 
-.ei-datasource-panel__source-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px 4px 4px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 3px;
-  user-select: none;
-  color: var(--ei-text, #333);
-}
+    &-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px 4px 4px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 3px;
+      user-select: none;
+      color: var(--ei-text, #333);
 
-.ei-datasource-panel__source-header:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+      &:hover {
+        background: var(--ei-hover-bg, #f0f0f0);
+      }
+    }
 
-.ei-datasource-panel__chevron {
-  flex-shrink: 0;
-  color: var(--ei-text-secondary, #999);
-  transition: transform 0.15s ease;
-}
+    &-icon {
+      flex-shrink: 0;
+      color: var(--ei-text-secondary, #999);
+    }
 
-.ei-datasource-panel__chevron--expanded {
-  transform: rotate(90deg);
-}
+    &-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-.ei-datasource-panel__source-icon {
-  flex-shrink: 0;
-  color: var(--ei-text-secondary, #999);
-}
+    &-body {
+      padding-left: 16px;
+    }
+  }
 
-.ei-datasource-panel__source-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  &__chevron {
+    flex-shrink: 0;
+    color: var(--ei-text-secondary, #999);
+    transition: transform 0.15s ease;
 
-.ei-datasource-panel__source-body {
-  padding-left: 16px;
-}
+    &--expanded {
+      transform: rotate(90deg);
+    }
+  }
 
-.ei-datasource-panel__empty {
-  color: var(--ei-text-secondary, #999);
-  text-align: center;
-  padding: 20px;
-}
+  &__empty {
+    color: var(--ei-text-secondary, #999);
+    text-align: center;
+    padding: 20px;
+  }
 
-.ei-datasource-panel__hint {
-  color: var(--ei-text-secondary, #999);
-  font-size: 11px;
-  text-align: center;
-  padding: 8px;
-  border-top: 1px solid var(--ei-border-color, #eee);
-  margin-top: 4px;
+  &__hint {
+    color: var(--ei-text-secondary, #999);
+    font-size: 11px;
+    text-align: center;
+    padding: 8px;
+    border-top: 1px solid var(--ei-border-color, #eee);
+    margin-top: 4px;
+  }
 }
 </style>

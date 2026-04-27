@@ -88,39 +88,39 @@ watchEffect((onCleanup) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-history-panel {
   font-size: 12px;
-}
 
-.ei-history-panel__list {
-  display: flex;
-  flex-direction: column;
-}
+  &__list {
+    display: flex;
+    flex-direction: column;
+  }
 
-.ei-history-panel__item {
-  padding: 4px 8px;
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  &__item {
+    padding: 4px 8px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-.ei-history-panel__item:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+    }
 
-.ei-history-panel__item--active {
-  background: var(--ei-selected-bg, #e6f7ff);
-  color: var(--ei-primary, #1890ff);
-}
+    &--active {
+      background: var(--ei-selected-bg, #e6f7ff);
+      color: var(--ei-primary, #1890ff);
 
-.ei-history-panel__item--active:hover {
-  background: var(--ei-selected-bg, #e6f7ff);
-}
+      &:hover {
+        background: var(--ei-selected-bg, #e6f7ff);
+      }
+    }
 
-.ei-history-panel__item--undone {
-  opacity: 0.4;
+    &--undone {
+      opacity: 0.4;
+    }
+  }
 }
 </style>

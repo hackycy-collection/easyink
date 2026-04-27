@@ -52,7 +52,7 @@ function handlePointerDown(e: PointerEvent) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-deep-edit-drag-handle {
   position: absolute;
   transform: translate(-16px, -16px);
@@ -63,9 +63,9 @@ function handlePointerDown(e: PointerEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-}
 
-.ei-deep-edit-drag-handle:hover {
-  filter: brightness(0.9);
+  &:hover {
+    filter: brightness(0.9);
+  }
 }
 </style>

@@ -128,87 +128,92 @@ function isExpanded(id: string): boolean {
   </div>
 </template>
 
-<style scoped>
-.ei-tree--root {
-  font-size: 13px;
-}
+<style scoped lang="scss">
+.ei-tree {
+  &--root {
+    font-size: 13px;
+  }
 
-.ei-tree__node {
-  display: flex;
-  align-items: center;
-  padding: 4px 6px;
-  cursor: pointer;
-  border-radius: 4px;
-  user-select: none;
-  transition: background-color 0.15s;
-}
+  &__node {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    transition: background-color 0.15s;
 
-.ei-tree__node:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
 
-.ei-tree__node--selected {
-  background: var(--ei-selected-bg, #e6f7ff);
-  color: var(--ei-primary, #1890ff);
-}
+      .ei-tree__suffix {
+        opacity: 1;
+      }
+    }
 
-.ei-tree__toggle {
-  width: 14px;
-  height: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--ei-text-secondary, #999);
-  border-radius: 3px;
-}
+    &--selected {
+      background: var(--ei-selected-bg, #e6f7ff);
+      color: var(--ei-primary, #1890ff);
 
-.ei-tree__toggle:hover {
-  background: var(--ei-hover-bg, #e8e8e8);
-}
+      .ei-tree__icon {
+        color: var(--ei-primary, #1890ff);
+      }
 
-.ei-tree__chevron {
-  width: 10px;
-  height: 10px;
-  transition: transform 0.15s ease;
-}
+      .ei-tree__suffix {
+        opacity: 1;
+      }
+    }
+  }
 
-.ei-tree__chevron--expanded {
-  transform: rotate(90deg);
-}
+  &__toggle {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--ei-text-secondary, #999);
+    border-radius: 3px;
 
-.ei-tree__icon {
-  flex-shrink: 0;
-  margin-right: 4px;
-  color: var(--ei-text-secondary, #999);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #e8e8e8);
+    }
+  }
 
-.ei-tree__node--selected .ei-tree__icon {
-  color: var(--ei-primary, #1890ff);
-}
+  &__chevron {
+    width: 10px;
+    height: 10px;
+    transition: transform 0.15s ease;
 
-.ei-tree__label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+    &--expanded {
+      transform: rotate(90deg);
+    }
+  }
 
-.ei-tree__suffix {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
+  &__icon {
+    flex-shrink: 0;
+    margin-right: 4px;
+    color: var(--ei-text-secondary, #999);
+  }
 
-.ei-tree__node:hover .ei-tree__suffix,
-.ei-tree__node--selected .ei-tree__suffix {
-  opacity: 1;
-}
+  &__label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.ei-tree__children {
-  padding-left: 12px;
+  &__suffix {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &__children {
+    padding-left: 12px;
+  }
 }
 </style>

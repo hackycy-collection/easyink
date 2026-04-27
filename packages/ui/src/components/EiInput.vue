@@ -50,17 +50,12 @@ function onCommit(event: Event) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-input-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-
-.ei-input__label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
 }
 
 .ei-input {
@@ -74,14 +69,19 @@ function onCommit(event: Event) {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-}
 
-.ei-input:focus {
-  border-color: var(--ei-primary, #1890ff);
-}
+  &__label {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:focus {
+    border-color: var(--ei-primary, #1890ff);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 </style>

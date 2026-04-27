@@ -101,7 +101,7 @@ function handleSelect(node: TreeNode) {
   </EiTree>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .structure-tree__status {
   color: var(--ei-text-secondary, #999);
 }

@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-designer {
   display: flex;
   flex-direction: column;
@@ -128,16 +128,16 @@ onBeforeUnmount(() => {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
   position: relative;
-}
 
-.ei-designer__overlay-root {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  pointer-events: none;
-}
+  &__overlay-root {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    pointer-events: none;
 
-.ei-designer__overlay-root > * {
-  pointer-events: auto;
+    > * {
+      pointer-events: auto;
+    }
+  }
 }
 </style>

@@ -86,7 +86,7 @@ function toggle(side: typeof SIDES[number]) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-border-toggle {
   display: flex;
   align-items: center;
@@ -94,49 +94,49 @@ function toggle(side: typeof SIDES[number]) {
   width: 100%;
   font-size: 12px;
   color: var(--ei-text-secondary, #666);
-}
 
-.ei-border-toggle--disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
+  &--disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
 
-.ei-border-toggle__label {
-  user-select: none;
-  flex-shrink: 0;
-}
+  &__label {
+    user-select: none;
+    flex-shrink: 0;
+  }
 
-.ei-border-toggle__sides {
-  display: flex;
-  gap: 2px;
-}
+  &__sides {
+    display: flex;
+    gap: 2px;
+  }
 
-.ei-border-toggle__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 3px;
-  background: var(--ei-input-bg, #fff);
-  color: var(--ei-border-color, #d0d0d0);
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.15s, border-color 0.15s;
-}
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 3px;
+    background: var(--ei-input-bg, #fff);
+    color: var(--ei-border-color, #d0d0d0);
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s, border-color 0.15s;
 
-.ei-border-toggle__btn:hover {
-  border-color: var(--ei-primary, #1890ff);
-}
+    &:hover {
+      border-color: var(--ei-primary, #1890ff);
+    }
 
-.ei-border-toggle__btn--active {
-  color: var(--ei-primary, #1890ff);
-  border-color: var(--ei-primary, #1890ff);
-  background: color-mix(in srgb, var(--ei-primary, #1890ff) 8%, transparent);
-}
+    &--active {
+      color: var(--ei-primary, #1890ff);
+      border-color: var(--ei-primary, #1890ff);
+      background: color-mix(in srgb, var(--ei-primary, #1890ff) 8%, transparent);
+    }
 
-.ei-border-toggle__btn:disabled {
-  cursor: not-allowed;
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
 }
 </style>

@@ -134,88 +134,88 @@ function handleDragStart(e: DragEvent, entry: MaterialCatalogEntry) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-material-panel {
   overflow-y: auto;
-}
 
-.ei-material-panel__empty {
-  margin-bottom: 12px;
-  padding: 12px;
-  border: 1px solid var(--ei-border-color, #e0e0e0);
-  border-radius: 6px;
-  background: var(--ei-hover-bg, #f7f7f7);
-}
+  &__empty {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid var(--ei-border-color, #e0e0e0);
+    border-radius: 6px;
+    background: var(--ei-hover-bg, #f7f7f7);
 
-.ei-material-panel__empty-title {
-  margin-bottom: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ei-text, #333);
-}
+    &-title {
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ei-text, #333);
+    }
 
-.ei-material-panel__empty-text {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--ei-text-secondary, #666);
-}
+    &-text {
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--ei-text-secondary, #666);
+    }
+  }
 
-.ei-material-panel__section {
-  margin-bottom: 12px;
-}
+  &__section {
+    margin-bottom: 12px;
 
-.ei-material-panel__section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ei-text-secondary, #999);
-  margin-bottom: 6px;
-  padding: 0 4px;
-}
+    &-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ei-text-secondary, #999);
+      margin-bottom: 6px;
+      padding: 0 4px;
+    }
+  }
 
-.ei-material-panel__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
 
-.ei-material-panel__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px;
-  border: 1px solid var(--ei-border-color, #e0e0e0);
-  border-radius: 4px;
-  background: var(--ei-bg, #fff);
-  cursor: grab;
-  color: var(--ei-text, #333);
-}
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    border: 1px solid var(--ei-border-color, #e0e0e0);
+    border-radius: 4px;
+    background: var(--ei-bg, #fff);
+    cursor: grab;
+    color: var(--ei-text, #333);
 
-.ei-material-panel__item:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-  border-color: var(--ei-primary, #1890ff);
-  color: var(--ei-primary, #1890ff);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+      border-color: var(--ei-primary, #1890ff);
+      color: var(--ei-primary, #1890ff);
 
-.ei-material-panel__item:active {
-  cursor: grabbing;
-}
+      .ei-material-panel__icon {
+        color: var(--ei-primary, #1890ff);
+      }
+    }
 
-.ei-material-panel__icon {
-  flex-shrink: 0;
-  color: var(--ei-text-secondary, #666);
-}
+    &:active {
+      cursor: grabbing;
+    }
+  }
 
-.ei-material-panel__item:hover .ei-material-panel__icon {
-  color: var(--ei-primary, #1890ff);
-}
+  &__icon {
+    flex-shrink: 0;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-material-panel__label {
-  font-size: 10px;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  &__label {
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
 }
 </style>

@@ -112,7 +112,7 @@ function onResizeStart(e: PointerEvent) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-workspace-window {
   position: absolute;
   background: var(--ei-panel-bg, #fff);
@@ -123,111 +123,111 @@ function onResizeStart(e: PointerEvent) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
 
-.ei-workspace-window__titlebar {
-  display: flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 8px;
-  background: var(--ei-panel-header-bg, #fafafa);
-  border-bottom: 1px solid var(--ei-border-color, #e0e0e0);
-  cursor: grab;
-  user-select: none;
-  flex-shrink: 0;
-}
+  &__titlebar {
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    background: var(--ei-panel-header-bg, #fafafa);
+    border-bottom: 1px solid var(--ei-border-color, #e0e0e0);
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
 
-.ei-workspace-window__titlebar:active {
-  cursor: grabbing;
-}
+    &:active {
+      cursor: grabbing;
+    }
+  }
 
-.ei-workspace-window__title {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  &__title {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.ei-workspace-window__actions {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
+  &__actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
 
-.ei-workspace-window__action {
-  width: 18px;
-  height: 18px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 11px;
-  color: var(--ei-text-secondary, #999);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
+  &__action {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--ei-text-secondary, #999);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 
-.ei-workspace-window__action:hover {
-  background: var(--ei-hover-bg, #e8e8e8);
-  color: var(--ei-text, #333);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #e8e8e8);
+      color: var(--ei-text, #333);
+    }
+  }
 
-.ei-workspace-window__body {
-  overflow: auto;
-  padding: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.2s;
-}
+  &__body {
+    overflow: auto;
+    padding: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s;
 
-.ei-workspace-window__body:hover {
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-}
+    &:hover {
+      scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 
-.ei-workspace-window__body::-webkit-scrollbar {
-  width: 2px;
-  height: 2px;
-}
+      &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
 
-.ei-workspace-window__body::-webkit-scrollbar-track {
-  background: transparent;
-}
+        &:hover {
+          background: rgba(0, 0, 0, 0.35);
+        }
+      }
+    }
 
-.ei-workspace-window__body::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 2px;
-  transition: background 0.2s;
-}
+    &::-webkit-scrollbar {
+      width: 2px;
+      height: 2px;
+    }
 
-.ei-workspace-window__body:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-.ei-workspace-window__body:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.35);
-}
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 2px;
+      transition: background 0.2s;
+    }
+  }
 
-.ei-workspace-window__resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 12px;
-  height: 12px;
-  cursor: nwse-resize;
-}
+  &__resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 12px;
+    height: 12px;
+    cursor: nwse-resize;
 
-.ei-workspace-window__resize-handle::before {
-  content: '';
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 6px;
-  height: 6px;
-  border-right: 2px solid var(--ei-border-color, #ccc);
-  border-bottom: 2px solid var(--ei-border-color, #ccc);
+    &::before {
+      content: '';
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      width: 6px;
+      height: 6px;
+      border-right: 2px solid var(--ei-border-color, #ccc);
+      border-bottom: 2px solid var(--ei-border-color, #ccc);
+    }
+  }
 }
 </style>

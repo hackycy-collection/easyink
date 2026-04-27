@@ -101,123 +101,123 @@ watch(isOpen, (open) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-font-picker-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.ei-font-picker__label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
-}
-
 .ei-font-picker {
   position: relative;
-}
 
-.ei-font-picker__trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 4px;
-  font-size: 13px;
-  background: var(--ei-input-bg, #fff);
-  color: var(--ei-text, #333);
-  cursor: pointer;
-  text-align: left;
-}
+  &__label {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-font-picker__trigger:hover {
-  border-color: var(--ei-primary, #1890ff);
-}
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--ei-input-bg, #fff);
+    color: var(--ei-text, #333);
+    cursor: pointer;
+    text-align: left;
 
-.ei-font-picker__trigger:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+    &:hover {
+      border-color: var(--ei-primary, #1890ff);
+    }
 
-.ei-font-picker__arrow {
-  font-size: 10px;
-  color: var(--ei-text-secondary, #999);
-}
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
 
-.ei-font-picker__dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  margin-top: 2px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 4px;
-  background: var(--ei-panel-bg, #fff);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
+  &__arrow {
+    font-size: 10px;
+    color: var(--ei-text-secondary, #999);
+  }
 
-.ei-font-picker__search {
-  width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-bottom: 1px solid var(--ei-border-color, #eee);
-  font-size: 12px;
-  outline: none;
-  box-sizing: border-box;
-  background: transparent;
-}
+  &__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    margin-top: 2px;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 4px;
+    background: var(--ei-panel-bg, #fff);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
 
-.ei-font-picker__list {
-  list-style: none;
-  margin: 0;
-  padding: 4px 0;
-  max-height: 200px;
-  overflow-y: auto;
-}
+  &__search {
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    border-bottom: 1px solid var(--ei-border-color, #eee);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+    background: transparent;
+  }
 
-.ei-font-picker__item {
-  padding: 4px 8px;
-  font-size: 13px;
-  cursor: pointer;
-}
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    max-height: 200px;
+    overflow-y: auto;
+  }
 
-.ei-font-picker__item:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+  &__item {
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
 
-.ei-font-picker__item--active {
-  color: var(--ei-primary, #1890ff);
-  font-weight: 500;
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+    }
 
-.ei-font-picker__empty {
-  padding: 8px;
-  font-size: 12px;
-  color: var(--ei-text-secondary, #999);
-  text-align: center;
-}
+    &--active {
+      color: var(--ei-primary, #1890ff);
+      font-weight: 500;
+    }
+  }
 
-.ei-font-picker__fallback {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 4px;
-  font-size: 13px;
-  outline: none;
-  background: var(--ei-input-bg, #fff);
-  color: var(--ei-text, #333);
-  box-sizing: border-box;
-}
+  &__empty {
+    padding: 8px;
+    font-size: 12px;
+    color: var(--ei-text-secondary, #999);
+    text-align: center;
+  }
 
-.ei-font-picker__fallback:focus {
-  border-color: var(--ei-primary, #1890ff);
-}
+  &__fallback {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    background: var(--ei-input-bg, #fff);
+    color: var(--ei-text, #333);
+    box-sizing: border-box;
 
-.ei-font-picker__fallback:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+    &:focus {
+      border-color: var(--ei-primary, #1890ff);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
 }
 </style>

@@ -263,7 +263,7 @@ function normalizeServerConfig(config: Partial<MCPServerConfig>): Partial<MCPSer
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-modal {
   position: fixed;
   inset: 0;
@@ -272,61 +272,87 @@ function normalizeServerConfig(config: Partial<MCPServerConfig>): Partial<MCPSer
   align-items: center;
   justify-content: center;
   z-index: 1100;
-}
 
-.ai-modal__panel {
-  width: 460px;
-  max-width: 90vw;
-  max-height: 90vh;
-  background: var(--ei-bg, #fff);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+  &__panel {
+    width: 460px;
+    max-width: 90vw;
+    max-height: 90vh;
+    background: var(--ei-bg, #fff);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-.ai-modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--ei-border, #e5e7eb);
-}
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--ei-border, #e5e7eb);
 
-.ai-modal__header h4 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ei-text, #111827);
-}
+    h4 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ei-text, #111827);
+    }
+  }
 
-.ai-modal__close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  color: var(--ei-text-secondary, #6b7280);
-  border-radius: 4px;
-}
+  &__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    color: var(--ei-text-secondary, #6b7280);
+    border-radius: 4px;
 
-.ai-modal__close:hover {
-  background: var(--ei-bg-hover, #f3f4f6);
-}
+    &:hover {
+      background: var(--ei-bg-hover, #f3f4f6);
+    }
+  }
 
-.ai-modal__body {
-  padding: 16px 18px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+  &__body {
+    padding: 16px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-.ai-modal__empty {
-  text-align: center;
-  color: var(--ei-text-quaternary, #9ca3af);
-  font-size: 13px;
-  padding: 20px 0;
+  &__empty {
+    text-align: center;
+    color: var(--ei-text-quaternary, #9ca3af);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+
+  &__add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: none;
+    border: 1px dashed var(--ei-border, #d1d5db);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--ei-text-secondary, #6b7280);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--ei-primary, #4f46e5);
+      color: var(--ei-primary, #4f46e5);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
 }
 
 .ai-srv {
@@ -336,126 +362,141 @@ function normalizeServerConfig(config: Partial<MCPServerConfig>): Partial<MCPSer
   padding: 10px 12px;
   background: var(--ei-bg-secondary, #f9fafb);
   border-radius: 8px;
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ei-text, #111827);
+  }
+
+  &__meta {
+    font-size: 11px;
+    color: var(--ei-text-secondary, #6b7280);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--ei-bg-tertiary, #e5e7eb);
+    color: var(--ei-text-secondary, #6b7280);
+    font-weight: normal;
+
+    &--ok {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    &--err {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    &--warn {
+      background: #fef3c7;
+      color: #92400e;
+    }
+  }
+
+  &__action {
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--ei-text-secondary, #6b7280);
+    display: flex;
+
+    &:hover {
+      background: var(--ei-bg-hover, #f3f4f6);
+      color: var(--ei-primary, #4f46e5);
+    }
+
+    &--danger:hover {
+      color: #dc2626;
+    }
+  }
 }
 
-.ai-srv__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.ai-srv__name {
+.ai-form {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ei-text, #111827);
-}
+  flex-direction: column;
+  gap: 12px;
 
-.ai-srv__meta {
-  font-size: 11px;
-  color: var(--ei-text-secondary, #6b7280);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 
-.ai-srv__badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--ei-bg-tertiary, #e5e7eb);
-  color: var(--ei-text-secondary, #6b7280);
-  font-weight: normal;
-}
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ei-text, #111827);
+    }
 
-.ai-srv__badge--ok { background: #dcfce7; color: #166534; }
-.ai-srv__badge--err { background: #fee2e2; color: #991b1b; }
-.ai-srv__badge--warn { background: #fef3c7; color: #92400e; }
+    input,
+    select {
+      padding: 8px 10px;
+      border: 1px solid var(--ei-border, #d1d5db);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--ei-bg, #fff);
+      color: var(--ei-text, #111827);
 
-.ai-srv__action {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--ei-text-secondary, #6b7280);
-  display: flex;
-}
+      &:focus {
+        outline: none;
+        border-color: var(--ei-primary, #4f46e5);
+        box-shadow: 0 0 0 3px var(--ei-primary-light, rgba(79, 70, 229, 0.1));
+      }
 
-.ai-srv__action:hover {
-  background: var(--ei-bg-hover, #f3f4f6);
-  color: var(--ei-primary, #4f46e5);
-}
+      &:disabled {
+        background: var(--ei-bg-secondary, #f9fafb);
+        color: var(--ei-text-quaternary, #9ca3af);
+        cursor: not-allowed;
+      }
+    }
+  }
 
-.ai-srv__action--danger:hover {
-  color: #dc2626;
-}
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 
-.ai-modal__add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: none;
-  border: 1px dashed var(--ei-border, #d1d5db);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--ei-text-secondary, #6b7280);
-  cursor: pointer;
-}
+  &__check {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    display: flex;
+  }
 
-.ai-modal__add:hover {
-  border-color: var(--ei-primary, #4f46e5);
-  color: var(--ei-primary, #4f46e5);
-}
+  &__errors {
+    background: #fef2f2;
+    border-radius: 6px;
+    padding: 10px 12px;
 
-.ai-form { display: flex; flex-direction: column; gap: 12px; }
-.ai-form__group { display: flex; flex-direction: column; gap: 4px; }
-.ai-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ai-form__group label { font-size: 12px; font-weight: 500; color: var(--ei-text, #111827); }
-.ai-form__check { flex-direction: row; align-items: center; gap: 6px; display: flex; }
+    p {
+      margin: 0;
+      color: #dc2626;
+      font-size: 12px;
 
-.ai-form__group input,
-.ai-form__group select {
-  padding: 8px 10px;
-  border: 1px solid var(--ei-border, #d1d5db);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--ei-bg, #fff);
-  color: var(--ei-text, #111827);
-}
-
-.ai-form__group input:focus,
-.ai-form__group select:focus {
-  outline: none;
-  border-color: var(--ei-primary, #4f46e5);
-  box-shadow: 0 0 0 3px var(--ei-primary-light, rgba(79, 70, 229, 0.1));
-}
-
-.ai-form__group input:disabled,
-.ai-form__group select:disabled {
-  background: var(--ei-bg-secondary, #f9fafb);
-  color: var(--ei-text-quaternary, #9ca3af);
-  cursor: not-allowed;
-}
-
-.ai-form__errors {
-  background: #fef2f2;
-  border-radius: 6px;
-  padding: 10px 12px;
-}
-
-.ai-form__errors p { margin: 0; color: #dc2626; font-size: 12px; }
-.ai-form__errors p + p { margin-top: 4px; }
-
-.ai-modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
+      & + p {
+        margin-top: 4px;
+      }
+    }
+  }
 }
 
 .ai-btn {
@@ -465,21 +506,21 @@ function normalizeServerConfig(config: Partial<MCPServerConfig>): Partial<MCPSer
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
-}
 
-.ai-btn--secondary {
-  background: var(--ei-bg-secondary, #f9fafb);
-  border-color: var(--ei-border, #d1d5db);
-  color: var(--ei-text, #111827);
-}
+  &--secondary {
+    background: var(--ei-bg-secondary, #f9fafb);
+    border-color: var(--ei-border, #d1d5db);
+    color: var(--ei-text, #111827);
+  }
 
-.ai-btn--primary {
-  background: var(--ei-primary, #4f46e5);
-  color: #fff;
-  border-color: var(--ei-primary, #4f46e5);
-}
+  &--primary {
+    background: var(--ei-primary, #4f46e5);
+    color: #fff;
+    border-color: var(--ei-primary, #4f46e5);
 
-.ai-btn--primary:hover {
-  background: var(--ei-primary-hover, #4338ca);
+    &:hover {
+      background: var(--ei-primary-hover, #4338ca);
+    }
+  }
 }
 </style>

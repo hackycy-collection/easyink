@@ -134,119 +134,119 @@ function groupLabelKey(id: string): string {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-toolbar-manager {
   font-size: 12px;
-}
 
-.ei-toolbar-manager__section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-  margin: 0 10px;
-  border-bottom: 1px solid var(--ei-border-color, #eee);
-}
+  &__section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    margin: 0 10px;
+    border-bottom: 1px solid var(--ei-border-color, #eee);
+  }
 
-.ei-toolbar-manager__label {
-  color: var(--ei-text-secondary, #666);
-}
+  &__label {
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-toolbar-manager__align-group {
-  display: flex;
-  gap: 2px;
-}
+  &__align-group {
+    display: flex;
+    gap: 2px;
+  }
 
-.ei-toolbar-manager__align-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  color: var(--ei-text, #333);
-}
+  &__align-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ei-text, #333);
+  }
 
-.ei-toolbar-manager__align--active {
-  background: var(--ei-primary, #1890ff) !important;
-  color: #fff;
-  border-color: var(--ei-primary, #1890ff) !important;
-}
+  &__align--active {
+    background: var(--ei-primary, #1890ff) !important;
+    color: #fff;
+    border-color: var(--ei-primary, #1890ff) !important;
+  }
 
-.ei-toolbar-manager__list {
-  padding: 4px 0;
-}
+  &__list {
+    padding: 4px 0;
+  }
 
-.ei-toolbar-manager__item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
-}
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+  }
 
-.ei-toolbar-manager__icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  color: var(--ei-text, #333);
-}
+  &__icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ei-text, #333);
 
-.ei-toolbar-manager__icon-btn:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+    }
 
-.ei-toolbar-manager__icon-btn.is-inactive {
-  opacity: 0.3;
-}
+    &.is-inactive {
+      opacity: 0.3;
+    }
 
-.ei-toolbar-manager__icon-btn:disabled {
-  opacity: 0.15;
-  pointer-events: none;
-}
+    &:disabled {
+      opacity: 0.15;
+      pointer-events: none;
+    }
+  }
 
-.ei-toolbar-manager__group-label {
-  flex: 1;
-  min-width: 0;
-}
+  &__group-label {
+    flex: 1;
+    min-width: 0;
 
-.ei-toolbar-manager__group-label.is-hidden {
-  opacity: 0.4;
-  text-decoration: line-through;
-}
+    &.is-hidden {
+      opacity: 0.4;
+      text-decoration: line-through;
+    }
+  }
 
-.ei-toolbar-manager__footer {
-  padding: 6px 0;
-  margin: 0 10px;
-  border-top: 1px solid var(--ei-border-color, #eee);
-}
+  &__footer {
+    padding: 6px 0;
+    margin: 0 10px;
+    border-top: 1px solid var(--ei-border-color, #eee);
+  }
 
-.ei-toolbar-manager__restore {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  padding: 4px;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--ei-text, #333);
-}
+  &__restore {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    padding: 4px;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ei-text, #333);
 
-.ei-toolbar-manager__restore:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+    }
+  }
 }
 </style>

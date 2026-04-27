@@ -528,12 +528,19 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-canvas-workspace {
   flex: 1;
   overflow: hidden;
   background: var(--ei-canvas-bg, #e8e8e8);
   position: relative;
+
+  &__placeholder {
+    color: var(--ei-text-secondary, #999);
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+  }
 }
 
 .ei-canvas-scroll {
@@ -558,159 +565,151 @@ onUnmounted(() => {
   position: absolute;
   cursor: move;
   box-sizing: border-box;
+
+  &--locked {
+    cursor: default;
+  }
+
+  &--hidden {
+    opacity: 0.3;
+  }
+
+  &--deep-editing {
+    z-index: 5 !important;
+    cursor: default;
+  }
+
+  &--selected &__content:not(:has(&__render)) {
+    border-color: var(--ei-primary, #1890ff);
+  }
+
+  &__content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--ei-text-secondary, #999);
+    box-sizing: border-box;
+    overflow: visible;
+    position: relative;
+
+    &:not(:has(.ei-canvas-element__render)) {
+      border: 1px dashed var(--ei-border-color, #d0d0d0);
+    }
+  }
+
+  &__render {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  &__type-label {
+    user-select: none;
+    pointer-events: none;
+  }
+
+  &__bind-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ei-success, #52c41a);
+  }
+
+  &__selection-border {
+    position: absolute;
+    inset: -1px;
+    border: 2px solid var(--ei-primary, #1890ff);
+    pointer-events: none;
+  }
+
+  &__handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #fff;
+    border: 1.5px solid var(--ei-primary, #1890ff);
+    border-radius: 1px;
+    box-sizing: border-box;
+    z-index: 1;
+
+    &--nw {
+      top: -4px;
+      left: -4px;
+    }
+
+    &--ne {
+      top: -4px;
+      right: -4px;
+    }
+
+    &--sw {
+      bottom: -4px;
+      left: -4px;
+    }
+
+    &--se {
+      bottom: -4px;
+      right: -4px;
+    }
+
+    &--n {
+      top: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    &--s {
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    &--w {
+      top: 50%;
+      left: -4px;
+      transform: translateY(-50%);
+    }
+
+    &--e {
+      top: 50%;
+      right: -4px;
+      transform: translateY(-50%);
+    }
+  }
+
+  &__rotate-handle {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: crosshair;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &__rotate-line {
+    width: 1px;
+    height: 20px;
+    background: var(--ei-primary, #1890ff);
+  }
+
+  &__rotate-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--ei-primary, #1890ff);
+    box-sizing: border-box;
+  }
 }
-
-.ei-canvas-element--locked {
-  cursor: default;
-}
-
-.ei-canvas-element--hidden {
-  opacity: 0.3;
-}
-
-.ei-canvas-element--deep-editing {
-  z-index: 5 !important;
-  cursor: default;
-}
-
-.ei-canvas-element__content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--ei-text-secondary, #999);
-  box-sizing: border-box;
-  overflow: visible;
-  position: relative;
-}
-
-.ei-canvas-element__content:not(:has(.ei-canvas-element__render)) {
-  border: 1px dashed var(--ei-border-color, #d0d0d0);
-}
-
-.ei-canvas-element--selected .ei-canvas-element__content:not(:has(.ei-canvas-element__render)) {
-  border-color: var(--ei-primary, #1890ff);
-}
-
-.ei-canvas-element__render {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.ei-canvas-element__type-label {
-  user-select: none;
-  pointer-events: none;
-}
-
-.ei-canvas-element__bind-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ei-success, #52c41a);
-}
-
-.ei-canvas-element__selection-border {
-  position: absolute;
-  inset: -1px;
-  border: 2px solid var(--ei-primary, #1890ff);
-  pointer-events: none;
-}
-
-/* ─── Resize Handles ──────────────────────────────────────────── */
-
-.ei-canvas-element__handle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #fff;
-  border: 1.5px solid var(--ei-primary, #1890ff);
-  border-radius: 1px;
-  box-sizing: border-box;
-  z-index: 1;
-}
-
-/* Corner handles */
-.ei-canvas-element__handle--nw {
-  top: -4px;
-  left: -4px;
-}
-
-.ei-canvas-element__handle--ne {
-  top: -4px;
-  right: -4px;
-}
-
-.ei-canvas-element__handle--sw {
-  bottom: -4px;
-  left: -4px;
-}
-
-.ei-canvas-element__handle--se {
-  bottom: -4px;
-  right: -4px;
-}
-
-/* Edge handles */
-.ei-canvas-element__handle--n {
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.ei-canvas-element__handle--s {
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.ei-canvas-element__handle--w {
-  top: 50%;
-  left: -4px;
-  transform: translateY(-50%);
-}
-
-.ei-canvas-element__handle--e {
-  top: 50%;
-  right: -4px;
-  transform: translateY(-50%);
-}
-
-/* ─── Rotation Handle ────────────────────────────────────────── */
-
-.ei-canvas-element__rotate-handle {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  cursor: crosshair;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.ei-canvas-element__rotate-line {
-  width: 1px;
-  height: 20px;
-  background: var(--ei-primary, #1890ff);
-}
-
-.ei-canvas-element__rotate-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1.5px solid var(--ei-primary, #1890ff);
-  box-sizing: border-box;
-}
-
-/* ─── Marquee Selection ───────────────────────────────────────── */
 
 .ei-canvas-marquee {
   position: absolute;
@@ -720,21 +719,10 @@ onUnmounted(() => {
   z-index: 9999;
 }
 
-/* ─── Floating Windows ────────────────────────────────────────── */
-
 .ei-canvas-windows {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
-
-.ei-canvas-workspace__placeholder {
-  color: var(--ei-text-secondary, #999);
-  text-align: center;
-  padding: 20px;
-  font-size: 12px;
-}
-
-/* ─── Floating Windows ────────────────────────────────────────── */
 </style>
