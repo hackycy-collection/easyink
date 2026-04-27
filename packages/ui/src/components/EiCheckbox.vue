@@ -29,7 +29,7 @@ function onChange(event: Event) {
   </label>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-checkbox {
   display: inline-flex;
   align-items: center;
@@ -37,14 +37,14 @@ function onChange(event: Event) {
   cursor: pointer;
   font-size: 13px;
   color: var(--ei-text, #333);
-}
 
-.ei-checkbox--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  &--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-.ei-checkbox__label {
-  user-select: none;
+  &__label {
+    user-select: none;
+  }
 }
 </style>

@@ -49,17 +49,12 @@ function onCommit(event: Event) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-textarea-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-
-.ei-textarea__label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
 }
 
 .ei-textarea {
@@ -76,14 +71,19 @@ function onCommit(event: Event) {
   box-sizing: border-box;
   resize: vertical;
   line-height: 1.4;
-}
 
-.ei-textarea:focus {
-  border-color: var(--ei-primary, #1890ff);
-}
+  &__label {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-textarea:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:focus {
+    border-color: var(--ei-primary, #1890ff);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 </style>

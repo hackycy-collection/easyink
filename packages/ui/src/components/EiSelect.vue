@@ -42,17 +42,12 @@ function onChange(event: Event) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-select-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-
-.ei-select__label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
 }
 
 .ei-select {
@@ -66,14 +61,19 @@ function onChange(event: Event) {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-}
 
-.ei-select:focus {
-  border-color: var(--ei-primary, #1890ff);
-}
+  &__label {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:focus {
+    border-color: var(--ei-primary, #1890ff);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 </style>
