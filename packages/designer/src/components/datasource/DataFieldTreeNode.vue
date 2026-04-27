@@ -107,79 +107,81 @@ function onDragStart(e: DragEvent) {
   </div>
 </template>
 
-<style scoped>
-.ei-field-node__row {
-  display: flex;
-  align-items: center;
-  padding: 3px 8px 3px 4px;
-  border-radius: 3px;
-  user-select: none;
-  gap: 4px;
-  min-height: 26px;
-}
+<style scoped lang="scss">
+.ei-field-node {
+  &__row {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px 3px 4px;
+    border-radius: 3px;
+    user-select: none;
+    gap: 4px;
+    min-height: 26px;
 
-.ei-field-node__row--group {
-  cursor: pointer;
-}
+    &--group {
+      cursor: pointer;
 
-.ei-field-node__row--group:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+      &:hover {
+        background: var(--ei-hover-bg, #f0f0f0);
+      }
+    }
 
-.ei-field-node__row--leaf {
-  cursor: grab;
-}
+    &--leaf {
+      cursor: grab;
 
-.ei-field-node__row--leaf:active {
-  cursor: grabbing;
-}
+      &:active {
+        cursor: grabbing;
+      }
 
-.ei-field-node__row--leaf:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+      &:hover {
+        background: var(--ei-hover-bg, #f0f0f0);
 
-.ei-field-node__row--leaf:hover .ei-field-node__path {
-  opacity: 1;
-}
+        .ei-field-node__path {
+          opacity: 1;
+        }
+      }
+    }
+  }
 
-.ei-field-node__chevron {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  color: var(--ei-text-secondary, #999);
-  transition: transform 0.15s ease;
-}
+  &__chevron {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--ei-text-secondary, #999);
+    transition: transform 0.15s ease;
 
-.ei-field-node__chevron--expanded {
-  transform: rotate(90deg);
-}
+    &--expanded {
+      transform: rotate(90deg);
+    }
+  }
 
-.ei-field-node__chevron-spacer {
-  flex-shrink: 0;
-  width: 14px;
-}
+  &__chevron-spacer {
+    flex-shrink: 0;
+    width: 14px;
+  }
 
-.ei-field-node__icon {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
+  &__icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
 
-.ei-field-node__icon--folder {
-  color: var(--ei-text-secondary, #999);
-}
+    &--folder {
+      color: var(--ei-text-secondary, #999);
+    }
+  }
 
-.ei-field-node__grip {
-  flex-shrink: 0;
-  color: var(--ei-text-secondary, #999);
-}
+  &__grip {
+    flex-shrink: 0;
+    color: var(--ei-text-secondary, #999);
+  }
 
-.ei-field-node__label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ei-text, #333);
-  font-size: 12px;
+  &__label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ei-text, #333);
+    font-size: 12px;
+  }
 }
 </style>

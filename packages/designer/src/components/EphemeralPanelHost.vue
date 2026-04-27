@@ -64,7 +64,7 @@ function handleClose() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-ephemeral-panel {
   position: absolute;
   z-index: 15;

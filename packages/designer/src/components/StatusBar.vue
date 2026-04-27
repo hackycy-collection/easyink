@@ -105,7 +105,7 @@ function statusTitle(prefix: string, value: string): string {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-status-bar {
   display: flex;
   align-items: center;
@@ -117,28 +117,32 @@ function statusTitle(prefix: string, value: string): string {
   color: var(--ei-text-secondary, #999);
   gap: 12px;
   flex-shrink: 0;
-}
 
-.ei-status-bar__spacer {
-  flex: 1;
-}
+  &__spacer {
+    flex: 1;
+  }
 
-.ei-status-bar__item {
-  display: flex;
-  align-items: center;
-  user-select: none;
-}
+  &__item {
+    display: flex;
+    align-items: center;
+    user-select: none;
 
-.ei-status-bar__item--error {
-  color: var(--ei-error, #ff4d4f);
-}
+    &--error {
+      color: var(--ei-error, #ff4d4f);
+    }
 
-.ei-status-bar__item--warning {
-  color: var(--ei-warning, #faad14);
-}
+    &--warning {
+      color: var(--ei-warning, #faad14);
+    }
 
-.ei-status-bar__item--success {
-  color: var(--ei-success, #52c41a);
+    &--success {
+      color: var(--ei-success, #52c41a);
+    }
+  }
+
+  &__spin {
+    animation: ei-spin 1s linear infinite;
+  }
 }
 
 @keyframes ei-spin {
@@ -148,9 +152,5 @@ function statusTitle(prefix: string, value: string): string {
   to {
     transform: rotate(360deg);
   }
-}
-
-.ei-status-bar__spin {
-  animation: ei-spin 1s linear infinite;
 }
 </style>

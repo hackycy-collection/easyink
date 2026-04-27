@@ -810,7 +810,7 @@ function handleSnap() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-topbar-b {
   display: flex;
   align-items: center;
@@ -819,116 +819,116 @@ function handleSnap() {
   border-bottom: 1px solid var(--ei-border-color, #e0e0e0);
   background: var(--ei-topbar-bg, #fafafa);
   gap: 4px;
-}
 
-.ei-topbar-b__groups {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  overflow-x: hidden;
-  flex: 1;
-  min-width: 0;
-  scroll-behavior: smooth;
-}
+  &--align-center &__groups {
+    justify-content: center;
+  }
 
-.ei-topbar-b--align-center .ei-topbar-b__groups {
-  justify-content: center;
-}
+  &--align-end &__groups {
+    justify-content: flex-end;
+  }
 
-.ei-topbar-b--align-end .ei-topbar-b__groups {
-  justify-content: flex-end;
-}
+  &__groups {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: hidden;
+    flex: 1;
+    min-width: 0;
+    scroll-behavior: smooth;
+  }
 
-.ei-topbar-b__group {
-  display: flex;
-  gap: 1px;
-  flex-shrink: 0;
-}
+  &__group {
+    display: flex;
+    gap: 1px;
+    flex-shrink: 0;
+  }
 
-.ei-topbar-b__window-toggles {
-  overflow: hidden;
-  flex-shrink: 1;
-  min-width: 0;
-}
+  &__window-toggles {
+    overflow: hidden;
+    flex-shrink: 1;
+    min-width: 0;
+  }
 
-.ei-topbar-b__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  color: var(--ei-text, #333);
-}
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ei-text, #333);
 
-.ei-topbar-b__btn:hover:not(:disabled) {
-  background: var(--ei-hover-bg, #e8e8e8);
-}
+    &:hover:not(:disabled) {
+      background: var(--ei-hover-bg, #e8e8e8);
+    }
 
-.ei-topbar-b__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
 
-.ei-topbar-b__btn--active {
-  background: var(--ei-active-bg, #d0d0d0);
-  border-color: var(--ei-border-color, #e0e0e0);
-}
+    &--active {
+      background: var(--ei-active-bg, #d0d0d0);
+      border-color: var(--ei-border-color, #e0e0e0);
+    }
 
-.ei-topbar-b__btn--contribution {
-  color: var(--ei-primary, #4f46e5);
-}
+    &--contribution {
+      color: var(--ei-primary, #4f46e5);
 
-.ei-topbar-b__btn--contribution:hover {
-  background: var(--ei-primary-light, rgba(79, 70, 229, 0.1));
-}
+      &:hover {
+        background: var(--ei-primary-light, rgba(79, 70, 229, 0.1));
+      }
+    }
+  }
 
-.ei-topbar-b__scroll-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  color: var(--ei-text-secondary, #999);
-  flex-shrink: 0;
-}
+  &__scroll-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ei-text-secondary, #999);
+    flex-shrink: 0;
 
-.ei-topbar-b__scroll-btn:hover {
-  background: var(--ei-hover-bg, #e8e8e8);
-  color: var(--ei-text, #333);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #e8e8e8);
+      color: var(--ei-text, #333);
+    }
+  }
 
-.ei-topbar-b__divider {
-  width: 1px;
-  height: 20px;
-  background: var(--ei-border-color, #e0e0e0);
-  flex-shrink: 0;
-}
+  &__divider {
+    width: 1px;
+    height: 20px;
+    background: var(--ei-border-color, #e0e0e0);
+    flex-shrink: 0;
+  }
 
-.ei-topbar-b__spacer {
-  flex: 1;
-}
+  &__spacer {
+    flex: 1;
+  }
 
-.ei-topbar-b__zoom {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
+  &__zoom {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
 
-.ei-topbar-b__zoom-label {
-  font-size: 12px;
-  min-width: 40px;
-  text-align: center;
-  user-select: none;
+  &__zoom-label {
+    font-size: 12px;
+    min-width: 40px;
+    text-align: center;
+    user-select: none;
+  }
 }
 </style>

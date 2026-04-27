@@ -203,7 +203,7 @@ function onCommit(val: unknown) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-prop-editor {
   width: 100%;
 }

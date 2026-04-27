@@ -593,7 +593,7 @@ function readPropValue(schema: PropSchema): unknown {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-properties-panel {
   width: 100%;
   font-size: 13px;
@@ -601,22 +601,22 @@ function readPropValue(schema: PropSchema): unknown {
   flex-direction: column;
   padding: 0 4px;
   gap: 4px;
-}
 
-.ei-properties-panel__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
 
-.ei-properties-panel__fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+  &__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
-.ei-properties-panel__cell-label {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
+  &__cell-label {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+  }
 }
 </style>

@@ -104,7 +104,7 @@ function onCommit(val: unknown) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-page-prop-editor {
   width: 100%;
 }

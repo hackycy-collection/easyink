@@ -323,7 +323,7 @@ function handleRulerLeave() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-canvas-rulers {
   pointer-events: none;
   position: absolute;
@@ -349,21 +349,21 @@ function handleRulerLeave() {
   pointer-events: auto;
   position: absolute;
   display: block;
-}
 
-.ei-ruler--horizontal {
-  top: 0;
-  left: 20px;
-  right: 0;
-  height: 20px;
-  width: calc(100% - 20px);
-}
+  &--horizontal {
+    top: 0;
+    left: 20px;
+    right: 0;
+    height: 20px;
+    width: calc(100% - 20px);
+  }
 
-.ei-ruler--vertical {
-  top: 20px;
-  left: 0;
-  bottom: 0;
-  width: 20px;
-  height: calc(100% - 20px);
+  &--vertical {
+    top: 20px;
+    left: 0;
+    bottom: 0;
+    width: 20px;
+    height: calc(100% - 20px);
+  }
 }
 </style>

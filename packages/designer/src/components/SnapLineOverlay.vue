@@ -32,29 +32,29 @@ const yLines = computed(() =>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-snap-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: visible;
-}
 
-.ei-snap-overlay__line {
-  position: absolute;
-}
+  &__line {
+    position: absolute;
 
-.ei-snap-overlay__line--vertical {
-  top: 0;
-  bottom: 0;
-  width: 0;
-  border-left: 1px dashed var(--ei-snap-line-color, #ff4081);
-}
+    &--vertical {
+      top: 0;
+      bottom: 0;
+      width: 0;
+      border-left: 1px dashed var(--ei-snap-line-color, #ff4081);
+    }
 
-.ei-snap-overlay__line--horizontal {
-  left: 0;
-  right: 0;
-  height: 0;
-  border-top: 1px dashed var(--ei-snap-line-color, #ff4081);
+    &--horizontal {
+      left: 0;
+      right: 0;
+      height: 0;
+      border-top: 1px dashed var(--ei-snap-line-color, #ff4081);
+    }
+  }
 }
 </style>

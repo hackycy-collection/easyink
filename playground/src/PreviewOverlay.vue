@@ -221,14 +221,16 @@ async function handleExport() {
   </div>
 </template>
 
-<style scoped>
-.preview-fade-enter-active,
-.preview-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
+<style scoped lang="scss">
+.preview-fade {
+  &-enter-active,
+  &-leave-active {
+    transition: opacity 0.2s ease;
+  }
 
-.preview-fade-enter-from,
-.preview-fade-leave-to {
-  opacity: 0;
+  &-enter-from,
+  &-leave-to {
+    opacity: 0;
+  }
 }
 </style>

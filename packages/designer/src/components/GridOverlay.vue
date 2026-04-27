@@ -30,7 +30,7 @@ const gridStyle = computed(() => {
   />
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-grid-overlay {
   position: absolute;
   inset: 0;

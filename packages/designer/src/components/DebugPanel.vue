@@ -28,36 +28,36 @@ const selectedCount = computed(() => store.selection.count)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-debug-panel {
   font-size: 11px;
   padding: 8px;
-}
 
-.ei-debug-panel__stats {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
-  color: var(--ei-text-secondary, #666);
-}
+  &__stats {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    color: var(--ei-text-secondary, #666);
+  }
 
-.ei-debug-panel__schema summary {
-  cursor: pointer;
-  color: var(--ei-text, #333);
-  font-weight: 500;
-  margin-bottom: 4px;
-}
+  &__schema summary {
+    cursor: pointer;
+    color: var(--ei-text, #333);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
 
-.ei-debug-panel__code {
-  max-height: 300px;
-  overflow: auto;
-  background: var(--ei-canvas-bg, #f5f5f5);
-  padding: 8px;
-  border-radius: 3px;
-  font-family: monospace;
-  font-size: 10px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  &__code {
+    max-height: 300px;
+    overflow: auto;
+    background: var(--ei-canvas-bg, #f5f5f5);
+    padding: 8px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 10px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
 }
 </style>

@@ -75,56 +75,56 @@ function handleClear() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-binding-section {
   width: 100%;
-}
 
-.ei-binding-section__header {
-  margin-bottom: 6px;
-}
+  &__header {
+    margin-bottom: 6px;
+  }
 
-.ei-binding-section__title {
-  font-weight: 500;
-  font-size: 12px;
-  color: var(--ei-text-secondary, #666);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+  &__title {
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--ei-text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 
-.ei-binding-section__item {
-  padding: 6px;
-  background: var(--ei-panel-header-bg, #fafafa);
-  border: 1px solid var(--ei-border-color, #eee);
-  border-radius: 4px;
-  margin-bottom: 4px;
-}
+  &__item {
+    padding: 6px;
+    background: var(--ei-panel-header-bg, #fafafa);
+    border: 1px solid var(--ei-border-color, #eee);
+    border-radius: 4px;
+    margin-bottom: 4px;
+  }
 
-.ei-binding-section__row {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 1.6;
-}
+  &__row {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
 
-.ei-binding-section__label {
-  color: var(--ei-text-secondary, #999);
-  flex-shrink: 0;
-  min-width: 32px;
-}
+  &__label {
+    color: var(--ei-text-secondary, #999);
+    flex-shrink: 0;
+    min-width: 32px;
+  }
 
-.ei-binding-section__value {
-  color: var(--ei-text, #333);
-  word-break: break-all;
-}
+  &__value {
+    color: var(--ei-text, #333);
+    word-break: break-all;
+  }
 
-.ei-binding-section__actions {
-  margin-top: 4px;
-}
+  &__actions {
+    margin-top: 4px;
+  }
 
-.ei-binding-section__empty {
-  font-size: 12px;
-  color: var(--ei-text-secondary, #999);
-  padding: 4px 0;
+  &__empty {
+    font-size: 12px;
+    color: var(--ei-text-secondary, #999);
+    padding: 4px 0;
+  }
 }
 </style>

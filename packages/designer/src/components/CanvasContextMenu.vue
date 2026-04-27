@@ -333,7 +333,7 @@ defineExpose({ onContextMenu })
   </Teleport>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-context-menu {
   position: fixed;
   z-index: 10000;
@@ -344,61 +344,61 @@ defineExpose({ onContextMenu })
   padding: 4px 0;
   min-width: 180px;
   font-size: 12px;
-}
 
-.ei-context-menu__divider {
-  height: 1px;
-  margin: 4px 8px;
-  background: var(--ei-border-color, #e8e8e8);
-}
+  &__divider {
+    height: 1px;
+    margin: 4px 8px;
+    background: var(--ei-border-color, #e8e8e8);
+  }
 
-.ei-context-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
-  color: var(--ei-text, #333);
-  white-space: nowrap;
-  border-radius: 4px;
-  margin: 0 4px;
-  transition: background 0.15s;
-}
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--ei-text, #333);
+    white-space: nowrap;
+    border-radius: 4px;
+    margin: 0 4px;
+    transition: background 0.15s;
 
-.ei-context-menu__item:hover {
-  background: var(--ei-hover-bg, #f0f0f0);
-}
+    &:hover {
+      background: var(--ei-hover-bg, #f0f0f0);
+    }
 
-.ei-context-menu__item--destructive {
-  color: var(--ei-danger, #ff4d4f);
-}
+    &--destructive {
+      color: var(--ei-danger, #ff4d4f);
+    }
 
-.ei-context-menu__item--disabled {
-  color: var(--ei-text-secondary, #999);
-  cursor: not-allowed;
-}
+    &--disabled {
+      color: var(--ei-text-secondary, #999);
+      cursor: not-allowed;
 
-.ei-context-menu__item--disabled:hover {
-  background: none;
-}
+      &:hover {
+        background: none;
+      }
+    }
+  }
 
-.ei-context-menu__icon {
-  flex-shrink: 0;
-}
+  &__icon {
+    flex-shrink: 0;
+  }
 
-.ei-context-menu__label {
-  flex: 1;
-}
+  &__label {
+    flex: 1;
+  }
 
-.ei-context-menu__shortcut {
-  color: var(--ei-text-secondary, #999);
-  font-size: 11px;
-  margin-left: 16px;
-}
+  &__shortcut {
+    color: var(--ei-text-secondary, #999);
+    font-size: 11px;
+    margin-left: 16px;
+  }
 
-.ei-context-menu__empty {
-  padding: 8px 16px;
-  color: var(--ei-text-secondary, #999);
-  text-align: center;
+  &__empty {
+    padding: 8px 16px;
+    color: var(--ei-text-secondary, #999);
+    text-align: center;
+  }
 }
 </style>

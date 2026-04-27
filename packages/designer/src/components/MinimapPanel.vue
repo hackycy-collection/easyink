@@ -34,24 +34,24 @@ const minimapHeight = computed(() => minimapWidth / pageRatio.value)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-minimap-panel {
   padding: 8px;
   display: flex;
   justify-content: center;
-}
 
-.ei-minimap-panel__canvas {
-  background: #fff;
-  border: 1px solid var(--ei-border-color, #d0d0d0);
-  position: relative;
-  overflow: hidden;
-}
+  &__canvas {
+    background: #fff;
+    border: 1px solid var(--ei-border-color, #d0d0d0);
+    position: relative;
+    overflow: hidden;
+  }
 
-.ei-minimap-panel__element {
-  position: absolute;
-  background: var(--ei-primary, #1890ff);
-  opacity: 0.3;
-  border-radius: 1px;
+  &__element {
+    position: absolute;
+    background: var(--ei-primary, #1890ff);
+    opacity: 0.3;
+    border-radius: 1px;
+  }
 }
 </style>

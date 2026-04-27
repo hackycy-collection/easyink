@@ -163,7 +163,7 @@ defineExpose({ onGuideDragStart, createGuideAt })
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .ei-guide-overlay {
   position: absolute;
   inset: 0;
@@ -174,40 +174,40 @@ defineExpose({ onGuideDragStart, createGuideAt })
 .ei-guide {
   position: absolute;
   pointer-events: auto;
-}
 
-.ei-guide--vertical {
-  top: 0;
-  bottom: 0;
-  width: 0;
-  border-left: 1px dashed var(--ei-guide-color, #f50);
-  cursor: ew-resize;
-}
+  &--vertical {
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px dashed var(--ei-guide-color, #f50);
+    cursor: ew-resize;
 
-.ei-guide--vertical::before {
-  content: '';
-  position: absolute;
-  inset: 0 -3px;
-}
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0 -3px;
+    }
+  }
 
-.ei-guide--horizontal {
-  left: 0;
-  right: 0;
-  height: 0;
-  border-top: 1px dashed var(--ei-guide-color, #f50);
-  cursor: ns-resize;
-}
+  &--horizontal {
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dashed var(--ei-guide-color, #f50);
+    cursor: ns-resize;
 
-.ei-guide--horizontal::before {
-  content: '';
-  position: absolute;
-  inset: -3px 0;
-}
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -3px 0;
+    }
+  }
 
-.ei-guide--preview {
-  pointer-events: none;
-  opacity: 0.5;
-  cursor: default;
-  border-color: var(--ei-primary, #1890ff);
+  &--preview {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: default;
+    border-color: var(--ei-primary, #1890ff);
+  }
 }
 </style>
