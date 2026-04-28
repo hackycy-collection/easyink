@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PrinterConfig, PrinterDevice } from '../hooks/usePrinter'
-import { IconClose } from '@easyink/icons'
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { DEFAULT_PRINTER_COPIES, DEFAULT_PRINTER_HOST, DEFAULT_PRINTER_PAGE_SIZE } from '../hooks/usePrinter'
 
@@ -25,6 +24,8 @@ const localConfig = reactive<PrinterConfig>({
   printCopies: props.config.printCopies ?? DEFAULT_PRINTER_COPIES,
   printerServiceUrl: props.config.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
 })
+
+const modalZIndex = 10010
 
 const connectionStatus = computed(() => {
   if (!localConfig.enablePrinterService)
@@ -58,8 +59,8 @@ const connectionStatusColor = computed(() => {
   }
 })
 
-function handleToggleService(enabled: boolean) {
-  localConfig.enablePrinterService = enabled
+function handleToggleService(enabled: unknown) {
+  localConfig.enablePrinterService = enabled as boolean
   if (enabled && !props.isConnected) {
     emit('connect')
   }
@@ -74,6 +75,10 @@ function handleConnect() {
 
 function handleRefreshDevices() {
   emit('refreshDevices')
+}
+
+function getSelectPopupContainer(trigger: HTMLElement) {
+  return trigger.parentElement ?? document.body
 }
 
 function handleSave() {
@@ -96,94 +101,96 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <a-modal
+  <AModal
     :open="true"
+    :z-index="modalZIndex"
     title="打印机设置"
     width="540px"
     @cancel="emit('close')"
     @ok="handleSave"
   >
-    <a-form layout="vertical" class="space-y-4">
+    <AForm layout="vertical" class="space-y-4">
       <!-- Enable Printer Service -->
-      <a-form-item label="启用打印服务">
-        <a-switch
+      <AFormItem label="启用打印服务">
+        <ASwitch
           :checked="localConfig.enablePrinterService"
-          @change="(checked: boolean) => handleToggleService(checked)"
+          @change="(checked) => handleToggleService(checked)"
         />
-      </a-form-item>
+      </AFormItem>
 
       <!-- Connection Status -->
-      <a-form-item label="连接状态">
+      <AFormItem label="连接状态">
         <div class="flex items-center gap-2">
           <span class="text-sm" :class="connectionStatusColor">{{ connectionStatusText }}</span>
-          <a-button
+          <AButton
             v-if="localConfig.enablePrinterService && !isConnected"
             size="small"
             @click="handleConnect"
           >
             连接
-          </a-button>
+          </AButton>
         </div>
-      </a-form-item>
+      </AFormItem>
 
       <!-- Printer Service URL -->
-      <a-form-item label="打印服务地址">
-        <a-input
+      <AFormItem label="打印服务地址">
+        <AInput
           v-model:value="localConfig.printerServiceUrl"
           :disabled="!localConfig.enablePrinterService"
           placeholder="http://localhost:17521"
         />
-      </a-form-item>
+      </AFormItem>
 
       <!-- Printer Device -->
-      <a-form-item label="打印机">
+      <AFormItem label="打印机">
         <template #extra>
-          <a-button
+          <AButton
             v-if="localConfig.enablePrinterService"
             size="small"
             :disabled="!isConnected"
             @click="handleRefreshDevices"
           >
             刷新
-          </a-button>
+          </AButton>
         </template>
-        <a-select
+        <ASelect
           v-model:value="localConfig.printerDevice"
           :disabled="!localConfig.enablePrinterService || !isConnected || printerDevices.length === 0"
+          :get-popup-container="getSelectPopupContainer"
           :options="printerDevices.map(d => ({ label: `${d.displayName}${d.isDefault ? ' (默认)' : ''}`, value: d.name }))"
           placeholder="请选择打印机"
         />
-      </a-form-item>
+      </AFormItem>
 
       <!-- Paper Size -->
-      <a-form-item label="纸张宽度 (mm)">
-        <a-input-number
+      <AFormItem label="纸张宽度 (mm)">
+        <AInputNumber
           v-model:value="localConfig.printerPaperSize"
           :min="1"
           :disabled="!localConfig.enablePrinterService"
           class="w-full"
         />
-      </a-form-item>
+      </AFormItem>
 
       <!-- Print Copies -->
-      <a-form-item label="打印份数">
-        <a-input-number
+      <AFormItem label="打印份数">
+        <AInputNumber
           v-model:value="localConfig.printCopies"
           :min="1"
           :max="99"
           :disabled="!localConfig.enablePrinterService"
           class="w-full"
         />
-      </a-form-item>
-    </a-form>
+      </AFormItem>
+    </AForm>
 
     <template #footer>
-      <a-button @click="emit('close')">
+      <AButton @click="emit('close')">
         取消
-      </a-button>
-      <a-button type="primary" @click="handleSave">
+      </AButton>
+      <AButton type="primary" @click="handleSave">
         保存
-      </a-button>
+      </AButton>
     </template>
-  </a-modal>
+  </AModal>
 </template>

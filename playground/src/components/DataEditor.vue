@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { IconClose } from '@easyink/icons'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -148,7 +147,7 @@ function flattenVisibleNodes(nodes: FieldTreeNode[], depth: number): VisibleFiel
 </script>
 
 <template>
-  <a-modal
+  <AModal
     :open="true"
     title="数据编辑器"
     width="860px"
@@ -170,14 +169,14 @@ function flattenVisibleNodes(nodes: FieldTreeNode[], depth: number): VisibleFiel
         <div v-if="parseError" class="px-3 py-1.5 text-xs text-danger bg-danger-bg border-t border-danger-border">
           {{ parseError }}
         </div>
-        <div class="flex items-center gap-2 px-3 py-2 border-t border-border-light">
-          <a-button @click="handleFormat">
+        <div class="flex items-center gap-2 py-2 border-t border-border-light">
+          <AButton @click="handleFormat">
             格式化
-          </a-button>
+          </AButton>
           <div class="flex-1" />
-          <a-button type="primary" :disabled="hasError" @click="handleApply">
+          <AButton type="primary" :disabled="hasError" @click="handleApply">
             应用
-          </a-button>
+          </AButton>
         </div>
       </div>
 
@@ -205,5 +204,5 @@ function flattenVisibleNodes(nodes: FieldTreeNode[], depth: number): VisibleFiel
         </div>
       </div>
     </div>
-  </a-modal>
+  </AModal>
 </template>

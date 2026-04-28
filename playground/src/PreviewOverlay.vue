@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocumentSchema, ViewerRuntime } from '@easyink/viewer'
 import type { PrinterConfig } from './hooks/usePrinter'
-import { IconChevronLeft, IconChevronRight, IconClose, IconExport, IconManager, IconMaximize, IconMinimize, IconPlus, IconPrint } from '@easyink/icons'
+import { IconChevronLeft, IconChevronRight, IconClose, IconMinimize, IconPlus } from '@easyink/icons'
 import { createViewer } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
@@ -25,6 +25,7 @@ let viewer: ViewerRuntime | undefined
 const zoom = ref(100)
 const currentPage = ref(1)
 const totalPages = ref(1)
+const printDropdownOverlayStyle = { zIndex: 10001 }
 
 // Printer integration
 const printerConfig = ref<PrinterConfig>(loadPrinterConfig())
@@ -168,14 +169,16 @@ function handleScroll() {
   currentPage.value = closest
 }
 
-function handleMenuClick({ key }: { key: string }) {
-  if (key === 'browser') {
+function handleMenuClick({ key }: { key: string | number }) {
+  const action = String(key)
+
+  if (action === 'browser') {
     handleBrowserPrint()
   }
-  else if (key === 'hiprint') {
+  else if (action === 'hiprint') {
     handleHiPrintPrint()
   }
-  else if (key === 'settings') {
+  else if (action === 'settings') {
     showPrinterSettings.value = true
   }
 }
@@ -186,17 +189,20 @@ async function handleBrowserPrint() {
 
 async function handleHiPrintPrint() {
   if (!printer.getPrinterEnabled.value) {
+    // eslint-disable-next-line no-alert
     alert('请先在设置中启用打印服务')
     showPrinterSettings.value = true
     return
   }
 
   if (!printer.getConnected.value) {
+    // eslint-disable-next-line no-alert
     alert('打印服务未连接，请检查打印服务是否启动')
     return
   }
 
   if (!printer.getPrinterDevice.value) {
+    // eslint-disable-next-line no-alert
     alert('请先在设置中选择打印机')
     showPrinterSettings.value = true
     return
@@ -208,19 +214,21 @@ async function handleHiPrintPrint() {
   try {
     const pages = containerRef.value.querySelectorAll<HTMLElement>('.ei-viewer-page')
     if (pages.length === 0) {
+      // eslint-disable-next-line no-alert
       alert('没有可打印的页面')
       return
     }
 
     const printerDevice = printer.getPrinterDevice.value
-    const { width: pageWidth, height: pageHeight, unit } = props.schema.page
+    const { width: pageWidth, height: pageHeight } = props.schema.page
+    const { unit } = props.schema
 
     // Convert page dimensions based on unit (assuming mm for HiPrint)
     const UNIT_TO_MM = {
-      'mm': 1,
-      'cm': 10,
-      'in': 25.4,
-      'pt': 0.352778,
+      mm: 1,
+      cm: 10,
+      in: 25.4,
+      pt: 0.352778,
     }
     const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
     const width = pageWidth * factor
@@ -238,6 +246,7 @@ async function handleHiPrintPrint() {
     }
   }
   catch (err) {
+    // eslint-disable-next-line no-alert
     alert(`打印失败: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
@@ -286,72 +295,54 @@ async function handleExport() {
   <div class="fixed inset-0 z-[9999] flex flex-col bg-black/60">
     <div class="flex items-center justify-between px-4 py-1.5 bg-white border-b border-border gap-2">
       <div class="flex items-center gap-1">
-        <a-button :disabled="currentPage <= 1" @click="prevPage">
-          <template #icon>
-            <IconChevronLeft :size="16" />
-          </template>
-        </a-button>
+        <AButton :disabled="currentPage <= 1" @click="prevPage">
+          <IconChevronLeft :size="16" />
+        </AButton>
         <span class="text-xs text-text-tertiary min-w-[48px] text-center select-none">{{ currentPage }} / {{ totalPages }}</span>
-        <a-button :disabled="currentPage >= totalPages" @click="nextPage">
-          <template #icon>
-            <IconChevronRight :size="16" />
-          </template>
-        </a-button>
+        <AButton :disabled="currentPage >= totalPages" @click="nextPage">
+          <IconChevronRight :size="16" />
+        </AButton>
 
         <span class="w-px h-[18px] bg-border mx-1" />
 
-        <a-button @click="zoomOut">
-          <template #icon>
-            <IconMinimize :size="16" />
-          </template>
-        </a-button>
+        <AButton @click="zoomOut">
+          <IconMinimize :size="16" />
+        </AButton>
         <span class="text-xs text-text-tertiary min-w-[48px] text-center select-none">{{ zoom }}%</span>
-        <a-button @click="zoomIn">
-          <template #icon>
-            <IconPlus :size="16" />
-          </template>
-        </a-button>
-        <a-button @click="zoomFit">
-          <template #icon>
-            <IconMaximize :size="16" />
-          </template>
+        <AButton @click="zoomIn">
+          <IconPlus :size="16" />
+        </AButton>
+        <AButton @click="zoomFit">
           适应宽度
-        </a-button>
+        </AButton>
       </div>
 
       <div class="flex items-center gap-1">
-        <a-button @click="handleExport">
-          <template #icon>
-            <IconExport :size="16" />
-          </template>
-          导出 JSON
-        </a-button>
-        <a-dropdown>
-          <a-button type="primary">
-            <template #icon>
-              <IconPrint :size="16" />
-            </template>
+        <AButton @click="handleExport">
+          导出
+        </AButton>
+        <ADropdown :overlay-style="printDropdownOverlayStyle">
+          <AButton type="primary">
             打印
-          </a-button>
+          </AButton>
           <template #overlay>
-            <a-menu @click="handleMenuClick">
-              <a-menu-item key="browser">浏览器打印</a-menu-item>
-              <a-menu-item key="hiprint">HiPrint 打印</a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="settings">
-                <template #icon>
-                  <IconManager :size="14" />
-                </template>
+            <AMenu @click="handleMenuClick">
+              <AMenuItem key="browser">
+                浏览器打印
+              </AMenuItem>
+              <AMenuItem key="hiprint">
+                HiPrint 打印
+              </AMenuItem>
+              <AMenuDivider />
+              <AMenuItem key="settings">
                 打印设置
-              </a-menu-item>
-            </a-menu>
+              </AMenuItem>
+            </AMenu>
           </template>
-        </a-dropdown>
-        <a-button @click="emit('close')">
-          <template #icon>
-            <IconClose :size="16" />
-          </template>
-        </a-button>
+        </ADropdown>
+        <AButton @click="emit('close')">
+          <IconClose :size="16" />
+        </AButton>
       </div>
     </div>
 

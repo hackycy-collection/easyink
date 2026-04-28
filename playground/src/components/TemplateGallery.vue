@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { StoredTemplate } from '../storage/template-store'
-import { IconClose, IconCopy, IconDelete, IconPlus } from '@easyink/icons'
 import { sampleTemplates } from '@easyink/samples'
 import { computed, onMounted, ref } from 'vue'
 import { deleteTemplate, listTemplates } from '../storage/template-store'
@@ -103,7 +102,7 @@ function getModeLabel(mode: string): string {
 </script>
 
 <template>
-  <a-modal
+  <AModal
     :open="true"
     title="选择模板"
     width="720px"
@@ -111,12 +110,9 @@ function getModeLabel(mode: string): string {
     @cancel="emit('close')"
   >
     <template #extra>
-      <a-button type="primary" @click="emit('createBlank')">
-        <template #icon>
-          <IconPlus :size="16" />
-        </template>
+      <AButton type="primary" @click="emit('createBlank')">
         新建空白
-      </a-button>
+      </AButton>
     </template>
 
     <div class="max-h-[60vh] overflow-y-auto">
@@ -141,18 +137,12 @@ function getModeLabel(mode: string): string {
               <span class="text-[11px] text-text-disabled">{{ formatDate(t.updatedAt) }}</span>
             </div>
             <div class="px-2.5 pb-2 flex gap-1.5">
-              <a-button size="small" @click="handleDuplicate(t, $event)">
-                <template #icon>
-                  <IconCopy :size="12" />
-                </template>
+              <AButton size="small" @click="handleDuplicate(t, $event)">
                 复制
-              </a-button>
-              <a-button size="small" danger @click="handleDelete(t, $event)">
-                <template #icon>
-                  <IconDelete :size="12" />
-                </template>
+              </AButton>
+              <AButton size="small" danger @click="handleDelete(t, $event)">
                 删除
-              </a-button>
+              </AButton>
             </div>
           </div>
         </div>
@@ -182,7 +172,7 @@ function getModeLabel(mode: string): string {
     </div>
 
     <!-- Confirm dialog: reset data? -->
-    <a-modal
+    <AModal
       v-if="pending"
       :open="true"
       title="是否使用示例数据？"
@@ -194,13 +184,13 @@ function getModeLabel(mode: string): string {
         该模板附带示例数据,可直接看到真实打印效果。使用后将替换当前数据编辑器中的内容。
       </p>
       <template #footer>
-        <a-button @click="confirmKeepCurrentData">
+        <AButton @click="confirmKeepCurrentData">
           保留当前数据
-        </a-button>
-        <a-button type="primary" @click="confirmUseDemoData">
+        </AButton>
+        <AButton type="primary" @click="confirmUseDemoData">
           使用示例数据
-        </a-button>
+        </AButton>
       </template>
-    </a-modal>
-  </a-modal>
+    </AModal>
+  </AModal>
 </template>

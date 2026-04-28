@@ -4,7 +4,6 @@ import type { StoredTemplate } from './storage/template-store'
 import { createAIContribution } from '@easyink/ai'
 import { createLocalStoragePreferenceProvider, EasyInkDesigner } from '@easyink/designer'
 import zhCN from '@easyink/designer/locale/zh-CN'
-import { IconDatabase, IconPreview } from '@easyink/icons'
 import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSources, sampleTemplates } from '@easyink/samples'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import DataEditorModal from './components/DataEditor.vue'
@@ -198,23 +197,17 @@ const contributions = [createAIContribution()]
   >
     <template #topbar>
       <div class="flex items-center gap-2 px-3 py-1 bg-bg-secondary border-b border-border">
-        <a-button class="flex items-center gap-1" @click="showTemplateGallery = true">
+        <AButton class="flex items-center gap-1" @click="showTemplateGallery = true">
           {{ currentTemplate?.name ?? '选择模板' }}
           <span class="text-[10px] text-text-quaternary">&#9662;</span>
-        </a-button>
+        </AButton>
         <div class="flex-1" />
-        <a-button @click="openDataEditor">
-          <template #icon>
-            <IconDatabase :size="16" />
-          </template>
+        <AButton @click="openDataEditor">
           数据
-        </a-button>
-        <a-button type="primary" @click="openPreview">
-          <template #icon>
-            <IconPreview :size="16" />
-          </template>
+        </AButton>
+        <AButton type="primary" @click="openPreview">
           预览
-        </a-button>
+        </AButton>
       </div>
     </template>
   </EasyInkDesigner>
