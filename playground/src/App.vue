@@ -8,6 +8,8 @@ import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSource
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import DataEditorModal from './components/DataEditor.vue'
 import TemplateGallery from './components/TemplateGallery.vue'
+import { Button } from './components/ui/button'
+import { Toaster } from './components/ui/sonner'
 import PreviewOverlay from './PreviewOverlay.vue'
 import { getLastTemplateId, getTemplate, listTemplates, saveTemplate, setLastTemplateId } from './storage/template-store'
 import { jsonToDataSource } from './utils/json-to-datasource'
@@ -196,18 +198,18 @@ const contributions = [createAIContribution()]
     :contributions="contributions"
   >
     <template #topbar>
-      <div class="flex items-center gap-2 px-3 py-1 bg-bg-secondary border-b border-border">
-        <AButton class="flex items-center gap-1" @click="showTemplateGallery = true">
+      <div class="flex items-center gap-2 px-3 py-1 bg-muted border-b border-border">
+        <Button variant="outline" size="sm" class="flex items-center gap-1" @click="showTemplateGallery = true">
           {{ currentTemplate?.name ?? '选择模板' }}
-          <span class="text-[10px] text-text-quaternary">&#9662;</span>
-        </AButton>
+          <span class="text-[10px] text-muted-foreground">&#9662;</span>
+        </Button>
         <div class="flex-1" />
-        <AButton @click="openDataEditor">
+        <Button variant="outline" size="sm" @click="openDataEditor">
           数据
-        </AButton>
-        <AButton type="primary" @click="openPreview">
+        </Button>
+        <Button size="sm" @click="openPreview">
           预览
-        </AButton>
+        </Button>
       </div>
     </template>
   </EasyInkDesigner>
@@ -234,4 +236,6 @@ const contributions = [createAIContribution()]
     @update="handleDataUpdate"
     @close="showDataEditor = false"
   />
+
+  <Toaster />
 </template>

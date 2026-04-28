@@ -1,6 +1,24 @@
 <script setup lang="ts">
 import type { PrinterConfig, PrinterDevice } from '../hooks/usePrinter'
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { DEFAULT_PRINTER_COPIES, DEFAULT_PRINTER_HOST, DEFAULT_PRINTER_PAGE_SIZE } from '../hooks/usePrinter'
 
 const props = defineProps<{
@@ -24,8 +42,6 @@ const localConfig = reactive<PrinterConfig>({
   printCopies: props.config.printCopies ?? DEFAULT_PRINTER_COPIES,
   printerServiceUrl: props.config.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
 })
-
-const modalZIndex = 10010
 
 const connectionStatus = computed(() => {
   if (!localConfig.enablePrinterService)
@@ -51,20 +67,20 @@ const connectionStatusColor = computed(() => {
     case 'connected':
       return 'text-green-600'
     case 'disconnected':
-      return 'text-red-600'
+      return 'text-red-500'
     case 'disabled':
-      return 'text-gray-400'
+      return 'text-muted-foreground'
     default:
-      return 'text-gray-400'
+      return 'text-muted-foreground'
   }
 })
 
-function handleToggleService(enabled: unknown) {
-  localConfig.enablePrinterService = enabled as boolean
-  if (enabled && !props.isConnected) {
+function handleToggleService(checked: boolean) {
+  localConfig.enablePrinterService = checked
+  if (checked && !props.isConnected) {
     emit('connect')
   }
-  else if (!enabled && props.isConnected) {
+  else if (!checked && props.isConnected) {
     emit('disconnect')
   }
 }
@@ -75,10 +91,6 @@ function handleConnect() {
 
 function handleRefreshDevices() {
   emit('refreshDevices')
-}
-
-function getSelectPopupContainer(trigger: HTMLElement) {
-  return trigger.parentElement ?? document.body
 }
 
 function handleSave() {
@@ -101,96 +113,116 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AModal
-    :open="true"
-    :z-index="modalZIndex"
-    title="打印机设置"
-    width="540px"
-    @cancel="emit('close')"
-    @ok="handleSave"
-  >
-    <AForm layout="vertical" class="space-y-4">
-      <!-- Enable Printer Service -->
-      <AFormItem label="启用打印服务">
-        <ASwitch
-          :checked="localConfig.enablePrinterService"
-          @change="(checked) => handleToggleService(checked)"
-        />
-      </AFormItem>
+  <Dialog :open="true" @update:open="(val) => { if (!val) emit('close') }">
+    <DialogContent class="max-w-[560px]">
+      <DialogHeader>
+        <DialogTitle>打印机设置</DialogTitle>
+      </DialogHeader>
 
-      <!-- Connection Status -->
-      <AFormItem label="连接状态">
-        <div class="flex items-center gap-2">
-          <span class="text-sm" :class="connectionStatusColor">{{ connectionStatusText }}</span>
-          <AButton
-            v-if="localConfig.enablePrinterService && !isConnected"
-            size="small"
-            @click="handleConnect"
-          >
-            连接
-          </AButton>
+      <div class="space-y-4 py-2">
+        <!-- Enable Printer Service -->
+        <div class="flex items-center justify-between">
+          <Label>启用打印服务</Label>
+          <Switch
+            :checked="localConfig.enablePrinterService"
+            @update:checked="handleToggleService"
+          />
         </div>
-      </AFormItem>
 
-      <!-- Printer Service URL -->
-      <AFormItem label="打印服务地址">
-        <AInput
-          v-model:value="localConfig.printerServiceUrl"
-          :disabled="!localConfig.enablePrinterService"
-          placeholder="http://localhost:17521"
-        />
-      </AFormItem>
+        <!-- Connection Status -->
+        <div class="space-y-1.5">
+          <Label>连接状态</Label>
+          <div class="flex items-center gap-2">
+            <span class="text-sm" :class="connectionStatusColor">{{ connectionStatusText }}</span>
+            <Button
+              v-if="localConfig.enablePrinterService && !isConnected"
+              variant="outline"
+              size="xs"
+              @click="handleConnect"
+            >
+              连接
+            </Button>
+          </div>
+        </div>
 
-      <!-- Printer Device -->
-      <AFormItem label="打印机">
-        <template #extra>
-          <AButton
-            v-if="localConfig.enablePrinterService"
-            size="small"
-            :disabled="!isConnected"
-            @click="handleRefreshDevices"
+        <!-- Printer Service URL -->
+        <div class="space-y-1.5">
+          <Label>打印服务地址</Label>
+          <Input
+            v-model="localConfig.printerServiceUrl"
+            :disabled="!localConfig.enablePrinterService"
+            placeholder="http://localhost:17521"
+          />
+        </div>
+
+        <!-- Printer Device -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <Label>打印机</Label>
+            <Button
+              v-if="localConfig.enablePrinterService"
+              variant="outline"
+              size="xs"
+              :disabled="!isConnected"
+              @click="handleRefreshDevices"
+            >
+              刷新
+            </Button>
+          </div>
+          <Select
+            :model-value="localConfig.printerDevice ?? ''"
+            :disabled="!localConfig.enablePrinterService || !isConnected || printerDevices.length === 0"
+            @update:model-value="(val) => localConfig.printerDevice = String(val) || undefined"
           >
-            刷新
-          </AButton>
-        </template>
-        <ASelect
-          v-model:value="localConfig.printerDevice"
-          :disabled="!localConfig.enablePrinterService || !isConnected || printerDevices.length === 0"
-          :get-popup-container="getSelectPopupContainer"
-          :options="printerDevices.map(d => ({ label: `${d.displayName}${d.isDefault ? ' (默认)' : ''}`, value: d.name }))"
-          placeholder="请选择打印机"
-        />
-      </AFormItem>
+            <SelectTrigger>
+              <SelectValue placeholder="请选择打印机" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="d in printerDevices"
+                :key="d.name"
+                :value="d.name"
+              >
+                {{ d.displayName }}{{ d.isDefault ? ' (默认)' : '' }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      <!-- Paper Size -->
-      <AFormItem label="纸张宽度 (mm)">
-        <AInputNumber
-          v-model:value="localConfig.printerPaperSize"
-          :min="1"
-          :disabled="!localConfig.enablePrinterService"
-          class="w-full"
-        />
-      </AFormItem>
+        <!-- Paper Size -->
+        <div class="space-y-1.5">
+          <Label>纸张宽度 (mm)</Label>
+          <Input
+            type="number"
+            :value="localConfig.printerPaperSize"
+            :min="1"
+            :disabled="!localConfig.enablePrinterService"
+            @input="(e: Event) => localConfig.printerPaperSize = Number((e.target as HTMLInputElement).value)"
+          />
+        </div>
 
-      <!-- Print Copies -->
-      <AFormItem label="打印份数">
-        <AInputNumber
-          v-model:value="localConfig.printCopies"
-          :min="1"
-          :max="99"
-          :disabled="!localConfig.enablePrinterService"
-          class="w-full"
-        />
-      </AFormItem>
-    </AForm>
+        <!-- Print Copies -->
+        <div class="space-y-1.5">
+          <Label>打印份数</Label>
+          <Input
+            type="number"
+            :value="localConfig.printCopies"
+            :min="1"
+            :max="99"
+            :disabled="!localConfig.enablePrinterService"
+            @input="(e: Event) => localConfig.printCopies = Number((e.target as HTMLInputElement).value)"
+          />
+        </div>
+      </div>
 
-    <template #footer>
-      <AButton @click="emit('close')">
-        取消
-      </AButton>
-      <AButton type="primary" @click="handleSave">
-        保存
-      </AButton>
-    </template>
-  </AModal>
+      <DialogFooter>
+        <Button variant="outline" @click="emit('close')">
+          取消
+        </Button>
+        <Button @click="handleSave">
+          保存
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
