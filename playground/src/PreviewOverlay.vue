@@ -207,13 +207,22 @@ async function handleHiPrintPrint() {
       return
     }
 
-    const paperSize = printer.getPrinterPaperSize.value
     const printerDevice = printer.getPrinterDevice.value
+    const { width: pageWidth, height: pageHeight, unit } = props.schema.page
+
+    // Convert page dimensions based on unit (assuming mm for HiPrint)
+    const UNIT_TO_MM = {
+      'mm': 1,
+      'cm': 10,
+      'in': 25.4,
+      'pt': 0.352778,
+    }
+    const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
+    const width = pageWidth * factor
+    const height = pageHeight * factor
 
     for (const page of pages) {
       const html = page.innerHTML
-      const width = paperSize
-      const height = Number.parseFloat(page.style.height) || page.offsetHeight
 
       await printer.printHtml({
         width,
