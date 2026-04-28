@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PrinterConfig, PrinterDevice } from '../hooks/usePrinter'
-import { DEFAULT_PRINTER_COPIES, DEFAULT_PRINTER_HOST, DEFAULT_PRINTER_PAGE_SIZE } from '../hooks/usePrinter'
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { DEFAULT_PRINTER_COPIES, DEFAULT_PRINTER_HOST, DEFAULT_PRINTER_PAGE_SIZE } from '../hooks/usePrinter'
 
 const props = defineProps<{
   config: PrinterConfig
@@ -39,6 +39,8 @@ const connectionStatusText = computed(() => {
       return '未连接'
     case 'disabled':
       return '未启用'
+    default:
+      return '未知状态'
   }
 })
 
@@ -49,6 +51,8 @@ const connectionStatusColor = computed(() => {
     case 'disconnected':
       return 'text-red-600'
     case 'disabled':
+      return 'text-gray-400'
+    default:
       return 'text-gray-400'
   }
 })
