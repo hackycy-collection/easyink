@@ -21,6 +21,16 @@ pnpm typecheck
 pnpm build
 ```
 
+## Playground Deployment
+
+The repository includes a GitHub Actions workflow that deploys `playground/dist` to GitHub Pages.
+
+- Trigger modes: manual dispatch and a daily schedule at `02:00 UTC`
+- Deploy source: GitHub Pages via GitHub Actions artifact deployment
+- Published URL: `https://hackycy.github.io/easyink/`
+
+Before the first run, enable GitHub Pages in the repository settings and choose `GitHub Actions` as the source.
+
 ## License
 
 [MIT](./LICENSE)
