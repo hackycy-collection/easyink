@@ -118,9 +118,10 @@ export function usePrinter(initialConfig?: PrinterConfig) {
    * 连接打印服务
    */
   function connectService() {
+    const namespace = import.meta.env?.VITE_APP_NAMESPACE || 'easyink-playground'
     hiprint.hiwebSocket.setHost(
       getPrinterServiceUrl.value,
-      `vue-plugin-hiprint-${import.meta.env.VITE_APP_NAMESPACE}`,
+      `vue-plugin-hiprint-${namespace}`,
       (connect: boolean) => {
         if (!connect) {
           return
