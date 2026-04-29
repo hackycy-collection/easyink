@@ -56,6 +56,13 @@ const zhCN: LocaleMessages = {
       aspectRatio: '锁定比例',
       snapToGrid: '吸附网格',
       snapToGuide: '吸附参考线',
+      snapMenu: {
+        title: '吸附设置',
+        gridSnap: '网格吸附',
+        guideSnap: '参考线吸附',
+        elementSnap: '元素边缘吸附',
+        threshold: '吸附距离 (px)',
+      },
       manager: '工具栏管理',
       restoreDefault: '恢复默认编排',
       windowToggles: '浮动窗口',

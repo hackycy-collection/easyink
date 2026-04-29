@@ -1,7 +1,7 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
-import type { SnapLine } from '../types'
-import { MoveMaterialCommand, snapToGrid, snapToGuide, UnitManager } from '@easyink/core'
+import { MoveMaterialCommand, UnitManager } from '@easyink/core'
+import { computeSnap, getSelectionBox } from '../snap'
 
 export interface ElementDragContext {
   store: DesignerStore
@@ -10,14 +10,18 @@ export interface ElementDragContext {
 }
 
 /**
- * Creates a pointerdown handler that initiates element drag-to-move.
- * Supports:
- * - Single and multi-element drag
- * - Grid snapping
- * - Guide snapping
- * - Element-edge snapping (center/edge alignment)
- * - Snap line visual feedback via store.workbench.snap.activeLines
- * - Command merge for continuous drag (single undo entry)
+ * Element drag-to-move: single + multi selection.
+ *
+ * Snap behavior is delegated to the snap engine (`packages/designer/src/snap`),
+ * which evaluates grid / guide / element candidates uniformly and picks the
+ * closest within threshold.
+ *
+ * Conventions:
+ * - Selection bounding box (visual height) drives both reference and overlay.
+ * - Threshold is normalized for zoom: `snapState.threshold / max(zoom, ε)`.
+ * - Hold Cmd / Ctrl during drag to bypass snapping for the current frame.
+ * - Pointer events are bound on `window` so dragging continues across canvas
+ *   boundaries; `pointercancel` rolls back geometry and skips command commit.
  */
 export function useElementDrag(ctx: ElementDragContext) {
   function onPointerDown(e: PointerEvent, elementId: string) {
@@ -26,7 +30,6 @@ export function useElementDrag(ctx: ElementDragContext) {
     if (!node || node.locked)
       return
 
-    // Ensure clicked element is selected
     if (!store.selection.has(elementId)) {
       if (e.ctrlKey || e.metaKey)
         store.selection.add(elementId)
@@ -54,23 +57,40 @@ export function useElementDrag(ctx: ElementDragContext) {
     const canvasOffsetX = pageRect.left
     const canvasOffsetY = pageRect.top
 
-    // Capture start positions in document units
     const startDocX = unitManager.screenToDocument(e.clientX, canvasOffsetX, 0, zoom)
     const startDocY = unitManager.screenToDocument(e.clientY, canvasOffsetY, 0, zoom)
 
     const origPositions = selectedNodes.map(n => ({ id: n.id, x: n.x, y: n.y }))
 
-    // Collect snap targets from non-selected elements
+    const selectionBox = getSelectionBox(selectedNodes, n => store.getVisualHeight(n))
+    if (!selectionBox)
+      return
+
     const otherNodes = store.getElements().filter(
       el => !store.selection.has(el.id) && !el.hidden && !el.locked,
     )
 
     let moved = false
-
+    const pointerId = e.pointerId
     const el = e.currentTarget as HTMLElement
-    el.setPointerCapture(e.pointerId)
+    el.setPointerCapture(pointerId)
+
+    function teardown() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      try {
+        el.releasePointerCapture(pointerId)
+      }
+      catch {
+        // capture may already be released by the browser
+      }
+    }
 
     function onMove(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId)
+        return
+
       const currentDocX = unitManager.screenToDocument(ev.clientX, canvasOffsetX, 0, zoom)
       const currentDocY = unitManager.screenToDocument(ev.clientY, canvasOffsetY, 0, zoom)
 
@@ -83,121 +103,34 @@ export function useElementDrag(ctx: ElementDragContext) {
       moved = true
 
       const snapState = store.workbench.snap
-      const activeLines: SnapLine[] = []
+      const bypassSnap = ev.metaKey || ev.ctrlKey
 
-      if (snapState.enabled) {
-        // For snapping, use the first node as reference (or bounding box)
-        const refOrig = origPositions[0]!
-        const refNode = selectedNodes[0]!
-        const refX = refOrig.x + dx
-        const refY = refOrig.y + dy
+      const snapResult = (!bypassSnap && snapState.enabled)
+        ? computeSnap(
+            {
+              page: store.schema.page,
+              guidesX: store.schema.guides.x,
+              guidesY: store.schema.guides.y,
+              otherNodes,
+              getVisualHeight: n => store.getVisualHeight(n),
+              enabled: snapState.enabled,
+              gridSnap: snapState.gridSnap,
+              guideSnap: snapState.guideSnap,
+              elementSnap: snapState.elementSnap,
+            },
+            {
+              selectionBox: selectionBox!,
+              dx,
+              dy,
+              threshold: snapState.threshold / Math.max(zoom, 0.0001),
+            },
+          )
+        : { dx, dy, lines: [] }
 
-        const threshold = snapState.threshold
-        let snappedAxisX = false
-        let snappedAxisY = false
+      dx = snapResult.dx
+      dy = snapResult.dy
+      store.workbench.snap.activeLines = snapResult.lines
 
-        // Grid snap
-        if (snapState.gridSnap && store.schema.page.grid?.enabled) {
-          const gridW = store.schema.page.grid.width
-          const gridH = store.schema.page.grid.height
-          if (gridW > 0 && gridH > 0) {
-            const snappedX = snapToGrid(refX, gridW)
-            const snappedY = snapToGrid(refY, gridH)
-            if (Math.abs(snappedX - refX) <= threshold) {
-              dx += snappedX - refX
-              snappedAxisX = true
-            }
-            if (Math.abs(snappedY - refY) <= threshold) {
-              dy += snappedY - refY
-              snappedAxisY = true
-            }
-          }
-        }
-
-        // Guide snap (test left/center/right and top/center/bottom edges)
-        if (snapState.guideSnap && !snappedAxisX) {
-          const guidesX = store.schema.guides.x
-          if (guidesX.length > 0) {
-            const currentRefX = refOrig.x + dx
-            const currentRefCenterX = currentRefX + refNode.width / 2
-            const currentRefRight = currentRefX + refNode.width
-            for (const testX of [currentRefX, currentRefCenterX, currentRefRight]) {
-              const snap = snapToGuide(testX, guidesX, threshold)
-              if (snap != null) {
-                dx += snap - testX
-                activeLines.push({ axis: 'x', position: snap })
-                snappedAxisX = true
-                break
-              }
-            }
-          }
-        }
-
-        if (snapState.guideSnap && !snappedAxisY) {
-          const guidesY = store.schema.guides.y
-          if (guidesY.length > 0) {
-            const refVisualH = store.getVisualHeight(refNode)
-            const currentRefY = refOrig.y + dy
-            const currentRefCenterY = currentRefY + refVisualH / 2
-            const currentRefBottom = currentRefY + refVisualH
-            for (const testY of [currentRefY, currentRefCenterY, currentRefBottom]) {
-              const snap = snapToGuide(testY, guidesY, threshold)
-              if (snap != null) {
-                dy += snap - testY
-                activeLines.push({ axis: 'y', position: snap })
-                snappedAxisY = true
-                break
-              }
-            }
-          }
-        }
-
-        // Element-edge snap (align to edges/centers of other elements)
-        if (snapState.elementSnap && otherNodes.length > 0) {
-          const edgesX: number[] = []
-          const edgesY: number[] = []
-          for (const other of otherNodes) {
-            const otherVisualH = store.getVisualHeight(other)
-            edgesX.push(other.x, other.x + other.width / 2, other.x + other.width)
-            edgesY.push(other.y, other.y + otherVisualH / 2, other.y + otherVisualH)
-          }
-
-          // Skip axis if already snapped by grid or guide
-          if (!snappedAxisX) {
-            const currentRefX = refOrig.x + dx
-            const currentRefRight = currentRefX + refNode.width
-            const currentRefCenterX = currentRefX + refNode.width / 2
-            for (const testX of [currentRefX, currentRefCenterX, currentRefRight]) {
-              const snap = snapToGuide(testX, edgesX, threshold)
-              if (snap != null) {
-                dx += snap - testX
-                activeLines.push({ axis: 'x', position: snap })
-                break
-              }
-            }
-          }
-
-          if (!snappedAxisY) {
-            const refVisualH2 = store.getVisualHeight(refNode)
-            const currentRefY = refOrig.y + dy
-            const currentRefBottom = currentRefY + refVisualH2
-            const currentRefCenterY = currentRefY + refVisualH2 / 2
-            for (const testY of [currentRefY, currentRefCenterY, currentRefBottom]) {
-              const snap = snapToGuide(testY, edgesY, threshold)
-              if (snap != null) {
-                dy += snap - testY
-                activeLines.push({ axis: 'y', position: snap })
-                break
-              }
-            }
-          }
-        }
-      }
-
-      // Update snap visual feedback
-      store.workbench.snap.activeLines = activeLines
-
-      // Apply movement
       for (const orig of origPositions) {
         const n = store.getElementById(orig.id)
         if (!n)
@@ -207,22 +140,37 @@ export function useElementDrag(ctx: ElementDragContext) {
       }
     }
 
-    function onUp() {
-      el.removeEventListener('pointermove', onMove)
-      el.removeEventListener('pointerup', onUp)
+    function rollback() {
+      for (const orig of origPositions) {
+        const n = store.getElementById(orig.id)
+        if (!n)
+          continue
+        n.x = orig.x
+        n.y = orig.y
+      }
+    }
 
-      // Clear snap lines
+    function onCancel(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId)
+        return
+      teardown()
+      store.workbench.snap.activeLines = []
+      rollback()
+    }
+
+    function onUp(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId)
+        return
+      teardown()
       store.workbench.snap.activeLines = []
 
       if (!moved)
         return
 
-      // Commit final positions as commands (mergeable)
       for (const orig of origPositions) {
         const n = store.getElementById(orig.id)
         if (!n)
           continue
-        // Reset to original before command execution
         const finalX = n.x
         const finalY = n.y
         n.x = orig.x
@@ -232,8 +180,9 @@ export function useElementDrag(ctx: ElementDragContext) {
       }
     }
 
-    el.addEventListener('pointermove', onMove)
-    el.addEventListener('pointerup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
   }
 
   return { onPointerDown }

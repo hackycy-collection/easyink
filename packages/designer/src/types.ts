@@ -58,14 +58,37 @@ export interface SnapState {
   gridSnap: boolean
   guideSnap: boolean
   elementSnap: boolean
+  /**
+   * Snap distance threshold expressed in document units at 100% zoom
+   * (i.e. "screen-equivalent pixels mapped through unit conversion").
+   * Runtime snap engine divides this by current zoom so the visual
+   * pull radius stays constant across zoom levels.
+   */
   threshold: number
   /** Active snap lines to render (in document units) */
   activeLines: SnapLine[]
 }
 
+/** Origin of a snap candidate. Higher priority sources break ties. */
+export type SnapSource = 'grid' | 'guide' | 'element'
+
+/**
+ * A snap line emitted by the snap engine for visual feedback.
+ *
+ * - `orientation: 'vertical'` means the line is drawn parallel to the Y axis at x = position.
+ * - `orientation: 'horizontal'` means the line is drawn parallel to the X axis at y = position.
+ * - `from` / `to` are the endpoints along the perpendicular axis (in document units),
+ *   used to draw a finite segment (Figma-style). Overlay may extend grid/guide
+ *   lines across the whole page and treat element lines as short segments.
+ */
 export interface SnapLine {
-  axis: 'x' | 'y'
+  orientation: 'vertical' | 'horizontal'
   position: number
+  from: number
+  to: number
+  source: SnapSource
+  /** ID of the element a snap targets, when source === 'element'. */
+  targetId?: string
 }
 
 export interface WorkspaceWindowState {

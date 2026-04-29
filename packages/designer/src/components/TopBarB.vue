@@ -23,6 +23,7 @@ import {
   IconDatabase,
   IconDelete,
   IconDistribute,
+  IconDown,
   IconGroup,
   IconHistory,
   IconItalic,
@@ -50,6 +51,7 @@ import {
 } from '@easyink/icons'
 import { createDefaultSchema } from '@easyink/schema'
 import { deepClone, generateId } from '@easyink/shared'
+import { EiNumberInput, EiPopover, EiSwitch } from '@easyink/ui'
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { CONTRIBUTION_REGISTRY_KEY } from '../contributions/injection'
@@ -484,6 +486,13 @@ function handleDelete() {
 function handleSnap() {
   store.workbench.snap.enabled = !store.workbench.snap.enabled
 }
+
+const snapMenuOpen = ref(false)
+
+function toggleSnapMenu(ev: MouseEvent) {
+  ev.stopPropagation()
+  snapMenuOpen.value = !snapMenuOpen.value
+}
 </script>
 
 <template>
@@ -766,15 +775,59 @@ function handleSnap() {
         </div>
 
         <!-- snap -->
-        <div v-else-if="group.id === 'snap'" class="ei-topbar-b__group">
+        <div v-else-if="group.id === 'snap'" class="ei-topbar-b__group ei-topbar-b__snap-group">
           <button
-            class="ei-topbar-b__btn"
+            class="ei-topbar-b__btn ei-topbar-b__snap-main"
             :class="{ 'ei-topbar-b__btn--active': store.workbench.snap.enabled }"
             :title="store.t('designer.toolbar.snapToGrid')"
             @click="handleSnap"
           >
             <IconSnap :size="16" :stroke-width="1.5" />
           </button>
+          <EiPopover :open="snapMenuOpen" placement="bottom-end" @update:open="snapMenuOpen = $event">
+            <button
+              class="ei-topbar-b__btn ei-topbar-b__snap-caret"
+              :title="store.t('designer.toolbar.snapMenu.title')"
+              @click="toggleSnapMenu"
+            >
+              <IconDown :size="12" :stroke-width="1.5" />
+            </button>
+            <template #content>
+              <div class="ei-snap-menu">
+                <div class="ei-snap-menu__title">
+                  {{ store.t('designer.toolbar.snapMenu.title') }}
+                </div>
+                <label class="ei-snap-menu__row">
+                  <span>{{ store.t('designer.toolbar.snapMenu.gridSnap') }}</span>
+                  <span>
+                    <EiSwitch v-model="store.workbench.snap.gridSnap" />
+                  </span>
+                </label>
+                <label class="ei-snap-menu__row">
+                  <span>{{ store.t('designer.toolbar.snapMenu.guideSnap') }}</span>
+                  <span>
+                    <EiSwitch v-model="store.workbench.snap.guideSnap" />
+                  </span>
+                </label>
+                <label class="ei-snap-menu__row">
+                  <span>{{ store.t('designer.toolbar.snapMenu.elementSnap') }}</span>
+                  <span>
+                    <EiSwitch v-model="store.workbench.snap.elementSnap" />
+                  </span>
+                </label>
+                <div class="ei-snap-menu__divider" />
+                <label class="ei-snap-menu__row ei-snap-menu__row--input">
+                  <span>{{ store.t('designer.toolbar.snapMenu.threshold') }}</span>
+                  <EiNumberInput
+                    v-model="store.workbench.snap.threshold"
+                    :min="0"
+                    :max="100"
+                    :step="0.5"
+                  />
+                </label>
+              </div>
+            </template>
+          </EiPopover>
         </div>
       </template>
     </div>
@@ -929,6 +982,54 @@ function handleSnap() {
     min-width: 40px;
     text-align: center;
     user-select: none;
+  }
+
+  &__snap-group {
+    gap: 0;
+  }
+
+  &__snap-main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &__snap-caret {
+    width: 16px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+}
+
+.ei-snap-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  font-size: 12px;
+
+  &__title {
+    font-weight: 600;
+    color: var(--ei-text, #333);
+    padding-bottom: 4px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    user-select: none;
+
+    &--input {
+      justify-content: space-between;
+    }
+  }
+
+  &__divider {
+    height: 1px;
+    background: var(--ei-border-color, #e0e0e0);
+    margin: 4px 0;
   }
 }
 </style>

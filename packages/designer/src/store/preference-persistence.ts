@@ -70,8 +70,8 @@ export function loadWorkbenchPreferences(provider: PreferenceProvider): Persista
       return raw as PersistableWorkbenchState
     }
   }
-  catch {
-    // Silently ignore corrupted preferences
+  catch (err) {
+    console.warn('[easyink] failed to load workbench preferences', err)
   }
   return null
 }
@@ -80,8 +80,8 @@ export function saveWorkbenchPreferences(provider: PreferenceProvider, state: Wo
   try {
     provider.set(WORKBENCH_KEY, extractPersistableWorkbench(state))
   }
-  catch {
-    // Silently ignore write failures
+  catch (err) {
+    console.warn('[easyink] failed to save workbench preferences', err)
   }
 }
 
