@@ -2,7 +2,6 @@ import { computed, reactive, ref, watch } from 'vue'
 import { hiprint } from 'vue-plugin-hiprint'
 
 export const DEFAULT_PRINTER_HOST = 'http://localhost:17521'
-export const DEFAULT_PRINTER_PAGE_SIZE = 58
 export const DEFAULT_PRINTER_COPIES = 1
 
 const PRINTER_CONFIG_KEY = 'easyink:printerConfig'
@@ -31,7 +30,6 @@ export interface PrintHTMLOptions {
 export interface PrinterConfig {
   enablePrinterService: boolean
   printerDevice?: string
-  printerPaperSize?: number
   printCopies?: number
   printerServiceUrl?: string
 }
@@ -47,7 +45,6 @@ function loadConfig(): PrinterConfig {
     return {
       enablePrinterService: parsed.enablePrinterService ?? false,
       printerDevice: parsed.printerDevice,
-      printerPaperSize: parsed.printerPaperSize ?? DEFAULT_PRINTER_PAGE_SIZE,
       printCopies: parsed.printCopies ?? DEFAULT_PRINTER_COPIES,
       printerServiceUrl: parsed.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
     }
@@ -61,7 +58,6 @@ function defaultConfig(): PrinterConfig {
   return {
     enablePrinterService: false,
     printerDevice: undefined,
-    printerPaperSize: DEFAULT_PRINTER_PAGE_SIZE,
     printCopies: DEFAULT_PRINTER_COPIES,
     printerServiceUrl: DEFAULT_PRINTER_HOST,
   }
@@ -302,7 +298,6 @@ export function usePrinter() {
     devices: computed(() => devices.value),
     enabled: computed(() => config.enablePrinterService),
     printerDevice: computed(() => config.printerDevice),
-    paperSize: computed(() => config.printerPaperSize ?? DEFAULT_PRINTER_PAGE_SIZE),
     copies: computed(() => config.printCopies ?? DEFAULT_PRINTER_COPIES),
     serviceUrl: computed(() => config.printerServiceUrl ?? DEFAULT_PRINTER_HOST),
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AcceptableValue } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -76,27 +76,42 @@ async function handleRefreshDevices() {
   }
 }
 
-function handleUrlInput(e: Event) {
-  printer.updateConfig({ printerServiceUrl: (e.target as HTMLInputElement).value })
+function handleUrlChange(value: string | number) {
+  printer.updateConfig({ printerServiceUrl: String(value) })
 }
 
-function handlePaperSizeInput(e: Event) {
-  const v = Number((e.target as HTMLInputElement).value)
-  printer.updateConfig({ printerPaperSize: Number.isFinite(v) && v > 0 ? v : 1 })
+function handleCopiesChange(value: string | number) {
+  const v = Number(value)
+  printer.updateConfig({ printCopies: Number.isFinite(v) && v >= 1 ? Math.min(99, Math.trunc(v)) : 1 })
 }
 
-function handleCopiesInput(e: Event) {
-  const v = Number((e.target as HTMLInputElement).value)
-  printer.updateConfig({ printCopies: Number.isFinite(v) && v >= 1 ? v : 1 })
-}
-
-function handleDeviceChange(val: AcceptableValue) {
-  const printerDevice = typeof val === 'string' || typeof val === 'number' || typeof val === 'bigint'
-    ? String(val)
+function handleDeviceChange(value: AcceptableValue) {
+  const printerDevice = typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint'
+    ? String(value)
     : undefined
 
   printer.updateConfig({ printerDevice })
 }
+
+async function syncPrinterForm() {
+  if (!printer.enabled.value)
+    return
+
+  try {
+    if (!printer.isConnected.value)
+      await printer.connect()
+
+    if (printer.devices.value.length === 0)
+      await printer.refreshDevices()
+  }
+  catch {
+    // Keep the modal usable even if service discovery fails on open.
+  }
+}
+
+onMounted(() => {
+  void syncPrinterForm()
+})
 </script>
 
 <template>
@@ -140,10 +155,10 @@ function handleDeviceChange(val: AcceptableValue) {
         <div class="space-y-1.5">
           <Label>打印服务地址</Label>
           <Input
-            :value="printer.serviceUrl.value"
+            :model-value="printer.serviceUrl.value"
             :disabled="!printer.enabled.value"
             placeholder="http://localhost:17521"
-            @input="handleUrlInput"
+            @update:model-value="handleUrlChange"
           />
         </div>
 
@@ -162,7 +177,7 @@ function handleDeviceChange(val: AcceptableValue) {
             </Button>
           </div>
           <Select
-            :model-value="printer.printerDevice.value ?? ''"
+            :model-value="printer.printerDevice.value"
             :disabled="!printer.enabled.value || !printer.isConnected.value || printer.devices.value.length === 0"
             @update:model-value="handleDeviceChange"
           >
@@ -187,28 +202,16 @@ function handleDeviceChange(val: AcceptableValue) {
           </p>
         </div>
 
-        <!-- Paper Size -->
-        <div class="space-y-1.5">
-          <Label>纸张宽度 (mm)</Label>
-          <Input
-            type="number"
-            :value="printer.paperSize.value"
-            :min="1"
-            :disabled="!printer.enabled.value"
-            @input="handlePaperSizeInput"
-          />
-        </div>
-
         <!-- Copies -->
         <div class="space-y-1.5">
           <Label>打印份数</Label>
           <Input
             type="number"
-            :value="printer.copies.value"
+            :model-value="printer.copies.value"
             :min="1"
             :max="99"
             :disabled="!printer.enabled.value"
-            @input="handleCopiesInput"
+            @update:model-value="handleCopiesChange"
           />
         </div>
       </div>

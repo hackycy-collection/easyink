@@ -1,6 +1,26 @@
 import type { PrintAdapter, ViewerExportContext } from '@easyink/viewer'
 import { usePrinter } from '../hooks/usePrinter'
 
+const UNIT_TO_MM = {
+  cm: 10,
+  in: 25.4,
+  mm: 1,
+  pt: 0.352778,
+} as const
+
+function toMillimeters(length: string, fallbackUnit: string): number {
+  const trimmed = length.trim()
+  const match = trimmed.match(/^(-?\d+(?:\.\d+)?)(mm|cm|in|pt)?$/)
+  if (!match)
+    throw new Error(`无法解析打印页面尺寸: ${length}`)
+
+  const value = Number(match[1])
+  const unit = match[2] || fallbackUnit
+  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
+
+  return value * factor
+}
+
 /**
  * HiPrint PrintAdapter for EasyInk Viewer.
  * Uses the singleton printer store (config managed via PrinterSettingsModal).
@@ -10,7 +30,7 @@ export function createHiPrintAdapter(): PrintAdapter {
 
   return {
     id: 'hiprint-adapter',
-    async print(_context: ViewerExportContext) {
+    async print(context: ViewerExportContext) {
       if (!printer.enabled.value)
         throw new Error('打印服务未启用')
 
@@ -30,12 +50,17 @@ export function createHiPrintAdapter(): PrintAdapter {
       if (pages.length === 0)
         throw new Error('没有可打印的页面')
 
-      const paperSize = printer.paperSize.value
+      const firstPage = pages[0]!
       const printerDevice = printer.printerDevice.value
+      let width = context.schema.page.width
+      if (context.schema.page.mode === 'label') {
+        width = toMillimeters(firstPage.style.width, context.schema.unit)
+      }
+      const height = toMillimeters(firstPage.style.height, context.schema.unit)
 
       await printer.printPages(pages, {
-        width: paperSize,
-        height: 0, // page height resolved per-page below
+        width,
+        height,
         printer: printerDevice,
       })
     },
