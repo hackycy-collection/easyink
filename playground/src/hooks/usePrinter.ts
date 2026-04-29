@@ -252,9 +252,24 @@ async function printHtml(opts: PrintHTMLOptions): Promise<void> {
       reject(new Error(e instanceof Error ? e.message : '打印失败'))
     })
 
+    // 关键: 必须显式向 electron-hiprint 传入 pageSize / landscape / scaleFactor。
+    // 否则 electron-hiprint 在调用 Electron `webContents.print()` 时会回退到
+    // 默认 A4 纸张, 部分打印机驱动 (如 DELI 标签机) 会按驱动的实际介质进行
+    // "缩放以适合", 导致内容被整体缩印到纸张中央, 出现明显的左右留白。
+    // 单位为微米 (1mm = 1000μm)。
+    const widthMicrons = Math.round(opts.width * 1000)
+    const heightMicrons = Math.round(opts.height * 1000)
+    const landscape = opts.width > opts.height
+
     tpl.print2({}, {
       printer: opts.printer,
       margins: { marginType: 'none' },
+      // 物理纸张方向始终以短边为宽。landscape=true 时 Electron 会自动旋转。
+      pageSize: landscape
+        ? { width: heightMicrons, height: widthMicrons }
+        : { width: widthMicrons, height: heightMicrons },
+      landscape,
+      scaleFactor: 100,
     })
   })
 }
