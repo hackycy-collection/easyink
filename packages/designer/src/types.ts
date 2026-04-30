@@ -68,7 +68,7 @@ export interface SnapState {
 }
 
 /** Origin of a snap candidate. Higher priority sources break ties. */
-export type SnapSource = 'grid' | 'guide' | 'element'
+export type SnapSource = 'grid' | 'guide' | 'element' | 'page'
 
 /**
  * A snap line emitted by the snap engine for visual feedback.

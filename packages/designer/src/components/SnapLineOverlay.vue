@@ -71,6 +71,12 @@ const horizontalLines = computed(() =>
       opacity: 0.85;
     }
 
+    &--page {
+      // page edges: distinguish with a stronger, dedicated colour
+      border-color: var(--ei-snap-page-color, #00bfa5);
+      opacity: 0.9;
+    }
+
     &--element {
       opacity: 1;
     }

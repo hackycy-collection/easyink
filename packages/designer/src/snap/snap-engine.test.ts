@@ -19,21 +19,34 @@ const baseCtx = {
 }
 
 describe('collectSnapCandidates', () => {
-  it('emits 3 vertical + 3 horizontal candidates per other element when elementSnap on', () => {
+  it('emits 3 vertical + 3 horizontal candidates per other element when elementSnap on (plus page edges)', () => {
     const ctx = {
       ...baseCtx,
       elementSnap: true,
       otherNodes: [elem('a', 10, 20, 40, 60)],
     }
     const c = collectSnapCandidates(ctx)
-    expect(c.x.map(p => p.value)).toEqual([10, 30, 50])
-    expect(c.y.map(p => p.value)).toEqual([20, 50, 80])
-    expect(c.x.every(p => p.targetId === 'a')).toBe(true)
+    const elementX = c.x.filter(p => p.source === 'element')
+    const elementY = c.y.filter(p => p.source === 'element')
+    expect(elementX.map(p => p.value)).toEqual([10, 30, 50])
+    expect(elementY.map(p => p.value)).toEqual([20, 50, 80])
+    expect(elementX.every(p => p.targetId === 'a')).toBe(true)
   })
 
-  it('omits sources that are disabled', () => {
+  it('always emits 4 page-edge candidates (2 per axis) regardless of toggles', () => {
+    const c = collectSnapCandidates(baseCtx)
+    const pageX = c.x.filter(p => p.source === 'page')
+    const pageY = c.y.filter(p => p.source === 'page')
+    expect(pageX.map(p => p.value)).toEqual([0, 200])
+    expect(pageY.map(p => p.value)).toEqual([0, 300])
+    expect(pageX[0].segmentExtent).toEqual({ min: 0, max: 300 })
+    expect(pageY[0].segmentExtent).toEqual({ min: 0, max: 200 })
+  })
+
+  it('omits non-page sources that are disabled (page edges still emitted)', () => {
     const ctx = { ...baseCtx, guidesX: [11], guideSnap: false }
-    expect(collectSnapCandidates(ctx).x).toHaveLength(0)
+    const c = collectSnapCandidates(ctx)
+    expect(c.x.filter(p => p.source !== 'page')).toHaveLength(0)
   })
 
   it('emits guide candidates with full-page extent', () => {
@@ -194,7 +207,33 @@ describe('computeSnap', () => {
       elementSnap: true,
       otherNodes: [node],
     })
-    expect(c.x.map(p => p.value)).toEqual([0, 15, 30])
-    expect(c.y.map(p => p.value)).toEqual([10, 15, 20])
+    expect(c.x.filter(p => p.source === 'element').map(p => p.value)).toEqual([0, 15, 30])
+    expect(c.y.filter(p => p.source === 'element').map(p => p.value)).toEqual([10, 15, 20])
+  })
+
+  it('snaps to a page edge when within threshold', () => {
+    const r = computeSnap(
+      baseCtx,
+      {
+        selectionBox: { x: 0, y: 0, width: 10, height: 10 },
+        dx: -1,
+        dy: 0,
+        threshold: 3,
+      },
+    )
+    expect(r.dx).toBe(0)
+    expect(r.lines[0]).toMatchObject({ source: 'page', position: 0, orientation: 'vertical' })
+  })
+
+  it('on equal distance prefers element over page over guide over grid', () => {
+    const r = pickBestSnap(
+      [50],
+      [
+        { value: 52, source: 'guide' },
+        { value: 52, source: 'page' },
+      ],
+      5,
+    )
+    expect(r?.candidate.source).toBe('page')
   })
 })

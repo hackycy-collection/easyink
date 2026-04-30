@@ -113,6 +113,20 @@ const pageStyle = computed(() => {
   }
 })
 
+// Wrapper carries the *visual* (post-zoom) size so the scroll container
+// reflects the real on-screen footprint of the page. The inner page keeps
+// its document-unit size and only applies CSS scale, so all overlays/elements
+// can stay in document-unit coordinates.
+const wrapperStyle = computed(() => {
+  const page = store.schema.page
+  const unit = store.schema.unit
+  const zoom = store.workbench.viewport.zoom
+  return {
+    width: `calc(${page.width}${unit} * ${zoom})`,
+    height: `calc(${page.height}${unit} * ${zoom})`,
+  }
+})
+
 const elements = computed(() => store.getElements())
 
 const editingNodeId = computed(() => store.editingSession.activeNodeId)
@@ -412,91 +426,93 @@ onUnmounted(() => {
       @pointerdown="handleScrollPointerDown"
       @scroll="handleScroll"
     >
-      <div
-        ref="pageRef"
-        class="ei-canvas-page"
-        :style="pageStyle"
-        @dragover="handlePageDragOver"
-        @dragleave="handlePageDragLeave"
-        @drop="handlePageDrop"
-      >
-        <!-- Grid overlay -->
-        <GridOverlay />
-
-        <!-- Guide overlay -->
-        <GuideOverlay ref="guideOverlayRef" :preview-guide="rulerHover" />
-
-        <!-- Elements -->
+      <div class="ei-canvas-page-wrapper" :style="wrapperStyle">
         <div
-          v-for="el in elements"
-          :key="el.id"
-          class="ei-canvas-element"
-          :class="{
-            'ei-canvas-element--selected': store.selection.has(el.id),
-            'ei-canvas-element--locked': el.locked,
-            'ei-canvas-element--hidden': el.hidden,
-            'ei-canvas-element--deep-editing': editingNodeId === el.id,
-          }"
-          :style="{
-            left: `${el.x}${store.schema.unit}`,
-            top: `${el.y}${store.schema.unit}`,
-            width: `${el.width}${store.schema.unit}`,
-            height: `${store.getVisualHeight(el)}${store.schema.unit}`,
-            transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-            opacity: el.alpha ?? 1,
-            zIndex: el.zIndex ?? 'auto',
-          }"
-          @pointerdown="handleElementPointerDown($event, el.id)"
-          @click="handleElementClick($event, el.id)"
-          @dblclick="handleElementDblClick($event, el.id)"
+          ref="pageRef"
+          class="ei-canvas-page"
+          :style="pageStyle"
+          @dragover="handlePageDragOver"
+          @dragleave="handlePageDragLeave"
+          @drop="handlePageDrop"
         >
-          <div class="ei-canvas-element__content">
-            <CanvasElementContent :node-id="el.id" />
+          <!-- Grid overlay -->
+          <GridOverlay />
+
+          <!-- Guide overlay -->
+          <GuideOverlay ref="guideOverlayRef" :preview-guide="rulerHover" />
+
+          <!-- Elements -->
+          <div
+            v-for="el in elements"
+            :key="el.id"
+            class="ei-canvas-element"
+            :class="{
+              'ei-canvas-element--selected': store.selection.has(el.id),
+              'ei-canvas-element--locked': el.locked,
+              'ei-canvas-element--hidden': el.hidden,
+              'ei-canvas-element--deep-editing': editingNodeId === el.id,
+            }"
+            :style="{
+              left: `${el.x}${store.schema.unit}`,
+              top: `${el.y}${store.schema.unit}`,
+              width: `${el.width}${store.schema.unit}`,
+              height: `${store.getVisualHeight(el)}${store.schema.unit}`,
+              transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+              opacity: el.alpha ?? 1,
+              zIndex: el.zIndex ?? 'auto',
+            }"
+            @pointerdown="handleElementPointerDown($event, el.id)"
+            @click="handleElementClick($event, el.id)"
+            @dblclick="handleElementDblClick($event, el.id)"
+          >
+            <div class="ei-canvas-element__content">
+              <CanvasElementContent :node-id="el.id" />
+            </div>
+
+            <!-- Selection border, resize handles & rotation handle -->
+            <template v-if="store.selection.has(el.id) && editingNodeId !== el.id">
+              <div class="ei-canvas-element__selection-border" />
+
+              <!-- 8 resize handles -->
+              <div
+                v-for="handle in resizeHandles"
+                :key="handle"
+                class="ei-canvas-element__handle"
+                :class="`ei-canvas-element__handle--${handle}`"
+                :style="{ cursor: handleCursorForHandle(handle) }"
+                @pointerdown="handleResizePointerDown($event, el.id, handle)"
+              />
+
+              <!-- Rotation handle (hidden for non-rotatable materials like tables) -->
+              <div
+                v-if="store.getMaterial(el.type)?.capabilities.rotatable !== false"
+                class="ei-canvas-element__rotate-handle"
+                @pointerdown="handleRotatePointerDown($event, el.id)"
+              >
+                <div class="ei-canvas-element__rotate-dot" />
+                <div class="ei-canvas-element__rotate-line" />
+              </div>
+            </template>
           </div>
 
-          <!-- Selection border, resize handles & rotation handle -->
-          <template v-if="store.selection.has(el.id) && editingNodeId !== el.id">
-            <div class="ei-canvas-element__selection-border" />
+          <!-- Snap line overlay -->
+          <SnapLineOverlay />
 
-            <!-- 8 resize handles -->
-            <div
-              v-for="handle in resizeHandles"
-              :key="handle"
-              class="ei-canvas-element__handle"
-              :class="`ei-canvas-element__handle--${handle}`"
-              :style="{ cursor: handleCursorForHandle(handle) }"
-              @pointerdown="handleResizePointerDown($event, el.id, handle)"
-            />
+          <!-- Selection overlay (decorations from editing session) -->
+          <SelectionOverlay />
 
-            <!-- Rotation handle (hidden for non-rotatable materials like tables) -->
-            <div
-              v-if="store.getMaterial(el.type)?.capabilities.rotatable !== false"
-              class="ei-canvas-element__rotate-handle"
-              @pointerdown="handleRotatePointerDown($event, el.id)"
-            >
-              <div class="ei-canvas-element__rotate-dot" />
-              <div class="ei-canvas-element__rotate-line" />
-            </div>
-          </template>
+          <!-- Ephemeral panel host -->
+          <EphemeralPanelHost />
+
+          <DeepEditDragHandle v-if="store.isInDeepEditing && editingNode" :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
+
+          <!-- Marquee selection rectangle -->
+          <div
+            v-if="marqueeStyle"
+            class="ei-canvas-marquee"
+            :style="marqueeStyle"
+          />
         </div>
-
-        <!-- Snap line overlay -->
-        <SnapLineOverlay />
-
-        <!-- Selection overlay (decorations from editing session) -->
-        <SelectionOverlay />
-
-        <!-- Ephemeral panel host -->
-        <EphemeralPanelHost />
-
-        <DeepEditDragHandle v-if="store.isInDeepEditing && editingNode" :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
-
-        <!-- Marquee selection rectangle -->
-        <div
-          v-if="marqueeStyle"
-          class="ei-canvas-marquee"
-          :style="marqueeStyle"
-        />
       </div>
     </div>
 
@@ -555,9 +571,19 @@ onUnmounted(() => {
   left: 20px;
 }
 
-.ei-canvas-page {
+.ei-canvas-page-wrapper {
   position: relative;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  // Promote to its own compositor layer so that integer-sized wrapper bounds
+  // clip cleanly without bleeding the page's sub-pixel scaled content.
+  will-change: width, height;
+  transform: translateZ(0);
+}
+
+.ei-canvas-page {
+  position: absolute;
+  top: 0;
+  left: 0;
   overflow: visible;
 }
 

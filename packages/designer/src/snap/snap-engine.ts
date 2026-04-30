@@ -63,7 +63,8 @@ export interface SnapEngineContext {
 }
 
 const SOURCE_PRIORITY: Record<SnapSource, number> = {
-  element: 3,
+  element: 4,
+  page: 3,
   guide: 2,
   grid: 1,
 }
@@ -113,6 +114,15 @@ export function collectSnapCandidates(ctx: SnapEngineContext): SnapCandidates {
       y.push({ value: yMax, source: 'element', targetId: node.id, segmentExtent: xExtent })
     }
   }
+
+  // Page edges: physical boundaries — always emitted (no opt-out flag).
+  // Higher priority than guides/grid because edges are objective constraints.
+  const fullY = { min: 0, max: pageH }
+  const fullX = { min: 0, max: pageW }
+  x.push({ value: 0, source: 'page', segmentExtent: fullY })
+  x.push({ value: pageW, source: 'page', segmentExtent: fullY })
+  y.push({ value: 0, source: 'page', segmentExtent: fullX })
+  y.push({ value: pageH, source: 'page', segmentExtent: fullX })
 
   return { x, y }
 }
