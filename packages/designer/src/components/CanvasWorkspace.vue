@@ -2,16 +2,15 @@
 import type { ResizeHandle } from '../composables/use-element-resize'
 import type { MarqueeRect } from '../composables/use-marquee-select'
 import type { WorkspaceWindowState } from '../types'
-import { UnitManager } from '@easyink/core'
 import { computed, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { useDatasourceDrop } from '../composables/use-datasource-drop'
-import { useElementDrag } from '../composables/use-element-drag'
 import { useElementResize } from '../composables/use-element-resize'
 import { useElementRotate } from '../composables/use-element-rotate'
 import { useKeyboardShortcuts } from '../composables/use-keyboard-shortcuts'
 import { useMarqueeSelect } from '../composables/use-marquee-select'
 import { useMaterialDrop } from '../composables/use-material-drop'
+import { useCanvasInteractionController } from '../interactions'
 import { getSelectionBox } from '../snap'
 import { CANVAS_CONTAINER_KEY } from './canvas-container'
 import CanvasContextMenu from './CanvasContextMenu.vue'
@@ -54,10 +53,23 @@ const resizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se
 
 // ─── Composables ─────────────────────────────────────────────────
 
-const { onPointerDown: onElementPointerDown, dragJustOccurred, consumeModifierSelectionPrime } = useElementDrag({
+const { onCanvasPointerDown } = useMarqueeSelect({
+  store,
+  getPageEl: () => pageRef.value,
+  marqueeRef: marqueeRect,
+})
+
+const {
+  handleElementPointerDown,
+  handleElementClick,
+  handleElementDblClick,
+  handleScrollPointerDown: controllerHandleScrollPointerDown,
+  handleDeepEditHandlePointerDown,
+} = useCanvasInteractionController({
   store,
   getPageEl: () => pageRef.value,
   getScrollEl: () => scrollRef.value,
+  onCanvasBackgroundPointerDown: e => onCanvasPointerDown(e),
 })
 
 const { onHandlePointerDown } = useElementResize({
@@ -68,12 +80,6 @@ const { onHandlePointerDown } = useElementResize({
 const { onRotatePointerDown } = useElementRotate({
   store,
   getPageEl: () => pageRef.value,
-})
-
-const { onCanvasPointerDown } = useMarqueeSelect({
-  store,
-  getPageEl: () => pageRef.value,
-  marqueeRef: marqueeRect,
 })
 
 useKeyboardShortcuts({
@@ -200,134 +206,7 @@ function isResizable(kind: string): boolean {
 }
 
 function handleScrollPointerDown(e: PointerEvent) {
-  // Only trigger marquee on empty space (the scroll area or page background)
-  if (e.target === scrollRef.value || e.target === pageRef.value) {
-    if (store.editingSession.isActive) {
-      store.editingSession.exit()
-    }
-    onCanvasPointerDown(e)
-  }
-}
-
-/** Guards against the click event routing to cell selection when editing was just entered on pointerdown. */
-let editEnteredOnPointerDown = false
-
-function handleElementPointerDown(e: PointerEvent, elementId: string) {
-  e.stopPropagation()
-  editEnteredOnPointerDown = false
-
-  // Right-click: preserve current selection for context menu, skip editing and drag
-  if (e.button === 2) {
-    if (!store.selection.has(elementId)) {
-      store.selection.select(elementId)
-    }
-    return
-  }
-
-  const activeNodeId = store.editingSession.activeNodeId
-
-  // During editing for this element, dispatch pointer event to session
-  if (store.editingSession.isActive && activeNodeId === elementId) {
-    const pageEl = pageRef.value
-    if (pageEl) {
-      const rect = pageEl.getBoundingClientRect()
-      const zoom = store.workbench.viewport.zoom
-      const um = new UnitManager(store.schema.unit)
-      const x = um.screenToDocument(e.clientX, rect.left, 0, zoom)
-      const y = um.screenToDocument(e.clientY, rect.top, 0, zoom)
-      store.editingSession.dispatch({ kind: 'pointer-down', point: { x, y }, originalEvent: e })
-    }
-    return
-  }
-  // If editing another element, exit first
-  if (store.editingSession.isActive && activeNodeId !== elementId) {
-    store.editingSession.exit()
-  }
-
-  // For edit-capable elements, enter editing session based on enterTrigger
-  if (!(e.ctrlKey || e.metaKey)) {
-    const node = store.getElementById(elementId)
-    const ext = node ? store.getDesignerExtension(node.type) : undefined
-    if (ext?.geometry && ext.enterTrigger === 'click') {
-      const pageEl = pageRef.value
-      if (pageEl) {
-        const rect = pageEl.getBoundingClientRect()
-        const zoom = store.workbench.viewport.zoom
-        const um = new UnitManager(store.schema.unit)
-        const initialPoint = {
-          x: um.screenToDocument(e.clientX, rect.left, 0, zoom),
-          y: um.screenToDocument(e.clientY, rect.top, 0, zoom),
-        }
-        if (store.editingSession.enter(elementId, ext, initialPoint)) {
-          editEnteredOnPointerDown = true
-          return
-        }
-      }
-    }
-  }
-  onElementPointerDown(e, elementId)
-}
-
-function handleElementClick(e: MouseEvent, elementId: string) {
-  e.stopPropagation()
-
-  // Skip cell routing if editing was just entered on this same pointerdown->click cycle
-  if (editEnteredOnPointerDown) {
-    editEnteredOnPointerDown = false
-    return
-  }
-
-  // A drag just completed: pointerdown preserved the multi-selection so every
-  // selected node could be moved together. Collapsing here would discard that
-  // intent immediately after the user lifted the pointer.
-  if (dragJustOccurred.value)
-    return
-
-  // Normal selection / narrow-down logic
-  if (e.ctrlKey || e.metaKey) {
-    if (consumeModifierSelectionPrime(elementId))
-      return
-    store.selection.toggle(elementId)
-    return
-  }
-
-  if (!store.selection.has(elementId) || store.selection.count > 1) {
-    store.selection.select(elementId)
-  }
-}
-
-function handleElementDblClick(e: MouseEvent, elementId: string) {
-  e.stopPropagation()
-
-  // If this element is already being edited, treat dblclick as a request to
-  // enter the material's "content edit" mode for the currently-selected sub-target
-  // (e.g. text editing a table cell). The preceding pointerdown/click cycle has
-  // already updated selection via the framework's selectionMiddleware.
-  if (store.editingSession.isActive && store.editingSession.activeNodeId === elementId) {
-    store.editingSession.dispatch({ kind: 'command', command: 'enter-edit' })
-    return
-  }
-
-  const node = store.getElementById(elementId)
-  const ext = node ? store.getDesignerExtension(node.type) : undefined
-  // Default enterTrigger is 'dblclick'
-  if (ext?.geometry && (ext.enterTrigger ?? 'dblclick') === 'dblclick') {
-    const pageEl = pageRef.value
-    if (pageEl) {
-      const rect = pageEl.getBoundingClientRect()
-      const zoom = store.workbench.viewport.zoom
-      const um = new UnitManager(store.schema.unit)
-      const initialPoint = {
-        x: um.screenToDocument(e.clientX, rect.left, 0, zoom),
-        y: um.screenToDocument(e.clientY, rect.top, 0, zoom),
-      }
-      const session = store.editingSession.enter(elementId, ext, initialPoint)
-      // If a cell selection was hit, also enter content edit mode immediately
-      if (session && session.selectionStore.selection) {
-        store.editingSession.dispatch({ kind: 'command', command: 'enter-edit' })
-      }
-    }
-  }
+  controllerHandleScrollPointerDown(e)
 }
 
 function handleResizePointerDown(e: PointerEvent, elementId: string, handle: ResizeHandle) {
@@ -558,7 +437,7 @@ onUnmounted(() => {
           <!-- Ephemeral panel host -->
           <EphemeralPanelHost />
 
-          <DeepEditDragHandle v-if="store.isInDeepEditing && editingNode" :get-page-el="() => pageRef" :get-scroll-el="() => scrollRef" />
+          <DeepEditDragHandle v-if="store.isInDeepEditing && editingNode" :on-pointer-down="handleDeepEditHandlePointerDown" />
 
           <!-- Marquee selection rectangle -->
           <div

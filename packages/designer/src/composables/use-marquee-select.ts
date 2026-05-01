@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type { DesignerStore } from '../store/designer-store'
 import { getRotatedAABB, isInteractable, rectsIntersect, UnitManager } from '@easyink/core'
+import { applySelectionIntent } from '../interactions/selection-intent'
 
 export interface MarqueeRect {
   x: number
@@ -114,13 +115,10 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
         return
       lastSerialized = serialized
 
-      if (finalIds.length === 0) {
-        if (!store.selection.isEmpty)
-          store.selection.clear()
-      }
-      else {
-        store.selection.selectMultiple(finalIds)
-      }
+      if (finalIds.length === 0)
+        applySelectionIntent(store, { kind: 'clear' })
+      else
+        applySelectionIntent(store, { kind: 'replace', elementIds: finalIds })
     }
 
     function onMove(ev: PointerEvent) {
@@ -144,7 +142,7 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       if (!dragging) {
         dragging = true
         if (!additive && !store.selection.isEmpty)
-          store.selection.clear()
+          applySelectionIntent(store, { kind: 'clear' })
       }
 
       const rect: MarqueeRect = {
@@ -179,7 +177,7 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       // Deferring this to pointerup (instead of clearing eagerly on
       // pointerdown) keeps additive marquees and click-without-move both safe.
       if (!dragging && !additive && !store.selection.isEmpty)
-        store.selection.clear()
+        applySelectionIntent(store, { kind: 'clear' })
       teardown()
     }
 
@@ -190,9 +188,9 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       // partial marquee hits committed.
       if (dragging) {
         if (additive)
-          store.selection.selectMultiple(originalSelection)
+          applySelectionIntent(store, { kind: 'replace', elementIds: originalSelection })
         else if (originalSelection.length === 0 && !store.selection.isEmpty)
-          store.selection.clear()
+          applySelectionIntent(store, { kind: 'clear' })
       }
       teardown()
     }

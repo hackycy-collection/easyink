@@ -1,23 +1,38 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
 import { isInteractable, MoveMaterialCommand, UnitManager } from '@easyink/core'
-import { markRaw, ref } from 'vue'
+import { markRaw } from 'vue'
 import { collectSnapCandidates, computeSnap, getSelectionBox } from '../snap'
 
 export interface ElementDragContext {
   store: DesignerStore
   getPageEl: () => HTMLElement | null
   getScrollEl: () => HTMLElement | null
+  /**
+   * Optional callback invoked the first time the pointer actually moves
+   * during a drag. Used by the canvas interaction controller to mark the
+   * current GestureContext as "drag occurred", so the synthesised click
+   * after pointerup can be ignored.
+   *
+   * Drag is purely a geometric executor here: it does NOT mutate the
+   * top-level SelectionModel or own any cross-event interpretation. All
+   * selection decisions (single / add / toggle / preserve) are taken
+   * upstream by the controller before `onPointerDown` is called.
+   */
+  onDragMoved?: () => void
 }
 
 /**
- * Element drag-to-move: single + multi selection.
+ * Element drag-to-move executor.
  *
  * Snap behavior is delegated to the snap engine (`packages/designer/src/snap`),
  * which evaluates grid / guide / element candidates uniformly and picks the
  * closest within threshold.
  *
  * Conventions:
+ * - The caller (CanvasInteractionController) MUST already have applied the
+ *   correct SelectionIntent before invoking `onPointerDown`. This composable
+ *   reads `store.selection` to know what to move, but never writes to it.
  * - Selection bounding box (visual height) drives both reference and overlay.
  * - Threshold is normalized for zoom: `snapState.threshold / max(zoom, ε)`.
  * - Hold Cmd / Ctrl during drag to bypass snapping for the current frame.
@@ -25,54 +40,11 @@ export interface ElementDragContext {
  *   boundaries; `pointercancel` rolls back geometry and skips command commit.
  */
 export function useElementDrag(ctx: ElementDragContext) {
-  /**
-   * True for the brief window between a drag's `pointerup` (with movement) and
-   * the synthesised `click` event that follows. Click handlers consult this to
-   * skip selection-collapse logic so a multi-selection drag does not collapse
-   * to a single element on release.
-   */
-  const dragJustOccurred = ref(false)
-  const modifierSelectionPrimedElementId = ref<string | null>(null)
-
-  function scheduleTransientStateReset(resetDragFlag: boolean) {
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(() => {
-        modifierSelectionPrimedElementId.value = null
-        if (resetDragFlag)
-          dragJustOccurred.value = false
-      })
-      return
-    }
-
-    modifierSelectionPrimedElementId.value = null
-    if (resetDragFlag)
-      dragJustOccurred.value = false
-  }
-
-  function consumeModifierSelectionPrime(elementId: string): boolean {
-    if (modifierSelectionPrimedElementId.value !== elementId)
-      return false
-
-    modifierSelectionPrimedElementId.value = null
-    return true
-  }
-
   function onPointerDown(e: PointerEvent, elementId: string) {
     const { store } = ctx
-    modifierSelectionPrimedElementId.value = null
     const node = store.getElementById(elementId)
     if (!node || !isInteractable(node))
       return
-
-    if (!store.selection.has(elementId)) {
-      if (e.ctrlKey || e.metaKey) {
-        store.selection.add(elementId)
-        modifierSelectionPrimedElementId.value = elementId
-      }
-      else {
-        store.selection.select(elementId)
-      }
-    }
 
     const selectedIds = store.selection.ids
     const selectedNodes = selectedIds
@@ -154,7 +126,10 @@ export function useElementDrag(ctx: ElementDragContext) {
       if (dx === 0 && dy === 0)
         return
 
-      moved = true
+      if (!moved) {
+        moved = true
+        ctx.onDragMoved?.()
+      }
 
       const snapState = store.workbench.snap
       const bypassSnap = ev.metaKey || ev.ctrlKey
@@ -213,7 +188,6 @@ export function useElementDrag(ctx: ElementDragContext) {
         return
       teardown()
       store.snapActiveLines = []
-      modifierSelectionPrimedElementId.value = null
       rollback()
     }
 
@@ -223,18 +197,8 @@ export function useElementDrag(ctx: ElementDragContext) {
       teardown()
       store.snapActiveLines = []
 
-      if (!moved) {
-        scheduleTransientStateReset(false)
+      if (!moved)
         return
-      }
-
-      // Mark that a drag just completed so the synthesised click event can
-      // skip its "collapse multi-selection to single" branch.
-      dragJustOccurred.value = true
-      // Auto-clear on the next animation frame: the click event always fires
-      // synchronously after pointerup in the same task, so by next frame any
-      // legitimate consumer has already read the flag.
-      scheduleTransientStateReset(true)
 
       // Group every per-node MoveMaterialCommand into a single undo step so
       // multi-selection moves are reversed by one Cmd+Z. Single-selection
@@ -257,7 +221,12 @@ export function useElementDrag(ctx: ElementDragContext) {
       }
       catch (err) {
         store.commands.rollbackTransaction()
-        throw err
+        // Boundary policy (see 22-editing-behavior.md): user-driven errors
+        // must not bubble back into the DOM event loop in a half-applied
+        // state. Rollback already restored geometry; surface the diagnostic
+        // and stop. A throw here previously left the snap-line overlay
+        // state inconsistent with the model.
+        console.error('[useElementDrag] Move transaction failed; rolled back.', err)
       }
     }
 
@@ -266,5 +235,5 @@ export function useElementDrag(ctx: ElementDragContext) {
     window.addEventListener('pointercancel', onCancel)
   }
 
-  return { onPointerDown, dragJustOccurred, consumeModifierSelectionPrime }
+  return { onPointerDown }
 }

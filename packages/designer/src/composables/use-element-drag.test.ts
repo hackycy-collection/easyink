@@ -28,9 +28,6 @@ interface FakeStore {
   selection: {
     ids: string[]
     has: (id: string) => boolean
-    select: (id: string) => void
-    add: (id: string) => void
-    toggle: (id: string) => void
   }
   commands: {
     execute: ReturnType<typeof vi.fn>
@@ -73,19 +70,6 @@ function makeStore(elements: MaterialNode[], selected: string[]): FakeStore {
         return [...sel]
       },
       has: (id: string) => sel.has(id),
-      select(id: string) {
-        sel.clear()
-        sel.add(id)
-      },
-      add(id: string) {
-        sel.add(id)
-      },
-      toggle(id: string) {
-        if (sel.has(id))
-          sel.delete(id)
-        else
-          sel.add(id)
-      },
     },
     commands: {
       execute: vi.fn(),
@@ -100,7 +84,7 @@ function makeStore(elements: MaterialNode[], selected: string[]): FakeStore {
   }
 }
 
-function makeCtx(store: FakeStore): ElementDragContext {
+function makeCtx(store: FakeStore, onDragMoved?: () => void): ElementDragContext {
   const pageEl = document.createElement('div')
   // page rect at (0, 0) 1000x1000 — getBoundingClientRect in happy-dom defaults to zeroes
   pageEl.getBoundingClientRect = () => ({
@@ -119,6 +103,7 @@ function makeCtx(store: FakeStore): ElementDragContext {
     store: store as unknown as ElementDragContext['store'],
     getPageEl: () => pageEl,
     getScrollEl: () => pageEl,
+    onDragMoved,
   }
 }
 
@@ -137,18 +122,6 @@ function startDrag(target: HTMLElement, drag: ReturnType<typeof useElementDrag>,
   const down = pdEvent('pointerdown', x, y)
   Object.defineProperty(down, 'currentTarget', { value: target, configurable: true })
   drag.onPointerDown(down, (target as HTMLElement & { dataset: { id: string } }).dataset.id)
-}
-
-function applyModifierClickSelection(
-  drag: ReturnType<typeof useElementDrag>,
-  store: FakeStore,
-  elementId: string,
-) {
-  if (drag.dragJustOccurred.value)
-    return
-  if (drag.consumeModifierSelectionPrime(elementId))
-    return
-  store.selection.toggle(elementId)
 }
 
 describe('useElementDrag', () => {
@@ -228,25 +201,29 @@ describe('useElementDrag', () => {
     expect(store.commands.execute).not.toHaveBeenCalled()
   })
 
-  it('exposes dragJustOccurred for one frame after a moved drag', async () => {
+  it('fires onDragMoved exactly once per drag, on first real movement', () => {
     const node = makeNode('n1', 0, 0)
     const store = makeStore([node], ['n1'])
-    const drag = useElementDrag(makeCtx(store))
+    const onDragMoved = vi.fn()
+    const drag = useElementDrag(makeCtx(store, onDragMoved))
 
     const target = document.createElement('div')
     target.dataset.id = 'n1'
     document.body.appendChild(target)
 
-    expect(drag.dragJustOccurred.value).toBe(false)
-
     startDrag(target, drag, 0, 0)
+    expect(onDragMoved).not.toHaveBeenCalled()
+
+    // First move
     window.dispatchEvent(pdEvent('pointermove', 5, 5))
-    window.dispatchEvent(pdEvent('pointerup', 5, 5))
+    expect(onDragMoved).toHaveBeenCalledOnce()
 
-    expect(drag.dragJustOccurred.value).toBe(true)
+    // Subsequent moves do not refire
+    window.dispatchEvent(pdEvent('pointermove', 10, 10))
+    window.dispatchEvent(pdEvent('pointermove', 15, 15))
+    expect(onDragMoved).toHaveBeenCalledOnce()
 
-    await new Promise(r => requestAnimationFrame(() => r(null)))
-    expect(drag.dragJustOccurred.value).toBe(false)
+    window.dispatchEvent(pdEvent('pointerup', 15, 15))
   })
 
   it('zoom scales the document delta consistently', () => {
@@ -307,7 +284,7 @@ describe('useElementDrag', () => {
     expect(store.commands.execute).not.toHaveBeenCalled()
   })
 
-  it('preserves a modifier add-select on click release after pointerdown primed it for drag', () => {
+  it('does not mutate selection on pointerdown (selection is the controller\'s job)', () => {
     const a = makeNode('a', 0, 0)
     const b = makeNode('b', 100, 100)
     const store = makeStore([a, b], ['a'])
@@ -317,33 +294,13 @@ describe('useElementDrag', () => {
     target.dataset.id = 'b'
     document.body.appendChild(target)
 
+    // Pointerdown on unselected 'b' with modifier — pre-refactor this would
+    // have added 'b' to the selection. The new contract is that only the
+    // CanvasInteractionController applies SelectionIntent; the executor must
+    // never write to the model.
     const down = pdEvent('pointerdown', 100, 100, { meta: true })
     Object.defineProperty(down, 'currentTarget', { value: target, configurable: true })
     drag.onPointerDown(down, 'b')
-    window.dispatchEvent(pdEvent('pointerup', 100, 100, { meta: true }))
-
-    applyModifierClickSelection(drag, store, 'b')
-
-    expect(store.selection.ids).toEqual(['a', 'b'])
-    expect(drag.consumeModifierSelectionPrime('b')).toBe(false)
-  })
-
-  it('still toggles off an already-selected element on modifier click release', () => {
-    const a = makeNode('a', 0, 0)
-    const b = makeNode('b', 100, 100)
-    const store = makeStore([a, b], ['a', 'b'])
-    const drag = useElementDrag(makeCtx(store))
-
-    const target = document.createElement('div')
-    target.dataset.id = 'b'
-    document.body.appendChild(target)
-
-    const down = pdEvent('pointerdown', 100, 100, { meta: true })
-    Object.defineProperty(down, 'currentTarget', { value: target, configurable: true })
-    drag.onPointerDown(down, 'b')
-    window.dispatchEvent(pdEvent('pointerup', 100, 100, { meta: true }))
-
-    applyModifierClickSelection(drag, store, 'b')
 
     expect(store.selection.ids).toEqual(['a'])
   })

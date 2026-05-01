@@ -212,6 +212,8 @@ interface PanelToggleState {
 - 表格类元素允许深入到单元格级编辑
 - 区段型模板允许直接选中当前格子或当前区块
 
+> 画布上的 pointerdown / click / dblclick / contextmenu 由唯一的 `useCanvasInteractionController` 解释，并通过 `applySelectionIntent` 收口写入 `SelectionModel`；任何 composable / 组件 / material extension 直接调用 `store.selection.{select,add,toggle,clear,selectMultiple}` 都属于违规。详见 [22.0.1 画布手势仲裁](./22-editing-behavior.md#2201-画布手势仲裁canvasinteractioncontroller--selectionintent--gesturecontext)。
+
 ## 10.5 主要窗口职责
 
 ### 数据源窗口

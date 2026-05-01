@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDesignerStore } from '../composables'
-import { useElementDrag } from '../composables/use-element-drag'
 
+/**
+ * The deep-edit drag handle reuses the canvas's drag executor through the
+ * `onPointerDown` prop. A previous version constructed its own
+ * `useElementDrag` instance, which forked drag state (every flag the canvas
+ * controller relied on \u2014 dragJustOccurred, modifier prime \u2014 was duplicated
+ * in a sibling instance the controller could not see). Sharing the controller-
+ * owned handler eliminates that fork.
+ */
 const props = defineProps<{
-  getPageEl: () => HTMLElement | null
-  getScrollEl: () => HTMLElement | null
+  onPointerDown: (e: PointerEvent, elementId: string) => void
 }>()
 
 const store = useDesignerStore()
-
-const { onPointerDown } = useElementDrag({
-  store,
-  getPageEl: props.getPageEl,
-  getScrollEl: props.getScrollEl,
-})
 
 const node = computed(() => {
   const id = store.deepEditingNodeId
@@ -28,8 +28,7 @@ const unit = computed(() => store.schema.unit)
 function handlePointerDown(e: PointerEvent) {
   if (!node.value)
     return
-  e.stopPropagation()
-  onPointerDown(e, node.value.id)
+  props.onPointerDown(e, node.value.id)
 }
 </script>
 

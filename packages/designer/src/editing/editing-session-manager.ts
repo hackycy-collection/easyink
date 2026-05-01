@@ -1,6 +1,7 @@
 import type { BehaviorEvent, MaterialDesignerExtension } from '@easyink/core'
 import type { DesignerStore } from '../store/designer-store'
 import { shallowRef } from 'vue'
+import { applySelectionIntent } from '../interactions/selection-intent'
 import { EditingSession } from './editing-session'
 import { createGeometryService } from './geometry-service'
 import { createSelectionStore } from './selection-store'
@@ -62,9 +63,11 @@ export class EditingSessionManager {
       this.exit()
     }
 
-    // Clear multi-selection, keep only this node
-    this._store.selection.clear()
-    this._store.selection.add(nodeId)
+    // Editing-session and multi-selection are mutually exclusive (see
+    // 22-editing-behavior.md \u00a722.0). Route through SelectionIntent so the
+    // rule is enforced in one place \u2014 not duplicated as `clear() + add()`
+    // across every site that opens a session.
+    applySelectionIntent(this._store, { kind: 'collapse-to-session-owner', elementId: nodeId })
 
     const selectionStore = createSelectionStore()
     const geometry = createGeometryService(this._store)
