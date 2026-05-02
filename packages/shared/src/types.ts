@@ -56,6 +56,53 @@ export type MaterialUseToken
     | (string & {})
 
 /**
+ * Built-in display formatter tokens stored on a binding reference.
+ */
+export type BindingFormatPresetType
+  = | 'datetime'
+    | 'weekday'
+    | 'chinese-money'
+    | 'number'
+    | 'currency'
+    | 'percent'
+
+/**
+ * Serializable preset formatter options. All fields are optional so new
+ * presets can evolve without forcing old templates through a migration.
+ */
+export interface BindingPresetFormat {
+  type: BindingFormatPresetType
+  pattern?: string
+  locale?: string
+  timeZone?: string
+  weekdayStyle?: 'long' | 'short' | 'narrow'
+  minimumFractionDigits?: number
+  maximumFractionDigits?: number
+  currency?: string
+}
+
+/**
+ * Trusted template formatter source. First version stores a JavaScript
+ * function expression such as `(value, ctx) => String(value)`.
+ */
+export interface BindingCustomFormat {
+  source: string
+}
+
+/**
+ * Display formatting owned by a binding: fallback, preset/custom formatter,
+ * then optional prefix/suffix decoration.
+ */
+export interface BindingDisplayFormat {
+  prefix?: string
+  suffix?: string
+  fallback?: string
+  mode?: 'preset' | 'custom'
+  preset?: BindingPresetFormat
+  custom?: BindingCustomFormat
+}
+
+/**
  * Table row role for row-level semantics.
  */
 export type TableRowRole = 'normal' | 'header' | 'footer' | 'repeat-template'

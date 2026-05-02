@@ -22,7 +22,7 @@ export function registerBuiltinViewerMaterials(register: BuiltinViewerRegistrar)
   register(RECT_TYPE, { render: (node, ctx) => renderRect(node, ctx.unit) })
   register(ELLIPSE_TYPE, { render: (node, ctx) => renderEllipse(node, ctx.unit) })
   register(CONTAINER_TYPE, { render: (node, ctx) => renderContainer(node, ctx.unit) })
-  register(TABLE_STATIC_TYPE, { render: (node, ctx) => renderTableStatic(node, ctx.unit) })
+  register(TABLE_STATIC_TYPE, { render: (node, ctx) => renderTableStatic(node, ctx) })
   register(TABLE_DATA_TYPE, {
     render: (node, ctx) => renderTableData(node, ctx),
     measure: (node, ctx) => measureTableData(node, ctx),

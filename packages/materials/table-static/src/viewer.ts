@@ -1,9 +1,19 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TableStaticProps } from './schema'
-import { escapeHtml, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
+import { formatBindingDisplayValue, resolveBindingValue } from '@easyink/core'
+import { renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
-export function renderTableStatic(node: MaterialNode, unit = 'mm') {
+interface ViewerRenderContext {
+  data: Record<string, unknown>
+  unit: string
+  reportDiagnostic?: (diagnostic: { code: string, message: string, severity: 'warning', nodeId?: string, cause?: unknown }) => void
+}
+
+export function renderTableStatic(node: MaterialNode, contextOrUnit: ViewerRenderContext | string = 'mm') {
+  const context = typeof contextOrUnit === 'string' ? undefined : contextOrUnit
+  const unit = typeof contextOrUnit === 'string' ? contextOrUnit : contextOrUnit.unit
+  const data = context?.data ?? {}
   if (!isTableNode(node)) {
     return {
       html: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f9f9f9;color:#999;font-size:12px;">[Table]</div>',
@@ -19,8 +29,11 @@ export function renderTableStatic(node: MaterialNode, unit = 'mm') {
     tableStyle: 'height:100%',
     cellRenderer: (cell) => {
       if (cell.staticBinding) {
-        const label = cell.staticBinding.fieldLabel || cell.staticBinding.fieldPath
-        return `<span style="">{#${escapeHtml(label)}}</span>`
+        const raw = resolveBindingValue(cell.staticBinding, data)
+        const formatted = formatBindingDisplayValue(raw, cell.staticBinding)
+        for (const diagnostic of formatted.diagnostics)
+          context?.reportDiagnostic?.({ ...diagnostic, nodeId: node.id })
+        return renderPlainTextCell(formatted.value)
       }
       return renderPlainTextCell(cell.content?.text)
     },

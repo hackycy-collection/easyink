@@ -1,5 +1,5 @@
 import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
-import type { PropSchemaType } from '@easyink/shared'
+import type { BindingDisplayFormat, PropSchemaType } from '@easyink/shared'
 import type { Command } from './command'
 import type { BehaviorRegistration, EditingSessionRef, MaterialGeometry, SelectionDecorationDef, SelectionType, TransactionAPI } from './editing-session'
 
@@ -130,6 +130,7 @@ export interface DatasourceFieldInfo {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
+  format?: BindingDisplayFormat
   use?: string
 }
 

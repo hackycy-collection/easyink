@@ -225,6 +225,7 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
         fieldPath: field.fieldPath,
         fieldKey: field.fieldKey,
         fieldLabel: field.fieldLabel,
+        format: field.format,
       }
 
       if (row.role === 'repeat-template') {

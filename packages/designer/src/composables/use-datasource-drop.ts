@@ -1,5 +1,6 @@
 import type { DatasourceDropZone, DatasourceFieldInfo } from '@easyink/core'
 import type { BindingRef } from '@easyink/schema'
+import type { BindingDisplayFormat } from '@easyink/shared'
 import type { DesignerStore } from '../store/designer-store'
 import { BindFieldCommand, pointInRect, UnitManager } from '@easyink/core'
 import { selectOne } from '../interactions/selection-api'
@@ -16,6 +17,7 @@ export interface DatasourceFieldDragData {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
+  format?: BindingDisplayFormat
   use?: string
 }
 
@@ -142,6 +144,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       fieldPath: data.fieldPath,
       fieldKey: data.fieldKey,
       fieldLabel: data.fieldLabel,
+      format: data.format,
       use: data.use,
     }
   }
@@ -285,6 +288,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       fieldPath: fieldData.fieldPath,
       fieldKey: fieldData.fieldKey,
       fieldLabel: fieldData.fieldLabel,
+      format: fieldData.format,
     }
 
     const cmd = new BindFieldCommand(store.schema.elements, target.id, binding)

@@ -1,5 +1,8 @@
 export { keyboardCursorMiddleware, selectionMiddleware, undoBoundaryMiddleware } from './behaviors'
 
+export { formatBindingDisplayValue, hasBindingFormat } from './binding-format'
+export type { BindingFormatContext, BindingFormatDiagnostic, BindingFormatResult } from './binding-format'
+
 export {
   extractCollectionPath,
   resolveBindingValue,
@@ -20,6 +23,7 @@ export {
   RotateMaterialCommand,
   setByPath,
   UnionDropCommand,
+  UpdateBindingFormatCommand,
   UpdateDocumentCommand,
   UpdateGeometryCommand,
   UpdateGuidesCommand,

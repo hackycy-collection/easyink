@@ -1,4 +1,5 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
+import type { BindingDisplayFormat } from '@easyink/shared'
 import type { Point, Rect } from './geometry'
 import type { DatasourceFieldInfo, PropSchemaLike } from './material-extension'
 
@@ -129,6 +130,8 @@ export interface SubPropertySchema {
   binding?: BindingRef | BindingRef[] | null
   /** Clear binding via transaction */
   clearBinding?: (tx: TransactionAPI, bindIndex?: number) => void
+  /** Update binding display format via transaction */
+  updateBindingFormat?: (tx: TransactionAPI, format: BindingDisplayFormat | undefined, bindIndex?: number) => void
   /** Custom editor components */
   editors?: Record<string, unknown>
 }

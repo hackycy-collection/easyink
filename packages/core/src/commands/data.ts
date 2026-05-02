@@ -1,4 +1,5 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
+import type { BindingDisplayFormat } from '@easyink/shared'
 import type { Command } from '../command'
 import { deepClone, generateId } from '@easyink/shared'
 import { findNode } from './helpers'
@@ -50,6 +51,39 @@ export class ClearBindingCommand implements Command {
       return
     this.oldBinding = deepClone(node.binding)
     node.binding = undefined
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    node.binding = this.oldBinding
+  }
+}
+
+export class UpdateBindingFormatCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-binding-format'
+  readonly description = 'Update binding format'
+  private oldBinding: BindingRef | BindingRef[] | undefined
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private format: BindingDisplayFormat | undefined,
+    private bindIndex = 0,
+  ) {}
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node?.binding)
+      return
+    this.oldBinding = deepClone(node.binding)
+    const refs = Array.isArray(node.binding) ? node.binding : [node.binding]
+    const target = refs.find(ref => (ref.bindIndex ?? 0) === this.bindIndex) ?? refs[0]
+    if (!target)
+      return
+    target.format = this.format ? deepClone(this.format) : undefined
   }
 
   undo(): void {

@@ -2,6 +2,7 @@ export {
   BindFieldCommand,
   ClearBindingCommand,
   UnionDropCommand,
+  UpdateBindingFormatCommand,
 } from './data'
 
 export {

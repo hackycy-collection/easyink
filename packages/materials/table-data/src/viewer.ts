@@ -1,6 +1,6 @@
 import type { BindingRef, MaterialNode, TableCellSchema, TableDataSchema, TableRowSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
-import { extractCollectionPath, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
+import { extractCollectionPath, formatBindingDisplayValue, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
 import { computeAutoRowHeights, computeRowScale, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
@@ -10,6 +10,7 @@ interface ViewerRenderContext {
   pageIndex: number
   unit: string
   zoom: number
+  reportDiagnostic?: (diagnostic: { code: string, message: string, severity: 'warning', nodeId?: string, cause?: unknown }) => void
 }
 
 interface ViewerRenderOutput {
@@ -20,6 +21,7 @@ interface ViewerRenderOutput {
 interface ViewerMeasureContext {
   data: Record<string, unknown>
   unit: string
+  reportDiagnostic?: ViewerRenderContext['reportDiagnostic']
 }
 
 interface ViewerMeasureResult {
@@ -74,12 +76,13 @@ function resolveRuntimeLayout(
   node: MaterialNode & { table: TableDataSchema },
   data: Record<string, unknown>,
   declaredElementHeight: number,
+  reportDiagnostic?: ViewerRenderContext['reportDiagnostic'],
 ): ResolvedRuntimeLayout {
   const tableData = node.table
   const showHeader = tableData.showHeader !== false
   const showFooter = tableData.showFooter !== false
 
-  const expandedRows = expandRepeatTemplateRows(node.table.topology.rows, data)
+  const expandedRows = expandRepeatTemplateRows(node.table.topology.rows, data, node.id, reportDiagnostic)
   const visibleRows = filterVisibleRows(expandedRows, showHeader, showFooter)
 
   // Baseline scale from ORIGINAL declared topology + ORIGINAL element height.
@@ -114,7 +117,7 @@ export function measureTableData(node: MaterialNode, context: ViewerMeasureConte
   }
   const data = context.data ?? {}
   const tableNode = node as MaterialNode & { table: TableDataSchema }
-  const layout = resolveRuntimeLayout(tableNode, data, node.height)
+  const layout = resolveRuntimeLayout(tableNode, data, node.height, context.reportDiagnostic)
   // Cache so render() reuses the exact same per-row heights without
   // re-deriving baseline scale from the (about to be overwritten) node.height.
   runtimeLayoutCache.set(tableNode.table, layout)
@@ -138,7 +141,7 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
   // without a prior measure (e.g. unit tests).
   const cached = runtimeLayoutCache.get(tableNode.table)
   const { rows: visibleRows, rowHeights, totalHeight } = cached
-    ?? resolveRuntimeLayout(tableNode, data, node.height)
+    ?? resolveRuntimeLayout(tableNode, data, node.height, context?.reportDiagnostic)
 
   const sizedRows: TableRowSchema[] = visibleRows.map((row, i) => ({
     ...row,
@@ -178,13 +181,15 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
 function expandRepeatTemplateRows(
   rows: TableRowSchema[],
   data: Record<string, unknown>,
+  nodeId: string,
+  reportDiagnostic?: ViewerRenderContext['reportDiagnostic'],
 ): TableRowSchema[] {
   const result: TableRowSchema[] = []
 
   for (const row of rows) {
     if (row.role !== 'repeat-template') {
       // Header/footer/normal: resolve staticBinding into content
-      result.push(resolveStaticRow(row, data))
+      result.push(resolveStaticRow(row, data, nodeId, reportDiagnostic))
       continue
     }
 
@@ -222,9 +227,10 @@ function expandRepeatTemplateRows(
           return { ...cell }
         const leafField = cell.binding.fieldPath.substring(collectionPath.length + 1)
         const value = resolveFieldFromRecord(leafField, record)
+        const formatted = formatCellValue(value, cell.binding, nodeId, reportDiagnostic)
         return {
           ...cell,
-          content: { text: value != null ? String(value) : '' },
+          content: { text: formatted },
         }
       })
       result.push({ height: row.height, role: 'normal', cells: expandedCells })
@@ -241,6 +247,8 @@ function expandRepeatTemplateRows(
 function resolveStaticRow(
   row: TableRowSchema,
   data: Record<string, unknown>,
+  nodeId: string,
+  reportDiagnostic?: ViewerRenderContext['reportDiagnostic'],
 ): TableRowSchema {
   const needsResolution = row.cells.some(c => c.staticBinding)
   if (!needsResolution)
@@ -250,10 +258,23 @@ function resolveStaticRow(
     if (!cell.staticBinding)
       return cell
     const value = resolveBindingValue(cell.staticBinding, data)
+    const formatted = formatCellValue(value, cell.staticBinding, nodeId, reportDiagnostic)
     return {
       ...cell,
-      content: { text: value != null ? String(value) : '' },
+      content: { text: formatted },
     }
   })
   return { ...row, cells: resolvedCells }
+}
+
+function formatCellValue(
+  value: unknown,
+  binding: BindingRef,
+  nodeId: string,
+  reportDiagnostic?: ViewerRenderContext['reportDiagnostic'],
+): string {
+  const result = formatBindingDisplayValue(value, binding)
+  for (const diagnostic of result.diagnostics)
+    reportDiagnostic?.({ ...diagnostic, nodeId })
+  return result.value
 }

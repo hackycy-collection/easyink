@@ -1,5 +1,6 @@
 import type { Selection, SubPropertySchema, TransactionAPI } from '@easyink/core'
 import type { MaterialNode, TableNode } from '@easyink/schema'
+import type { BindingDisplayFormat } from '@easyink/shared'
 import type { TableCellPayload, TableEditingDelegate } from './types'
 import { isTableNode } from '@easyink/schema'
 import { CELL_PROP_SCHEMAS } from '../cell-schemas'
@@ -97,6 +98,29 @@ export function createCellSubPropertySchema(
           const d = draft as unknown as TableNode
           d.table.topology.rows[row]!.cells[col]!.staticBinding = undefined
         }, { label: 'Clear cell binding' })
+      }
+    },
+
+    updateBindingFormat(tx: TransactionAPI, format: BindingDisplayFormat | undefined, _bindIndex?: number) {
+      const n = delegate.getNode(sel.nodeId)
+      if (!n)
+        return
+      const rowRole = n.table.topology.rows[row]?.role
+      if (rowRole === 'repeat-template') {
+        tx.run(sel.nodeId, (draft) => {
+          const d = draft as unknown as TableNode
+          const binding = d.table.topology.rows[row]!.cells[col]!.binding
+          if (binding)
+            binding.format = format
+        }, { label: 'Update cell binding format' })
+      }
+      else {
+        tx.run(sel.nodeId, (draft) => {
+          const d = draft as unknown as TableNode
+          const binding = d.table.topology.rows[row]!.cells[col]!.staticBinding
+          if (binding)
+            binding.format = format
+        }, { label: 'Update cell binding format' })
       }
     },
   }

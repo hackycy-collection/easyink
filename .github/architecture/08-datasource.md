@@ -37,6 +37,7 @@ interface DataFieldNode {
   tag?: string
   use?: string
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
   bindIndex?: number
   union?: DataUnionBinding[]
   expand?: boolean
@@ -55,6 +56,7 @@ interface DataUnionBinding {
   offsetX?: number
   offsetY?: number
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
 }
 ```
 
@@ -188,6 +190,7 @@ EasyInk 的做法应是：
 | `path` | 规范路径 | 绑定、运行时解析 |
 | `use` | 推荐物料或物料模板 token | 拖拽创建 |
 | `props` | 创建默认属性 | 拖拽创建 |
+| `format` | 字段默认显示格式 | 拖拽绑定时复制到 `BindingRef.format` |
 | `union` | 一拖多投放方案 | 批量生成 |
 | `bindIndex` | 多参数绑定位次 | BWIP、函数、公式等 |
 | `expand` | 默认展开状态 | 字段树 UI |
@@ -258,8 +261,35 @@ const receiptField: DataFieldNode = {
 - `union` 是数据源协议的一部分，不是某个物料包的私有技巧
 - 偏移量以主元素左上角为参照坐标系
 - 默认 props 只提供创建初值，不覆盖用户后续编辑结果
+- `format` 是字段建议，不是动态引用；拖拽后固化到绑定，保证模板在数据源字段配置变化后仍可稳定回放
 
-## 8.8 多参数绑定 `bindIndex`
+## 8.8 显示格式默认值
+
+字段节点可以声明默认显示格式，用于减少重复配置：
+
+```typescript
+const amountField: DataFieldNode = {
+  name: 'amount',
+  title: '金额',
+  path: 'amount',
+  use: 'text',
+  format: {
+    prefix: '￥',
+    fallback: '--',
+    mode: 'preset',
+    preset: { type: 'number', minimumFractionDigits: 2, maximumFractionDigits: 2 },
+  },
+}
+```
+
+拖拽规则：
+
+- 普通元素绑定复制到 `element.binding.format`
+- `table-data` repeat-template 单元格复制到 `cell.binding.format`
+- `table-static` 或非 repeat 行单元格复制到 `cell.staticBinding.format`
+- 后续用户在属性面板修改绑定格式，只修改模板绑定，不反写数据源字段树
+
+## 8.9 多参数绑定 `bindIndex`
 
 参考 BWIP 示例，一个字段组可服务同一个物料的多个输入槽位：
 
@@ -281,7 +311,7 @@ const bwipFields: DataFieldNode[] = [
 - 绑定顺序必须稳定，不能依赖字段树视觉顺序推断
 - 属性面板需要能可视化当前槽位的绑定关系
 
-## 8.9 绑定引用与字段树分离
+## 8.10 绑定引用与字段树分离
 
 字段树不整体写入 Schema，但绑定会保存引用元数据：
 
@@ -291,6 +321,7 @@ const bwipFields: DataFieldNode[] = [
 - `fieldPath`
 - `fieldLabel`
 - `bindIndex`
+- `format`
 
 也就是说：
 
@@ -298,7 +329,7 @@ const bwipFields: DataFieldNode[] = [
 - 模板通过绑定引用保持可回放性
 - Viewer 通过绝对路径直接从 data 解析值，不依赖数据源系统
 
-## 8.10 绑定解析函数
+## 8.11 绑定解析函数
 
 绑定解析是通用能力，位于 `@easyink/core` 包，供 Viewer 和物料包使用：
 
@@ -318,7 +349,7 @@ function resolveNodeBindings(
 
 Viewer 不做异步数据加载，宿主负责在调用 `viewer.open({ schema, data })` 前准备好数据。
 
-## 8.11 路径与格式规则
+## 8.12 路径与格式规则
 
 ### 路径规则
 
@@ -364,7 +395,7 @@ function resolveFieldFromRecord(leafField: string, record: Record<string, unknow
 - 当前不支持格式化能力，后续独立设计
 - 不支持模板内直接写任意脚本
 
-## 8.12 data-table 绑定模型
+## 8.13 data-table 绑定模型
 
 `data-table` 采用 cell 级绝对路径绑定 + 同行同集合约束的模型。不再持有表级 `source` 字段，集合路径由 Viewer 在运行时从 repeat-template 行各 cell 的 fieldPath 公共前缀推导。
 
@@ -435,7 +466,7 @@ Viewer 不再从 `table.source` 读取集合路径，而是在运行时推导：
 - header / footer / normal 行 cell：通过 `tx.run()` 清除 `cell.staticBinding`
 - 不存在解除 table.source 的整表清除流程
 
-## 8.13 table-static 独立绑定模型
+## 8.14 table-static 独立绑定模型
 
 table-static 支持单元格级独立绑定。table-data 的 header/footer/normal 行也复用同一机制。
 
@@ -483,7 +514,7 @@ Viewer 的 `resolveAllBindings` 阶段检测到 table-static 节点时：
 
 所有表格绑定操作均通过 `TransactionAPI.run()` 实现，自动产生 `PatchCommand` 进入历史栈（见 [22 章](./22-editing-behavior.md)）。
 
-## 8.14 Designer 与 Viewer 的边界
+## 8.15 Designer 与 Viewer 的边界
 
 核心原则：
 

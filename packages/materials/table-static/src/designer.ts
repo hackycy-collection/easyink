@@ -103,6 +103,7 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
         fieldPath: field.fieldPath,
         fieldKey: field.fieldKey,
         fieldLabel: field.fieldLabel,
+        format: field.format,
       }
 
       context.tx.run(node.id, (draft) => {

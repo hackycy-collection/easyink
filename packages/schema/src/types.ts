@@ -1,5 +1,6 @@
 import type {
   BackgroundRepeat,
+  BindingDisplayFormat,
   BlankPolicy,
   BorderAppearance,
   BorderType,
@@ -61,6 +62,7 @@ export interface DataFieldSnapshot {
   tag?: string
   use?: MaterialUseToken
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
   bindIndex?: number
   union?: DataUnionBindingSnapshot[]
   expand?: boolean
@@ -82,6 +84,7 @@ export interface DataUnionBindingSnapshot {
   offsetX?: number
   offsetY?: number
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
 }
 
 /**
@@ -267,6 +270,7 @@ export interface BindingRef {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
+  format?: BindingDisplayFormat
   bindIndex?: number
   required?: boolean
   extensions?: Record<string, unknown>

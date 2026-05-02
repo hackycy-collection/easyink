@@ -467,9 +467,21 @@ export class ViewerRuntime {
     if (!this._schema)
       return { schema: this._schema!, diagnostics: [] }
 
-    const measureCtx: ViewerMeasureContext = { data: this._data, unit: this._schema.unit }
     let modified = false
     const diagnostics: ViewerDiagnosticEvent[] = []
+    const measureCtx: ViewerMeasureContext = {
+      data: this._data,
+      unit: this._schema.unit,
+      reportDiagnostic: diagnostic => diagnostics.push({
+        category: 'datasource',
+        severity: diagnostic.severity,
+        code: diagnostic.code,
+        message: diagnostic.message,
+        nodeId: diagnostic.nodeId,
+        scope: 'datasource',
+        cause: diagnostic.cause,
+      }),
+    }
 
     let elements = this._schema.elements.map((node) => {
       const result = this._materialRegistry.measure(node, measureCtx)
@@ -526,6 +538,19 @@ export class ViewerRuntime {
 
       try {
         const projected = projectBindings(node, this._data)
+        for (const binding of projected) {
+          for (const diagnostic of binding.diagnostics ?? []) {
+            diagnostics.push({
+              category: 'datasource',
+              severity: diagnostic.severity,
+              code: diagnostic.code,
+              message: diagnostic.message,
+              nodeId: node.id,
+              scope: 'datasource',
+              cause: diagnostic.cause,
+            })
+          }
+        }
         const resolvedProps = applyBindingsToProps(node.props, projected, node.type)
         resolvedMap.set(node.id, resolvedProps)
       }

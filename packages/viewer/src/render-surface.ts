@@ -47,6 +47,15 @@ export function renderPages(
       pageIndex: page.index,
       unit,
       zoom,
+      reportDiagnostic: diagnostic => diagnostics.push({
+        category: 'datasource',
+        severity: diagnostic.severity,
+        code: diagnostic.code,
+        message: diagnostic.message,
+        nodeId: diagnostic.nodeId,
+        scope: 'datasource',
+        cause: diagnostic.cause,
+      }),
     }
 
     // Sort elements by zIndex for proper layering

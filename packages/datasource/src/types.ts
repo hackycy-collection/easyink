@@ -1,4 +1,4 @@
-import type { MaterialUseToken } from '@easyink/shared'
+import type { BindingDisplayFormat, MaterialUseToken } from '@easyink/shared'
 
 /**
  * Descriptor for a data source. The field tree is the backbone
@@ -28,6 +28,7 @@ export interface DataFieldNode {
   tag?: string
   use?: MaterialUseToken
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
   bindIndex?: number
   union?: DataUnionBinding[]
   expand?: boolean
@@ -49,6 +50,7 @@ export interface DataUnionBinding {
   offsetX?: number
   offsetY?: number
   props?: Record<string, unknown>
+  format?: BindingDisplayFormat
 }
 
 /**

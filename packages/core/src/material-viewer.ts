@@ -1,4 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
+import type { BindingFormatDiagnostic } from './binding-format'
 
 /**
  * Viewer render context passed to each material's render function.
@@ -11,6 +12,7 @@ export interface ViewerRenderContext {
   /** Document unit: 'mm' | 'pt' | 'px'. CSS unit suffix equals this value. */
   unit: string
   zoom: number
+  reportDiagnostic?: (diagnostic: BindingFormatDiagnostic & { nodeId?: string }) => void
 }
 
 export interface ViewerRenderOutput {
@@ -21,6 +23,7 @@ export interface ViewerRenderOutput {
 export interface ViewerMeasureContext {
   data: Record<string, unknown>
   unit: string
+  reportDiagnostic?: (diagnostic: BindingFormatDiagnostic & { nodeId?: string }) => void
 }
 
 export interface ViewerMeasureResult {

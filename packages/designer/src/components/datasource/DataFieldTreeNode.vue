@@ -51,6 +51,7 @@ function onDragStart(e: DragEvent) {
     fieldPath: props.field.path || props.field.name,
     fieldKey: props.field.key,
     fieldLabel: props.field.title || props.field.name,
+    format: props.field.format,
     use: props.field.use,
   }
   e.dataTransfer.setData(DATASOURCE_DRAG_MIME, JSON.stringify(data))

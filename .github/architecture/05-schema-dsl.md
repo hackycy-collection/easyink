@@ -227,9 +227,47 @@ interface BindingRef {
   fieldPath: string
   fieldKey?: string
   fieldLabel?: string
+  format?: BindingDisplayFormat
   bindIndex?: number
   required?: boolean
   extensions?: Record<string, unknown>
+}
+
+interface BindingDisplayFormat {
+  /** Applied after fallback + preset/custom formatting. */
+  prefix?: string
+  /** Applied after fallback + preset/custom formatting. */
+  suffix?: string
+  /** Used when the resolved value is null / undefined / empty string. */
+  fallback?: string
+  /** Either omit for raw display, or choose one formatter family. */
+  mode?: 'preset' | 'custom'
+  preset?: BindingPresetFormat
+  custom?: BindingCustomFormat
+}
+
+type BindingFormatPresetType =
+  | 'datetime'
+  | 'weekday'
+  | 'chinese-money'
+  | 'number'
+  | 'currency'
+  | 'percent'
+
+interface BindingPresetFormat {
+  type: BindingFormatPresetType
+  pattern?: string
+  locale?: string
+  timeZone?: string
+  weekdayStyle?: 'long' | 'short' | 'narrow'
+  minimumFractionDigits?: number
+  maximumFractionDigits?: number
+  currency?: string
+}
+
+interface BindingCustomFormat {
+  /** Trusted template JavaScript function expression, e.g. `(value, ctx) => String(value)`. */
+  source: string
 }
 ```
 
@@ -238,6 +276,10 @@ interface BindingRef {
 - `fieldPath` 采用 `/` 作为规范分隔符
 - 导入层兼容 `.`、混合路径和仅 `key` 的简化格式
 - `bindIndex` 用于二维码、BWIP、公式等多输入物料
+- `format` 属于绑定语义，而不是文本物料私有 props；普通元素、table-data 单元格和 table-static 单元格共享同一显示规则
+- 显示处理顺序固定为：空值兜底 -> 预设格式或自定义函数（二选一）-> 前缀/后缀
+- 自定义函数第一版是可信模板能力，只接收当前值和最小上下文，不暴露整份 data、行记录、DOM、网络或异步能力
+- 格式化失败时 Viewer 保留原始显示值并发出 datasource warning，不把错误占位写入打印品
 - `union` 仅存在于 `DataFieldNode`（数据源字段树），不持久化到 `BindingRef`
 
 ### `bindIndex` 示例

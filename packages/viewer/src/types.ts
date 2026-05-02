@@ -1,4 +1,4 @@
-import type { FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from '@easyink/core'
+import type { BindingFormatDiagnostic, FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from '@easyink/core'
 import type { DocumentSchema } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
 
@@ -100,4 +100,6 @@ export interface PrintAdapter {
 export interface ProjectedBinding {
   bindIndex: number
   value: unknown
+  hasFormatAffix?: boolean
+  diagnostics?: BindingFormatDiagnostic[]
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { PropCommitContext, SubPropertySchema } from '@easyink/core'
 import type { BindingRef } from '@easyink/schema'
+import type { BindingDisplayFormat } from '@easyink/shared'
 import type { Component } from 'vue'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
 import type { PanelSectionId, PropSchema } from '../types'
-import { ClearBindingCommand, getByPath, setByPath, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
+import { ClearBindingCommand, getByPath, setByPath, UpdateBindingFormatCommand, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
 import { deepClone, PAPER_PRESETS } from '@easyink/shared'
 import { EiNumberInput, EiPanel, EiSwitch } from '@easyink/ui'
 import { computed, shallowRef, watchEffect } from 'vue'
@@ -406,6 +407,20 @@ function clearBinding(nodeId: string) {
   store.commands.execute(cmd)
 }
 
+function updateBindingFormat(format: BindingDisplayFormat | undefined, bindIndex?: number) {
+  if (hasSubBinding.value) {
+    const session = store.editingSession.activeSession
+    if (!session || !subPropertySchema.value?.updateBindingFormat)
+      return
+    subPropertySchema.value.updateBindingFormat(session.tx, format, bindIndex)
+    return
+  }
+  if (!selectedElement.value)
+    return
+  const cmd = new UpdateBindingFormatCommand(store.schema.elements, selectedElement.value.id, format, bindIndex)
+  store.commands.execute(cmd)
+}
+
 function readPropValue(schema: PropSchema): unknown {
   const el = selectedElement.value
   if (!el)
@@ -530,6 +545,7 @@ function readPropValue(schema: PropSchema): unknown {
           :has-external-binding="hasSubBinding"
           @clear-binding="clearBinding"
           @clear-external-binding="handleClearExternalBinding"
+          @update-binding-format="updateBindingFormat"
         />
       </EiPanel>
 
