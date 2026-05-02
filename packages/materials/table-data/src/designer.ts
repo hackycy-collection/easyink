@@ -24,6 +24,7 @@ import {
   createTableResizeBehavior,
   escapeHtml,
   hitTestWithPlaceholders,
+  renderPlainTextCell,
   renderTableHtml,
   resolveMergeOwner,
 } from '@easyink/material-table-kernel'
@@ -117,7 +118,7 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
         const label = context.getBindingLabel(cell.staticBinding)
         return `<span style="">{#${escapeHtml(label)}}</span>`
       }
-      return cell.content?.text || ''
+      return renderPlainTextCell(cell.content?.text)
     },
     rowDecorator: (ri) => {
       const row = node.table.topology.rows[ri]

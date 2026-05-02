@@ -1,11 +1,8 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { BarcodeProps } from './schema'
+import { escapeHtml } from '@easyink/shared'
 import { generateBarcodeSvg } from './render'
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
 
 function buildPlaceholder(p: BarcodeProps, label: string): string {
   const sampleValues: Record<string, string> = {

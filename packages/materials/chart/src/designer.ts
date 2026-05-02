@@ -1,9 +1,6 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { ChartProps } from './schema'
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
+import { escapeHtml } from '@easyink/shared'
 
 const CHART_ICONS: Record<string, string> = {
   bar: '<rect x="10" y="50" width="15" height="40" fill="#1890ff"/><rect x="30" y="30" width="15" height="60" fill="#1890ff"/><rect x="50" y="40" width="15" height="50" fill="#1890ff"/><rect x="70" y="20" width="15" height="70" fill="#1890ff"/>',

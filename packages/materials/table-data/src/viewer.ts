@@ -1,7 +1,7 @@
 import type { BindingRef, MaterialNode, TableCellSchema, TableDataSchema, TableRowSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
 import { extractCollectionPath, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
-import { computeAutoRowHeights, computeRowScale, renderTableHtml } from '@easyink/material-table-kernel'
+import { computeAutoRowHeights, computeRowScale, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 interface ViewerRenderContext {
@@ -150,7 +150,7 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
     props,
     unit: context?.unit ?? 'mm',
     elementHeight: totalHeight,
-    cellRenderer: cell => cell.content?.text || '',
+    cellRenderer: cell => renderPlainTextCell(cell.content?.text),
     rowDecorator: (ri) => {
       const row = sizedRows[ri]
       if (!row)

@@ -1,6 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TableStaticProps } from './schema'
-import { escapeHtml, renderTableHtml } from '@easyink/material-table-kernel'
+import { escapeHtml, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 export function renderTableStatic(node: MaterialNode, unit = 'mm') {
@@ -22,7 +22,7 @@ export function renderTableStatic(node: MaterialNode, unit = 'mm') {
         const label = cell.staticBinding.fieldLabel || cell.staticBinding.fieldPath
         return `<span style="">{#${escapeHtml(label)}}</span>`
       }
-      return cell.content?.text || ''
+      return renderPlainTextCell(cell.content?.text)
     },
   })
   return { html }

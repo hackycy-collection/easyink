@@ -1,14 +1,7 @@
 import type { ViewerRenderContext } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { PageNumberProps } from './schema'
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escapeHtml } from '@easyink/shared'
 
 export function renderPageNumber(node: MaterialNode, context: ViewerRenderContext) {
   const props = node.props as unknown as PageNumberProps

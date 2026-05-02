@@ -1,3 +1,4 @@
+import { escapeHtml } from '@easyink/shared'
 // @ts-expect-error -- JsBarcode internal encoders have no type declarations
 import encoders from 'jsbarcode/bin/barcodes/index'
 
@@ -73,8 +74,4 @@ export function generateBarcodeSvg(value: string, options: Partial<BarcodeSvgOpt
     : ''
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${fullHeight}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block"><rect width="${svgWidth}" height="${fullHeight}" fill="${backgroundColor}"/>${rects.join('')}${textEl}</svg>`
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

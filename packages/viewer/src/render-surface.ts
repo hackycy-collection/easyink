@@ -4,7 +4,7 @@ import type { MaterialRendererRegistry } from './material-registry'
 import type { ViewerDiagnosticEvent, ViewerRenderContext } from './types'
 import { getLineThickness, LINE_TYPE } from '@easyink/material-line'
 import { isTableNode } from '@easyink/schema'
-import { UNIT_FACTOR } from '@easyink/shared'
+import { escapeHtml, UNIT_FACTOR } from '@easyink/shared'
 import { isErrorSentinel, safeRender } from './diagnostic-middleware'
 
 export interface RenderSurfaceOptions {
@@ -87,7 +87,7 @@ export function renderPages(
         elWrapper.appendChild(output.element)
       }
       else if (output.html) {
-        elWrapper.innerHTML = output.html
+        setMaterialHtml(elWrapper, output.html)
       }
 
       pageEl.appendChild(elWrapper)
@@ -252,10 +252,6 @@ function getPxFactorForLayout(unit: string): number {
   return 96 / factor
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+function setMaterialHtml(element: HTMLElement, html: string): void {
+  element.innerHTML = html
 }

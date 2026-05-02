@@ -1,10 +1,7 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { PageNumberProps } from './schema'
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
+import { escapeHtml } from '@easyink/shared'
 
 function buildHtml(node: MaterialNode, unit: string): string {
   const p = node.props as unknown as PageNumberProps

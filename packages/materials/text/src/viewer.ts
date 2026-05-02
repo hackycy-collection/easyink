@@ -1,13 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TextProps } from './schema'
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escapeHtml } from '@easyink/shared'
 
 export function renderText(node: MaterialNode, _data?: Record<string, unknown>, unit = 'mm') {
   const props = node.props as unknown as TextProps

@@ -1,11 +1,8 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { QrcodeProps } from './schema'
+import { escapeHtml } from '@easyink/shared'
 import { generateQrcodeSvg } from './render'
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
 
 function buildPlaceholder(p: QrcodeProps, label: string): string {
   const svg = generateQrcodeSvg('https://easyink.dev', {

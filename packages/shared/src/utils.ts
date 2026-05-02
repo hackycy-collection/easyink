@@ -52,6 +52,21 @@ export function normalizeFieldPath(path: string): string {
   return path.replace(/\./g, FIELD_PATH_SEPARATOR)
 }
 
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  '\'': '&#39;',
+}
+
+/**
+ * Escape text for HTML text nodes and quoted attribute values.
+ */
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, char => HTML_ESCAPE_MAP[char]!)
+}
+
 /**
  * Clamp a number between min and max.
  */

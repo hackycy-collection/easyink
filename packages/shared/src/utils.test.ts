@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clamp, deepClone, generateId, normalizeFieldPath, resolveFieldPath, roundTo } from './utils'
+import { clamp, deepClone, escapeHtml, generateId, normalizeFieldPath, resolveFieldPath, roundTo } from './utils'
 
 describe('deepClone', () => {
   it('clones a plain object', () => {
@@ -86,6 +86,16 @@ describe('normalizeFieldPath', () => {
 
   it('handles mixed separators', () => {
     expect(normalizeFieldPath('a.b/c.d')).toBe('a/b/c/d')
+  })
+})
+
+describe('escapeHtml', () => {
+  it('escapes HTML special characters consistently', () => {
+    expect(escapeHtml(`&<>"'`)).toBe('&amp;&lt;&gt;&quot;&#39;')
+  })
+
+  it('leaves ordinary text unchanged', () => {
+    expect(escapeHtml('EasyInk')).toBe('EasyInk')
   })
 })
 

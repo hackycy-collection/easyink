@@ -1,14 +1,7 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { BarcodeProps } from './schema'
+import { escapeHtml } from '@easyink/shared'
 import { generateBarcodeSvg } from './render'
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
 export function renderBarcode(node: MaterialNode) {
   const props = node.props as unknown as BarcodeProps

@@ -1,9 +1,12 @@
 import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyink/core'
 import type { SvgProps } from './schema'
+import { escapeHtml } from '@easyink/shared'
+import { sanitizeSvgContent } from './sanitize'
 
 function buildHtml(props: SvgProps): string {
   if (props.content) {
-    return `<svg width="100%" height="100%" viewBox="${props.viewBox}" preserveAspectRatio="${props.preserveAspectRatio}" xmlns="http://www.w3.org/2000/svg" fill="${props.fillColor}">${props.content}</svg>`
+    const content = sanitizeSvgContent(props.content)
+    return `<svg width="100%" height="100%" viewBox="${escapeHtml(props.viewBox)}" preserveAspectRatio="${escapeHtml(props.preserveAspectRatio)}" xmlns="http://www.w3.org/2000/svg" fill="${escapeHtml(props.fillColor)}">${content}</svg>`
   }
 
   return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border:1px dashed #d0d0d0;box-sizing:border-box">`
