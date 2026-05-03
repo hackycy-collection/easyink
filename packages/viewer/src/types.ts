@@ -100,6 +100,5 @@ export interface PrintAdapter {
 export interface ProjectedBinding {
   bindIndex: number
   value: unknown
-  hasFormatAffix?: boolean
   diagnostics?: BindingFormatDiagnostic[]
 }

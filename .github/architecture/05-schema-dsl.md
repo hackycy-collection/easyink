@@ -234,12 +234,16 @@ interface BindingRef {
 }
 
 interface BindingDisplayFormat {
-  /** Applied after fallback + preset/custom formatting. */
+  /**
+   * Applied after preset formatting. Only valid when mode is 'preset' (or omitted for raw display).
+   * Ignored when mode is 'custom'.
+   */
   prefix?: string
-  /** Applied after fallback + preset/custom formatting. */
+  /**
+   * Applied after preset formatting. Only valid when mode is 'preset' (or omitted for raw display).
+   * Ignored when mode is 'custom'.
+   */
   suffix?: string
-  /** Used when the resolved value is null / undefined / empty string. */
-  fallback?: string
   /** Either omit for raw display, or choose one formatter family. */
   mode?: 'preset' | 'custom'
   preset?: BindingPresetFormat
@@ -277,7 +281,9 @@ interface BindingCustomFormat {
 - 导入层兼容 `.`、混合路径和仅 `key` 的简化格式
 - `bindIndex` 用于二维码、BWIP、公式等多输入物料
 - `format` 属于绑定语义，而不是文本物料私有 props；普通元素、table-data 单元格和 table-static 单元格共享同一显示规则
-- 显示处理顺序固定为：空值兜底 -> 预设格式或自定义函数（二选一）-> 前缀/后缀
+- 显示处理顺序固定为：预设格式或自定义函数（二选一）-> 前缀/后缀（仅预设模式）
+- **自定义函数完全控制输出**：mode 为 `custom` 时，`prefix`、`suffix` 均不生效，由函数自行处理所有情况
+- 空值兜底（fallback）已从 UI 移除；运行时仍兼容读取旧数据中的 fallback 字段，但新保存不再写入
 - 自定义函数第一版是可信模板能力，只接收当前值和最小上下文，不暴露整份 data、行记录、DOM、网络或异步能力
 - 格式化失败时 Viewer 保留原始显示值并发出 datasource warning，不把错误占位写入打印品
 - `union` 仅存在于 `DataFieldNode`（数据源字段树），不持久化到 `BindingRef`

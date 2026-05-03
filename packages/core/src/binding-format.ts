@@ -70,8 +70,9 @@ export function formatBindingDisplayValue(
     }
   }
 
-  const prefix = format?.prefix ?? ''
-  const suffix = format?.suffix ?? ''
+  const isCustom = format?.mode === 'custom'
+  const prefix = isCustom ? '' : (format?.prefix ?? '')
+  const suffix = isCustom ? '' : (format?.suffix ?? '')
   return { value: `${prefix}${display}${suffix}`, diagnostics }
 }
 

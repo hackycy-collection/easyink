@@ -21,7 +21,6 @@ export function projectBindings(
     results.push({
       bindIndex: ref.bindIndex ?? 0,
       value: formatted.value,
-      hasFormatAffix: !!(ref.format?.prefix || ref.format?.suffix),
       diagnostics: formatted.diagnostics,
     })
   }
@@ -57,10 +56,6 @@ export function applyBindingsToProps(
       // assume their primary content prop is a string. Coerce here at the
       // boundary so renderers can rely on `String.prototype` methods.
       result[propKey] = binding.value == null ? '' : String(binding.value)
-      if (nodeType === 'text' && binding.bindIndex === 0 && binding.hasFormatAffix) {
-        result.prefix = ''
-        result.suffix = ''
-      }
     }
   }
 
