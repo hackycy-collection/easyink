@@ -5,11 +5,12 @@ import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/l
 import { EditorState } from '@codemirror/state'
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   modelValue?: string
   placeholder?: string
+  t?: (key: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -24,10 +25,8 @@ interface CodeExample {
   code: string
 }
 
-const EXAMPLES: CodeExample[] = [
-  {
-    label: '默认转换函数',
-    code: `/**
+const EXAMPLE_CODES = [
+  `/**
  * 默认数据转换函数
  * 接收字段的原始值，返回最终显示在打印区域的文本内容
  * 空值（null / undefined）统一输出为空字符串
@@ -38,10 +37,7 @@ const EXAMPLES: CodeExample[] = [
 function transform(value) {
   return value != null ? String(value) : ''
 }`,
-  },
-  {
-    label: '原始值转字符串',
-    code: `/**
+  `/**
  * 将字段原始值转换为字符串
  * 空值（null / undefined）统一输出为空字符串
  * @param {*} value - 字段原始值
@@ -50,10 +46,7 @@ function transform(value) {
 function transform(value) {
   return String(value ?? '')
 }`,
-  },
-  {
-    label: '数值格式化为货币',
-    code: `/**
+  `/**
  * 将数值格式化为人民币金额，保留两位小数
  * 非数字或无效值时显示占位符 '-'
  * @param {*} value - 字段原始值（数字或可转换为数字的字符串）
@@ -64,10 +57,7 @@ function transform(value) {
   if (isNaN(num)) return '-'
   return '\xA5' + num.toFixed(2)
 }`,
-  },
-  {
-    label: '日期格式化 YYYY-MM-DD',
-    code: `/**
+  `/**
  * 将日期值格式化为 YYYY-MM-DD 格式
  * 支持时间戳、ISO 字符串等 Date 构造函数可识别的格式
  * 无效日期返回空字符串
@@ -82,10 +72,7 @@ function transform(value) {
   var day = String(d.getDate()).padStart(2, '0')
   return y + '-' + m + '-' + day
 }`,
-  },
-  {
-    label: '状态码映射为中文标签',
-    code: `/**
+  `/**
  * 将整数状态码映射为对应的中文可读标签
  * 未匹配到映射时原样返回字段值的字符串形式
  * @param {*} value - 字段原始值（整数状态码）
@@ -95,8 +82,30 @@ function transform(value) {
   var map = { 0: '\u5F85\u5904\u7406', 1: '\u8FDB\u884C\u4E2D', 2: '\u5DF2\u5B8C\u6210' }
   return map[value] !== undefined ? map[value] : String(value ?? '')
 }`,
-  },
 ]
+
+const EXAMPLE_KEYS = [
+  'designer.bindingFormat.examples.default',
+  'designer.bindingFormat.examples.toString',
+  'designer.bindingFormat.examples.currency',
+  'designer.bindingFormat.examples.date',
+  'designer.bindingFormat.examples.statusMap',
+]
+
+const EXAMPLE_LABELS_FALLBACK = [
+  '默认转换函数',
+  '原始值转字符串',
+  '数值格式化为货币',
+  '日期格式化 YYYY-MM-DD',
+  '状态码映射为中文标签',
+]
+
+const examples = computed<CodeExample[]>(() =>
+  EXAMPLE_CODES.map((code, i) => ({
+    label: props.t ? props.t(EXAMPLE_KEYS[i]) : EXAMPLE_LABELS_FALLBACK[i],
+    code,
+  })),
+)
 
 function applyExample(code: string) {
   if (!view)
@@ -108,7 +117,6 @@ function applyExample(code: string) {
     changes: { from: 0, to: current.length, insert: code },
   })
 }
-
 const lightHighlight = HighlightStyle.define([
   { tag: tags.keyword, color: '#0000ff', fontWeight: '600' },
   { tag: tags.operatorKeyword, color: '#0000ff' },
@@ -232,10 +240,10 @@ watch(() => props.modelValue, (newValue) => {
     <div ref="containerRef" class="ei-bce__editor" />
     <div class="ei-bce__sidebar">
       <div class="ei-bce__sidebar-title">
-        示例
+        {{ props.t ? props.t('designer.bindingFormat.examples.title') : '示例' }}
       </div>
       <button
-        v-for="(example, index) in EXAMPLES"
+        v-for="(example, index) in examples"
         :key="index"
         type="button"
         class="ei-bce__example-btn"

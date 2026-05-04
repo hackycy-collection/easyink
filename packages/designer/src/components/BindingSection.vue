@@ -25,19 +25,10 @@ type FormatTab = 'preset' | 'custom'
 
 const BindingCodeEditor = defineAsyncComponent(() => import('./BindingCodeEditor.vue'))
 
-const modeOptions: Array<{ label: string, value: FormatTab }> = [
-  { label: '预设', value: 'preset' },
-  { label: '自定义', value: 'custom' },
-]
-
-const presetOptions: Array<{ label: string, value: BindingFormatPresetType }> = [
-  { label: '日期时间', value: 'datetime' },
-  { label: '星期', value: 'weekday' },
-  { label: '中文金额大写', value: 'chinese-money' },
-  { label: '数字', value: 'number' },
-  { label: '货币', value: 'currency' },
-  { label: '百分比', value: 'percent' },
-]
+const modeOptions = computed<Array<{ label: string, value: FormatTab }>>(() => [
+  { label: props.t('designer.bindingFormat.preset'), value: 'preset' },
+  { label: props.t('designer.bindingFormat.custom'), value: 'custom' },
+])
 
 interface PresetChoice {
   id: string
@@ -46,38 +37,38 @@ interface PresetChoice {
   preset?: BindingPresetFormat
 }
 
-const presetGroups: Array<{ label: string, choices: PresetChoice[] }> = [
+const presetGroups = computed<Array<{ label: string, choices: PresetChoice[] }>>(() => [
   {
-    label: '通用',
+    label: props.t('designer.bindingFormat.presets.groupGeneral'),
     choices: [
-      { id: 'raw', label: '原始值', hint: '不转换字段值' },
+      { id: 'raw', label: props.t('designer.bindingFormat.presets.raw'), hint: props.t('designer.bindingFormat.presets.rawHint') },
     ],
   },
   {
-    label: '日期时间',
+    label: props.t('designer.bindingFormat.presets.groupDatetime'),
     choices: [
-      { id: 'date-dash', label: '2026-05-04', hint: '日期', preset: { type: 'datetime', pattern: 'yyyy-MM-dd' } },
-      { id: 'date-slash', label: '2026/05/04', hint: '日期', preset: { type: 'datetime', pattern: 'yyyy/MM/dd' } },
-      { id: 'datetime-minute', label: '2026-05-04 09:30', hint: '日期时间', preset: { type: 'datetime', pattern: 'yyyy-MM-dd HH:mm' } },
-      { id: 'datetime-second', label: '2026-05-04 09:30:00', hint: '精确到秒', preset: { type: 'datetime', pattern: 'yyyy-MM-dd HH:mm:ss' } },
-      { id: 'time-minute', label: '09:30', hint: '时间', preset: { type: 'datetime', pattern: 'HH:mm' } },
-      { id: 'weekday-long', label: '星期一', hint: '星期', preset: { type: 'weekday', weekdayStyle: 'long' } },
+      { id: 'date-dash', label: '2026-05-04', hint: props.t('designer.bindingFormat.presets.dateHint'), preset: { type: 'datetime', pattern: 'yyyy-MM-dd' } },
+      { id: 'date-slash', label: '2026/05/04', hint: props.t('designer.bindingFormat.presets.dateHint'), preset: { type: 'datetime', pattern: 'yyyy/MM/dd' } },
+      { id: 'datetime-minute', label: '2026-05-04 09:30', hint: props.t('designer.bindingFormat.presets.datetimeHint'), preset: { type: 'datetime', pattern: 'yyyy-MM-dd HH:mm' } },
+      { id: 'datetime-second', label: '2026-05-04 09:30:00', hint: props.t('designer.bindingFormat.presets.datetimeSecondHint'), preset: { type: 'datetime', pattern: 'yyyy-MM-dd HH:mm:ss' } },
+      { id: 'time-minute', label: '09:30', hint: props.t('designer.bindingFormat.presets.timeHint'), preset: { type: 'datetime', pattern: 'HH:mm' } },
+      { id: 'weekday-long', label: props.t('designer.bindingFormat.presets.weekdayLongLabel'), hint: props.t('designer.bindingFormat.presets.weekdayHint'), preset: { type: 'weekday', weekdayStyle: 'long' } },
     ],
   },
   {
-    label: '数值金额',
+    label: props.t('designer.bindingFormat.presets.groupNumber'),
     choices: [
-      { id: 'number-integer', label: '1,235', hint: '整数', preset: { type: 'number', maximumFractionDigits: 0 } },
-      { id: 'number-decimal2', label: '1,234.50', hint: '两位小数', preset: { type: 'number', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
-      { id: 'currency-cny', label: '¥1,234.50', hint: '人民币金额', preset: { type: 'currency', currency: 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
-      { id: 'chinese-money', label: '壹仟贰佰叁拾肆元伍角', hint: '中文大写金额', preset: { type: 'chinese-money' } },
-      { id: 'percent-integer', label: '13%', hint: '百分比', preset: { type: 'percent', maximumFractionDigits: 0 } },
-      { id: 'percent-decimal2', label: '12.50%', hint: '百分比两位', preset: { type: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
+      { id: 'number-integer', label: '1,235', hint: props.t('designer.bindingFormat.presets.numberIntegerHint'), preset: { type: 'number', maximumFractionDigits: 0 } },
+      { id: 'number-decimal2', label: '1,234.50', hint: props.t('designer.bindingFormat.presets.numberDecimalHint'), preset: { type: 'number', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
+      { id: 'currency-cny', label: '¥1,234.50', hint: props.t('designer.bindingFormat.presets.currencyCnyHint'), preset: { type: 'currency', currency: 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
+      { id: 'chinese-money', label: props.t('designer.bindingFormat.presets.chineseMoneyLabel'), hint: props.t('designer.bindingFormat.presets.chineseMoneyHint'), preset: { type: 'chinese-money' } },
+      { id: 'percent-integer', label: '13%', hint: props.t('designer.bindingFormat.presets.percentHint'), preset: { type: 'percent', maximumFractionDigits: 0 } },
+      { id: 'percent-decimal2', label: '12.50%', hint: props.t('designer.bindingFormat.presets.percentDecimalHint'), preset: { type: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 } },
     ],
   },
-]
+])
 
-const presetChoices = presetGroups.flatMap(group => group.choices)
+const presetChoices = computed(() => presetGroups.value.flatMap(group => group.choices))
 
 const formatDialogOpen = ref(false)
 const activeBindingIndex = ref<number | null>(null)
@@ -306,14 +297,22 @@ function formatSummary(ref: BindingRef): string {
 }
 
 function presetLabel(type: BindingFormatPresetType): string {
-  return presetOptions.find(option => option.value === type)?.label ?? type
+  const keys: Record<BindingFormatPresetType, string> = {
+    'datetime': 'designer.bindingFormat.presetTypes.datetime',
+    'weekday': 'designer.bindingFormat.presetTypes.weekday',
+    'chinese-money': 'designer.bindingFormat.presetTypes.chineseMoney',
+    'number': 'designer.bindingFormat.presetTypes.number',
+    'currency': 'designer.bindingFormat.presetTypes.currency',
+    'percent': 'designer.bindingFormat.presetTypes.percent',
+  }
+  return props.t(keys[type]) || type
 }
 
 function activePresetChoiceId(): string {
   const preset = draftFormat.value.preset
   if (draftFormat.value.mode !== 'preset' || !preset)
     return 'raw'
-  return presetChoices.find(choice => choice.preset && isSamePreset(choice.preset, preset))?.id ?? preset.type
+  return presetChoices.value.find(choice => choice.preset && isSamePreset(choice.preset, preset))?.id ?? preset.type
 }
 
 function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
@@ -353,12 +352,12 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
           </div>
         </div>
         <div class="ei-binding-section__row ei-binding-section__row--fmt">
-          <span class="ei-binding-section__k">格式</span>
+          <span class="ei-binding-section__k">{{ t('designer.property.format') }}</span>
           <div class="ei-binding-section__fmt-body">
             <span
               class="ei-binding-section__fmt-badge"
               :data-mode="modeOf(binding)"
-            >{{ modeOf(binding) === 'preset' ? '预设' : modeOf(binding) === 'custom' ? '自定义' : '原始' }}</span>
+            >{{ modeOf(binding) === 'preset' ? t('designer.bindingFormat.preset') : modeOf(binding) === 'custom' ? t('designer.bindingFormat.custom') : t('designer.bindingFormat.badgeRaw') }}</span>
             <span class="ei-binding-section__fmt-text">{{ formatSummary(binding) }}</span>
           </div>
           <button
@@ -461,6 +460,7 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
             <BindingCodeEditor
               :model-value="draftFormat.custom?.source || `/**\n * 自定义转换函数\n * @param {*} value - 字段原始值\n * @returns {string} 最终展示的字符串内容\n */\nfunction transform(value) {\n  return String(value ?? '')\n}`"
               :placeholder="t('designer.bindingFormat.customSource')"
+              :t="t"
               @update:model-value="updateDraftCustomSource"
             />
           </div>
