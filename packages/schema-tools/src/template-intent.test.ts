@@ -52,4 +52,40 @@ describe('template intent builder', () => {
       'services/amount',
     ])
   })
+
+  it('keeps element ids isolated to a single build invocation', () => {
+    const prompt = '生成一个公告模板，包含两段说明文字'
+    const plan = inferAIGenerationPlan(prompt)
+    let nestedBuildTriggered = false
+    const reentrantSection = { kind: 'text' } as const
+
+    Object.defineProperty(reentrantSection, 'text', {
+      enumerable: true,
+      configurable: true,
+      get() {
+        if (!nestedBuildTriggered) {
+          nestedBuildTriggered = true
+          buildSchemaFromTemplateIntent({
+            name: '嵌套调用',
+            fields: [],
+            sections: [{ kind: 'title' }],
+          }, { prompt, plan })
+        }
+        return '第二段说明'
+      },
+    })
+
+    const result = buildSchemaFromTemplateIntent({
+      name: '公告',
+      fields: [],
+      sections: [
+        { kind: 'text', text: '第一段说明' },
+        reentrantSection,
+      ],
+    }, { prompt, plan })
+
+    const elementIds = result.schema.elements.map(element => element.id)
+
+    expect(new Set(elementIds).size).toBe(elementIds.length)
+  })
 })

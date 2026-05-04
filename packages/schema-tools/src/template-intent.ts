@@ -6,7 +6,7 @@ import { getDomainProfile } from './domain-profile'
 
 export type TemplateIntentSectionKind = 'title' | 'text' | 'field-list' | 'array-table' | 'summary' | 'footer' | 'code'
 
-let elementCounter = 0
+type ElementIdGenerator = (prefix: string) => string
 
 export interface TemplateIntentField {
   name: string
@@ -67,7 +67,6 @@ export function buildSchemaFromTemplateIntent(
   rawIntent: TemplateGenerationIntent,
   options: TemplateBuildOptions,
 ): TemplateBuildResult {
-  elementCounter = 0
   const profile = getDomainProfile(rawIntent.domain ?? options.plan.domain)
   const missingRequiredPaths = computeMissingRequiredPaths(rawIntent.fields, profile)
   const intent = normalizeTemplateIntent(rawIntent, options)
@@ -181,7 +180,7 @@ function addTitle(elements: MaterialNode[], title: string, layout: LayoutCursor,
   const fontSize = layout.compact ? 4 : 5
   const height = fontSize * 1.6
   elements.push({
-    id: nextElementId('txt-title'),
+    id: layout.nextElementId('txt-title'),
     type: 'text',
     x: layout.margin,
     y: layout.y,
@@ -206,7 +205,7 @@ function addText(elements: MaterialNode[], text: string, layout: LayoutCursor, d
   const fontSize = layout.compact ? 2.6 : 3.2
   const height = fontSize * 1.6
   elements.push({
-    id: nextElementId('txt-note'),
+    id: layout.nextElementId('txt-note'),
     type: 'text',
     x: layout.margin,
     y: layout.y,
@@ -239,6 +238,7 @@ function addFieldRows(
   const labelWidth = layout.contentWidth * 0.42
   for (const field of fields) {
     elements.push(createTextNode({
+      nextElementId: layout.nextElementId,
       prefix: 'txt-label',
       x: layout.margin,
       y: layout.y,
@@ -250,6 +250,7 @@ function addFieldRows(
       textAlign: 'left',
     }))
     elements.push(createTextNode({
+      nextElementId: layout.nextElementId,
       prefix: 'txt-value',
       x: layout.margin + labelWidth,
       y: layout.y,
@@ -281,7 +282,7 @@ function addArrayTable(
   const rowHeight = cellFontSize * 1.8
   const tableHeight = rowHeight * 2
   elements.push({
-    id: nextElementId('tbl-items'),
+    id: layout.nextElementId('tbl-items'),
     type: 'table-data',
     x: layout.margin,
     y: layout.y + 2,
@@ -351,7 +352,7 @@ function addCodePlaceholder(
     return
   const size = layout.compact ? 18 : 28
   elements.push({
-    id: nextElementId('qr-code'),
+    id: layout.nextElementId('qr-code'),
     type: 'qrcode',
     x: layout.margin + (layout.contentWidth - size) / 2,
     y: layout.y + 2,
@@ -370,6 +371,7 @@ function addCodePlaceholder(
 }
 
 function createTextNode(input: {
+  nextElementId: ElementIdGenerator
   prefix: string
   x: number
   y: number
@@ -382,7 +384,7 @@ function createTextNode(input: {
   binding?: BindingRef
 }): MaterialNode {
   return {
-    id: nextElementId(input.prefix),
+    id: input.nextElementId(input.prefix),
     type: 'text',
     x: input.x,
     y: input.y,
@@ -747,22 +749,28 @@ interface LayoutCursor {
   contentWidth: number
   y: number
   compact: boolean
+  nextElementId: ElementIdGenerator
 }
 
 function createLayoutCursor(page: PageSchema): LayoutCursor {
   const compact = page.width <= 100
   const margin = compact ? 4 : 16
+  const nextElementId = createElementIdGenerator()
   return {
     margin,
     contentWidth: Math.max(20, page.width - margin * 2),
     y: compact ? 6 : 18,
     compact,
+    nextElementId,
   }
 }
 
-function nextElementId(prefix: string): string {
-  elementCounter += 1
-  return `${prefix}-${elementCounter}`
+function createElementIdGenerator(): ElementIdGenerator {
+  let elementCounter = 0
+  return (prefix: string) => {
+    elementCounter += 1
+    return `${prefix}-${elementCounter}`
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
