@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BindingRef, MaterialNode } from '@easyink/schema'
 import type { BindingDisplayFormat, BindingFormatPresetType, BindingPresetFormat } from '@easyink/shared'
-import { IconCheck, IconSliders } from '@easyink/icons'
+import { IconCheck, IconEdit } from '@easyink/icons'
 import { EiButton, EiDialog, EiIcon, EiInput } from '@easyink/ui'
 import { computed, defineAsyncComponent, ref } from 'vue'
 
@@ -184,7 +184,19 @@ function updateDraftMode(value: FormatTab) {
   }
   else if (value === 'custom') {
     next.mode = 'custom'
-    next.custom = next.custom ?? { source: '(value) => String(value ?? \'\')' }
+    next.custom = next.custom ?? {
+      source: `/**
+ * 默认数据转换函数
+ * 接收字段的原始值，返回最终显示在打印区域的文本内容
+ * 空值（null / undefined）统一输出为空字符串
+ * 可按需修改函数体，实现格式化、映射等处理逻辑
+ * @param {*} value - 字段原始值
+ * @returns {string} 处理后的显示文本
+ */
+function transform(value) {
+  return value != null ? String(value) : ''
+}`,
+    }
     next.preset = undefined
     next.prefix = undefined
     next.suffix = undefined
@@ -355,7 +367,7 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
             :title="t('designer.bindingFormat.configure')"
             @click="openFormatDialog(binding, idx)"
           >
-            <EiIcon :icon="IconSliders" :size="12" />
+            <EiIcon :icon="IconEdit" :size="14" />
           </button>
         </div>
       </div>
@@ -368,7 +380,7 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
       <EiDialog
         :open="formatDialogOpen"
         :title="t('designer.bindingFormat.dialogTitle')"
-        :width="640"
+        :width="860"
         :confirm-text="t('designer.dialog.ok')"
         :cancel-text="t('designer.dialog.cancel')"
         :confirm-disabled="!!validationMessage"
@@ -446,11 +458,8 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
 
           <!-- Custom mode -->
           <div v-if="activeTab === 'custom'" class="ei-bfd__custom-body">
-            <p class="ei-bfd__custom-desc">
-              输入返回转换结果的箭头函数，参数 <code>value</code> 为字段原始值。函数完全控制输出，前缀、后缀、默认值均由函数自行处理。
-            </p>
             <BindingCodeEditor
-              :model-value="draftFormat.custom?.source || '(value) => String(value ?? \'\')'"
+              :model-value="draftFormat.custom?.source || `/**\n * 自定义转换函数\n * @param {*} value - 字段原始值\n * @returns {string} 最终展示的字符串内容\n */\nfunction transform(value) {\n  return String(value ?? '')\n}`"
               :placeholder="t('designer.bindingFormat.customSource')"
               @update:model-value="updateDraftCustomSource"
             />
@@ -756,8 +765,8 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
     padding: 12px 0 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
     flex: 1;
+    overflow: hidden;
   }
 
   &__custom-desc {

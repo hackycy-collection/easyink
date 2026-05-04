@@ -146,7 +146,7 @@ onBeforeUnmount(() => {
 }
 
 .ei-dialog {
-  max-width: min(100%, 720px);
+  max-width: min(100%, 960px);
   max-height: min(86vh, 720px);
   display: flex;
   flex-direction: column;

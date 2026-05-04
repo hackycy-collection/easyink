@@ -23,6 +23,14 @@
     "build": "tsdown",
     "dev": "tsdown --watch"
   },
+  "peerDependencies": {
+    "@codemirror/commands": "catalog:framework",
+    "@codemirror/lang-javascript": "catalog:framework",
+    "@codemirror/language": "catalog:framework",
+    "@codemirror/state": "catalog:framework",
+    "@codemirror/view": "catalog:framework",
+    "@lezer/highlight": "catalog:framework"
+  },
   "dependencies": {
     "@easyink/builtin": "workspace:*",
     "@easyink/core": "workspace:*",

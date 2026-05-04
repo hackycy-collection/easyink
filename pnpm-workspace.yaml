@@ -38,6 +38,12 @@ catalogs:
     vue-tsc: ^3.2.6
   framework:
     '@anthropic-ai/sdk': ^0.91.0
+    '@codemirror/commands': ^6.0.0
+    '@codemirror/lang-javascript': ^6.0.0
+    '@codemirror/language': ^6.0.0
+    '@codemirror/state': ^6.0.0
+    '@codemirror/view': ^6.0.0
+    '@lezer/highlight': ^1.0.0
     '@modelcontextprotocol/sdk': ^1.29.0
     '@vueuse/core': ^14.2.1
     ant-design-vue: ^4.2.6

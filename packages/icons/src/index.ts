@@ -32,6 +32,7 @@ export {
   AlignHorizontalSpaceBetween as IconDistribute,
   SeparatorVertical as IconDivider,
   ChevronDown as IconDown,
+  SquarePen as IconEdit,
   Circle as IconEllipse,
   ChevronsRightLeft as IconExpand,
   Download as IconExport,
