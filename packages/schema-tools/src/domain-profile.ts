@@ -1,4 +1,5 @@
 import type { AIGenerationPlan, AIPageAssumption, DomainFieldHint } from '@easyink/shared'
+import { isObject } from '@easyink/shared'
 
 /**
  * Field shape used by domain profiles to declare required and suggested
@@ -337,7 +338,7 @@ const PAGE_HEIGHT_RANGE: [number, number] = [20, 1800]
  * unknown domain falls back to the keyword inference.
  */
 export function coerceLLMPlan(raw: unknown, prompt: string): AIGenerationPlan {
-  if (!isRecord(raw))
+  if (!isObject(raw))
     return inferAIGenerationPlan(prompt)
 
   const fallback = inferAIGenerationPlan(prompt)
@@ -370,7 +371,7 @@ function clampPage(
   fallback: AIGenerationPlan,
 ): AIPageAssumption {
   const defaults = profile?.page ?? fallback.page
-  if (!isRecord(raw))
+  if (!isObject(raw))
     return defaults
 
   const mode = typeof raw.mode === 'string' && PAGE_MODES.has(raw.mode)
@@ -395,8 +396,4 @@ function isTableStrategy(value: unknown): value is AIGenerationPlan['tableStrate
 
 function isConfidence(value: unknown): value is AIGenerationPlan['confidence'] {
   return value === 'high' || value === 'medium' || value === 'low'
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }

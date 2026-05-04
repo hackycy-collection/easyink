@@ -1,6 +1,6 @@
 import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { AIGenerationPlan } from '@easyink/shared'
-import { deepClone, FIELD_PATH_SEPARATOR } from '@easyink/shared'
+import { deepClone, FIELD_PATH_SEPARATOR, isObject } from '@easyink/shared'
 
 export interface GenerationRepairIssue {
   code: string
@@ -161,7 +161,7 @@ function validateTableData(
   issues: GenerationAccuracyIssue[],
   elementPath: string,
 ): void {
-  const props = isRecord(element.props) ? element.props : {}
+  const props = isObject(element.props) ? element.props : {}
   for (const legacyKey of ['columns', 'repeatTemplate', 'headerStyle', 'rowStyle', 'borderStyle']) {
     if (hasOwn(props, legacyKey)) {
       issues.push({
@@ -172,8 +172,8 @@ function validateTableData(
     }
   }
 
-  const table = isRecord(element.table) ? element.table : undefined
-  const topology = isRecord(table?.topology) ? table.topology : undefined
+  const table = isObject(element.table) ? element.table : undefined
+  const topology = isObject(table?.topology) ? table.topology : undefined
   const rows = Array.isArray(topology?.rows) ? topology.rows : []
   const columns = Array.isArray(topology?.columns) ? topology.columns : []
 
@@ -181,7 +181,7 @@ function validateTableData(
     issues.push({ code: 'INVALID_TABLE_DATA_SCHEMA', message: 'table-data must include table.kind = data.', path: `${elementPath}.table.kind` })
   if (columns.length === 0)
     issues.push({ code: 'INVALID_TABLE_DATA_SCHEMA', message: 'table-data must include table.topology.columns.', path: `${elementPath}.table.topology.columns` })
-  if (!rows.some(row => isRecord(row) && row.role === 'repeat-template'))
+  if (!rows.some(row => isObject(row) && row.role === 'repeat-template'))
     issues.push({ code: 'INVALID_TABLE_DATA_SCHEMA', message: 'table-data must include a repeat-template row for array data.', path: `${elementPath}.table.topology.rows` })
 }
 
@@ -190,8 +190,8 @@ function validateTableStatic(
   issues: GenerationAccuracyIssue[],
   elementPath: string,
 ): void {
-  const table = isRecord(element.table) ? element.table : undefined
-  const topology = isRecord(table?.topology) ? table.topology : undefined
+  const table = isObject(element.table) ? element.table : undefined
+  const topology = isObject(table?.topology) ? table.topology : undefined
   if (!table || table.kind !== 'static')
     issues.push({ code: 'INVALID_TABLE_STATIC_SCHEMA', message: 'table-static must include table.kind = static.', path: `${elementPath}.table.kind` })
   if (!Array.isArray(topology?.columns) || !Array.isArray(topology?.rows))
@@ -218,10 +218,6 @@ function getElementBindings(element: MaterialNode): Array<{ binding: BindingRef,
   })
 
   return result
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function hasOwn(value: Record<string, unknown>, key: string): boolean {
