@@ -2,10 +2,7 @@ import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyi
 import type { MaterialNode } from '@easyink/schema'
 import type { ImageProps } from './schema'
 import { getNodeProps } from '@easyink/schema'
-
-function escapeAttr(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
+import { escapeAttr } from '@easyink/shared'
 
 function buildHtml(node: MaterialNode, context: MaterialExtensionContext): string {
   const p = getNodeProps<ImageProps>(node)

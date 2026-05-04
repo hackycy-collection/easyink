@@ -1,6 +1,7 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { ImageProps } from './schema'
 import { getNodeProps } from '@easyink/schema'
+import { escapeAttr } from '@easyink/shared'
 
 export function renderImage(node: MaterialNode, unit = 'mm') {
   const props = getNodeProps<ImageProps>(node)
@@ -19,8 +20,4 @@ export function renderImage(node: MaterialNode, unit = 'mm') {
     html: `<div style="width:100%;height:100%;box-sizing:border-box;${borderStyle}${bgStyle}">`
       + `<img src="${escapeAttr(props.src)}" alt="${escapeAttr(props.alt || '')}" style="width:100%;height:100%;object-fit:${props.fit};display:block;" /></div>`,
   }
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clamp, deepClone, escapeHtml, generateId, normalizeFieldPath, resolveFieldPath, roundTo } from './utils'
+import { clamp, deepClone, escapeAttr, escapeHtml, generateId, normalizeFieldPath, resolveFieldPath, roundTo } from './utils'
 
 describe('deepClone', () => {
   it('clones a plain object', () => {
@@ -96,6 +96,16 @@ describe('escapeHtml', () => {
 
   it('leaves ordinary text unchanged', () => {
     expect(escapeHtml('EasyInk')).toBe('EasyInk')
+  })
+})
+
+describe('escapeAttr', () => {
+  it('escapes HTML attribute delimiters consistently', () => {
+    expect(escapeAttr('&<>"')).toBe('&amp;&lt;&gt;&quot;')
+  })
+
+  it('leaves apostrophes unchanged for quoted attributes', () => {
+    expect(escapeAttr(`it's`)).toBe(`it's`)
   })
 })
 

@@ -1,15 +1,11 @@
 import type { TableCellSchema, TableTopologySchema } from '@easyink/schema'
 import type { TableBaseProps } from './types'
-import { escapeHtml } from '@easyink/shared'
+import { escapeAttr, escapeHtml } from '@easyink/shared'
 import { computeRowScale, normalizeColumnRatios } from './geometry'
 import { TABLE_BASE_DEFAULTS, TABLE_TYPOGRAPHY_DEFAULTS } from './types'
 import { resolveCellTypography } from './typography'
 
-export { escapeHtml } from '@easyink/shared'
-
-export function escapeAttr(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-}
+export { escapeAttr, escapeHtml } from '@easyink/shared'
 
 export function renderPlainTextCell(text?: string): string {
   return escapeHtml(text || '')
