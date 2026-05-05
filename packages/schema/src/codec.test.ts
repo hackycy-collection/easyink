@@ -1,6 +1,7 @@
 import type { BenchmarkDocumentInput } from './codec'
 import { describe, expect, it } from 'vitest'
 import { decodeBenchmarkInput, encodeToBenchmark } from './codec'
+import { isTableNode } from './types'
 
 describe('decodeBenchmarkInput', () => {
   it('maps page fields from benchmark to canonical', () => {
@@ -78,6 +79,96 @@ describe('decodeBenchmarkInput', () => {
 
     const output = encodeToBenchmark(schema)
     expect(output.elements[0]).toMatchObject({ text: 'hello', fontSize: 14 })
+  })
+
+  it('converts legacy table cell scalar content to text', () => {
+    const input: BenchmarkDocumentInput = {
+      page: {},
+      elements: [
+        {
+          id: 'table-1',
+          type: 'table-static',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+          extensions: {
+            table: {
+              sections: [
+                {
+                  kind: 'body',
+                  rows: [
+                    {
+                      height: 24,
+                      cells: [{ content: 123 }],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    }
+
+    const schema = decodeBenchmarkInput(input)
+    const tableNode = schema.elements[0]!
+    expect(isTableNode(tableNode)).toBe(true)
+    if (!isTableNode(tableNode))
+      throw new Error('Expected decoded table node')
+
+    expect(tableNode.table.topology.rows[0]?.cells[0]?.content).toEqual({ text: '123' })
+    expect(tableNode.table.diagnostics).toBeUndefined()
+  })
+
+  it('preserves unsupported legacy table cell content and emits a warning', () => {
+    const rawContent = { rich: 'value' }
+    const input: BenchmarkDocumentInput = {
+      page: {},
+      elements: [
+        {
+          id: 'table-1',
+          type: 'table-static',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+          extensions: {
+            table: {
+              sections: [
+                {
+                  kind: 'body',
+                  rows: [
+                    {
+                      height: 24,
+                      cells: [{ content: rawContent }],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    }
+
+    const schema = decodeBenchmarkInput(input)
+    const tableNode = schema.elements[0]!
+    expect(isTableNode(tableNode)).toBe(true)
+    if (!isTableNode(tableNode))
+      throw new Error('Expected decoded table node')
+
+    const cell = tableNode.table.topology.rows[0]?.cells[0]
+    expect(cell?.content).toBeUndefined()
+    expect(cell?.props).toEqual({ benchmarkRawContent: rawContent })
+    expect(tableNode.table.diagnostics).toEqual([
+      expect.objectContaining({
+        code: 'benchmark-table-cell-content-invalid',
+        severity: 'warning',
+        message: expect.stringContaining('row 1, column 1'),
+        location: { rowIndex: 0 },
+      }),
+    ])
   })
 })
 

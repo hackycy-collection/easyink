@@ -233,6 +233,40 @@ function isBenchmarkTableType(type: string | undefined): type is TableNode['type
   return type === 'table-static' || type === 'table-data'
 }
 
+function describeLegacyTableCellContent(value: unknown): string {
+  if (value === null)
+    return 'null'
+  if (Array.isArray(value))
+    return 'array'
+  return typeof value
+}
+
+function decodeLegacyTableCellContent(rawContent: unknown, rowIndex: number, colIndex: number): {
+  content?: TableCellSchema['content']
+  props?: TableCellSchema['props']
+  diagnostic?: NonNullable<TableSchema['diagnostics']>[number]
+} {
+  if (
+    typeof rawContent === 'string'
+    || typeof rawContent === 'number'
+    || typeof rawContent === 'boolean'
+    || typeof rawContent === 'bigint'
+  ) {
+    return { content: { text: String(rawContent) } }
+  }
+
+  const contentType = describeLegacyTableCellContent(rawContent)
+  return {
+    props: { benchmarkRawContent: rawContent },
+    diagnostic: {
+      code: 'benchmark-table-cell-content-invalid',
+      severity: 'warning',
+      message: `Unsupported legacy table cell content of type ${contentType} at row ${rowIndex + 1}, column ${colIndex + 1}; preserved as cell.props.benchmarkRawContent.`,
+      location: { rowIndex },
+    },
+  }
+}
+
 /**
  * Encode canonical DocumentSchema back to benchmark format.
  */
@@ -425,14 +459,22 @@ function decodeTableExtensions(ext: Record<string, unknown>, tableType: string):
   }
 
   // Build rows with role
-  const rows: TableRowSchema[] = allRows.map((r) => {
-    const cells = Array.from({ length: colCount }, (_, i) => {
-      const rawCell = r.cells[i]
+  const diagnostics: NonNullable<TableSchema['diagnostics']> = []
+  const rows: TableRowSchema[] = allRows.map((r, rowIndex) => {
+    const cells = Array.from({ length: colCount }, (_, colIndex) => {
+      const rawCell = r.cells[colIndex]
       if (!rawCell)
         return {}
       const cell: Record<string, unknown> = {}
-      if (rawCell.content !== undefined)
-        cell.content = { text: String(rawCell.content) }
+      if (rawCell.content !== undefined) {
+        const decodedContent = decodeLegacyTableCellContent(rawCell.content, rowIndex, colIndex)
+        if (decodedContent.content)
+          cell.content = decodedContent.content
+        if (decodedContent.props)
+          cell.props = decodedContent.props
+        if (decodedContent.diagnostic)
+          diagnostics.push(decodedContent.diagnostic)
+      }
       if (rawCell.colSpan !== undefined)
         cell.colSpan = rawCell.colSpan
       if (rawCell.rowSpan !== undefined)
@@ -446,7 +488,10 @@ function decodeTableExtensions(ext: Record<string, unknown>, tableType: string):
   const layout = readTableLayout(rawTable)
 
   const kind: TableSchema['kind'] = tableType === 'table-data' ? 'data' : 'static'
-  return { kind, topology: { columns, rows }, layout }
+  const table: TableSchema = { kind, topology: { columns, rows }, layout }
+  if (diagnostics.length > 0)
+    table.diagnostics = diagnostics
+  return table
 }
 
 /** Migrate intermediate format (topology + bands) to new format (topology + row.role). */
