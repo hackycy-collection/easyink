@@ -179,7 +179,6 @@ function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['e
 
   const knownKeys = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'alpha', 'hidden', 'locked', 'zIndex', 'name', 'print'])
   const props: Record<string, unknown> = {}
-  const passthroughProps: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(rest)) {
     if (knownKeys.has(key))
@@ -211,10 +210,6 @@ function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['e
     node.name = rest.name as string
   if (rest.print != null)
     node.print = rest.print as DocumentSchema['elements'][number]['print']
-
-  if (Object.keys(passthroughProps).length > 0) {
-    node.compat = { rawProps: passthroughProps }
-  }
 
   // Table elements: convert extensions.table to node.table
   let decodedNode: MaterialNode | TableNode = node

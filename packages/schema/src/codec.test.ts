@@ -55,6 +55,30 @@ describe('decodeBenchmarkInput', () => {
     const schema = decodeBenchmarkInput(input)
     expect(schema.unit).toBe('pt')
   })
+
+  it('keeps unknown element fields in props for round-trip encoding', () => {
+    const input: BenchmarkDocumentInput = {
+      page: {},
+      elements: [
+        {
+          id: 'el1',
+          type: 'text',
+          x: 5,
+          y: 10,
+          width: 50,
+          height: 20,
+          text: 'hello',
+          fontSize: 14,
+        },
+      ],
+    }
+
+    const schema = decodeBenchmarkInput(input)
+    expect(schema.elements[0]?.props).toEqual({ text: 'hello', fontSize: 14 })
+
+    const output = encodeToBenchmark(schema)
+    expect(output.elements[0]).toMatchObject({ text: 'hello', fontSize: 14 })
+  })
 })
 
 describe('encodeToBenchmark', () => {
