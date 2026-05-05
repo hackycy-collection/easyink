@@ -52,6 +52,8 @@ const MARQUEE_ACTIVATION_DISTANCE = 1
  */
 export function useMarqueeSelect(ctx: MarqueeSelectContext) {
   function onCanvasPointerDown(e: PointerEvent) {
+    e.preventDefault()
+
     const { store } = ctx
 
     // Only start marquee on primary button, on the scroll/page background

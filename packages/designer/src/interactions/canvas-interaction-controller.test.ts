@@ -72,6 +72,7 @@ function pdEvent(name: string, x: number, y: number, opts: { meta?: boolean, ctr
     ctrlKey: opts.ctrl ?? false,
     button: opts.button ?? 0,
     bubbles: true,
+    cancelable: true,
   })
 }
 
@@ -164,6 +165,17 @@ describe('useCanvasInteractionController', () => {
     pdOn('b', pdEvent('pointerdown', 110, 10, { button: 2 }))
 
     expect(store.selection.ids).toEqual(['b'])
+  })
+
+  it('element pointerdown prevents the browser default drag or text-selection behavior', () => {
+    const { pdOn } = setup()
+    const event = pdEvent('pointerdown', 10, 10)
+    const preventDefault = vi.spyOn(event, 'preventDefault')
+
+    pdOn('a', event)
+
+    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(event.defaultPrevented).toBe(true)
   })
 
   it('pointerdown on a material with geometry does NOT enter editing-session (dblclick is uniform entry)', () => {

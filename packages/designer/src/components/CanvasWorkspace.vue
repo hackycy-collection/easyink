@@ -472,6 +472,7 @@ onUnmounted(() => {
   overflow: hidden;
   background: var(--ei-canvas-bg, #e8e8e8);
   position: relative;
+  user-select: none;
 
   &__placeholder {
     color: var(--ei-text-secondary, #999);

@@ -74,6 +74,7 @@ export function useCanvasInteractionController(ctx: CanvasInteractionControllerC
   }
 
   function handleElementPointerDown(e: PointerEvent, elementId: string) {
+    e.preventDefault()
     e.stopPropagation()
 
     const gesture = createGestureContext(elementId, e)

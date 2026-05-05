@@ -3,7 +3,7 @@
  */
 import type { MaterialNode } from '@easyink/schema'
 import type { MarqueeRect, MarqueeSelectContext } from './use-marquee-select'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { useMarqueeSelect } from './use-marquee-select'
 
@@ -88,6 +88,7 @@ function pdEvent(name: string, x: number, y: number, opts: { meta?: boolean, ctr
     metaKey: opts.meta ?? false,
     ctrlKey: opts.ctrl ?? false,
     bubbles: true,
+    cancelable: true,
   })
 }
 
@@ -179,6 +180,25 @@ describe('useMarqueeSelect', () => {
     window.dispatchEvent(pdEvent('pointerup', 500, 500))
 
     expect(store.selection.isEmpty).toBe(true)
+  })
+
+  it('canvas pointerdown prevents the browser default text-selection behavior', () => {
+    const a = makeNode('a', 0, 0)
+    const store = makeStore([a], ['a'])
+    const { ctx } = makeCtx(store)
+    const marquee = useMarqueeSelect(ctx)
+
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+
+    const down = pdEvent('pointerdown', 500, 500)
+    const preventDefault = vi.spyOn(down, 'preventDefault')
+    Object.defineProperty(down, 'currentTarget', { value: target, configurable: true })
+
+    marquee.onCanvasPointerDown(down)
+
+    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(down.defaultPrevented).toBe(true)
   })
 
   it('drag below activation threshold does not clear selection', () => {

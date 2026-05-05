@@ -189,6 +189,7 @@ function handleDragStart(e: DragEvent, entry: MaterialCatalogEntry) {
     background: var(--ei-bg, #fff);
     cursor: grab;
     color: var(--ei-text, #333);
+    user-select: none;
 
     &:hover {
       background: var(--ei-hover-bg, #f0f0f0);
