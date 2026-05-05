@@ -1,5 +1,5 @@
 import type { FontDescriptor, FontProvider } from './font'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FontManager } from './font'
 
 function createMockProvider(): FontProvider {
@@ -63,6 +63,30 @@ describe('fontManager', () => {
     expect(callCount).toBe(1)
   })
 
+  it('loadFont reuses in-flight requests for the same font', async () => {
+    let callCount = 0
+    let resolveLoad: ((value: string) => void) | undefined
+    const provider: FontProvider = {
+      listFonts: async () => [],
+      loadFont: () => {
+        callCount++
+        return new Promise((resolve) => {
+          resolveLoad = resolve
+        })
+      },
+    }
+    const mgr = new FontManager(provider)
+
+    const first = mgr.loadFont('Arial')
+    const second = mgr.loadFont('Arial')
+
+    expect(callCount).toBe(1)
+    resolveLoad?.('data:Arial')
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['data:Arial', 'data:Arial'])
+    expect(mgr.isLoaded('Arial')).toBe(true)
+  })
+
   it('loadFont throws when no provider', async () => {
     const mgr = new FontManager()
     await expect(mgr.loadFont('Arial')).rejects.toThrow('No font provider configured')
@@ -77,12 +101,14 @@ describe('fontManager', () => {
 
   it('preloadFonts loads multiple families', async () => {
     const mgr = new FontManager(createMockProvider())
-    await mgr.preloadFonts(['Arial', 'Roboto'])
+    const result = await mgr.preloadFonts(['Arial', 'Roboto'])
+    expect(result.loadedFamilies).toEqual(['Arial', 'Roboto'])
+    expect(result.failures).toEqual([])
     expect(mgr.isLoaded('Arial')).toBe(true)
     expect(mgr.isLoaded('Roboto')).toBe(true)
   })
 
-  it('preloadFonts does not throw on individual failure', async () => {
+  it('preloadFonts reports individual failures without aborting the batch', async () => {
     const provider: FontProvider = {
       listFonts: async () => [],
       loadFont: async (family: string) => {
@@ -92,7 +118,22 @@ describe('fontManager', () => {
       },
     }
     const mgr = new FontManager(provider)
-    await expect(mgr.preloadFonts(['Good', 'Bad'])).resolves.toBeUndefined()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const result = await mgr.preloadFonts(['Good', 'Bad'])
+
+    expect(result.loadedFamilies).toEqual(['Good'])
+    expect(result.failures).toHaveLength(1)
+    expect(result.failures[0]).toMatchObject({
+      family: 'Bad',
+      message: 'fail',
+    })
+    expect(warn).toHaveBeenCalledWith('[easyink] font preload failed', expect.objectContaining({
+      family: 'Bad',
+      message: 'fail',
+    }))
+    warn.mockRestore()
+
     expect(mgr.isLoaded('Good')).toBe(true)
     expect(mgr.isLoaded('Bad')).toBe(false)
   })

@@ -57,7 +57,17 @@ export type {
 
 export { FontManager } from './font'
 
-export type { FontDescriptor, FontProvider, FontSource } from './font'
+export type {
+  FontBatchLoadOptions,
+  FontBatchLoadResult,
+  FontDescriptor,
+  FontLoadFailure,
+  FontLoadRequest,
+  FontLoadSuccess,
+  FontPreloadResult,
+  FontProvider,
+  FontSource,
+} from './font'
 export {
   distance,
   getBoundingRect,

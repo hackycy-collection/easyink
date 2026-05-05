@@ -46,30 +46,24 @@ export async function loadAndInjectFonts(
     return diagnostics
   }
 
-  const loadResults = await Promise.allSettled(
-    [...families].map(async (family) => {
-      const source = await fontManager.loadFont(family)
-      return { family, source }
-    }),
+  const result = await fontManager.loadFonts(
+    [...families].map(family => ({ family })),
+    { logFailures: false },
   )
 
-  for (const result of loadResults) {
-    if (result.status === 'fulfilled') {
-      injectFontFace(result.value.family, result.value.source, target)
-    }
-    else {
-      const cause = result.reason instanceof Error
-        ? { name: result.reason.name, message: result.reason.message, stack: result.reason.stack }
-        : result.reason
-      diagnostics.push({
-        category: 'viewer',
-        severity: 'warning',
-        code: 'FONT_LOAD_FAILED',
-        message: `Failed to load font: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
-        scope: 'font',
-        cause,
-      })
-    }
+  for (const loaded of result.loaded) {
+    injectFontFace(loaded.family, loaded.source, target)
+  }
+
+  for (const failure of result.failures) {
+    diagnostics.push({
+      category: 'viewer',
+      severity: 'warning',
+      code: 'FONT_LOAD_FAILED',
+      message: `Failed to load font "${failure.family}": ${failure.message}`,
+      scope: 'font',
+      cause: failure.cause,
+    })
   }
 
   return diagnostics

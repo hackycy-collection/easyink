@@ -33,6 +33,32 @@ type FontSource = string | ArrayBuffer
 FontManager 是共享基础设施，提供缓存和批量预加载能力。**不含 DOM 操作**，`@font-face` 注入留给 Viewer 运行时或 Designer 预览宿主。
 
 ```typescript
+interface FontLoadRequest {
+  family: string
+  weight?: string
+  style?: string
+}
+
+interface FontLoadFailure extends FontLoadRequest {
+  message: string
+  cause: unknown
+}
+
+interface FontBatchLoadResult {
+  loaded: Array<FontLoadRequest & { source: FontSource }>
+  failures: FontLoadFailure[]
+}
+
+interface FontPreloadResult {
+  loadedFamilies: string[]
+  failures: FontLoadFailure[]
+}
+
+interface FontBatchLoadOptions {
+  onFailure?: (failure: FontLoadFailure) => void
+  logFailures?: boolean
+}
+
 class FontManager {
   constructor(provider?: FontProvider)
 
@@ -41,11 +67,14 @@ class FontManager {
 
   listFonts(): Promise<FontDescriptor[]>
   loadFont(family: string, weight?: string, style?: string): Promise<FontSource>
-  preloadFonts(families: string[]): Promise<void>
+  loadFonts(requests: FontLoadRequest[], options?: FontBatchLoadOptions): Promise<FontBatchLoadResult>
+  preloadFonts(families: string[], options?: FontBatchLoadOptions): Promise<FontPreloadResult>
   isLoaded(family: string, weight?: string, style?: string): boolean
   clear(): void
 }
 ```
+
+`preloadFonts` 仍然保持“单个字体失败不阻断整批”的语义，但不再静默吞错：默认会输出告警，也可以通过返回值或 `onFailure` 显式接住失败明细。
 
 ## 14.3 使用方式
 
@@ -65,5 +94,9 @@ const myFontProvider: FontProvider = {
 const fontManager = new FontManager(myFontProvider)
 
 const fonts = await fontManager.listFonts()
-await fontManager.preloadFonts(['SourceHanSans', 'SourceHanSerif'])
+const preload = await fontManager.preloadFonts(['SourceHanSans', 'SourceHanSerif'])
+
+if (preload.failures.length > 0) {
+  console.warn('font preload failures', preload.failures)
+}
 ```
