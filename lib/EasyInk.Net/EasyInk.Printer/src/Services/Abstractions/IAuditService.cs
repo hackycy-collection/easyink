@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using EasyInk.Printer.Models;
 
 namespace EasyInk.Printer.Services.Abstractions;

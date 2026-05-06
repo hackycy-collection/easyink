@@ -1,3 +1,5 @@
+using System;
+
 namespace EasyInk.Printer.Models;
 
 public class PrintAuditLog

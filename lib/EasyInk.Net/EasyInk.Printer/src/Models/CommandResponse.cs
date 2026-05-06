@@ -1,3 +1,5 @@
+using System;
+
 namespace EasyInk.Printer.Models;
 
 /// <summary>
@@ -23,7 +25,7 @@ public class CommandResponse
     /// <summary>
     /// 错误信息
     /// </summary>
-    public ErrorInfo Error { get; set; }
+    public ErrorInfo ErrorInfo { get; set; }
 
     /// <summary>
     /// 创建成功响应
@@ -47,7 +49,7 @@ public class CommandResponse
         {
             Id = id,
             Success = false,
-            Error = new ErrorInfo
+            ErrorInfo = new ErrorInfo
             {
                 Code = code,
                 Message = message,

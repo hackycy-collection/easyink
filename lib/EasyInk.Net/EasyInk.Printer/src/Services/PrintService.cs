@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Printing;
 using EasyInk.Printer.Models;

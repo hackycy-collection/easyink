@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Printer.Models;
@@ -94,7 +96,7 @@ public class PrinterApi : IDisposable
             {
                 JobId = requestId,
                 Status = response.Success ? "completed" : "failed",
-                ErrorMessage = response.Success ? null : response.Error?.Message
+                ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
             });
         }
 
@@ -295,7 +297,7 @@ public class PrinterApi : IDisposable
                 {
                     JobId = jobId,
                     Status = response.Success ? "completed" : "failed",
-                    ErrorMessage = response.Success ? null : response.Error?.Message
+                    ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
                 });
             }
         }

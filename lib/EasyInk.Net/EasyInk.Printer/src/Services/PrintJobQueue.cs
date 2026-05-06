@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EasyInk.Printer.Models;
@@ -65,7 +68,7 @@ public class PrintJobQueue : IDisposable
                 jobInfo.Result = response;
                 jobInfo.Status = response.Success ? "completed" : "failed";
                 if (!response.Success)
-                    jobInfo.ErrorMessage = response.Error?.Message;
+                    jobInfo.ErrorMessage = response.ErrorInfo?.Message;
             }
             catch (Exception ex)
             {
