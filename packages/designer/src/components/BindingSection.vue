@@ -641,33 +641,43 @@ function isSamePreset(a: BindingPresetFormat, b: BindingPresetFormat): boolean {
   /* Tab switcher */
   &__tabs {
     display: inline-flex;
-    padding: 3px;
-    background: #efefef;
-    border-radius: 20px;
-    gap: 2px;
+    align-items: stretch;
     align-self: flex-start;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
 
   &__tab {
-    padding: 3px 18px;
+    position: relative;
+    padding: 2px 12px;
     border: none;
-    border-radius: 20px;
+    border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--ei-text-secondary, #999);
     font-size: 12px;
-    letter-spacing: 0.2px;
+    font-weight: 400;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.15s, border-color 0.15s;
 
     &--active {
-      background: var(--ei-primary, #1890ff);
-      color: #fff;
-      font-weight: 500;
+      color: var(--ei-primary, #1890ff);
+      font-weight: 600;
+      border-bottom-color: var(--ei-primary, #1890ff);
     }
 
     &:not(&--active):hover {
       color: var(--ei-text, #555);
+    }
+
+    & + & {
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 20%;
+        height: 60%;
+        width: 1px;
+        background: #e0e0e0;
+      }
     }
   }
 
