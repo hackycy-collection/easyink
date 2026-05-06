@@ -81,6 +81,40 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(new { jobId, status = "queued" }, _jsonSettings);
     }
 
+    public string BatchPrint(string jobsJson)
+    {
+        var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
+        var results = new List<BatchJobResult>();
+
+        foreach (var job in jobs)
+        {
+            var requestId = Guid.NewGuid().ToString();
+            var response = _printService.Print(requestId, job);
+            results.Add(new BatchJobResult
+            {
+                JobId = requestId,
+                Status = response.Success ? "completed" : "failed",
+                ErrorMessage = response.Success ? null : response.Error?.Message
+            });
+        }
+
+        return JsonConvert.SerializeObject(new BatchPrintResult { Jobs = results }, _jsonSettings);
+    }
+
+    public string BatchPrintAsync(string jobsJson)
+    {
+        var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
+        var results = new List<BatchJobResult>();
+
+        foreach (var job in jobs)
+        {
+            var jobId = _jobQueue.Enqueue(null, job);
+            results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+        }
+
+        return JsonConvert.SerializeObject(new BatchPrintResult { Jobs = results }, _jsonSettings);
+    }
+
     public string GetJobStatus(string jobId)
     {
         var info = _jobQueue.GetJobStatus(jobId);
@@ -129,6 +163,12 @@ public class PrinterApi : IDisposable
                 break;
             case "queryLogs":
                 response = HandleQueryLogs(request);
+                break;
+            case "batchPrint":
+                response = HandleBatchPrint(request, async: false);
+                break;
+            case "batchPrintAsync":
+                response = HandleBatchPrint(request, async: true);
                 break;
             default:
                 response = CommandResponse.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
@@ -219,6 +259,48 @@ public class PrinterApi : IDisposable
             return CommandResponse.Error(request.Id, "JOB_NOT_FOUND", $"任务不存在: {jobId}");
         }
         return CommandResponse.Ok(request.Id, info);
+    }
+
+    private CommandResponse HandleBatchPrint(CommandRequest request, bool async)
+    {
+        var jobsToken = request.Params != null && request.Params.ContainsKey("jobs")
+            ? request.Params["jobs"]
+            : null;
+
+        if (jobsToken == null || !(jobsToken is JArray jArr))
+        {
+            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少jobs数组参数");
+        }
+
+        var jobs = jArr.ToObject<List<PrintRequestParams>>();
+        if (jobs.Count == 0)
+        {
+            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "jobs不能为空");
+        }
+
+        var results = new List<BatchJobResult>();
+
+        foreach (var job in jobs)
+        {
+            if (async)
+            {
+                var jobId = _jobQueue.Enqueue(null, job);
+                results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+            }
+            else
+            {
+                var jobId = Guid.NewGuid().ToString();
+                var response = _printService.Print(jobId, job);
+                results.Add(new BatchJobResult
+                {
+                    JobId = jobId,
+                    Status = response.Success ? "completed" : "failed",
+                    ErrorMessage = response.Success ? null : response.Error?.Message
+                });
+            }
+        }
+
+        return CommandResponse.Ok(request.Id, new BatchPrintResult { Jobs = results });
     }
 
     private PrintRequestParams ExtractPrintParams(CommandRequest request)
