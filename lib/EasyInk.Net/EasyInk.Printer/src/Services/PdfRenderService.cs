@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
 using PdfiumViewer;
 
@@ -10,10 +9,7 @@ namespace EasyInk.Printer.Services;
 
 public class PdfRenderService : IPdfRenderService
 {
-    /// <summary>
-    /// 将PDF渲染为图片列表
-    /// </summary>
-    public List<Image> RenderToImages(string pdfBase64, int dpi, PaperSizeParams paperSize)
+    public List<Image> RenderToImages(string pdfBase64, int dpi)
     {
         var pdfBytes = Convert.FromBase64String(pdfBase64);
         var images = new List<Image>();
@@ -31,9 +27,6 @@ public class PdfRenderService : IPdfRenderService
         return images;
     }
 
-    /// <summary>
-    /// 释放图片资源
-    /// </summary>
     public void DisposeImages(List<Image> images)
     {
         foreach (var image in images)

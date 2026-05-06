@@ -147,14 +147,14 @@ public class PrinterService : IPrinterService
             }
         }
 
-        // WMI 查询无结果，回退到 PrinterSettings 验证
+        // WMI 查询无结果，无法确认真实状态
         return new PrinterStatus
         {
-            IsReady = true,
-            StatusCode = "READY",
-            Message = "打印机就绪（状态详情不可用）",
-            IsOnline = true,
-            HasPaper = true,
+            IsReady = false,
+            StatusCode = "STATUS_UNKNOWN",
+            Message = "无法获取打印机状态详情（WMI查询无结果）",
+            IsOnline = false,
+            HasPaper = false,
             IsPaperJam = false,
             PrinterState = "Unknown"
         };

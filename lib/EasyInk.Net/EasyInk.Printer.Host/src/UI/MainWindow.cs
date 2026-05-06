@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.Config;
 using EasyInk.Printer.Host.Plugin;
@@ -121,12 +122,12 @@ public class MainWindow : Form
         return tab;
     }
 
-    private void RefreshPrinters(ListView listView)
+    private async void RefreshPrinters(ListView listView)
     {
         listView.Items.Clear();
         try
         {
-            var json = _plugin.GetPrinters();
+            var json = await Task.Run(() => _plugin.GetPrinters());
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
             {
@@ -221,12 +222,12 @@ public class MainWindow : Form
         return tab;
     }
 
-    private void RefreshLogs(ListView listView, DateTime from, DateTime to)
+    private async void RefreshLogs(ListView listView, DateTime from, DateTime to)
     {
         listView.Items.Clear();
         try
         {
-            var json = _plugin.QueryLogs(from, to, limit: 200);
+            var json = await Task.Run(() => _plugin.QueryLogs(from, to, limit: 200));
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
             {

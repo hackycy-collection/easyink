@@ -54,6 +54,7 @@ public class PrintJobQueue : IDisposable
 
     private void ProcessQueue()
     {
+        var processedCount = 0;
         foreach (var (requestId, request) in _queue.GetConsumingEnumerable(_cts.Token))
         {
             if (!_jobs.TryGetValue(requestId, out var jobInfo))
@@ -80,6 +81,19 @@ public class PrintJobQueue : IDisposable
             {
                 jobInfo.CompletedAt = DateTime.UtcNow;
             }
+
+            if (++processedCount % 100 == 0)
+                PurgeExpiredJobs();
+        }
+    }
+
+    private void PurgeExpiredJobs()
+    {
+        var cutoff = DateTime.UtcNow.AddHours(-1);
+        foreach (var kvp in _jobs)
+        {
+            if (kvp.Value.CompletedAt.HasValue && kvp.Value.CompletedAt.Value < cutoff)
+                _jobs.TryRemove(kvp.Key, out _);
         }
     }
 

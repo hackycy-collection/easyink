@@ -56,6 +56,12 @@ public class PrinterApi : IDisposable
 
     public string GetPrinterStatus(string printerName)
     {
+        if (string.IsNullOrEmpty(printerName))
+        {
+            return JsonConvert.SerializeObject(
+                PrinterResult.Error("unknown", "INVALID_PARAMS", "缺少printerName参数"), _jsonSettings);
+        }
+
         var status = _printerService.GetPrinterStatus(printerName);
         return JsonConvert.SerializeObject(status, _jsonSettings);
     }
@@ -65,6 +71,10 @@ public class PrinterApi : IDisposable
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
         string userId = null, string labelType = null)
     {
+        var error = ValidatePrintParams(printerName, pdfBase64, copies);
+        if (error != null)
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
+
         var request = BuildPrintRequest(printerName, pdfBase64, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
@@ -77,6 +87,10 @@ public class PrinterApi : IDisposable
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
         string userId = null, string labelType = null)
     {
+        var error = ValidatePrintParams(printerName, pdfBase64, copies);
+        if (error != null)
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
+
         var request = BuildPrintRequest(printerName, pdfBase64, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
@@ -86,36 +100,24 @@ public class PrinterApi : IDisposable
 
     public string BatchPrint(string jobsJson)
     {
-        var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
-        var results = new List<BatchJobResult>();
+        var jobs = DeserializeJobs(jobsJson);
+        if (jobs == null)
+            return JsonConvert.SerializeObject(
+                PrinterResult.Error("unknown", "INVALID_PARAMS", "jobs参数无效"), _jsonSettings);
 
-        foreach (var job in jobs)
-        {
-            var requestId = Guid.NewGuid().ToString();
-            var response = _printService.Print(requestId, job);
-            results.Add(new BatchJobResult
-            {
-                JobId = requestId,
-                Status = response.Success ? "completed" : "failed",
-                ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
-            });
-        }
-
-        return JsonConvert.SerializeObject(new BatchPrintResult { Jobs = results }, _jsonSettings);
+        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: false);
+        return JsonConvert.SerializeObject(result, _jsonSettings);
     }
 
     public string BatchPrintAsync(string jobsJson)
     {
-        var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
-        var results = new List<BatchJobResult>();
+        var jobs = DeserializeJobs(jobsJson);
+        if (jobs == null)
+            return JsonConvert.SerializeObject(
+                PrinterResult.Error("unknown", "INVALID_PARAMS", "jobs参数无效"), _jsonSettings);
 
-        foreach (var job in jobs)
-        {
-            var jobId = _jobQueue.Enqueue(null, job);
-            results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
-        }
-
-        return JsonConvert.SerializeObject(new BatchPrintResult { Jobs = results }, _jsonSettings);
+        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: true);
+        return JsonConvert.SerializeObject(result, _jsonSettings);
     }
 
     public string GetJobStatus(string jobId)
@@ -139,7 +141,17 @@ public class PrinterApi : IDisposable
 
     public string HandleCommand(string json)
     {
-        var request = JsonConvert.DeserializeObject<PrinterCommand>(json, _jsonSettings);
+        PrinterCommand request;
+        try
+        {
+            request = JsonConvert.DeserializeObject<PrinterCommand>(json, _jsonSettings);
+        }
+        catch (JsonException)
+        {
+            return JsonConvert.SerializeObject(
+                PrinterResult.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
+        }
+
         if (request == null)
         {
             return JsonConvert.SerializeObject(
@@ -184,6 +196,12 @@ public class PrinterApi : IDisposable
     public void Dispose()
     {
         _jobQueue.Dispose();
+        if (_ownsServices)
+        {
+            (_printerService as IDisposable)?.Dispose();
+            (_pdfRenderService as IDisposable)?.Dispose();
+            (_auditService as IDisposable)?.Dispose();
+        }
     }
 
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64, int copies,
@@ -276,29 +294,7 @@ public class PrinterApi : IDisposable
             return PrinterResult.Error(request.Id, "INVALID_PARAMS", "jobs不能为空");
         }
 
-        var results = new List<BatchJobResult>();
-
-        foreach (var job in jobs)
-        {
-            if (async)
-            {
-                var jobId = _jobQueue.Enqueue(null, job);
-                results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
-            }
-            else
-            {
-                var jobId = Guid.NewGuid().ToString();
-                var response = _printService.Print(jobId, job);
-                results.Add(new BatchJobResult
-                {
-                    JobId = jobId,
-                    Status = response.Success ? "completed" : "failed",
-                    ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
-                });
-            }
-        }
-
-        return PrinterResult.Ok(request.Id, new BatchPrintResult { Jobs = results });
+        return ExecuteBatchJobs(request.Id, jobs, async);
     }
 
     private PrintRequestParams ExtractPrintParams(PrinterCommand request)
@@ -346,14 +342,71 @@ public class PrinterApi : IDisposable
             return token.ToObject<T>();
         }
 
+        var targetType = typeof(T);
         try
         {
-            return (T)Convert.ChangeType(value, typeof(T));
+            var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+            var converted = Convert.ChangeType(value, underlyingType);
+            return (T)converted;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[EasyInk.Printer] 参数 '{key}' 转换失败: {ex.Message}");
             return default;
         }
+    }
+
+    private static string ValidatePrintParams(string printerName, string pdfBase64, int copies)
+    {
+        if (string.IsNullOrEmpty(printerName))
+            return "缺少printerName参数";
+        if (string.IsNullOrEmpty(pdfBase64))
+            return "缺少pdfBase64参数";
+        if (copies < 1)
+            return "copies必须大于0";
+        return null;
+    }
+
+    private List<PrintRequestParams> DeserializeJobs(string jobsJson)
+    {
+        if (string.IsNullOrEmpty(jobsJson))
+            return null;
+
+        try
+        {
+            var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
+            return (jobs != null && jobs.Count > 0) ? jobs : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private PrinterResult ExecuteBatchJobs(string requestId, List<PrintRequestParams> jobs, bool async)
+    {
+        var results = new List<BatchJobResult>();
+
+        foreach (var job in jobs)
+        {
+            if (async)
+            {
+                var jobId = _jobQueue.Enqueue(null, job);
+                results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+            }
+            else
+            {
+                var jobId = Guid.NewGuid().ToString();
+                var response = _printService.Print(jobId, job);
+                results.Add(new BatchJobResult
+                {
+                    JobId = jobId,
+                    Status = response.Success ? "completed" : "failed",
+                    ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
+                });
+            }
+        }
+
+        return PrinterResult.Ok(requestId, new BatchPrintResult { Jobs = results });
     }
 }

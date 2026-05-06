@@ -27,9 +27,9 @@ public class HostConfig
                 return JsonConvert.DeserializeObject<HostConfig>(json) ?? new HostConfig();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // 配置读取失败时使用默认值
+            System.Diagnostics.Debug.WriteLine($"[HostConfig] 配置读取失败，使用默认值: {ex.Message}");
         }
         return new HostConfig();
     }
@@ -44,9 +44,9 @@ public class HostConfig
             var json = JsonConvert.SerializeObject(this, Formatting.Indented);
             File.WriteAllText(ConfigPath, json);
         }
-        catch
+        catch (Exception ex)
         {
-            // 配置写入失败时静默忽略
+            System.Diagnostics.Debug.WriteLine($"[HostConfig] 配置写入失败: {ex.Message}");
         }
     }
 }

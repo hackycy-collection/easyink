@@ -34,7 +34,7 @@ public class PrintService : IPrintService
         List<Image> images;
         try
         {
-            images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi, request.PaperSize);
+            images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi);
             if (images.Count == 0)
             {
                 return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
@@ -69,7 +69,6 @@ public class PrintService : IPrintService
             );
         }
 
-        var jobId = Guid.NewGuid().ToString();
         var currentPage = 0;
 
         printDoc.PrintPage += (sender, e) =>
@@ -99,10 +98,10 @@ public class PrintService : IPrintService
                 UserId = request.UserData?.UserId,
                 LabelType = request.UserData?.LabelType,
                 Status = "Success",
-                JobId = jobId
+                JobId = requestId
             });
 
-            return PrinterResult.Ok(requestId, PrintResult.Success(jobId));
+            return PrinterResult.Ok(requestId, PrintResult.Success(requestId));
         }
         catch (Exception ex)
         {
@@ -112,7 +111,7 @@ public class PrintService : IPrintService
                 PrinterName = request.PrinterName,
                 Status = "Failed",
                 ErrorMessage = ex.Message,
-                JobId = jobId
+                JobId = requestId
             });
 
             return PrinterResult.Error(requestId, "PRINT_FAILED", ex.Message);

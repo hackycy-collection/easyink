@@ -1,3 +1,4 @@
+using System;
 using EasyInk.Printer;
 
 namespace EasyInk.Printer.Host.Plugin;
@@ -6,7 +7,7 @@ namespace EasyInk.Printer.Host.Plugin;
 /// DLL 插件包装层
 /// 封装 PrinterApi，供 Server 层调用
 /// </summary>
-public class PluginBridge
+public class PluginBridge : IDisposable
 {
     private readonly PrinterApi _api;
 
@@ -40,7 +41,7 @@ public class PluginBridge
             offsetX, offsetY, offsetUnit, userId, labelType);
     }
 
-    public string QueryLogs(System.DateTime? startTime = null, System.DateTime? endTime = null,
+    public string QueryLogs(DateTime? startTime = null, DateTime? endTime = null,
         string printerName = null, string userId = null, string status = null,
         int limit = 100, int offset = 0)
     {

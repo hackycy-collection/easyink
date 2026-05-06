@@ -8,6 +8,7 @@ namespace EasyInk.Printer.Host.Server;
 public class HttpServer
 {
     private readonly int _port;
+    private readonly SemaphoreSlim _concurrency;
     private HttpListener _listener;
     private CancellationTokenSource _cts;
     private Task _listenTask;
@@ -15,11 +16,12 @@ public class HttpServer
     public int Port => _port;
     public bool IsRunning { get; private set; }
 
-    public Func<HttpListenerContext, Task> OnRequest;
+    public Func<HttpListenerContext, Task> OnRequest { get; set; }
 
-    public HttpServer(int port)
+    public HttpServer(int port, int maxConcurrentRequests = 50)
     {
         _port = port;
+        _concurrency = new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests);
     }
 
     public void Start()
@@ -63,7 +65,8 @@ public class HttpServer
                 var handler = OnRequest;
                 if (handler != null)
                 {
-                    Task.Run(async () =>
+                    await _concurrency.WaitAsync(_cts.Token);
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
@@ -79,11 +82,16 @@ public class HttpServer
                             }
                             catch { }
                         }
+                        finally
+                        {
+                            _concurrency.Release();
+                        }
                     });
                 }
             }
             catch (HttpListenerException) { break; }
             catch (ObjectDisposedException) { break; }
+            catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[HttpServer] 监听异常: {ex.Message}");
