@@ -1,5 +1,6 @@
 using System.Drawing;
 using EasyInk.Printer.Models;
+using PdfiumViewer;
 
 namespace EasyInk.Printer.Services;
 
@@ -16,19 +17,15 @@ public class PdfRenderService
         var pdfBytes = Convert.FromBase64String(pdfBase64);
         var images = new List<Image>();
 
-        // TODO: 使用 PDFium 渲染 PDF
-        // 目前返回空列表，实际实现需要集成 PDFium
-        // using (var document = PdfDocument.Load(pdfBytes))
-        // {
-        //     for (int i = 0; i < document.PageCount; i++)
-        //     {
-        //         using (var page = document.GetPage(i))
-        //         {
-        //             var image = page.Render(dpi, dpi);
-        //             images.Add(image);
-        //         }
-        //     }
-        // }
+        using (var stream = new MemoryStream(pdfBytes))
+        using (var document = PdfDocument.Load(stream))
+        {
+            for (int i = 0; i < document.PageCount; i++)
+            {
+                var image = document.Render(i, dpi, dpi, true);
+                images.Add(image);
+            }
+        }
 
         return images;
     }
