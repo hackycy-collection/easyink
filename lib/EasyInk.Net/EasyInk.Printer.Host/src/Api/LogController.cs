@@ -30,6 +30,7 @@ public class LogController
     private static DateTime? ParseDateTime(string value)
     {
         if (string.IsNullOrEmpty(value)) return null;
-        return DateTime.TryParse(value, out var dt) ? dt : (DateTime?)null;
+        if (DateTime.TryParse(value, out var dt)) return dt;
+        return null;
     }
 }

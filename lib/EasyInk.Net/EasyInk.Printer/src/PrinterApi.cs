@@ -184,11 +184,6 @@ public class PrinterApi : IDisposable
     public void Dispose()
     {
         _jobQueue.Dispose();
-        if (_ownsServices)
-        {
-            (_pdfRenderService as IDisposable)?.Dispose();
-            (_auditService as IDisposable)?.Dispose();
-        }
     }
 
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64, int copies,

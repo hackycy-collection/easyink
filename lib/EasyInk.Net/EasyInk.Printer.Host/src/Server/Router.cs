@@ -10,9 +10,6 @@ using EasyInk.Printer.Host.Plugin;
 
 namespace EasyInk.Printer.Host.Server;
 
-/// <summary>
-/// HTTP 路由分发
-/// </summary>
 public class Router
 {
     private readonly PrinterController _printerController;
@@ -42,7 +39,6 @@ public class Router
         var request = context.Request;
         var response = context.Response;
 
-        // CORS
         response.Headers.Add("Access-Control-Allow-Origin", "*");
         response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
@@ -80,62 +76,55 @@ public class Router
         var path = request.Url.AbsolutePath.TrimEnd('/');
         var method = request.HttpMethod;
 
-        // GET /api/status
         if (method == "GET" && path == "/api/status")
             return _statusController.GetStatus();
 
-        // GET /api/status/connections (WebSocket 连接数)
         if (method == "GET" && path == "/api/status/connections")
             return JsonConvert.SerializeObject(new { success = true, data = new { count = _wsHandler.ConnectionCount } }, JsonSettings);
 
-        // GET /api/printers
         if (method == "GET" && path == "/api/printers")
             return _printerController.GetPrinters();
 
         // GET /api/printers/{name}/status
         if (method == "GET" && path.StartsWith("/api/printers/") && path.EndsWith("/status"))
         {
-            var name = Uri.UnescapeDataString(path.Substring(14, path.Length - 14 - 7));
-            return _printerController.GetPrinterStatus(name);
+            var segments = path.Split('/');
+            // ["", "api", "printers", "{name}", "status"]
+            if (segments.Length == 5 && !string.IsNullOrEmpty(segments[3]))
+            {
+                var name = Uri.UnescapeDataString(segments[3]);
+                return _printerController.GetPrinterStatus(name);
+            }
+            return ErrorJson("INVALID_PARAMS", "缺少打印机名称");
         }
 
-        // POST /api/print
         if (method == "POST" && path == "/api/print")
             return _printController.Print(ReadBody(request));
 
-        // POST /api/print/async
         if (method == "POST" && path == "/api/print/async")
             return _printController.PrintAsync(ReadBody(request));
 
-        // POST /api/print/batch
         if (method == "POST" && path == "/api/print/batch")
             return _printController.BatchPrint(ReadBody(request));
 
-        // POST /api/print/batch/async
         if (method == "POST" && path == "/api/print/batch/async")
             return _printController.BatchPrintAsync(ReadBody(request));
 
-        // GET /api/jobs
         if (method == "GET" && path == "/api/jobs")
             return _jobController.GetAllJobs();
 
-        // GET /api/jobs/{id}
         if (method == "GET" && path.StartsWith("/api/jobs/"))
         {
             var id = path.Substring(10);
+            if (string.IsNullOrEmpty(id))
+                return ErrorJson("INVALID_PARAMS", "缺少任务ID");
             return _jobController.GetJobStatus(id);
         }
 
-        // GET /api/logs
         if (method == "GET" && path == "/api/logs")
             return _logController.QueryLogs(request.QueryString);
 
-        // 404
-        return JsonConvert.SerializeObject(new
-        {
-            success = false,
-            errorInfo = new { code = "NOT_FOUND", message = $"路由不存在: {method} {path}" }
-        }, JsonSettings);
+        return ErrorJson("NOT_FOUND", $"路由不存在: {method} {path}");
     }
 
     private static string ReadBody(HttpListenerRequest request)
@@ -145,5 +134,14 @@ public class Router
         {
             return reader.ReadToEnd();
         }
+    }
+
+    private static string ErrorJson(string code, string message)
+    {
+        return JsonConvert.SerializeObject(new
+        {
+            success = false,
+            errorInfo = new { code, message }
+        }, JsonSettings);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.UI;
 using EasyInk.Printer.Host.Server;
@@ -10,20 +11,24 @@ namespace EasyInk.Printer.Host;
 
 static class Program
 {
-    private static Mutex _mutex;
-
     [STAThread]
     static void Main(string[] args)
     {
-        // 单实例检查
         bool createdNew;
-        _mutex = new Mutex(true, "EasyInk.Printer.Host.SingleInstance", out createdNew);
-        if (!createdNew)
+        using (var mutex = new Mutex(true, "EasyInk.Printer.Host.SingleInstance", out createdNew))
         {
-            MessageBox.Show("EasyInk Printer Host 已在运行中。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
+            if (!createdNew)
+            {
+                MessageBox.Show("EasyInk Printer Host 已在运行中。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
+            Run();
+        }
+    }
+
+    private static void Run()
+    {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
@@ -33,12 +38,11 @@ static class Program
         var wsHandler = new WebSocketHandler();
         var router = new Router(plugin, wsHandler);
 
-        httpServer.OnRequest += context =>
+        httpServer.OnRequest = context =>
         {
             if (context.Request.IsWebSocketRequest)
-                wsHandler.HandleConnection(context).Wait();
-            else
-                router.HandleRequest(context).Wait();
+                return wsHandler.HandleConnection(context);
+            return router.HandleRequest(context);
         };
 
         var trayIcon = new TrayIcon(httpServer);
@@ -70,7 +74,6 @@ static class Program
         httpServer.Start();
         trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
 
-        // 启动后最小化到托盘
         mainWindow.WindowState = FormWindowState.Minimized;
         mainWindow.ShowInTaskbar = false;
         mainWindow.FormClosing += (s, e) =>
@@ -84,9 +87,7 @@ static class Program
 
         Application.Run(mainWindow);
 
-        httpServer.Stop();
-        plugin.Dispose();
-        trayIcon.Dispose();
-        _mutex.ReleaseMutex();
+        if (httpServer.IsRunning)
+            httpServer.Stop();
     }
 }

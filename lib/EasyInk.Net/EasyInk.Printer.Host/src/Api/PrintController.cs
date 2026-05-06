@@ -26,47 +26,74 @@ public class PrintController
 
     public string BatchPrint(string body)
     {
-        return ExecuteCommand("batchPrint", body);
+        return ExecuteBatchCommand("batchPrint", body);
     }
 
     public string BatchPrintAsync(string body)
     {
-        return ExecuteCommand("batchPrintAsync", body);
+        return ExecuteBatchCommand("batchPrintAsync", body);
     }
 
+    /// <summary>
+    /// 单个打印命令：body 直接作为 params.params 传入
+    /// </summary>
     private string ExecuteCommand(string command, string body)
     {
         var commandObj = new JObject
         {
             ["command"] = command,
-            ["id"] = Guid.NewGuid().ToString()
+            ["id"] = Guid.NewGuid().ToString(),
+            ["params"] = new JObject { ["params"] = ParseBody(body) }
         };
+        return _plugin.HandleCommand(commandObj.ToString(Formatting.None));
+    }
 
-        if (!string.IsNullOrEmpty(body))
+    /// <summary>
+    /// 批量打印命令：body 中的 jobs 数组作为 params.jobs 传入
+    /// </summary>
+    private string ExecuteBatchCommand(string command, string body)
+    {
+        JArray jobs;
+        if (string.IsNullOrEmpty(body))
         {
-            var bodyToken = JToken.Parse(body);
-            if (bodyToken is JObject jObj)
+            return JsonConvert.SerializeObject(new
             {
-                // batchPrint 需要 jobs 数组
-                if (command.StartsWith("batch"))
-                {
-                    commandObj["params"] = new JObject { ["jobs"] = jObj["jobs"] ?? bodyToken };
-                }
-                else
-                {
-                    commandObj["params"] = new JObject { ["params"] = jObj };
-                }
-            }
-            else if (bodyToken is JArray jArr)
-            {
-                commandObj["params"] = new JObject { ["jobs"] = jArr };
-            }
+                success = false,
+                errorInfo = new { code = "INVALID_PARAMS", message = "缺少请求体" }
+            });
+        }
+
+        var token = JToken.Parse(body);
+        if (token is JArray arr)
+        {
+            jobs = arr;
+        }
+        else if (token is JObject obj && obj["jobs"] is JArray jArr)
+        {
+            jobs = jArr;
         }
         else
         {
-            commandObj["params"] = new JObject();
+            return JsonConvert.SerializeObject(new
+            {
+                success = false,
+                errorInfo = new { code = "INVALID_PARAMS", message = "jobs 必须是数组" }
+            });
         }
 
+        var commandObj = new JObject
+        {
+            ["command"] = command,
+            ["id"] = Guid.NewGuid().ToString(),
+            ["params"] = new JObject { ["jobs"] = jobs }
+        };
         return _plugin.HandleCommand(commandObj.ToString(Formatting.None));
+    }
+
+    private static JToken ParseBody(string body)
+    {
+        if (string.IsNullOrEmpty(body))
+            return new JObject();
+        return JToken.Parse(body);
     }
 }

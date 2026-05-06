@@ -5,9 +5,6 @@ using System.Threading.Tasks;
 
 namespace EasyInk.Printer.Host.Server;
 
-/// <summary>
-/// HTTP 服务器，基于 HttpListener
-/// </summary>
 public class HttpServer
 {
     private readonly int _port;
@@ -18,10 +15,7 @@ public class HttpServer
     public int Port => _port;
     public bool IsRunning { get; private set; }
 
-    /// <summary>
-    /// 收到请求时触发（包含 HTTP 和 WebSocket）
-    /// </summary>
-    public event Action<HttpListenerContext> OnRequest;
+    public Func<HttpListenerContext, Task> OnRequest;
 
     public HttpServer(int port)
     {
@@ -66,33 +60,30 @@ public class HttpServer
             try
             {
                 var context = await _listener.GetContextAsync();
-                // 每个请求在独立线程处理
-                Task.Run(() =>
+                var handler = OnRequest;
+                if (handler != null)
                 {
-                    try
+                    Task.Run(async () =>
                     {
-                        OnRequest?.Invoke(context);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[HttpServer] 请求处理异常: {ex.Message}");
                         try
                         {
-                            context.Response.StatusCode = 500;
-                            context.Response.Close();
+                            await handler(context);
                         }
-                        catch { }
-                    }
-                });
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[HttpServer] 请求处理异常: {ex.Message}");
+                            try
+                            {
+                                context.Response.StatusCode = 500;
+                                context.Response.Close();
+                            }
+                            catch { }
+                        }
+                    });
+                }
             }
-            catch (HttpListenerException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
+            catch (HttpListenerException) { break; }
+            catch (ObjectDisposedException) { break; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[HttpServer] 监听异常: {ex.Message}");

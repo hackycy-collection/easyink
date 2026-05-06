@@ -4,15 +4,11 @@ using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Host.Config;
 
-/// <summary>
-/// 宿主程序配置
-/// </summary>
 public class HostConfig
 {
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
-    public string LogLevel { get; set; } = "Info";
     public string DbPath { get; set; }
 
     private static readonly string ConfigDir = Path.Combine(
@@ -40,10 +36,17 @@ public class HostConfig
 
     public void Save()
     {
-        if (!Directory.Exists(ConfigDir))
-            Directory.CreateDirectory(ConfigDir);
+        try
+        {
+            if (!Directory.Exists(ConfigDir))
+                Directory.CreateDirectory(ConfigDir);
 
-        var json = JsonConvert.SerializeObject(this, Formatting.Indented);
-        File.WriteAllText(ConfigPath, json);
+            var json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            File.WriteAllText(ConfigPath, json);
+        }
+        catch
+        {
+            // 配置写入失败时静默忽略
+        }
     }
 }

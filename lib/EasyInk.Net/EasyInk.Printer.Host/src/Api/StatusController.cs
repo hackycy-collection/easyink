@@ -10,18 +10,20 @@ public class StatusController
 
     public string GetStatus()
     {
-        var process = Process.GetCurrentProcess();
-        return JsonConvert.SerializeObject(new
+        using (var process = Process.GetCurrentProcess())
         {
-            success = true,
-            data = new
+            return JsonConvert.SerializeObject(new
             {
-                status = "running",
-                version = typeof(StatusController).Assembly.GetName().Version?.ToString() ?? "1.0.0",
-                startTime = StartTime,
-                uptime = (DateTime.Now - StartTime).ToString(@"d\.hh\:mm\:ss"),
-                memoryMb = process.WorkingSet64 / 1024 / 1024
-            }
-        });
+                success = true,
+                data = new
+                {
+                    status = "running",
+                    version = typeof(StatusController).Assembly.GetName().Version?.ToString() ?? "1.0.0",
+                    startTime = StartTime,
+                    uptime = (DateTime.Now - StartTime).ToString(@"d\.hh\:mm\:ss"),
+                    memoryMb = process.WorkingSet64 / 1024 / 1024
+                }
+            });
+        }
     }
 }
