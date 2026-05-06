@@ -37,24 +37,30 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
   // ─── Drop Zone Overlay DOM ──────────────────────────────────────
 
   let overlayEl: HTMLElement | null = null
+  let overlayRectEl: HTMLElement | null = null
   let overlayLabelEl: HTMLElement | null = null
 
   function ensureOverlay(): HTMLElement {
     if (!overlayEl) {
       overlayEl = document.createElement('div')
       overlayEl.className = 'ei-drop-zone-overlay'
-      overlayEl.style.cssText = 'position:absolute;pointer-events:none;z-index:9999;display:none;'
+      overlayEl.style.cssText = 'position:absolute;pointer-events:none;z-index:9999;display:none;transform-origin:center center;box-sizing:border-box;'
+      overlayRectEl = document.createElement('div')
+      overlayRectEl.className = 'ei-drop-zone-overlay__rect'
+      overlayRectEl.style.cssText = 'position:absolute;box-sizing:border-box;'
       overlayLabelEl = document.createElement('span')
       overlayLabelEl.className = 'ei-drop-zone-overlay__label'
       overlayLabelEl.style.cssText = 'position:absolute;bottom:100%;left:0;padding:2px 6px;font-size:11px;white-space:nowrap;border-radius:3px;margin-bottom:2px;'
-      overlayEl.appendChild(overlayLabelEl)
+      overlayRectEl.appendChild(overlayLabelEl)
+      overlayEl.appendChild(overlayRectEl)
     }
     return overlayEl
   }
 
   function showDropZone(
     zone: DatasourceDropZone,
-    elementRect: DOMRect,
+    target: ReturnType<DesignerStore['getElements']>[number],
+    elementSize: { width: number, height: number },
     zoom: number,
     unitManager: UnitManager,
   ) {
@@ -67,30 +73,41 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       pageEl.appendChild(el)
     }
 
-    // Convert zone rect from document units to screen pixels relative to the page element
-    const left = unitManager.documentToScreen(zone.rect.x, 0, 0, zoom)
-    const top = unitManager.documentToScreen(zone.rect.y, 0, 0, zoom)
-    const width = unitManager.documentToScreen(zone.rect.w, 0, 0, zoom)
-    const height = unitManager.documentToScreen(zone.rect.h, 0, 0, zoom)
-
-    // Position relative to the element within the page
     const pageRect = pageEl.getBoundingClientRect()
-    const elOffsetLeft = elementRect.left - pageRect.left
-    const elOffsetTop = elementRect.top - pageRect.top
+    const elementLeft = unitManager.documentToScreen(target.x, pageRect.left, 0, zoom) - pageRect.left
+    const elementTop = unitManager.documentToScreen(target.y, pageRect.top, 0, zoom) - pageRect.top
+    const elementWidth = unitManager.documentToScreen(elementSize.width, 0, 0, zoom)
+    const elementHeight = unitManager.documentToScreen(elementSize.height, 0, 0, zoom)
+    const zoneLeft = unitManager.documentToScreen(zone.rect.x, 0, 0, zoom)
+    const zoneTop = unitManager.documentToScreen(zone.rect.y, 0, 0, zoom)
+    const zoneWidth = unitManager.documentToScreen(zone.rect.w, 0, 0, zoom)
+    const zoneHeight = unitManager.documentToScreen(zone.rect.h, 0, 0, zoom)
 
-    el.style.left = `${elOffsetLeft + left}px`
-    el.style.top = `${elOffsetTop + top}px`
-    el.style.width = `${width}px`
-    el.style.height = `${height}px`
+    el.style.left = `${elementLeft}px`
+    el.style.top = `${elementTop}px`
+    el.style.width = `${elementWidth}px`
+    el.style.height = `${elementHeight}px`
     el.style.display = 'block'
+    el.style.transform = target.rotation ? `rotate(${target.rotation}deg)` : ''
+
+    if (overlayRectEl) {
+      overlayRectEl.style.left = `${zoneLeft}px`
+      overlayRectEl.style.top = `${zoneTop}px`
+      overlayRectEl.style.width = `${zoneWidth}px`
+      overlayRectEl.style.height = `${zoneHeight}px`
+    }
 
     if (zone.status === 'accepted') {
-      el.style.border = '2px solid var(--ei-success-color, #52c41a)'
-      el.style.background = 'rgba(82, 196, 26, 0.08)'
+      if (overlayRectEl) {
+        overlayRectEl.style.border = '2px solid var(--ei-success-color, #52c41a)'
+        overlayRectEl.style.background = 'rgba(82, 196, 26, 0.08)'
+      }
     }
     else {
-      el.style.border = '2px solid var(--ei-error-color, #ff4d4f)'
-      el.style.background = 'rgba(255, 77, 79, 0.08)'
+      if (overlayRectEl) {
+        overlayRectEl.style.border = '2px solid var(--ei-error-color, #ff4d4f)'
+        overlayRectEl.style.background = 'rgba(255, 77, 79, 0.08)'
+      }
     }
 
     if (overlayLabelEl) {
@@ -120,6 +137,46 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     }
     overlayEl = null
     overlayLabelEl = null
+  }
+
+  function rotatePoint(
+    point: { x: number, y: number },
+    center: { x: number, y: number },
+    degrees: number,
+  ) {
+    const rad = (degrees * Math.PI) / 180
+    const cos = Math.cos(rad)
+    const sin = Math.sin(rad)
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    return {
+      x: center.x + dx * cos - dy * sin,
+      y: center.y + dx * sin + dy * cos,
+    }
+  }
+
+  function documentPointToElementLocal(
+    point: { x: number, y: number },
+    element: ReturnType<DesignerStore['getElements']>[number],
+    elementSize: { width: number, height: number },
+  ) {
+    const rotation = element.rotation ?? 0
+    if (!rotation) {
+      return {
+        x: point.x - element.x,
+        y: point.y - element.y,
+      }
+    }
+
+    const center = {
+      x: element.x + elementSize.width / 2,
+      y: element.y + elementSize.height / 2,
+    }
+    const unrotatedPoint = rotatePoint(point, center, -rotation)
+    return {
+      x: unrotatedPoint.x - element.x,
+      y: unrotatedPoint.y - element.y,
+    }
   }
 
   // ─── Drag Event Handlers ────────────────────────────────────────
@@ -156,9 +213,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       const el = elements[i]!
       if (el.hidden || el.locked)
         continue
-      // Use visual height (accounts for virtual rows in table-data)
-      const visualHeight = store.getVisualHeight(el)
-      if (pointInRect({ x: docX, y: docY }, { x: el.x, y: el.y, width: el.width, height: visualHeight })) {
+      const visualSize = store.getVisualSize(el)
+      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, el, visualSize)
+      if (pointInRect(localPoint, { x: 0, y: 0, width: visualSize.width, height: visualSize.height })) {
         const mat = store.getMaterial(el.type)
         if (mat && mat.capabilities.bindable === false)
           continue
@@ -196,28 +253,21 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
 
     // Get extension for custom drop handler
     const ext = store.getDesignerExtension(target.type)
-    const visualHeight = store.getVisualHeight(target)
+    const visualSize = store.getVisualSize(target)
+    const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target, visualSize)
     if (ext?.datasourceDrop) {
       // Try to parse field data for dragOver feedback
       // During dragOver, getData may return empty on some browsers,
       // so we use a minimal field info from types check
-      const localX = docX - target.x
-      const localY = docY - target.y
       // We can't read drag data during dragOver in some browsers,
       // so we use a placeholder field info for hit-test only
       const fieldInfo: DatasourceFieldInfo = {
         sourceId: '',
         fieldPath: '',
       }
-      const zone = ext.datasourceDrop.onDragOver(fieldInfo, { x: localX, y: localY }, target)
+      const zone = ext.datasourceDrop.onDragOver(fieldInfo, localPoint, target)
       if (zone) {
-        // Calculate element rect in screen space (using visual height for placeholder rows)
-        const elScreenLeft = pageRect.left + unitManager.documentToScreen(target.x, 0, 0, zoom)
-        const elScreenTop = pageRect.top + unitManager.documentToScreen(target.y, 0, 0, zoom)
-        const elScreenWidth = unitManager.documentToScreen(target.width, 0, 0, zoom)
-        const elScreenHeight = unitManager.documentToScreen(visualHeight, 0, 0, zoom)
-        const elementRect = new DOMRect(elScreenLeft, elScreenTop, elScreenWidth, elScreenHeight)
-        showDropZone(zone, elementRect, zoom, unitManager)
+        showDropZone(zone, target, visualSize, zoom, unitManager)
       }
       else {
         hideDropZone()
@@ -225,14 +275,10 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     }
     else {
       // Default: highlight the whole element
-      const elScreenLeft = pageRect.left + unitManager.documentToScreen(target.x, 0, 0, zoom)
-      const elScreenTop = pageRect.top + unitManager.documentToScreen(target.y, 0, 0, zoom)
-      const elScreenWidth = unitManager.documentToScreen(target.width, 0, 0, zoom)
-      const elScreenHeight = unitManager.documentToScreen(visualHeight, 0, 0, zoom)
-      const elementRect = new DOMRect(elScreenLeft, elScreenTop, elScreenWidth, elScreenHeight)
       showDropZone(
-        { status: 'accepted', rect: { x: 0, y: 0, w: target.width, h: visualHeight } },
-        elementRect,
+        { status: 'accepted', rect: { x: 0, y: 0, w: visualSize.width, h: visualSize.height } },
+        target,
+        visualSize,
         zoom,
         unitManager,
       )
@@ -273,9 +319,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     // Check for custom handler
     const ext = store.getDesignerExtension(target.type)
     if (ext?.datasourceDrop) {
-      const localX = docX - target.x
-      const localY = docY - target.y
-      ext.datasourceDrop.onDrop(toFieldInfo(fieldData), { x: localX, y: localY }, target)
+      const visualSize = store.getVisualSize(target)
+      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target, visualSize)
+      ext.datasourceDrop.onDrop(toFieldInfo(fieldData), localPoint, target)
       selectOne(store, target.id)
       return
     }
