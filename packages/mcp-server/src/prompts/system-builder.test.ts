@@ -6,7 +6,8 @@ describe('system-builder prompts', () => {
     const prompt = buildIntentSystemPrompt()
 
     expect(prompt).toContain('two virtual preview rows')
-    expect(prompt).toContain('Do NOT create extra fields, columns, or sections for them')
+    expect(prompt).toContain('stay inside the element height')
+    expect(prompt).toContain('must not create extra fields, columns, or sections')
     expect(prompt).toContain('array tables describe columns once instead of inventing preview rows')
   })
 
@@ -15,6 +16,7 @@ describe('system-builder prompts', () => {
 
     expect(prompt).toContain('"role": "repeat-template"')
     expect(prompt).toContain('virtual preview rows')
+    expect(prompt).toContain('full semantic table box in the designer')
     expect(prompt).not.toContain('"kind": "repeat-template"')
   })
 })

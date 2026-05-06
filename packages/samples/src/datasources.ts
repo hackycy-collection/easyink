@@ -178,7 +178,7 @@ function createInvoiceTableNode(): TableNode {
     x: 10,
     y: 56,
     width: 190,
-    height: 24,
+    height: 40,
     props: {
       headerBackground: '#f5f5f5',
       summaryBackground: '#fafafa',
