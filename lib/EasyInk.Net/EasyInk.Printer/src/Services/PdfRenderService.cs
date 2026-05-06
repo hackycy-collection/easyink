@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
 using PdfiumViewer;

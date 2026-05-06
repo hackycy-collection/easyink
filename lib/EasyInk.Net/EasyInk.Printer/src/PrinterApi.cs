@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services;
 using EasyInk.Printer.Services.Abstractions;
