@@ -9,6 +9,7 @@ function buildHtml(node: MaterialNode, context: MaterialExtensionContext): strin
   const unit = context.getSchema().unit
   const prefix = p.prefix ? escapeHtml(p.prefix) : ''
   const suffix = p.suffix ? escapeHtml(p.suffix) : ''
+  let isPlaceholder = false
 
   let display: string
   if (node.binding) {
@@ -17,7 +18,13 @@ function buildHtml(node: MaterialNode, context: MaterialExtensionContext): strin
     display = `${prefix}{#${escapeHtml(label)}}${suffix}`
   }
   else {
-    display = p.content ? `${prefix}${escapeHtml(p.content)}${suffix}` : ''
+    if (p.content) {
+      display = `${prefix}${escapeHtml(p.content)}${suffix}`
+    }
+    else {
+      display = escapeHtml(context.t('designer.placeholder.textMaterialEmpty'))
+      isPlaceholder = true
+    }
   }
 
   const vAlignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
@@ -40,7 +47,13 @@ function buildHtml(node: MaterialNode, context: MaterialExtensionContext): strin
     p.borderWidth ? `border:${p.borderWidth}${unit} ${DASH_MAP[p.borderType] || 'solid'} ${p.borderColor}` : '',
   ].filter(Boolean).join(';')
 
-  return `<div style="${style}"><span style="width:100%;text-align:${p.textAlign}">${display || '&nbsp;'}</span></div>`
+  const textStyle = [
+    'width:100%',
+    `text-align:${p.textAlign}`,
+    isPlaceholder ? 'opacity:0.45' : '',
+  ].filter(Boolean).join(';')
+
+  return `<div style="${style}"><span style="${textStyle}">${display || '&nbsp;'}</span></div>`
 }
 
 export function createTextExtension(context: MaterialExtensionContext): MaterialDesignerExtension {

@@ -178,6 +178,9 @@ const zhCN: LocaleMessages = {
       unitPoint: '点 (pt)',
       unitPixel: '像素 (px)',
     },
+    placeholder: {
+      textMaterialEmpty: '请输入内容或绑定数据',
+    },
     panel: {
       datasource: '数据源',
       properties: '属性',
