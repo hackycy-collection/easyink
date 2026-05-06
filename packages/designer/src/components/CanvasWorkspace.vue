@@ -11,6 +11,7 @@ import { useKeyboardShortcuts } from '../composables/use-keyboard-shortcuts'
 import { useMarqueeSelect } from '../composables/use-marquee-select'
 import { useMaterialDrop } from '../composables/use-material-drop'
 import { useCanvasInteractionController } from '../interactions'
+import { isElementRotatable } from '../materials/capabilities'
 import { getSelectionBox } from '../snap'
 import { CANVAS_CONTAINER_KEY } from './canvas-container'
 import CanvasContextMenu from './CanvasContextMenu.vue'
@@ -401,7 +402,7 @@ onUnmounted(() => {
 
                 <!-- Rotation handle (hidden for non-rotatable materials like tables) -->
                 <div
-                  v-if="store.getMaterial(el.type)?.capabilities.rotatable !== false"
+                  v-if="isElementRotatable(store, el)"
                   class="ei-canvas-element__rotate-handle"
                   @pointerdown="handleRotatePointerDown($event, el.id)"
                 >

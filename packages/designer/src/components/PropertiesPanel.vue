@@ -10,6 +10,7 @@ import { deepClone, PAPER_PRESETS } from '@easyink/shared'
 import { EiNumberInput, EiPanel, EiSwitch } from '@easyink/ui'
 import { computed, shallowRef, watchEffect } from 'vue'
 import { useDesignerStore } from '../composables'
+import { isElementRotatable } from '../materials/capabilities'
 import { getPropSchemas, groupPropSchemas } from '../materials/prop-schemas'
 import { defaultDocumentPatch, defaultPagePatch, filterVisible, groupDescriptors, PAGE_PROPERTY_DESCRIPTORS, readPageProperty, splitPatch } from '../page-properties'
 import BindingSection from './BindingSection.vue'
@@ -25,6 +26,10 @@ const selectedElements = computed(() => {
 
 const selectedElement = computed(() =>
   selectedElements.value.length === 1 ? selectedElements.value[0] : undefined,
+)
+
+const selectedElementRotatable = computed(() =>
+  isElementRotatable(store, selectedElement.value),
 )
 
 // ─── Sub-Property Schema (auto-derived from editing session selection) ──
@@ -399,6 +404,8 @@ const geoSnapshots = new Map<string, number>()
 function previewGeometry(key: string, value: number) {
   if (!selectedElement.value || !isGeometryKey(key))
     return
+  if (key === 'rotation' && !isElementRotatable(store, selectedElement.value))
+    return
   if (!geoSnapshots.has(key)) {
     geoSnapshots.set(key, readGeometryValue(selectedElement.value, key) ?? 0)
   }
@@ -408,6 +415,8 @@ function previewGeometry(key: string, value: number) {
 function commitGeometry(key: string, value: number) {
   const el = selectedElement.value
   if (!el || !isGeometryKey(key))
+    return
+  if (key === 'rotation' && !isElementRotatable(store, el))
     return
   const oldValue = geoSnapshots.get(key)
   geoSnapshots.delete(key)
@@ -495,6 +504,7 @@ function readPropValue(schema: PropSchema): unknown {
             @commit="commitGeometry('height', $event ?? 0)"
           />
           <EiNumberInput
+            v-if="selectedElementRotatable"
             :label="store.t('designer.property.rotation')"
             :model-value="selectedElement.rotation ?? 0"
             @update:model-value="previewGeometry('rotation', $event ?? 0)"

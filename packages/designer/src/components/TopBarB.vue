@@ -57,6 +57,7 @@ import { useDesignerStore } from '../composables'
 import { CONTRIBUTION_REGISTRY_KEY } from '../contributions/injection'
 import { createClipboardActions } from '../interactions/clipboard-actions'
 import { selectMany, selectOne } from '../interactions/selection-api'
+import { filterRotatableElements } from '../materials/capabilities'
 
 const contributionRegistry = inject(CONTRIBUTION_REGISTRY_KEY, undefined)
 const toolbarActions = computed(() => contributionRegistry?.registry.toolbarActions ?? [])
@@ -110,6 +111,10 @@ const selectedNodes = computed<MaterialNode[]>(() =>
 const clipboardActions = createClipboardActions(store, () => selectedNodes.value)
 
 const hasSelection = computed(() => !store.selection.isEmpty)
+
+const rotatableSelectedNodes = computed(() => filterRotatableElements(store, selectedNodes.value))
+
+const hasRotatableSelection = computed(() => rotatableSelectedNodes.value.length > 0)
 
 // ─── Scroll carousel ────────────────────────────────────────────
 const groupsRef = ref<HTMLElement | null>(null)
@@ -220,7 +225,7 @@ function handleUnderline() {
 
 // ─── Rotation ────────────────────────────────────────────────
 function handleRotation() {
-  const nodes = selectedNodes.value
+  const nodes = rotatableSelectedNodes.value
   if (nodes.length === 0)
     return
 
@@ -586,7 +591,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'rotation'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasRotatableSelection"
             :title="store.t('designer.toolbar.rotation')"
             @click="handleRotation"
           >

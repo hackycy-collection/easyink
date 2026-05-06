@@ -46,6 +46,10 @@ interface MaterialCapabilities {
 }
 ```
 
+`capabilities.rotatable` 的语义是“设计器是否允许用户主动编辑元素级旋转”。设计器所有旋转入口必须共享同一个判断源：属性面板 rotation 输入、顶部工具栏旋转按钮、画布 rotate handle、拖拽旋转 composable。缺省值按可旋转处理，只有显式 `rotatable=false` 才禁用。
+
+该能力不负责清理或迁移 schema 中已经存在的 `node.rotation`。原因是导入/旧模板可能已经保存了 rotation，Viewer 应继续按 schema 渲染以保证兼容；Designer 只阻止后续交互继续修改不可旋转物料的 rotation。
+
 物料包拥有自己的 props 类型，例如 `TextProps`、`TableDataProps`。通用注册表仍以 `MaterialNode` 接收节点；物料内部读取 props 时使用 `getNodeProps<TProps>(node)` 或返回 `MaterialNode<TProps>` 的工厂函数。`props` 是 schema 的开放扩展点，不在通用 PropertiesPanel / Viewer / codec 中硬编码具体物料 props 类型。
 
 ## 11.2 目录层级

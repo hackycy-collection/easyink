@@ -88,6 +88,8 @@ class CommandManager {
 - `UpdateGuidesCommand`
 - `UpdateGeometryCommand`（属性面板 X/Y/W/H/rotation/opacity 修改，支持 merge 和 precomputedOldValues）
 
+命令层只表达 schema 变更，不读取物料注册表，也不判断 `capabilities`。例如 `RotateMaterialCommand` / `UpdateGeometryCommand(rotation)` 可以写入 rotation；是否允许用户从 Designer 入口触发旋转，由 Designer 侧的统一 capability 判断负责。这保持 core 与具体物料解耦，同时保留旧模板/导入数据中 rotation 的渲染兼容性。
+
 #### `ResizeMaterialCommand` 与物料 side-effect
 
 `ResizeMaterialCommand` 只负责设置 `node.{x, y, width, height}`，不感知任何物料私有数据。

@@ -1,5 +1,6 @@
 import type { DesignerStore } from '../store/designer-store'
 import { normalizeRotation, RotateMaterialCommand, UnitManager } from '@easyink/core'
+import { isElementRotatable } from '../materials/capabilities'
 
 export interface ElementRotateContext {
   store: DesignerStore
@@ -24,8 +25,7 @@ export function useElementRotate(ctx: ElementRotateContext) {
     if (!node || node.locked)
       return
 
-    const material = store.getMaterial(node.type)
-    if (material && material.capabilities.rotatable === false)
+    if (!isElementRotatable(store, node))
       return
 
     const unitManager = new UnitManager(store.schema.unit)
