@@ -60,6 +60,11 @@ public class PrinterStatus
     /// 是否卡纸
     /// </summary>
     public bool IsPaperJam { get; set; }
+
+    /// <summary>
+    /// 打印机详细状态描述（WMI PrinterState）
+    /// </summary>
+    public string PrinterState { get; set; }
 }
 
 /// <summary>

@@ -194,8 +194,9 @@ public class PrinterApi
         {
             return (T)Convert.ChangeType(value, typeof(T));
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[EasyInk.Printer] 参数 '{key}' 转换失败: {ex.Message}");
             return default;
         }
     }
