@@ -23,12 +23,12 @@ public class PrintService : IPrintService
     /// <summary>
     /// 执行打印
     /// </summary>
-    public CommandResponse Print(string requestId, PrintRequestParams request)
+    public PrinterResult Print(string requestId, PrintRequestParams request)
     {
         var status = _printerService.GetPrinterStatus(request.PrinterName);
         if (!status.IsReady)
         {
-            return CommandResponse.Error(requestId, status.StatusCode, status.Message);
+            return PrinterResult.Error(requestId, status.StatusCode, status.Message);
         }
 
         List<Image> images;
@@ -37,12 +37,12 @@ public class PrintService : IPrintService
             images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi, request.PaperSize);
             if (images.Count == 0)
             {
-                return CommandResponse.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
+                return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
             }
         }
         catch (Exception ex)
         {
-            return CommandResponse.Error(requestId, "INVALID_PDF", $"PDF解析失败: {ex.Message}");
+            return PrinterResult.Error(requestId, "INVALID_PDF", $"PDF解析失败: {ex.Message}");
         }
 
         var printDoc = new PrintDocument();
@@ -102,7 +102,7 @@ public class PrintService : IPrintService
                 JobId = jobId
             });
 
-            return CommandResponse.Ok(requestId, PrintResult.Success(jobId));
+            return PrinterResult.Ok(requestId, PrintResult.Success(jobId));
         }
         catch (Exception ex)
         {
@@ -115,7 +115,7 @@ public class PrintService : IPrintService
                 JobId = jobId
             });
 
-            return CommandResponse.Error(requestId, "PRINT_FAILED", ex.Message);
+            return PrinterResult.Error(requestId, "PRINT_FAILED", ex.Message);
         }
         finally
         {

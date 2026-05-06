@@ -2,23 +2,52 @@
 
 ## 一、项目概述
 
-EasyInk.Printer 是 EasyInk.Net 中的打印插件，用于替代浏览器方案实现静默打印。通过 Electron 的 edge-js 或 node-ffi 调用 DLL。
+EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管理、PDF 渲染打印、任务队列、审计日志等能力。
+
+可被以下宿主程序调用：
+- **EasyInk.Printer.Host** — 本地 HTTP/WebSocket 服务 + 桌面管理界面（推荐）
+- **Electron** — 通过 edge-js 调用（兼容方案）
 
 ## 二、目录结构
 
 ```
-EasyInk.Net/
-└── EasyInk.Printer/
-    ├── src/
-    │   ├── EasyInk.Printer.csproj    # 项目文件
-    │   ├── PrinterApi.cs             # 公共 API 入口
-    │   ├── Models/                   # 数据模型
-    │   └── Services/                 # 业务服务
-    ├── tests/
-    │   ├── EasyInk.Printer.Tests.csproj
-    │   └── Program.cs
-    └── docs/
-        └── architecture.md
+EasyInk.Printer/
+├── src/
+│   ├── EasyInk.Printer.csproj
+│   ├── PrinterApi.cs             # 公共 API 入口
+│   ├── Models/                   # 数据模型（一个文件一个类）
+│   │   ├── PrinterCommand.cs     # 命令请求
+│   │   ├── PrinterResult.cs      # 命令响应
+│   │   ├── ErrorInfo.cs          # 错误信息
+│   │   ├── PrinterInfo.cs        # 打印机信息
+│   │   ├── PrinterStatus.cs      # 打印机状态
+│   │   ├── PaperSizeInfo.cs      # 纸张尺寸信息
+│   │   ├── PaperSizeParams.cs    # 纸张尺寸参数
+│   │   ├── OffsetParams.cs       # 偏移参数
+│   │   ├── UserDataParams.cs     # 用户数据参数
+│   │   ├── PrintRequest.cs       # 打印请求参数
+│   │   ├── PrintResult.cs        # 打印结果
+│   │   ├── PrintJob.cs           # 打印任务信息
+│   │   ├── PrintAuditLog.cs      # 审计日志
+│   │   ├── BatchPrintRequest.cs  # 批量打印请求
+│   │   ├── BatchPrintResult.cs   # 批量打印结果
+│   │   └── BatchJobResult.cs     # 批量任务结果
+│   └── Services/                 # 业务服务
+│       ├── Abstractions/         # 接口定义
+│       │   ├── IPrinterService.cs
+│       │   ├── IPrintService.cs
+│       │   ├── IPdfRenderService.cs
+│       │   └── IAuditService.cs
+│       ├── PrinterService.cs     # 打印机管理（WMI 查询）
+│       ├── PrintService.cs       # 打印执行
+│       ├── PdfRenderService.cs   # PDF 渲染
+│       ├── AuditService.cs       # 审计日志（SQLite）
+│       └── PrintJobQueue.cs      # 异步任务队列
+├── tests/
+│   ├── EasyInk.Printer.Tests.csproj
+│   └── Program.cs
+└── docs/
+    └── architecture.md
 ```
 
 ## 三、技术架构
@@ -27,20 +56,23 @@ EasyInk.Net/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Electron 主进程                         │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
-│  │  渲染进程    │    │  puppeteer  │    │  edge-js /  │      │
-│  │  (Vue)      │───▶│  生成PDF    │───▶│  node-ffi   │      │
-│  └─────────────┘    └─────────────┘    └─────────────┘      │
-└─────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
+│                   调用方（Host / Electron）                   │
+│                                                             │
+│  EasyInk.Printer.Host           或        edge-js           │
+│  (HTTP/WS 服务)                             (Node.js)       │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    EasyInk.Printer.dll                       │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
-│  │  PrinterApi  │    │  PrintService│    │  SQLite日志  │      │
-│  │  (公共API)   │───▶│  (Windows API)│───▶│  (审计记录)  │      │
-│  └─────────────┘    └─────────────┘    └─────────────┘      │
+│                      PrinterApi                              │
+│                    (公共 API 入口)                            │
+├─────────────┬─────────────┬─────────────┬───────────────────┤
+│ Printer     │ Print       │ PdfRender   │ Audit             │
+│ Service     │ Service     │ Service     │ Service           │
+│ (WMI)       │ (PrintDoc)  │ (PDFium)    │ (SQLite)          │
+├─────────────┴─────────────┼─────────────┴───────────────────┤
+│                     PrintJobQueue                            │
+│                   (异步任务队列)                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,163 +80,74 @@ EasyInk.Net/
 
 - **运行时**：.NET Framework 4.8（兼容 Windows 7 SP1 及以上）
 - **打印 API**：`System.Drawing.Printing` + `PrintDocument`
-- **PDF 渲染**：PDFium（轻量级 PDF 渲染库）
-- **数据库**：SQLite + Dapper（轻量级 ORM）
-- **JSON 序列化**：Newtonsoft.Json
-
-### 3.3 兼容性
-
-| 系统 | 支持情况 |
-|------|---------|
-| Windows 7 SP1 | 支持（需安装 .NET Framework 4.8） |
-| Windows 8/8.1 | 支持 |
-| Windows 10 | 支持 |
-| Windows 11 | 支持 |
-
-### 3.4 输出产物
-
-- **主产物**：`EasyInk.Printer.dll`（类库）
-- **测试产物**：`EasyInk.Printer.Tests.exe`（控制台应用）
-- **依赖项**：
-  - `Newtonsoft.Json.dll`
-  - `Dapper.dll`
-  - `System.Data.SQLite.dll`
+- **PDF 渲染**：PDFium（通过 PdfiumViewer）
+- **打印机状态**：WMI（`Win32_Printer`）
+- **数据库**：SQLite + Dapper
+- **JSON 序列化**：Newtonsoft.Json（camelCase）
 
 ## 四、公共 API
 
 ### 4.1 PrinterApi 类
 
 ```csharp
-public class PrinterApi
+public class PrinterApi : IDisposable
 {
-    // 构造函数，可选指定数据库路径
+    // 构造函数
     public PrinterApi(string dbPath = null);
 
-    // 获取打印机列表（返回JSON）
-    public string GetPrinters();
+    // 获取打印机列表（JSON）
+    string GetPrinters();
 
-    // 获取打印机状态（返回JSON）
-    public string GetPrinterStatus(string printerName);
+    // 获取打印机状态（JSON）
+    string GetPrinterStatus(string printerName);
 
-    // 打印PDF（返回JSON）
-    public string Print(
-        string printerName,
-        string pdfBase64,
-        int copies = 1,
-        double? paperWidth = null,
-        double? paperHeight = null,
-        string paperUnit = "mm",
-        int dpi = 300,
-        double? offsetX = null,
-        double? offsetY = null,
-        string offsetUnit = "mm",
-        string userId = null,
-        string labelType = null
-    );
+    // 同步打印
+    string Print(string printerName, string pdfBase64, int copies, ...);
 
-    // 查询审计日志（返回JSON）
-    public string QueryLogs(
-        DateTime? startTime = null,
-        DateTime? endTime = null,
-        string printerName = null,
-        string userId = null,
-        string status = null,
-        int limit = 100,
-        int offset = 0
-    );
+    // 异步打印
+    string PrintAsync(string printerName, string pdfBase64, int copies, ...);
 
-    // 处理JSON命令（兼容stdin模式）
-    public string HandleCommand(string json);
+    // 批量打印
+    string BatchPrint(string jobsJson);
+    string BatchPrintAsync(string jobsJson);
+
+    // 任务状态查询
+    string GetJobStatus(string jobId);
+
+    // 审计日志查询
+    string QueryLogs(DateTime? startTime, DateTime? endTime, ...);
+
+    // JSON 命令入口（统一接口）
+    string HandleCommand(string json);
 }
 ```
 
-### 4.2 使用示例
+### 4.2 命令格式
 
-#### C# 直接调用
+所有方法返回 JSON，格式统一为 `PrinterResult`：
 
-```csharp
-var api = new PrinterApi();
-
-// 获取打印机列表
-var printers = api.GetPrinters();
-
-// 打印PDF
-var result = api.Print(
-    printerName: "ZDesigner GK420t",
-    pdfBase64: "...",
-    copies: 1,
-    paperWidth: 40,
-    paperHeight: 30,
-    paperUnit: "mm",
-    dpi: 300
-);
+```json
+{
+  "id": "请求ID",
+  "success": true,
+  "data": {},
+  "errorInfo": null
+}
 ```
 
-#### Electron 通过 edge-js 调用
-
-```javascript
-const edge = require('edge-js')
-
-const print = edge.func({
-  assemblyFile: 'path/to/EasyInk.Printer.dll',
-  typeName: 'EasyInk.Printer.PrinterApi',
-  methodName: 'Print'
-})
-
-const result = await print({
-  printerName: 'ZDesigner GK420t',
-  pdfBase64: '...',
-  copies: 1,
-  paperWidth: 40,
-  paperHeight: 30
-})
-```
-
-## 五、通信协议
-
-### 5.1 JSON 命令模式
-
-通过 `HandleCommand` 方法处理 JSON 命令：
+`HandleCommand` 接收 `PrinterCommand`：
 
 ```json
 {
   "command": "print",
-  "id": "uuid-string",
-  "params": {
-    "printerName": "ZDesigner GK420t",
-    "pdfBase64": "base64-encoded-pdf",
-    "copies": 1,
-    "paperSize": {
-      "width": 40,
-      "height": 30,
-      "unit": "mm"
-    },
-    "dpi": 300,
-    "userData": {
-      "userId": "user123",
-      "labelType": "product"
-    }
-  }
+  "id": "uuid",
+  "params": { ... }
 }
 ```
 
-### 5.2 响应格式
+## 五、数据库设计
 
-```json
-{
-  "id": "uuid-string",
-  "success": true,
-  "data": {
-    "jobId": "print-job-uuid",
-    "status": "completed"
-  },
-  "error": null
-}
-```
-
-## 六、数据库设计
-
-### 6.1 PrintAuditLog 表
+### PrintAuditLog 表
 
 ```sql
 CREATE TABLE PrintAuditLog (
@@ -225,67 +168,37 @@ CREATE TABLE PrintAuditLog (
 );
 ```
 
-## 七、错误码定义
+## 六、错误码
 
 | 错误码 | 说明 |
 |--------|------|
 | `PRINTER_NOT_FOUND` | 打印机不存在 |
 | `PRINTER_OFFLINE` | 打印机离线 |
+| `PRINTER_STOPPED` | 打印机已停止 |
+| `PAPER_JAM` | 打印机卡纸 |
+| `PAPER_OUT` | 打印机缺纸 |
 | `PRINTER_ERROR` | 打印机错误 |
 | `INVALID_PDF` | PDF 格式无效 |
 | `PRINT_FAILED` | 打印失败 |
 | `INVALID_PARAMS` | 参数无效 |
 | `UNKNOWN_COMMAND` | 未知命令 |
+| `JOB_NOT_FOUND` | 任务不存在 |
 
-## 八、构建与发布
-
-### 8.1 前置要求
-
-- Visual Studio 2019 或更高版本
-- .NET Framework 4.8 SDK
-
-### 8.2 构建
+## 七、构建与部署
 
 ```bash
-cd lib/EasyInk.Net/EasyInk.Printer
-dotnet build src
+# 构建
+dotnet build EasyInk.Printer/src
+
+# 发布
+dotnet publish EasyInk.Printer/src -c Release
+
+# 运行测试
+dotnet run --project EasyInk.Printer/tests
 ```
-
-### 8.3 发布
-
-```bash
-dotnet publish src -c Release
-```
-
-### 8.4 输出目录
-
-```
-src/bin/Release/net48/
-├── EasyInk.Printer.dll          # 主类库
-├── EasyInk.Printer.pdb          # 调试符号
-├── Newtonsoft.Json.dll           # JSON 库
-├── Dapper.dll                    # ORM
-├── System.Data.SQLite.dll        # SQLite
-└── ...
-```
-
-### 8.5 部署说明
-
-目标机器需要安装 .NET Framework 4.8 运行时：
-- Windows 10 1903+ 已内置
-- Windows 7/8/8.1 需要单独下载安装
-
-下载地址：https://dotnet.microsoft.com/download/dotnet-framework/net48
-
-## 九、后续扩展
-
-- 批量打印支持
-- 打印模板系统
-- 更多打印机状态监控
-- 打印任务队列
 
 ---
 
-**文档版本**：v1.2
+**文档版本**：v2.0
 **更新日期**：2026-05-06
-**更新内容**：调整目录结构为 src/tests 分离
+**更新内容**：命名优化（PrinterCommand/PrinterResult/PrintJob），模型文件拆分为一个文件一个类

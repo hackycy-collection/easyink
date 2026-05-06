@@ -2,7 +2,10 @@ using System;
 
 namespace EasyInk.Printer.Models;
 
-public class PrintJobInfo
+/// <summary>
+/// 打印任务信息
+/// </summary>
+public class PrintJob
 {
     public string JobId { get; set; }
     public string PrinterName { get; set; }
@@ -11,5 +14,5 @@ public class PrintJobInfo
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string ErrorMessage { get; set; }
-    public CommandResponse Result { get; set; }
+    public PrinterResult Result { get; set; }
 }

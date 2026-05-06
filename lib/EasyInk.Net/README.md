@@ -6,23 +6,40 @@ EasyInk 的 .NET 包集合，基于 .NET Framework 4.8 开发，兼容 Windows 7
 
 | 包名 | 说明 | 状态 |
 |------|------|------|
-| [EasyInk.Printer](EasyInk.Printer/) | 打印插件 | 开发中 |
+| [EasyInk.Printer](EasyInk.Printer/) | 打印插件（DLL） | 开发中 |
+| [EasyInk.Printer.Host](EasyInk.Printer.Host/) | 打印服务宿主程序 | 规划中 |
+
+## 架构
+
+```
+浏览器 (Vue)
+    │  HTTP / WebSocket
+    ▼
+EasyInk.Printer.Host         ← 宿主程序：HTTP 服务 + 系统托盘 + 桌面管理窗口
+    │
+    ▼
+EasyInk.Printer.dll          ← 打印插件：打印机管理、PDF 渲染、打印执行、审计日志
+    │
+    ▼
+Windows API                  ← PrintDocument / WMI / PDFium / SQLite
+```
 
 ## 目录结构
 
 ```
 EasyInk.Net/
-├── EasyInk.Printer/            # 打印插件
-│   ├── src/                    # 源代码（类库 → DLL）
-│   │   ├── EasyInk.Printer.csproj
-│   │   ├── PrinterApi.cs
-│   │   ├── Models/
-│   │   └── Services/
-│   ├── tests/                  # 测试项目（控制台 → EXE）
-│   │   ├── EasyInk.Printer.Tests.csproj
-│   │   └── Program.cs
+├── EasyInk.Printer/              # 打印插件（类库 → DLL）
+│   ├── src/
+│   ├── tests/
 │   └── docs/
-│       └── architecture.md
+├── EasyInk.Printer.Host/         # 宿主程序（WinForms → EXE）
+│   ├── src/
+│   │   ├── Server/               # HTTP/WebSocket 服务
+│   │   ├── Api/                  # API 控制器
+│   │   ├── UI/                   # 系统托盘 + 桌面窗口
+│   │   ├── Config/               # 配置管理
+│   │   └── Plugin/               # DLL 插件包装
+│   └── docs/
 └── README.md
 ```
 
@@ -37,54 +54,29 @@ EasyInk.Net/
 
 从 [.NET 官网](https://dotnet.microsoft.com/download) 下载并安装 .NET SDK。
 
-### 2. 配置 PATH 环境变量
-
-安装完成后，如果 PowerShell 中执行 `dotnet` 提示"无法识别"，需要手动将 `C:\Program Files\dotnet` 加入 PATH：
-
-```powershell
-# 当前用户永久生效（执行后重启 PowerShell）
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\dotnet", "User")
-
-# 或临时生效（当前窗口有效，关闭后失效）
-$env:Path += ";C:\Program Files\dotnet"
-```
-
-验证安装：
+### 2. 构建
 
 ```bash
-dotnet --version
-dotnet --list-sdks
-```
-
-### 3. 构建项目
-
-```bash
-# 克隆仓库后进入 .NET 包目录
 cd lib/EasyInk.Net
 
-# 构建打印插件（输出 DLL 到 src/bin/ 目录）
+# 构建打印插件
 dotnet build EasyInk.Printer/src
 
-# 运行测试项目（编译并执行 tests/Program.cs）
+# 构建宿主程序
+dotnet build EasyInk.Printer.Host/src
+
+# 运行测试
 dotnet run --project EasyInk.Printer/tests
 ```
 
-### 4. 常用命令速查
+### 3. 常用命令
 
 | 命令 | 说明 |
 |------|------|
-| `dotnet build EasyInk.Printer/src` | 构建打印插件，生成 DLL |
-| `dotnet build EasyInk.Printer/src -c Release` | Release 模式构建 |
-| `dotnet build EasyInk.Printer/src --no-incremental` | 全量重新构建 |
-| `dotnet run --project EasyInk.Printer/tests` | 运行测试 |
-| `dotnet clean EasyInk.Printer/src` | 清理构建产物 |
-
-### 5. 输出产物
-
-构建产物位于 `EasyInk.Printer/src/bin/{Debug|Release}/net48/` 目录：
-
-- `EasyInk.Printer.dll` — 主程序集，供 Electron 通过 edge-js 调用
-- `EasyInk.Printer.xml` — API 文档注释
+| `dotnet build EasyInk.Printer/src` | 构建打印插件 |
+| `dotnet build EasyInk.Printer.Host/src` | 构建宿主程序 |
+| `dotnet run --project EasyInk.Printer/tests` | 运行插件测试 |
+| `dotnet publish EasyInk.Printer.Host/src -c Release` | 发布宿主程序 |
 
 ## 兼容性
 
@@ -102,22 +94,6 @@ dotnet run --project EasyInk.Printer/tests
 - Windows 7/8/8.1 需要单独安装
 
 下载地址：https://dotnet.microsoft.com/download/dotnet-framework/net48
-
-## Electron 集成
-
-各包可通过 edge-js 或 node-ffi 调用，详见各包文档。
-
-```javascript
-const edge = require('edge-js')
-
-const api = edge.func({
-  assemblyFile: 'path/to/EasyInk.Printer.dll',
-  typeName: 'EasyInk.Printer.PrinterApi',
-  methodName: 'GetPrinters'
-})
-
-const printers = await api({})
-```
 
 ## License
 

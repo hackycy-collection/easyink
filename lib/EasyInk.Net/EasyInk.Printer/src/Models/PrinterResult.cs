@@ -3,9 +3,9 @@ using System;
 namespace EasyInk.Printer.Models;
 
 /// <summary>
-/// 命令响应模型
+/// 插件命令响应
 /// </summary>
-public class CommandResponse
+public class PrinterResult
 {
     /// <summary>
     /// 请求ID
@@ -30,9 +30,9 @@ public class CommandResponse
     /// <summary>
     /// 创建成功响应
     /// </summary>
-    public static CommandResponse Ok(string id, object data = null)
+    public static PrinterResult Ok(string id, object data = null)
     {
-        return new CommandResponse
+        return new PrinterResult
         {
             Id = id,
             Success = true,
@@ -43,9 +43,9 @@ public class CommandResponse
     /// <summary>
     /// 创建错误响应
     /// </summary>
-    public static CommandResponse Error(string id, string code, string message, string details = null)
+    public static PrinterResult Error(string id, string code, string message, string details = null)
     {
-        return new CommandResponse
+        return new PrinterResult
         {
             Id = id,
             Success = false,
@@ -57,25 +57,4 @@ public class CommandResponse
             }
         };
     }
-}
-
-/// <summary>
-/// 错误信息
-/// </summary>
-public class ErrorInfo
-{
-    /// <summary>
-    /// 错误码
-    /// </summary>
-    public string Code { get; set; }
-
-    /// <summary>
-    /// 错误消息
-    /// </summary>
-    public string Message { get; set; }
-
-    /// <summary>
-    /// 错误详情
-    /// </summary>
-    public string Details { get; set; }
 }

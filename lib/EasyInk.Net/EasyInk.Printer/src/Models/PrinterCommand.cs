@@ -4,9 +4,9 @@ using Newtonsoft.Json.Linq;
 namespace EasyInk.Printer.Models;
 
 /// <summary>
-/// 命令请求模型
+/// 插件命令请求
 /// </summary>
-public class CommandRequest
+public class PrinterCommand
 {
     /// <summary>
     /// 命令名称

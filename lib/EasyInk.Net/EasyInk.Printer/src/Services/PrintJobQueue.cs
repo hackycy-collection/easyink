@@ -13,7 +13,7 @@ namespace EasyInk.Printer.Services;
 public class PrintJobQueue : IDisposable
 {
     private readonly IPrintService _printService;
-    private readonly ConcurrentDictionary<string, PrintJobInfo> _jobs = new();
+    private readonly ConcurrentDictionary<string, PrintJob> _jobs = new();
     private readonly BlockingCollection<(string requestId, PrintRequestParams request)> _queue = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _worker;
@@ -31,7 +31,7 @@ public class PrintJobQueue : IDisposable
     public string Enqueue(string requestId, PrintRequestParams request)
     {
         var jobId = requestId ?? Guid.NewGuid().ToString();
-        _jobs[jobId] = new PrintJobInfo
+        _jobs[jobId] = new PrintJob
         {
             JobId = jobId,
             PrinterName = request.PrinterName,
@@ -41,13 +41,13 @@ public class PrintJobQueue : IDisposable
         return jobId;
     }
 
-    public PrintJobInfo GetJobStatus(string jobId)
+    public PrintJob GetJobStatus(string jobId)
     {
         _jobs.TryGetValue(jobId, out var info);
         return info;
     }
 
-    public List<PrintJobInfo> GetAllJobs()
+    public List<PrintJob> GetAllJobs()
     {
         return _jobs.Values.OrderByDescending(j => j.CreatedAt).ToList();
     }

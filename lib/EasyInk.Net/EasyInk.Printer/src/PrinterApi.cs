@@ -124,7 +124,7 @@ public class PrinterApi : IDisposable
         if (info == null)
         {
             return JsonConvert.SerializeObject(
-                CommandResponse.Error(jobId, "JOB_NOT_FOUND", $"任务不存在: {jobId}"), _jsonSettings);
+                PrinterResult.Error(jobId, "JOB_NOT_FOUND", $"任务不存在: {jobId}"), _jsonSettings);
         }
         return JsonConvert.SerializeObject(info, _jsonSettings);
     }
@@ -139,18 +139,18 @@ public class PrinterApi : IDisposable
 
     public string HandleCommand(string json)
     {
-        var request = JsonConvert.DeserializeObject<CommandRequest>(json, _jsonSettings);
+        var request = JsonConvert.DeserializeObject<PrinterCommand>(json, _jsonSettings);
         if (request == null)
         {
             return JsonConvert.SerializeObject(
-                CommandResponse.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
+                PrinterResult.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
         }
 
-        CommandResponse response;
+        PrinterResult response;
         switch (request.Command)
         {
             case "getPrinters":
-                response = CommandResponse.Ok(request.Id, _printerService.GetPrinters());
+                response = PrinterResult.Ok(request.Id, _printerService.GetPrinters());
                 break;
             case "getPrinterStatus":
                 response = HandleGetPrinterStatus(request);
@@ -174,7 +174,7 @@ public class PrinterApi : IDisposable
                 response = HandleBatchPrint(request, async: true);
                 break;
             default:
-                response = CommandResponse.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
+                response = PrinterResult.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
                 break;
         }
 
@@ -213,58 +213,58 @@ public class PrinterApi : IDisposable
         };
     }
 
-    private CommandResponse HandleGetPrinterStatus(CommandRequest request)
+    private PrinterResult HandleGetPrinterStatus(PrinterCommand request)
     {
         var printerName = GetParam<string>(request, "printerName");
         if (string.IsNullOrEmpty(printerName))
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少printerName参数");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少printerName参数");
         }
 
         var status = _printerService.GetPrinterStatus(printerName);
-        return CommandResponse.Ok(request.Id, status);
+        return PrinterResult.Ok(request.Id, status);
     }
 
-    private CommandResponse HandlePrint(CommandRequest request)
+    private PrinterResult HandlePrint(PrinterCommand request)
     {
         var printParams = ExtractPrintParams(request);
         if (printParams == null)
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
         }
 
         return _printService.Print(request.Id, printParams);
     }
 
-    private CommandResponse HandlePrintAsync(CommandRequest request)
+    private PrinterResult HandlePrintAsync(PrinterCommand request)
     {
         var printParams = ExtractPrintParams(request);
         if (printParams == null)
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
         }
 
         var jobId = _jobQueue.Enqueue(request.Id, printParams);
-        return CommandResponse.Ok(request.Id, new { jobId, status = "queued" });
+        return PrinterResult.Ok(request.Id, new { jobId, status = "queued" });
     }
 
-    private CommandResponse HandleGetJobStatus(CommandRequest request)
+    private PrinterResult HandleGetJobStatus(PrinterCommand request)
     {
         var jobId = GetParam<string>(request, "jobId");
         if (string.IsNullOrEmpty(jobId))
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少jobId参数");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少jobId参数");
         }
 
         var info = _jobQueue.GetJobStatus(jobId);
         if (info == null)
         {
-            return CommandResponse.Error(request.Id, "JOB_NOT_FOUND", $"任务不存在: {jobId}");
+            return PrinterResult.Error(request.Id, "JOB_NOT_FOUND", $"任务不存在: {jobId}");
         }
-        return CommandResponse.Ok(request.Id, info);
+        return PrinterResult.Ok(request.Id, info);
     }
 
-    private CommandResponse HandleBatchPrint(CommandRequest request, bool async)
+    private PrinterResult HandleBatchPrint(PrinterCommand request, bool async)
     {
         var jobsToken = request.Params != null && request.Params.ContainsKey("jobs")
             ? request.Params["jobs"]
@@ -272,13 +272,13 @@ public class PrinterApi : IDisposable
 
         if (jobsToken == null || !(jobsToken is JArray jArr))
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少jobs数组参数");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少jobs数组参数");
         }
 
         var jobs = jArr.ToObject<List<PrintRequestParams>>();
         if (jobs.Count == 0)
         {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "jobs不能为空");
+            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "jobs不能为空");
         }
 
         var results = new List<BatchJobResult>();
@@ -303,10 +303,10 @@ public class PrinterApi : IDisposable
             }
         }
 
-        return CommandResponse.Ok(request.Id, new BatchPrintResult { Jobs = results });
+        return PrinterResult.Ok(request.Id, new BatchPrintResult { Jobs = results });
     }
 
-    private PrintRequestParams ExtractPrintParams(CommandRequest request)
+    private PrintRequestParams ExtractPrintParams(PrinterCommand request)
     {
         var paramsToken = request.Params != null && request.Params.ContainsKey("params")
             ? request.Params["params"]
@@ -324,7 +324,7 @@ public class PrinterApi : IDisposable
         return null;
     }
 
-    private CommandResponse HandleQueryLogs(CommandRequest request)
+    private PrinterResult HandleQueryLogs(PrinterCommand request)
     {
         var startTime = GetParam<DateTime?>(request, "startTime");
         var endTime = GetParam<DateTime?>(request, "endTime");
@@ -335,10 +335,10 @@ public class PrinterApi : IDisposable
         var offset = GetParam<int?>(request, "offset") ?? 0;
 
         var logs = _auditService.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
-        return CommandResponse.Ok(request.Id, logs);
+        return PrinterResult.Ok(request.Id, logs);
     }
 
-    private T GetParam<T>(CommandRequest request, string key)
+    private T GetParam<T>(PrinterCommand request, string key)
     {
         if (request.Params == null || !request.Params.ContainsKey(key))
         {
