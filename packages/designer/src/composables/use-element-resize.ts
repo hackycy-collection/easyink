@@ -1,6 +1,6 @@
 import type { DesignerStore } from '../store/designer-store'
 import type { SnapLine } from '../types'
-import { ResizeMaterialCommand } from '@easyink/core'
+import { isInteractable, ResizeMaterialCommand } from '@easyink/core'
 import { markRaw } from 'vue'
 import { createGeometryService } from '../editing/geometry-service'
 import { collectSnapCandidates, pickBestSnap } from '../snap'
@@ -42,7 +42,7 @@ export function useElementResize(ctx: ElementResizeContext) {
 
     const { store } = ctx
     const node = store.getElementById(elementId)
-    if (!node || node.locked)
+    if (!node || !isInteractable(node))
       return
 
     const material = store.getMaterial(node.type)
@@ -101,7 +101,7 @@ export function useElementResize(ctx: ElementResizeContext) {
       guidesX: store.schema.guides.x,
       guidesY: store.schema.guides.y,
       otherNodes,
-      getVisualSize: n => store.getVisualSize(n),
+      getElementSize: n => store.getElementSize(n),
       enabled: true,
       gridSnap: snapStateAtStart.gridSnap,
       guideSnap: snapStateAtStart.guideSnap,

@@ -27,6 +27,7 @@ export {
   UpdateDocumentCommand,
   UpdateGeometryCommand,
   UpdateGuidesCommand,
+  UpdateMaterialMetaCommand,
   UpdateMaterialPropsCommand,
   UpdatePageCommand,
 } from './commands'
@@ -124,6 +125,6 @@ export type { PagePlan, PagePlanDiagnostic, PagePlanEntry } from './page-planner
 export { applyJsonPatches, PatchCommand } from './patch-command'
 export type { PatchCommandOptions } from './patch-command'
 
-export { isInteractable, SelectionModel } from './selection'
+export { isInteractable, isSelectable, SelectionModel } from './selection'
 
 export { UnitManager } from './unit'

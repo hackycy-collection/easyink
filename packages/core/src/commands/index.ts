@@ -14,6 +14,7 @@ export {
   UpdateDocumentCommand,
   UpdateGeometryCommand,
   UpdateGuidesCommand,
+  UpdateMaterialMetaCommand,
   UpdateMaterialPropsCommand,
   UpdatePageCommand,
 } from './document'

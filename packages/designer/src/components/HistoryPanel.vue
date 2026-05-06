@@ -11,6 +11,7 @@ const TYPE_TO_LOCALE: Record<string, string> = {
   'move-material': 'designer.history.moveMaterial',
   'resize-material': 'designer.history.resizeMaterial',
   'rotate-material': 'designer.history.rotateMaterial',
+  'update-material-meta': 'designer.history.updateMeta',
   'update-material-props': 'designer.history.updateProps',
   'update-page': 'designer.history.updatePage',
   'update-guides': 'designer.history.updateGuides',

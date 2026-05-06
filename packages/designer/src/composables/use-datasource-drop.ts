@@ -185,9 +185,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       const el = elements[i]!
       if (el.hidden || el.locked)
         continue
-      const visualSize = store.getVisualSize(el)
+      const elementSize = store.getElementSize(el)
       const localPoint = documentPointToElementLocal({ x: docX, y: docY }, el)
-      if (pointInRect(localPoint, { x: 0, y: 0, width: visualSize.width, height: visualSize.height })) {
+      if (pointInRect(localPoint, { x: 0, y: 0, width: elementSize.width, height: elementSize.height })) {
         const mat = store.getMaterial(el.type)
         if (mat && mat.capabilities.bindable === false)
           continue
@@ -223,7 +223,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
 
     // Get extension for custom drop handler
     const ext = store.getDesignerExtension(target.type)
-    const visualSize = store.getVisualSize(target)
+    const elementSize = store.getElementSize(target)
     const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target)
     if (ext?.datasourceDrop) {
       // Try to parse field data for dragOver feedback
@@ -237,7 +237,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       }
       const zone = ext.datasourceDrop.onDragOver(fieldInfo, localPoint, target)
       if (zone) {
-        showDropZone(zone, target, visualSize)
+        showDropZone(zone, target, elementSize)
       }
       else {
         hideDropZone()
@@ -246,9 +246,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     else {
       // Default: highlight the whole element
       showDropZone(
-        { status: 'accepted', rect: { x: 0, y: 0, w: visualSize.width, h: visualSize.height } },
+        { status: 'accepted', rect: { x: 0, y: 0, w: elementSize.width, h: elementSize.height } },
         target,
-        visualSize,
+        elementSize,
       )
     }
   }

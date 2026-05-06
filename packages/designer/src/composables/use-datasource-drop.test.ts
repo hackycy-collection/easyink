@@ -7,9 +7,9 @@ import { DATASOURCE_DRAG_MIME, useDatasourceDrop } from './use-datasource-drop'
 
 interface FakeStore {
   schema: { unit: 'px' }
-  workbench: { viewport: { zoom: number } }
+  workbench: { viewport: { zoom: number, scrollLeft: number, scrollTop: number } }
   getElements: () => MaterialNode[]
-  getVisualSize: (node: MaterialNode) => { width: number, height: number }
+  getElementSize: (node: MaterialNode) => { width: number, height: number }
   getMaterial: () => { capabilities: { bindable?: boolean } } | null
   getDesignerExtension: () => {
     datasourceDrop?: {
@@ -64,9 +64,9 @@ describe('useDatasourceDrop', () => {
     )
     const store: FakeStore = {
       schema: { unit: 'px' },
-      workbench: { viewport: { zoom: 1 } },
+      workbench: { viewport: { zoom: 1, scrollLeft: 0, scrollTop: 0 } },
       getElements: () => [node],
-      getVisualSize: current => ({ width: current.width, height: current.height }),
+      getElementSize: current => ({ width: current.width, height: current.height }),
       getMaterial: () => ({ capabilities: {} }),
       getDesignerExtension: () => ({
         datasourceDrop: {

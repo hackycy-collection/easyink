@@ -2,6 +2,7 @@ import type { MaterialNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
 import {
   AddMaterialCommand,
+  isInteractable,
   RemoveMaterialCommand,
   UnitManager,
 } from '@easyink/core'
@@ -46,14 +47,14 @@ export function createClipboardActions(
   }
 
   function copySelection() {
-    const nodes = snapshotSelectedNodes()
+    const nodes = snapshotSelectedNodes().filter(isInteractable)
     if (nodes.length === 0)
       return
     store.clipboard = cloneNodes(nodes)
   }
 
   function cutSelection() {
-    const nodes = snapshotSelectedNodes()
+    const nodes = snapshotSelectedNodes().filter(isInteractable)
     if (nodes.length === 0)
       return
 
@@ -93,7 +94,7 @@ export function createClipboardActions(
   }
 
   function duplicateSelection() {
-    const nodes = snapshotSelectedNodes()
+    const nodes = snapshotSelectedNodes().filter(isInteractable)
     if (nodes.length === 0)
       return
 
@@ -118,7 +119,7 @@ export function createClipboardActions(
   }
 
   function deleteSelection() {
-    const nodes = snapshotSelectedNodes().filter(node => !node.locked)
+    const nodes = snapshotSelectedNodes().filter(isInteractable)
     if (nodes.length === 0)
       return
 

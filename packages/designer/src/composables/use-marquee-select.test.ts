@@ -20,7 +20,7 @@ interface FakeStore {
   workbench: { viewport: { zoom: number, scrollLeft: number, scrollTop: number } }
   selection: FakeSelection
   getElements: () => MaterialNode[]
-  getVisualSize: (n: MaterialNode) => { width: number, height: number }
+  getElementSize: (n: MaterialNode) => { width: number, height: number }
 }
 
 function makeNode(id: string, x: number, y: number, w = 50, h = 50, extra: Partial<MaterialNode> = {}): MaterialNode {
@@ -49,7 +49,7 @@ function makeStore(elements: MaterialNode[], initial: string[] = []): FakeStore 
       },
     },
     getElements: () => elements,
-    getVisualSize: (n: MaterialNode) => ({ width: n.width, height: n.height }),
+    getElementSize: (n: MaterialNode) => ({ width: n.width, height: n.height }),
   }
 }
 

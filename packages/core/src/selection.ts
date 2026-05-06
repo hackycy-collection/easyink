@@ -1,13 +1,17 @@
 import type { MaterialNode } from '@easyink/schema'
 
 /**
- * Single source of truth for "can this node participate in interactive
- * selection / drag / nudge / resize". Used by marquee, element-drag, keyboard
- * shortcuts, select-all, etc. so locked/hidden filtering stays consistent
- * across every entry point — divergence here was a real audit finding.
+ * Single source of truth for "can this node be modified through direct canvas
+ * operations". Locked and hidden nodes may still be selected by direct click or
+ * the structure tree so users can recover them, but they do not participate in
+ * drag / nudge / resize / rotate / deep-edit operations.
  */
 export function isInteractable(node: MaterialNode): boolean {
   return !node.locked && !node.hidden
+}
+
+export function isSelectable(node: MaterialNode): boolean {
+  return Boolean(node.id)
 }
 
 /**

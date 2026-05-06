@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { MaterialNode } from '@easyink/schema'
 import type { Component } from 'vue'
+import { isInteractable, UpdateMaterialMetaCommand } from '@easyink/core'
 import {
   IconCopy,
   IconCopyPlus,
   IconDelete,
+  IconHidden,
   IconLayerBottom,
   IconLayerDown,
   IconLayerTop,
@@ -69,6 +71,17 @@ function buildGroups(isBlank: boolean): ContextMenuGroup[] {
   }
 
   const groups: ContextMenuGroup[] = []
+
+  if (nodes.some(n => !isInteractable(n))) {
+    const controlItems: ContextMenuItem[] = []
+    if (nodes.some(n => n.locked))
+      controlItems.push({ id: 'unlock', label: store.t('designer.context.unlock'), icon: IconUnlock })
+    else if (nodes.some(n => n.hidden))
+      controlItems.push({ id: 'show', label: store.t('designer.context.show'), icon: IconHidden })
+    if (nodes.every(n => !n.locked) && nodes.some(n => n.hidden))
+      controlItems.push({ id: 'lock', label: store.t('designer.context.lock'), icon: IconLock })
+    return controlItems.length > 0 ? [{ id: 'control', items: controlItems }] : []
+  }
 
   // Group 1: edit
   groups.push({
@@ -210,23 +223,19 @@ function handleAction(item: ContextMenuItem) {
       break
 
     case 'lock':
-      for (const node of nodes) {
-        store.updateElement(node.id, { locked: true })
-      }
+      runMetaTransaction('Lock', nodes, { locked: true })
       break
 
     case 'unlock':
-      for (const node of nodes) {
-        store.updateElement(node.id, { locked: false })
-      }
+      runMetaTransaction('Unlock', nodes.filter(node => node.locked), { locked: false })
+      break
+
+    case 'show':
+      runMetaTransaction('Show', nodes.filter(node => node.hidden && !node.locked), { hidden: false })
       break
 
     case 'select-all':
-      // Exclude hidden elements: select-all is the canonical "operate on every
-      // visible element" gesture. Including hidden nodes would let downstream
-      // group operations (drag/delete) silently mutate things the user can't
-      // see and didn't intend to touch.
-      selectMany(store, elements.filter(el => !el.hidden).map(el => el.id))
+      selectMany(store, elements.filter(isInteractable).map(el => el.id))
       break
 
     default:
@@ -234,6 +243,21 @@ function handleAction(item: ContextMenuItem) {
       // them — architecture README requires diagnostics over silent failure.
       console.warn('[CanvasContextMenu] Unknown action:', item.id)
       break
+  }
+}
+
+function runMetaTransaction(label: string, nodes: MaterialNode[], updates: Partial<Record<'hidden' | 'locked', boolean | undefined>>) {
+  if (nodes.length === 0)
+    return
+  store.commands.beginTransaction(label)
+  try {
+    for (const node of nodes)
+      store.commands.execute(new UpdateMaterialMetaCommand(store.schema.elements, node.id, updates))
+    store.commands.commitTransaction()
+  }
+  catch (err) {
+    store.commands.rollbackTransaction()
+    throw err
   }
 }
 

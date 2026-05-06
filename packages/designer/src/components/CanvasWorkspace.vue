@@ -172,7 +172,7 @@ const groupSelectionFrame = computed(() => {
     .filter((n): n is NonNullable<typeof n> => n != null)
   if (nodes.length < 2)
     return null
-  const box = getSelectionBox(nodes, n => store.getVisualSize(n))
+  const box = getSelectionBox(nodes, n => store.getElementSize(n))
   if (!box)
     return null
   const unit = store.schema.unit
@@ -370,9 +370,9 @@ onUnmounted(() => {
               left: `${el.x}${store.schema.unit}`,
               top: `${el.y}${store.schema.unit}`,
               width: `${el.width}${store.schema.unit}`,
-              height: `${store.getVisualHeight(el)}${store.schema.unit}`,
+              height: `${el.height}${store.schema.unit}`,
               transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-              opacity: el.alpha ?? 1,
+              opacity: el.hidden ? 1 : (el.alpha ?? 1),
               zIndex: el.zIndex ?? 'auto',
             }"
             @pointerdown="handleElementPointerDown($event, el.id)"
@@ -385,11 +385,11 @@ onUnmounted(() => {
 
             <!-- Selection border, resize handles & rotation handle -->
             <template v-if="store.selection.has(el.id) && editingNodeId !== el.id">
-              <div class="ei-canvas-element__selection-border" />
+              <div v-if="!el.hidden || el.locked" class="ei-canvas-element__selection-border" />
 
               <!-- Per-element transform handles only in single-selection mode.
                    Multi-selection renders a single group frame outside this loop. -->
-              <template v-if="!isMultiSelection">
+              <template v-if="!isMultiSelection && !el.locked && !el.hidden">
                 <!-- 8 resize handles -->
                 <div
                   v-for="handle in resizeHandles"
@@ -521,7 +521,16 @@ onUnmounted(() => {
   }
 
   &--hidden {
-    opacity: 0.3;
+    cursor: default;
+    border: 1px dashed var(--ei-hidden-border, #8c8c8c);
+
+    .ei-canvas-element__content {
+      display: none;
+    }
+  }
+
+  &--hidden.ei-canvas-element--selected:not(.ei-canvas-element--locked) {
+    border-color: var(--ei-primary, #1890ff);
   }
 
   &--deep-editing {
@@ -576,6 +585,10 @@ onUnmounted(() => {
     inset: -1px;
     border: 2px solid var(--ei-primary, #1890ff);
     pointer-events: none;
+  }
+
+  &--locked &__selection-border {
+    border-color: var(--ei-danger, #ff4d4f);
   }
 
   &__handle {

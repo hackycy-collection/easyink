@@ -1,7 +1,7 @@
 import type { TableCellSchema, TableTopologySchema } from '@easyink/schema'
 import type { TableBaseProps } from './types'
 import { escapeAttr, escapeHtml } from '@easyink/shared'
-import { computeRowScale, normalizeColumnRatios } from './geometry'
+import { computeRowScaleWithVirtualRows, normalizeColumnRatios } from './geometry'
 import { TABLE_BASE_DEFAULTS, TABLE_TYPOGRAPHY_DEFAULTS } from './types'
 import { resolveCellTypography } from './typography'
 
@@ -32,6 +32,8 @@ export interface VirtualRowConfig {
   afterRowIndex: number
   /** Number of virtual rows to render. */
   count: number
+  /** Declared height before table scaling; participates in elementHeight distribution. */
+  rowHeight: number
   /** HTML string for each virtual row (pre-built by caller). */
   rowsHtml: string
 }
@@ -90,7 +92,12 @@ export function renderTableHtml(options: RenderTableHtmlOptions): string {
 
   // Scale row heights to sum exactly to elementHeight, matching geometry layer.
   // Hidden/skipped rows are excluded from the denominator so visible rows fill the element.
-  const rowScale = computeRowScale(topology.rows, elementHeight, skippedMask)
+  const rowScale = computeRowScaleWithVirtualRows(
+    topology.rows,
+    elementHeight,
+    skippedMask,
+    virtualRows ? { rowHeight: virtualRows.rowHeight, count: virtualRows.count } : undefined,
+  )
 
   // Precompute scaled per-row heights so rowSpan cells can sum across rows.
   // Skipped rows render at height 0 and contribute 0 to spans.

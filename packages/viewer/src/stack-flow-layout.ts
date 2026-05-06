@@ -1,6 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { ViewerDiagnosticEvent } from './types'
-import { getTableDataDesignerVisualHeight, isTableDataNodeForLayout } from '@easyink/material-table-data'
 
 export type StackLayoutMode = 'flow' | 'fixed'
 
@@ -73,7 +72,7 @@ export function applyStackFlowLayout(
     laidOutById.set(entry.original.id, laidOutNode)
 
     if (layoutMode === 'flow') {
-      pendingBandDelta += getFlowFootprintHeight(entry.measured) - getOriginalFlowFootprintHeight(entry.original)
+      pendingBandDelta += getFlowFootprintHeight(entry.measured) - getFlowFootprintHeight(entry.original)
     }
   }
 
@@ -85,12 +84,6 @@ export function applyStackFlowLayout(
 
 export function resolveStackLayoutMode(node: MaterialNode): StackLayoutMode {
   return node.props.layoutMode === 'fixed' ? 'fixed' : 'flow'
-}
-
-function getOriginalFlowFootprintHeight(node: MaterialNode): number {
-  if (isTableDataNodeForLayout(node))
-    return getTableDataDesignerVisualHeight(node)
-  return getFlowFootprintHeight(node)
 }
 
 function getFlowFootprintHeight(node: MaterialNode): number {

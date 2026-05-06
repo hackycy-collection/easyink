@@ -37,7 +37,9 @@ export interface SelectionType<T = unknown> {
 export interface MaterialGeometry {
   /**
    * Overall editing-time layout of the material.
-   * contentBox may differ from node dimensions (e.g. placeholder rows in designer).
+   * contentBox defaults to schema element dimensions. Materials may describe
+   * internal viewports/scrolling here, but designer-only previews must not
+   * enlarge the element footprint.
    */
   getContentLayout: (node: MaterialNode) => ContentLayout
   /** Map a selection to screen rectangles. Range selections return multiple rects. */
@@ -47,7 +49,7 @@ export interface MaterialGeometry {
 }
 
 export interface ContentLayout {
-  /** Total rectangle in document coordinates (may include virtual rows, etc.) */
+  /** Total rectangle in document coordinates. */
   contentBox: Rect
   /** Visible sub-rectangle within contentBox (for clipping) */
   viewport?: Rect

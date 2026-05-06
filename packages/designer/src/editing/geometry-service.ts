@@ -36,7 +36,7 @@ export function createGeometryService(store: DesignerStore, options: GeometrySer
   }
 
   function getNodeSize(node: MaterialNode): { width: number, height: number } {
-    return store.getVisualSize(node)
+    return store.getElementSize(node)
   }
 
   function shouldIncludeTransform(options?: LocalCoordinateOptions): boolean {

@@ -417,6 +417,7 @@ const zhCN: LocaleMessages = {
       moveMaterial: '移动元素',
       resizeMaterial: '调整尺寸',
       rotateMaterial: '旋转元素',
+      updateMeta: '修改元素状态',
       updateProps: '修改属性',
       updatePage: '修改页面',
       updateGuides: '修改辅助线',

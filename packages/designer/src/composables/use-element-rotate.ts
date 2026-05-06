@@ -1,5 +1,5 @@
 import type { DesignerStore } from '../store/designer-store'
-import { normalizeRotation, RotateMaterialCommand } from '@easyink/core'
+import { isInteractable, normalizeRotation, RotateMaterialCommand } from '@easyink/core'
 import { createGeometryService } from '../editing/geometry-service'
 import { isElementRotatable } from '../materials/capabilities'
 
@@ -25,7 +25,7 @@ export function useElementRotate(ctx: ElementRotateContext) {
 
     const { store } = ctx
     const node = store.getElementById(elementId)
-    if (!node || node.locked)
+    if (!node || !isInteractable(node))
       return
 
     if (!isElementRotatable(store, node))

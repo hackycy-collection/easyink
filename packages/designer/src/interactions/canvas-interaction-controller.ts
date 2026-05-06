@@ -1,6 +1,6 @@
 import type { DesignerStore } from '../store/designer-store'
 import type { GestureContext } from './gesture-context'
-import { isInteractable } from '@easyink/core'
+import { isInteractable, isSelectable } from '@easyink/core'
 import { ref } from 'vue'
 import { useElementDrag } from '../composables/use-element-drag'
 import { createGeometryService } from '../editing/geometry-service'
@@ -108,7 +108,7 @@ export function useCanvasInteractionController(ctx: CanvasInteractionControllerC
     // Drag is a pure executor that reads `store.selection` to know what to
     // move; it does not write to the model.
     const node = store.getElementById(elementId)
-    if (!node || !isInteractable(node))
+    if (!node || !isSelectable(node))
       return
 
     if (!store.selection.has(elementId)) {
@@ -165,7 +165,10 @@ export function useCanvasInteractionController(ctx: CanvasInteractionControllerC
     }
 
     const node = store.getElementById(elementId)
-    const ext = node ? store.getDesignerExtension(node.type) : undefined
+    if (!node || !isInteractable(node))
+      return
+
+    const ext = store.getDesignerExtension(node.type)
     // Uniform dblclick entry: any material that declares a `geometry`
     // protocol (table / chart / svg / container …) is openable via
     // dblclick. Materials without geometry have nothing to edit and remain

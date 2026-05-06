@@ -50,12 +50,10 @@ export interface SnapEngineContext {
   /** Other elements (those not being moved) to align with. */
   otherNodes: MaterialNode[]
   /**
-   * Visual size of a node (may differ from `node.width / node.height` for
-   * materials with virtual content, e.g. table placeholder rows). Used both
-   * for selection-box assembly and for emitting snap candidates so rotated
+   * Schema element size. Used for emitting snap candidates so rotated
    * elements get a true AABB.
    */
-  getVisualSize: (n: MaterialNode) => { width: number, height: number }
+  getElementSize: (n: MaterialNode) => { width: number, height: number }
   enabled: boolean
   gridSnap: boolean
   guideSnap: boolean
@@ -91,7 +89,7 @@ export function collectSnapCandidates(ctx: SnapEngineContext): SnapCandidates {
 
   if (ctx.elementSnap) {
     for (const node of ctx.otherNodes) {
-      const size = ctx.getVisualSize(node)
+      const size = ctx.getElementSize(node)
       // Use the rotated AABB so candidates align with the element's true
       // visual extent. `getRotatedAABB` short-circuits when rotation is 0.
       const aabb = getRotatedAABB(

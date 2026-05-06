@@ -250,6 +250,45 @@ export class UpdateMaterialPropsCommand implements Command {
   }
 }
 
+export type MaterialMetaKey = 'hidden' | 'locked'
+
+export class UpdateMaterialMetaCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'update-material-meta'
+  readonly description = 'Update material meta'
+  private oldValues: Partial<Record<MaterialMetaKey, boolean | undefined>> = {}
+
+  constructor(
+    private elements: MaterialNode[],
+    private nodeId: string,
+    private updates: Partial<Record<MaterialMetaKey, boolean | undefined>>,
+    precomputedOldValues?: Partial<Record<MaterialMetaKey, boolean | undefined>>,
+  ) {
+    if (precomputedOldValues)
+      this.oldValues = { ...precomputedOldValues }
+  }
+
+  execute(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.updates) as MaterialMetaKey[]) {
+      if (!(key in this.oldValues))
+        this.oldValues[key] = node[key]
+      node[key] = this.updates[key]
+    }
+  }
+
+  undo(): void {
+    const node = findNode(this.elements, this.nodeId)
+    if (!node)
+      return
+    for (const key of Object.keys(this.oldValues) as MaterialMetaKey[]) {
+      node[key] = this.oldValues[key]
+    }
+  }
+}
+
 export class UpdatePageCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'update-page'

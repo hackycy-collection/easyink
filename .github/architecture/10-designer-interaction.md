@@ -217,10 +217,15 @@ interface PanelToggleState {
 
 ### 选区与编辑态
 
-- 单选显示边框和拖拽手柄
-- 多选显示联合包围框
+- 普通元素单选显示边框和拖拽手柄
+- 多选显示联合包围框；`hidden / locked` 元素不参与框选与全选
+- `hidden` 元素在设计器画布只显示 schema `width / height` 对应的虚线框，内容层不显示；用户可点击虚线框选中以恢复状态，但不能拖拽、resize、rotate、深度编辑、数据源投放或通过属性面板编辑除 `hidden / locked` 以外的字段
+- `locked` 元素可被直接点击或结构树选中；选中时显示红色边框，不显示 resize / rotate handle，且不能拖拽、键盘移动、删除、剪切、复制、层级调整、属性编辑或深度编辑；唯一允许操作是解锁
+- `hidden + locked` 同时存在时，锁定优先：选中态显示红色锁定边框，解锁后再恢复隐藏状态控制
 - 表格类元素允许深入到单元格级编辑
 - 区段型模板允许直接选中当前格子或当前区块
+
+`hidden` 在本节只定义设计器画布的编辑态表现，不改变 Viewer / 预览 / 打印输出语义。
 
 > 画布上的 pointerdown / click / dblclick / contextmenu 由唯一的 `useCanvasInteractionController` 解释，并通过 `applySelectionIntent` 收口写入 `SelectionModel`；任何 composable / 组件 / material extension 直接调用 `store.selection.{select,add,toggle,clear,selectMultiple}` 都属于违规。详见 [22.0.1 画布手势仲裁](./22-editing-behavior.md#2201-画布手势仲裁canvasinteractioncontroller--selectionintent--gesturecontext)。
 
@@ -799,11 +804,11 @@ threshold: snapState.threshold / Math.max(zoom, 0.0001)
 
 ### 多选包围盒
 
-drag 时不再用"第一个被选中节点"作参考，而是 `getSelectionBox(nodes, getVisualHeight)`
+drag 时不再用"第一个被选中节点"作参考，而是 `getSelectionBox(nodes, node.width / node.height)`
 （基于 `@easyink/core` 的 `getBoundingRect`）。多选拖动时，整个选区的左 / 中 / 右 / 上 / 中 / 下作为测试值参与吸附，
 视觉表现是"整组对齐到目标"。
 
-`getVisualHeight` 来自 `MaterialDesignerExtension`，比 `node.height` 更接近设计态实际占位（例如数据表格的占位行）。
+元素在设计器中的选择、吸附、框选与 overlay 外框统一以 schema `width / height` 为准。物料可以在内部渲染预览层，但不能通过 designer-only visual height 改变元素语义高度。
 
 ### Resize 的吸附范围
 

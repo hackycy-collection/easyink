@@ -91,9 +91,9 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       for (const node of elements) {
         if (!isInteractable(node))
           continue
-        const visual = store.getVisualSize(node)
+        const size = store.getElementSize(node)
         const aabb = getRotatedAABB(
-          { x: node.x, y: node.y, width: visual.width, height: visual.height },
+          { x: node.x, y: node.y, width: size.width, height: size.height },
           node.rotation,
         )
         if (rectsIntersect(rect, aabb))

@@ -34,7 +34,7 @@ export interface ElementDragContext {
  * - The caller (CanvasInteractionController) MUST already have applied the
  *   correct SelectionIntent before invoking `onPointerDown`. This composable
  *   reads `store.selection` to know what to move, but never writes to it.
- * - Selection bounding box (visual height) drives both reference and overlay.
+ * - Selection bounding box uses schema element width / height.
  * - Threshold is normalized for zoom: `snapState.threshold / max(zoom, ε)`.
  * - Hold Cmd / Ctrl during drag to bypass snapping for the current frame.
  * - Pointer events are bound on `window` so dragging continues across canvas
@@ -68,7 +68,7 @@ export function useElementDrag(ctx: ElementDragContext) {
 
     const origPositions = selectedNodes.map(n => ({ id: n.id, x: n.x, y: n.y }))
 
-    const selectionBox = getSelectionBox(selectedNodes, n => store.getVisualSize(n))
+    const selectionBox = getSelectionBox(selectedNodes, n => store.getElementSize(n))
     if (!selectionBox)
       return
 
@@ -86,7 +86,7 @@ export function useElementDrag(ctx: ElementDragContext) {
       guidesX: store.schema.guides.x,
       guidesY: store.schema.guides.y,
       otherNodes,
-      getVisualSize: n => store.getVisualSize(n),
+      getElementSize: n => store.getElementSize(n),
       enabled: true,
       gridSnap: snapStateAtStart.gridSnap,
       guideSnap: snapStateAtStart.guideSnap,
@@ -137,7 +137,7 @@ export function useElementDrag(ctx: ElementDragContext) {
               guidesX: store.schema.guides.x,
               guidesY: store.schema.guides.y,
               otherNodes,
-              getVisualSize: n => store.getVisualSize(n),
+              getElementSize: n => store.getElementSize(n),
               enabled: snapState.enabled,
               gridSnap: snapState.gridSnap,
               guideSnap: snapState.guideSnap,

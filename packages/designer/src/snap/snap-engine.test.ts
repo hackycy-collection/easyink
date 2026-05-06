@@ -11,7 +11,7 @@ const baseCtx = {
   guidesX: [],
   guidesY: [],
   otherNodes: [] as MaterialNode[],
-  getVisualSize: (n: MaterialNode) => ({ width: n.width, height: n.height }),
+  getElementSize: (n: MaterialNode) => ({ width: n.width, height: n.height }),
   enabled: true,
   gridSnap: false,
   guideSnap: false,
