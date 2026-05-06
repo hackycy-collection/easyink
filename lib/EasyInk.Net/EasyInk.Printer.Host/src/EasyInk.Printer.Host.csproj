@@ -7,7 +7,7 @@
     <AssemblyName>EasyInk.Printer.Host</AssemblyName>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <ApplicationIcon>app.ico</ApplicationIcon>
+
   </PropertyGroup>
 
   <ItemGroup>

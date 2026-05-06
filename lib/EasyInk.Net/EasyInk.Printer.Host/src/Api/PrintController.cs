@@ -1,3 +1,4 @@
+using System;
 using EasyInk.Printer.Host.Plugin;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -15,32 +16,57 @@ public class PrintController
 
     public string Print(string body)
     {
-        return _plugin.HandleCommand(BuildCommand("print", body));
+        return ExecuteCommand("print", body);
     }
 
     public string PrintAsync(string body)
     {
-        return _plugin.HandleCommand(BuildCommand("printAsync", body));
+        return ExecuteCommand("printAsync", body);
     }
 
     public string BatchPrint(string body)
     {
-        return _plugin.HandleCommand(BuildCommand("batchPrint", body));
+        return ExecuteCommand("batchPrint", body);
     }
 
     public string BatchPrintAsync(string body)
     {
-        return _plugin.HandleCommand(BuildCommand("batchPrintAsync", body));
+        return ExecuteCommand("batchPrintAsync", body);
     }
 
-    private static string BuildCommand(string command, string body)
+    private string ExecuteCommand(string command, string body)
     {
-        var jObj = new JObject
+        var commandObj = new JObject
         {
             ["command"] = command,
-            ["id"] = System.Guid.NewGuid().ToString(),
-            ["params"] = string.IsNullOrEmpty(body) ? new JObject() : JObject.Parse(body)
+            ["id"] = Guid.NewGuid().ToString()
         };
-        return jObj.ToString(Formatting.None);
+
+        if (!string.IsNullOrEmpty(body))
+        {
+            var bodyToken = JToken.Parse(body);
+            if (bodyToken is JObject jObj)
+            {
+                // batchPrint 需要 jobs 数组
+                if (command.StartsWith("batch"))
+                {
+                    commandObj["params"] = new JObject { ["jobs"] = jObj["jobs"] ?? bodyToken };
+                }
+                else
+                {
+                    commandObj["params"] = new JObject { ["params"] = jObj };
+                }
+            }
+            else if (bodyToken is JArray jArr)
+            {
+                commandObj["params"] = new JObject { ["jobs"] = jArr };
+            }
+        }
+        else
+        {
+            commandObj["params"] = new JObject();
+        }
+
+        return _plugin.HandleCommand(commandObj.ToString(Formatting.None));
     }
 }

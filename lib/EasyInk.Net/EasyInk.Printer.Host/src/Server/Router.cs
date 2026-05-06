@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using EasyInk.Printer.Host.Api;
 using EasyInk.Printer.Host.Plugin;
 
@@ -20,19 +20,21 @@ public class Router
     private readonly JobController _jobController;
     private readonly LogController _logController;
     private readonly StatusController _statusController;
+    private readonly WebSocketHandler _wsHandler;
 
     private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
     {
         ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
     };
 
-    public Router(PluginBridge plugin)
+    public Router(PluginBridge plugin, WebSocketHandler wsHandler)
     {
         _printerController = new PrinterController(plugin);
         _printController = new PrintController(plugin);
         _jobController = new JobController(plugin);
         _logController = new LogController(plugin);
         _statusController = new StatusController();
+        _wsHandler = wsHandler;
     }
 
     public async Task HandleRequest(HttpListenerContext context)
@@ -78,6 +80,14 @@ public class Router
         var path = request.Url.AbsolutePath.TrimEnd('/');
         var method = request.HttpMethod;
 
+        // GET /api/status
+        if (method == "GET" && path == "/api/status")
+            return _statusController.GetStatus();
+
+        // GET /api/status/connections (WebSocket 连接数)
+        if (method == "GET" && path == "/api/status/connections")
+            return JsonConvert.SerializeObject(new { success = true, data = new { count = _wsHandler.ConnectionCount } }, JsonSettings);
+
         // GET /api/printers
         if (method == "GET" && path == "/api/printers")
             return _printerController.GetPrinters();
@@ -119,10 +129,6 @@ public class Router
         // GET /api/logs
         if (method == "GET" && path == "/api/logs")
             return _logController.QueryLogs(request.QueryString);
-
-        // GET /api/status
-        if (method == "GET" && path == "/api/status")
-            return _statusController.GetStatus();
 
         // 404
         return JsonConvert.SerializeObject(new

@@ -18,6 +18,9 @@ public class HttpServer
     public int Port => _port;
     public bool IsRunning { get; private set; }
 
+    /// <summary>
+    /// 收到请求时触发（包含 HTTP 和 WebSocket）
+    /// </summary>
     public event Action<HttpListenerContext> OnRequest;
 
     public HttpServer(int port)
@@ -27,6 +30,8 @@ public class HttpServer
 
     public void Start()
     {
+        if (IsRunning) return;
+
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{_port}/");
         _listener.Start();
@@ -43,13 +48,15 @@ public class HttpServer
 
     public void Stop()
     {
+        if (!IsRunning) return;
+
         IsRunning = false;
         _cts?.Cancel();
-        _listener?.Stop();
-        try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); }
-        catch { }
+        try { _listener?.Stop(); } catch { }
+        try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); } catch { }
         _cts?.Dispose();
         _listener?.Close();
+        _listener = null;
     }
 
     private async Task ListenLoop()
@@ -59,16 +66,36 @@ public class HttpServer
             try
             {
                 var context = await _listener.GetContextAsync();
-                Task.Run(() => OnRequest?.Invoke(context));
+                // 每个请求在独立线程处理
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        OnRequest?.Invoke(context);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[HttpServer] 请求处理异常: {ex.Message}");
+                        try
+                        {
+                            context.Response.StatusCode = 500;
+                            context.Response.Close();
+                        }
+                        catch { }
+                    }
+                });
             }
             catch (HttpListenerException)
             {
-                // 服务器停止时会抛出此异常
                 break;
             }
-            catch (Exception)
+            catch (ObjectDisposedException)
             {
-                // 其他异常，继续监听
+                break;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HttpServer] 监听异常: {ex.Message}");
             }
         }
     }
