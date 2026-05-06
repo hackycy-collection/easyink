@@ -115,13 +115,15 @@ export function collectSnapCandidates(ctx: SnapEngineContext): SnapCandidates {
     }
   }
 
-  // Page edges: physical boundaries — always emitted (no opt-out flag).
-  // Higher priority than guides/grid because edges are objective constraints.
+  // Page bounds and center axes are physical document references, so they are
+  // always emitted (no opt-out flag) and outrank guides/grid.
   const fullY = { min: 0, max: pageH }
   const fullX = { min: 0, max: pageW }
   x.push({ value: 0, source: 'page', segmentExtent: fullY })
+  x.push({ value: pageW / 2, source: 'page', segmentExtent: fullY })
   x.push({ value: pageW, source: 'page', segmentExtent: fullY })
   y.push({ value: 0, source: 'page', segmentExtent: fullX })
+  y.push({ value: pageH / 2, source: 'page', segmentExtent: fullX })
   y.push({ value: pageH, source: 'page', segmentExtent: fullX })
 
   return { x, y }

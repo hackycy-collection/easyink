@@ -33,12 +33,12 @@ describe('collectSnapCandidates', () => {
     expect(elementX.every(p => p.targetId === 'a')).toBe(true)
   })
 
-  it('always emits 4 page-edge candidates (2 per axis) regardless of toggles', () => {
+  it('always emits page bounds and center candidates regardless of toggles', () => {
     const c = collectSnapCandidates(baseCtx)
     const pageX = c.x.filter(p => p.source === 'page')
     const pageY = c.y.filter(p => p.source === 'page')
-    expect(pageX.map(p => p.value)).toEqual([0, 200])
-    expect(pageY.map(p => p.value)).toEqual([0, 300])
+    expect(pageX.map(p => p.value)).toEqual([0, 100, 200])
+    expect(pageY.map(p => p.value)).toEqual([0, 150, 300])
     expect(pageX[0].segmentExtent).toEqual({ min: 0, max: 300 })
     expect(pageY[0].segmentExtent).toEqual({ min: 0, max: 200 })
   })
@@ -123,16 +123,16 @@ describe('computeSnap', () => {
 
   it('snaps the selection box left edge to a guide', () => {
     const r = computeSnap(
-      { ...baseCtx, guideSnap: true, guidesX: [100] },
+      { ...baseCtx, guideSnap: true, guidesX: [40] },
       {
         selectionBox: { x: 0, y: 0, width: 50, height: 50 },
-        dx: 98,
+        dx: 38,
         dy: 0,
         threshold: 3,
       },
     )
-    expect(r.dx).toBe(100)
-    expect(r.lines[0]).toMatchObject({ orientation: 'vertical', position: 100, source: 'guide' })
+    expect(r.dx).toBe(40)
+    expect(r.lines[0]).toMatchObject({ orientation: 'vertical', position: 40, source: 'guide' })
   })
 
   it('multi-source: a closer element snap wins over a slightly-farther guide', () => {
@@ -223,6 +223,30 @@ describe('computeSnap', () => {
     )
     expect(r.dx).toBe(0)
     expect(r.lines[0]).toMatchObject({ source: 'page', position: 0, orientation: 'vertical' })
+  })
+
+  it('snaps to page center lines when within threshold', () => {
+    const r = computeSnap(
+      baseCtx,
+      {
+        selectionBox: { x: 0, y: 0, width: 20, height: 40 },
+        dx: 89,
+        dy: 129,
+        threshold: 3,
+      },
+    )
+    expect(r.dx).toBe(90)
+    expect(r.dy).toBe(130)
+    expect(r.lines).toContainEqual(expect.objectContaining({
+      source: 'page',
+      orientation: 'vertical',
+      position: 100,
+    }))
+    expect(r.lines).toContainEqual(expect.objectContaining({
+      source: 'page',
+      orientation: 'horizontal',
+      position: 150,
+    }))
   })
 
   it('on equal distance prefers element over page over guide over grid', () => {
