@@ -99,6 +99,17 @@ function createDefaultWindows(): WorkspaceWindowState[] {
       height: 380,
       zIndex: 15,
     },
+    {
+      id: 'debug',
+      kind: 'debug',
+      visible: false,
+      collapsed: false,
+      x: -1,
+      y: -1,
+      width: 300,
+      height: 400,
+      zIndex: 16,
+    },
   ]
 }
 
