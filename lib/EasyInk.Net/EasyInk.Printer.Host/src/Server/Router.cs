@@ -5,13 +5,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using EasyInk.Printer;
 using EasyInk.Printer.Host.Api;
-using EasyInk.Printer.Host.Plugin;
 
 namespace EasyInk.Printer.Host.Server;
 
 public class Router
 {
+    private const long MaxRequestBodyBytes = 50 * 1024 * 1024; // 50MB
+
     private readonly PrinterController _printerController;
     private readonly PrintController _printController;
     private readonly JobController _jobController;
@@ -24,12 +26,12 @@ public class Router
         ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
     };
 
-    public Router(PluginBridge plugin, WebSocketHandler wsHandler)
+    public Router(PrinterApi printerApi, WebSocketHandler wsHandler)
     {
-        _printerController = new PrinterController(plugin);
-        _printController = new PrintController(plugin);
-        _jobController = new JobController(plugin);
-        _logController = new LogController(plugin);
+        _printerController = new PrinterController(printerApi);
+        _printController = new PrintController(printerApi);
+        _jobController = new JobController(printerApi);
+        _logController = new LogController(printerApi);
         _statusController = new StatusController();
         _wsHandler = wsHandler;
     }
@@ -130,6 +132,8 @@ public class Router
     private static string ReadBody(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
+        if (request.ContentLength64 > MaxRequestBodyBytes)
+            throw new InvalidOperationException($"请求体过大: {request.ContentLength64 / 1024 / 1024}MB，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
         using (var reader = new StreamReader(request.InputStream, request.ContentEncoding))
         {
             return reader.ReadToEnd();

@@ -1,23 +1,21 @@
-using EasyInk.Printer.Host.Plugin;
-
 namespace EasyInk.Printer.Host.Api;
 
 public class PrinterController
 {
-    private readonly PluginBridge _plugin;
+    private readonly PrinterApi _api;
 
-    public PrinterController(PluginBridge plugin)
+    public PrinterController(PrinterApi api)
     {
-        _plugin = plugin;
+        _api = api;
     }
 
     public string GetPrinters()
     {
-        return _plugin.GetPrinters();
+        return _api.GetPrinters();
     }
 
     public string GetPrinterStatus(string printerName)
     {
-        return _plugin.GetPrinterStatus(printerName);
+        return _api.GetPrinterStatus(printerName);
     }
 }

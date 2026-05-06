@@ -94,8 +94,15 @@ public class PrinterApi : IDisposable
         var request = BuildPrintRequest(printerName, pdfBase64, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
-        var jobId = _jobQueue.Enqueue(null, request);
-        return JsonConvert.SerializeObject(new { jobId, status = "queued" }, _jsonSettings);
+        try
+        {
+            var jobId = _jobQueue.Enqueue(null, request);
+            return JsonConvert.SerializeObject(new { jobId, status = "queued" }, _jsonSettings);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "QUEUE_FULL", ex.Message), _jsonSettings);
+        }
     }
 
     public string BatchPrint(string jobsJson)
@@ -129,6 +136,12 @@ public class PrinterApi : IDisposable
                 PrinterResult.Error(jobId, "JOB_NOT_FOUND", $"任务不存在: {jobId}"), _jsonSettings);
         }
         return JsonConvert.SerializeObject(info, _jsonSettings);
+    }
+
+    public string GetAllJobs()
+    {
+        var jobs = _jobQueue.GetAllJobs();
+        return JsonConvert.SerializeObject(PrinterResult.Ok("all", jobs), _jsonSettings);
     }
 
     public string QueryLogs(DateTime? startTime = null, DateTime? endTime = null,
@@ -175,6 +188,9 @@ public class PrinterApi : IDisposable
                 break;
             case "getJobStatus":
                 response = HandleGetJobStatus(request);
+                break;
+            case "getAllJobs":
+                response = PrinterResult.Ok(request.Id, _jobQueue.GetAllJobs());
                 break;
             case "queryLogs":
                 response = HandleQueryLogs(request);
@@ -257,8 +273,15 @@ public class PrinterApi : IDisposable
             return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
         }
 
-        var jobId = _jobQueue.Enqueue(request.Id, printParams);
-        return PrinterResult.Ok(request.Id, new { jobId, status = "queued" });
+        try
+        {
+            var jobId = _jobQueue.Enqueue(request.Id, printParams);
+            return PrinterResult.Ok(request.Id, new { jobId, status = "queued" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return PrinterResult.Error(request.Id, "QUEUE_FULL", ex.Message);
+        }
     }
 
     private PrinterResult HandleGetJobStatus(PrinterCommand request)
@@ -391,8 +414,15 @@ public class PrinterApi : IDisposable
         {
             if (async)
             {
-                var jobId = _jobQueue.Enqueue(null, job);
-                results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+                try
+                {
+                    var jobId = _jobQueue.Enqueue(null, job);
+                    results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+                }
+                catch (InvalidOperationException ex)
+                {
+                    results.Add(new BatchJobResult { JobId = null, Status = "failed", ErrorMessage = ex.Message });
+                }
             }
             else
             {

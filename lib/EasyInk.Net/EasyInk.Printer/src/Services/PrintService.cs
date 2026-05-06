@@ -45,46 +45,48 @@ public class PrintService : IPrintService
             return PrinterResult.Error(requestId, "INVALID_PDF", $"PDF解析失败: {ex.Message}");
         }
 
-        var printDoc = new PrintDocument();
-        printDoc.PrinterSettings.PrinterName = request.PrinterName;
-        printDoc.PrinterSettings.Copies = (short)request.Copies;
-
-        if (request.PaperSize != null)
-        {
-            var paperSize = new PaperSize(
-                "Custom",
-                request.PaperSize.WidthInHundredthsOfInch,
-                request.PaperSize.HeightInHundredthsOfInch
-            );
-            printDoc.DefaultPageSettings.PaperSize = paperSize;
-        }
-
-        if (request.Offset != null)
-        {
-            printDoc.DefaultPageSettings.Margins = new Margins(
-                Math.Max(0, request.Offset.XInHundredthsOfInch),
-                0,
-                Math.Max(0, request.Offset.YInHundredthsOfInch),
-                0
-            );
-        }
-
-        var currentPage = 0;
-
-        printDoc.PrintPage += (sender, e) =>
-        {
-            if (currentPage < images.Count)
-            {
-                var image = images[currentPage];
-                e.Graphics.DrawImage(image, e.MarginBounds);
-                currentPage++;
-                e.HasMorePages = currentPage < images.Count;
-            }
-        };
-
         try
         {
-            printDoc.Print();
+            using (var printDoc = new PrintDocument())
+            {
+                printDoc.PrinterSettings.PrinterName = request.PrinterName;
+                printDoc.PrinterSettings.Copies = (short)request.Copies;
+
+                if (request.PaperSize != null)
+                {
+                    var paperSize = new PaperSize(
+                        "Custom",
+                        request.PaperSize.WidthInHundredthsOfInch,
+                        request.PaperSize.HeightInHundredthsOfInch
+                    );
+                    printDoc.DefaultPageSettings.PaperSize = paperSize;
+                }
+
+                if (request.Offset != null)
+                {
+                    printDoc.DefaultPageSettings.Margins = new Margins(
+                        Math.Max(0, request.Offset.XInHundredthsOfInch),
+                        0,
+                        Math.Max(0, request.Offset.YInHundredthsOfInch),
+                        0
+                    );
+                }
+
+                var currentPage = 0;
+
+                printDoc.PrintPage += (sender, e) =>
+                {
+                    if (currentPage < images.Count)
+                    {
+                        var image = images[currentPage];
+                        e.Graphics.DrawImage(image, e.MarginBounds);
+                        currentPage++;
+                        e.HasMorePages = currentPage < images.Count;
+                    }
+                };
+
+                printDoc.Print();
+            }
 
             _auditService.LogPrint(new PrintAuditLog
             {
@@ -119,7 +121,6 @@ public class PrintService : IPrintService
         finally
         {
             _pdfRenderService.DisposeImages(images);
-            printDoc.Dispose();
         }
     }
 }

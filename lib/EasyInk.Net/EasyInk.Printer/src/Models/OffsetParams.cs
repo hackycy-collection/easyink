@@ -1,3 +1,5 @@
+using System;
+
 namespace EasyInk.Printer.Models;
 
 /// <summary>
@@ -23,14 +25,20 @@ public class OffsetParams
     /// <summary>
     /// 转换为百分之一英寸
     /// </summary>
-    public int XInHundredthsOfInch => Unit == "mm"
-        ? (int)(X / 25.4 * 100)
-        : (int)(X * 100);
+    public int XInHundredthsOfInch => ConvertToHundredthsOfInch(X);
 
     /// <summary>
     /// 转换为百分之一英寸
     /// </summary>
-    public int YInHundredthsOfInch => Unit == "mm"
-        ? (int)(Y / 25.4 * 100)
-        : (int)(Y * 100);
+    public int YInHundredthsOfInch => ConvertToHundredthsOfInch(Y);
+
+    private int ConvertToHundredthsOfInch(double value)
+    {
+        switch (Unit?.ToLowerInvariant())
+        {
+            case "mm": return (int)Math.Round(value / 25.4 * 100);
+            case "inch": return (int)Math.Round(value * 100);
+            default: throw new ArgumentException($"不支持的单位: {Unit}，仅支持 mm 或 inch");
+        }
+    }
 }

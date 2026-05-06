@@ -1,11 +1,9 @@
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.UI;
 using EasyInk.Printer.Host.Server;
 using EasyInk.Printer.Host.Config;
-using EasyInk.Printer.Host.Plugin;
 
 namespace EasyInk.Printer.Host;
 
@@ -33,10 +31,10 @@ static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var config = HostConfig.Load();
-        var plugin = new PluginBridge(config.DbPath);
+        var printerApi = new PrinterApi(config.DbPath);
         var httpServer = new HttpServer(config.HttpPort);
         var wsHandler = new WebSocketHandler();
-        var router = new Router(plugin, wsHandler);
+        var router = new Router(printerApi, wsHandler);
 
         httpServer.OnRequest = context =>
         {
@@ -46,7 +44,7 @@ static class Program
         };
 
         var trayIcon = new TrayIcon(httpServer);
-        var mainWindow = new MainWindow(httpServer, wsHandler, plugin, config);
+        var mainWindow = new MainWindow(httpServer, wsHandler, printerApi, config);
 
         trayIcon.OnShowMainWindow += () =>
         {
@@ -66,7 +64,7 @@ static class Program
         trayIcon.OnExit += () =>
         {
             httpServer.Stop();
-            plugin.Dispose();
+            printerApi.Dispose();
             trayIcon.Dispose();
             Application.Exit();
         };

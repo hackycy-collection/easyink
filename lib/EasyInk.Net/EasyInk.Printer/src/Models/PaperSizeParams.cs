@@ -1,3 +1,5 @@
+using System;
+
 namespace EasyInk.Printer.Models;
 
 /// <summary>
@@ -23,14 +25,20 @@ public class PaperSizeParams
     /// <summary>
     /// 转换为百分之一英寸
     /// </summary>
-    public int WidthInHundredthsOfInch => Unit == "mm"
-        ? (int)(Width / 25.4 * 100)
-        : (int)(Width * 100);
+    public int WidthInHundredthsOfInch => ConvertToHundredthsOfInch(Width);
 
     /// <summary>
     /// 转换为百分之一英寸
     /// </summary>
-    public int HeightInHundredthsOfInch => Unit == "mm"
-        ? (int)(Height / 25.4 * 100)
-        : (int)(Height * 100);
+    public int HeightInHundredthsOfInch => ConvertToHundredthsOfInch(Height);
+
+    private int ConvertToHundredthsOfInch(double value)
+    {
+        switch (Unit?.ToLowerInvariant())
+        {
+            case "mm": return (int)Math.Round(value / 25.4 * 100);
+            case "inch": return (int)Math.Round(value * 100);
+            default: throw new ArgumentException($"不支持的单位: {Unit}，仅支持 mm 或 inch");
+        }
+    }
 }

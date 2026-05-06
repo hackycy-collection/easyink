@@ -9,8 +9,8 @@ public class PaperSizeParamsTests
     public void MmToHundredthsOfInch_ConversionIsCorrect()
     {
         var p = new PaperSizeParams { Width = 100, Height = 200, Unit = "mm" };
-        // 100mm = 100/25.4*100 ≈ 393.7 hundredths of inch
-        Assert.Equal(393, p.WidthInHundredthsOfInch);
+        // 100mm = 100/25.4*100 ≈ 393.7 hundredths of inch -> round to 394
+        Assert.Equal(394, p.WidthInHundredthsOfInch);
         // 200mm = 200/25.4*100 ≈ 787.4
         Assert.Equal(787, p.HeightInHundredthsOfInch);
     }
@@ -29,6 +29,20 @@ public class PaperSizeParamsTests
         var p = new PaperSizeParams();
         Assert.Equal("mm", p.Unit);
     }
+
+    [Fact]
+    public void Unit_IsCaseInsensitive()
+    {
+        var p = new PaperSizeParams { Width = 100, Height = 200, Unit = "MM" };
+        Assert.Equal(394, p.WidthInHundredthsOfInch);
+    }
+
+    [Fact]
+    public void InvalidUnit_ThrowsArgumentException()
+    {
+        var p = new PaperSizeParams { Width = 100, Height = 200, Unit = "cm" };
+        Assert.Throws<System.ArgumentException>(() => p.WidthInHundredthsOfInch);
+    }
 }
 
 public class OffsetParamsTests
@@ -37,10 +51,10 @@ public class OffsetParamsTests
     public void MmToHundredthsOfInch_ConversionIsCorrect()
     {
         var o = new OffsetParams { X = 10, Y = 20, Unit = "mm" };
-        // 10mm = 10/25.4*100 ≈ 39.37
+        // 10mm = 10/25.4*100 ≈ 39.37 -> round to 39
         Assert.Equal(39, o.XInHundredthsOfInch);
-        // 20mm = 20/25.4*100 ≈ 78.74
-        Assert.Equal(78, o.YInHundredthsOfInch);
+        // 20mm = 20/25.4*100 ≈ 78.74 -> round to 79
+        Assert.Equal(79, o.YInHundredthsOfInch);
     }
 
     [Fact]
@@ -49,6 +63,13 @@ public class OffsetParamsTests
         var o = new OffsetParams { X = 1.5, Y = 2.5, Unit = "inch" };
         Assert.Equal(150, o.XInHundredthsOfInch);
         Assert.Equal(250, o.YInHundredthsOfInch);
+    }
+
+    [Fact]
+    public void InvalidUnit_ThrowsArgumentException()
+    {
+        var o = new OffsetParams { X = 10, Y = 20, Unit = "cm" };
+        Assert.Throws<System.ArgumentException>(() => o.XInHundredthsOfInch);
     }
 }
 

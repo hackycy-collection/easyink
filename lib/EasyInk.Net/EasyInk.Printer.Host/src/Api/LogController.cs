@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Specialized;
-using EasyInk.Printer.Host.Plugin;
-using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Host.Api;
 
 public class LogController
 {
-    private readonly PluginBridge _plugin;
+    private readonly PrinterApi _api;
 
-    public LogController(PluginBridge plugin)
+    public LogController(PrinterApi api)
     {
-        _plugin = plugin;
+        _api = api;
     }
 
     public string QueryLogs(NameValueCollection query)
@@ -24,7 +22,7 @@ public class LogController
         int limit = int.TryParse(query["limit"], out var l) ? l : 100;
         int offset = int.TryParse(query["offset"], out var o) ? o : 0;
 
-        return _plugin.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
+        return _api.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
     }
 
     private static DateTime? ParseDateTime(string value)

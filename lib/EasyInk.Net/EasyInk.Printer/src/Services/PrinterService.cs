@@ -72,6 +72,28 @@ public class PrinterService : IPrinterService
 
     private PrinterStatus QueryWmiStatus(string printerName)
     {
+        var isValidPrinter = false;
+        foreach (string installed in PrinterSettings.InstalledPrinters)
+        {
+            if (string.Equals(installed, printerName, StringComparison.OrdinalIgnoreCase))
+            {
+                isValidPrinter = true;
+                break;
+            }
+        }
+        if (!isValidPrinter)
+        {
+            return new PrinterStatus
+            {
+                IsReady = false,
+                StatusCode = "PRINTER_NOT_FOUND",
+                Message = "打印机不存在或无法访问",
+                IsOnline = false,
+                HasPaper = false,
+                IsPaperJam = false
+            };
+        }
+
         var escapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
         using (var searcher = new ManagementObjectSearcher(
             $"SELECT * FROM Win32_Printer WHERE Name = '{escapedName}'"))

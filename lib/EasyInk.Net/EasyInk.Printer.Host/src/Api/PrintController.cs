@@ -1,5 +1,4 @@
 using System;
-using EasyInk.Printer.Host.Plugin;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -7,11 +6,11 @@ namespace EasyInk.Printer.Host.Api;
 
 public class PrintController
 {
-    private readonly PluginBridge _plugin;
+    private readonly PrinterApi _api;
 
-    public PrintController(PluginBridge plugin)
+    public PrintController(PrinterApi api)
     {
-        _plugin = plugin;
+        _api = api;
     }
 
     public string Print(string body)
@@ -34,9 +33,6 @@ public class PrintController
         return ExecuteBatchCommand("batchPrintAsync", body);
     }
 
-    /// <summary>
-    /// 单个打印命令：body 直接作为 params.params 传入
-    /// </summary>
     private string ExecuteCommand(string command, string body)
     {
         var commandObj = new JObject
@@ -45,12 +41,9 @@ public class PrintController
             ["id"] = Guid.NewGuid().ToString(),
             ["params"] = new JObject { ["params"] = ParseBody(body) }
         };
-        return _plugin.HandleCommand(commandObj.ToString(Formatting.None));
+        return _api.HandleCommand(commandObj.ToString(Formatting.None));
     }
 
-    /// <summary>
-    /// 批量打印命令：body 中的 jobs 数组作为 params.jobs 传入
-    /// </summary>
     private string ExecuteBatchCommand(string command, string body)
     {
         JArray jobs;
@@ -87,7 +80,7 @@ public class PrintController
             ["id"] = Guid.NewGuid().ToString(),
             ["params"] = new JObject { ["jobs"] = jobs }
         };
-        return _plugin.HandleCommand(commandObj.ToString(Formatting.None));
+        return _api.HandleCommand(commandObj.ToString(Formatting.None));
     }
 
     private static JToken ParseBody(string body)

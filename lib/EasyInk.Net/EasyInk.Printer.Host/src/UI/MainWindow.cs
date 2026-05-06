@@ -3,7 +3,6 @@ using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.Config;
-using EasyInk.Printer.Host.Plugin;
 using EasyInk.Printer.Host.Server;
 
 namespace EasyInk.Printer.Host.UI;
@@ -15,15 +14,15 @@ public class MainWindow : Form
 {
     private readonly HttpServer _server;
     private readonly WebSocketHandler _wsHandler;
-    private readonly PluginBridge _plugin;
+    private readonly PrinterApi _api;
     private readonly HostConfig _config;
     private TabControl _tabs;
 
-    public MainWindow(HttpServer server, WebSocketHandler wsHandler, PluginBridge plugin, HostConfig config)
+    public MainWindow(HttpServer server, WebSocketHandler wsHandler, PrinterApi api, HostConfig config)
     {
         _server = server;
         _wsHandler = wsHandler;
-        _plugin = plugin;
+        _api = api;
         _config = config;
 
         InitializeComponent();
@@ -127,7 +126,7 @@ public class MainWindow : Form
         listView.Items.Clear();
         try
         {
-            var json = await Task.Run(() => _plugin.GetPrinters());
+            var json = await Task.Run(() => _api.GetPrinters());
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
             {
@@ -150,6 +149,36 @@ public class MainWindow : Form
         catch (Exception ex)
         {
             MessageBox.Show($"获取打印机列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async void RefreshJobs(ListView listView)
+    {
+        listView.Items.Clear();
+        try
+        {
+            var json = await Task.Run(() => _api.GetAllJobs());
+            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
+            if (result["success"]?.ToObject<bool>() == true)
+            {
+                var jobs = result["data"] as Newtonsoft.Json.Linq.JArray;
+                if (jobs != null)
+                {
+                    foreach (var job in jobs)
+                    {
+                        var item = new ListViewItem(job["jobId"]?.ToString());
+                        item.SubItems.Add(job["printerName"]?.ToString());
+                        item.SubItems.Add(job["status"]?.ToString());
+                        item.SubItems.Add(job["createdAt"]?.ToString());
+                        item.SubItems.Add(job["errorMessage"]?.ToString());
+                        listView.Items.Add(item);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"获取任务列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -176,11 +205,7 @@ public class MainWindow : Form
             Dock = DockStyle.Top,
             Height = 36
         };
-        btnRefresh.Click += (s, e) =>
-        {
-            // TODO: 当 DLL 插件支持 getAllJobs 后实现
-            listView.Items.Clear();
-        };
+        btnRefresh.Click += (s, e) => RefreshJobs(listView);
 
         tab.Controls.Add(listView);
         tab.Controls.Add(btnRefresh);
@@ -227,7 +252,7 @@ public class MainWindow : Form
         listView.Items.Clear();
         try
         {
-            var json = await Task.Run(() => _plugin.QueryLogs(from, to, limit: 200));
+            var json = await Task.Run(() => _api.QueryLogs(from, to, limit: 200));
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
             {
