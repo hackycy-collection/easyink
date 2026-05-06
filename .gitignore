@@ -15,3 +15,7 @@ cache
 .turbo
 .env.*
 .env
+
+# AI
+.claude
+.agents
