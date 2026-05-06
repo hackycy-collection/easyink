@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { UnitManager, UpdateGuidesCommand } from '@easyink/core'
+import { UpdateGuidesCommand } from '@easyink/core'
 import { computed, ref } from 'vue'
 import { useDesignerStore } from '../composables'
+import { createGeometryService } from '../editing/geometry-service'
 
 defineProps<{
   previewGuide?: { axis: 'x' | 'y', position: number } | null
 }>()
 
 const store = useDesignerStore()
-
 const overlayRef = ref<HTMLElement | null>(null)
+const geometry = createGeometryService(store, {
+  getPageEl: () => overlayRef.value?.closest('.ei-canvas-page') as HTMLElement | null,
+})
 
 const guidesX = computed(() => store.schema.guides.x)
 const guidesY = computed(() => store.schema.guides.y)
 const unit = computed(() => store.schema.unit)
-const zoom = computed(() => store.workbench.viewport.zoom)
 
 const draggingGuide = ref<{
   axis: 'x' | 'y'
@@ -65,9 +67,6 @@ function createGuideAt(axis: 'x' | 'y', position: number) {
 }
 
 function startDrag(axis: 'x' | 'y', index: number, e: PointerEvent, isNew: boolean) {
-  const unitManager = new UnitManager(unit.value)
-  const z = zoom.value
-
   const el = (e.currentTarget || e.target) as HTMLElement
   el.setPointerCapture(e.pointerId)
 
@@ -86,12 +85,10 @@ function startDrag(axis: 'x' | 'y', index: number, e: PointerEvent, isNew: boole
   const pageEl = overlayRef.value?.closest('.ei-canvas-page') as HTMLElement | null
   if (!pageEl)
     return
-  const pageRect = pageEl.getBoundingClientRect()
 
   function onMove(ev: PointerEvent) {
-    const pos = axis === 'x'
-      ? unitManager.screenToDocument(ev.clientX, pageRect.left, 0, z)
-      : unitManager.screenToDocument(ev.clientY, pageRect.top, 0, z)
+    const point = geometry.screenToDocument({ x: ev.clientX, y: ev.clientY })
+    const pos = axis === 'x' ? point.x : point.y
 
     const guides = axis === 'x' ? store.schema.guides.x : store.schema.guides.y
     guides[index] = Math.round(pos * 100) / 100

@@ -227,7 +227,7 @@ interface SelectionType<T> {
 interface MaterialGeometry {
   /**
    * 物料整体的"编辑期"布局描述。是 overlay 一切几何计算的基准。
-   * - contentBox: 物料在画布坐标系下占据的总矩形（可能 ≠ node.width × node.height，
+    * - contentBox: 物料在 document 坐标系下占据的总矩形（可能 ≠ node.width × node.height，
    *   例如 designer 场景虚拟占位行让物料视觉更高）
    * - viewport: 物料内部裁剪/可见区域，超出此区域的子选区 overlay 必须裁剪
    * - scroll: 物料内部滚动偏移（如果支持），overlay 跟随此偏移
@@ -251,7 +251,7 @@ interface MaterialGeometry {
 }
 
 interface ContentLayout {
-  contentBox: Rect            // 画布坐标系
+  contentBox: Rect            // document 坐标系
   viewport?: Rect             // contentBox 内的可见子矩形
   scroll?: { x: number, y: number }
   transform?: { rotate?: number, scaleX?: number, scaleY?: number }
@@ -260,18 +260,37 @@ interface ContentLayout {
 
 ### 22.4.2 框架必须提供
 
+坐标术语只能使用这一套：
+
+- `screen`：浏览器 CSS 像素。
+- `document`：Schema 单位坐标，页面、元素 `x/y/width/height` 的真实坐标系。
+- `local`：节点本地坐标。
+- `viewport`：观察状态，只承载 zoom 与 scroll。
+
+`document` 是设计器内部唯一主术语；旧的 `canvas` 不再作为 GeometryService API 名称出现。designer 交互层不得直接拼装 `pageRect.left / scrollLeft / zoom` 或直接调用 `UnitManager.screenToDocument/documentToScreen` 处理 pointer 坐标。页面 offset、scroll、zoom 与单位由 GeometryService 内部的 `PageGeometrySnapshot` 统一读取。
+
 ```typescript
 interface GeometryService {
-  /** 屏幕像素 ↔ 画布逻辑单位（已含 zoom、page offset、ruler scale） */
-  screenToCanvas: (px: { x: number, y: number }) => Point
-  canvasToScreen: (pt: Point) => { x: number, y: number }
+  /** 当前页面几何快照：unscrolled page offset + viewport + document unit */
+  getPageGeometry: () => PageGeometrySnapshot
 
-  /** 画布逻辑 ↔ 物料局部（已含物料 transform/scroll） */
-  canvasToLocal: (pt: Point, node: MaterialNode) => Point
-  localToCanvas: (pt: Point, node: MaterialNode) => Point
+  /** screen <-> document，已含 zoom、page offset、scroll、document unit */
+  screenToDocument: (px: Point) => Point
+  documentToScreen: (pt: Point) => Point
+
+  /** document <-> local，默认包含节点 rotate/scale transform */
+  documentToLocal: (pt: Point, node: MaterialNode, options?: { includeTransform?: boolean }) => Point
+  localToDocument: (pt: Point, node: MaterialNode, options?: { includeTransform?: boolean }) => Point
 
   /** 当前 selection 的屏幕矩形（聚合 resolveLocation 与 viewport 裁剪） */
   getSelectionRects: () => Rect[]
+}
+
+interface PageGeometrySnapshot {
+  pageOffset: Point
+  zoom: number
+  scroll: Point
+  documentUnit: UnitType
 }
 ```
 

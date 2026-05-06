@@ -1,5 +1,6 @@
 import type { DesignerStore } from '../store/designer-store'
-import { AddMaterialCommand, UnitManager } from '@easyink/core'
+import { AddMaterialCommand } from '@easyink/core'
+import { createGeometryService } from '../editing/geometry-service'
 import { selectOne } from '../interactions/selection-api'
 
 /**
@@ -22,6 +23,8 @@ export interface MaterialDropContext {
  * 4. An AddMaterialCommand is executed so the operation is undoable.
  */
 export function useMaterialDrop(ctx: MaterialDropContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   function onDragOver(e: DragEvent) {
     if (!e.dataTransfer?.types.includes(MATERIAL_DRAG_MIME))
       return
@@ -45,17 +48,11 @@ export function useMaterialDrop(ctx: MaterialDropContext) {
     if (!pageEl)
       return
 
-    const unitManager = new UnitManager(store.schema.unit)
-    const zoom = store.workbench.viewport.zoom
-    const pageRect = pageEl.getBoundingClientRect()
-
-    // Convert screen coordinates to document units
-    const docX = unitManager.screenToDocument(e.clientX, pageRect.left, 0, zoom)
-    const docY = unitManager.screenToDocument(e.clientY, pageRect.top, 0, zoom)
+    const dropPoint = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
 
     const node = definition.createDefaultNode({
-      x: Math.max(0, docX),
-      y: Math.max(0, docY),
+      x: Math.max(0, dropPoint.x),
+      y: Math.max(0, dropPoint.y),
     }, store.schema.unit)
 
     const cmd = new AddMaterialCommand(store.schema.elements, node)

@@ -21,6 +21,8 @@
 
 ## 13.2 单位管理器
 
+`UnitManager` 是单位换算原语，不是 designer 交互层的坐标入口。标尺刻度、键盘步进、纯长度换算可以直接使用它；pointer、drag、drop、resize、rotate、marquee、guide 等涉及页面位置的 `screen <-> document` 换算必须走 `GeometryService`，由它统一处理 page offset、scroll、zoom 与节点 transform。
+
 ```typescript
 class UnitManager {
   /** 当前模板单位 */

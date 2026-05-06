@@ -17,7 +17,7 @@ interface FakeSelection {
 
 interface FakeStore {
   schema: { unit: 'px', elements: MaterialNode[] }
-  workbench: { viewport: { zoom: number } }
+  workbench: { viewport: { zoom: number, scrollLeft: number, scrollTop: number } }
   selection: FakeSelection
   getElements: () => MaterialNode[]
   getVisualSize: (n: MaterialNode) => { width: number, height: number }
@@ -31,7 +31,7 @@ function makeStore(elements: MaterialNode[], initial: string[] = []): FakeStore 
   const set = new Set(initial)
   return {
     schema: { unit: 'px', elements },
-    workbench: { viewport: { zoom: 1 } },
+    workbench: { viewport: { zoom: 1, scrollLeft: 0, scrollTop: 0 } },
     selection: {
       get ids() {
         return [...set]

@@ -1,8 +1,9 @@
 import type { DesignerStore } from '../store/designer-store'
 import type { GestureContext } from './gesture-context'
-import { isInteractable, UnitManager } from '@easyink/core'
+import { isInteractable } from '@easyink/core'
 import { ref } from 'vue'
 import { useElementDrag } from '../composables/use-element-drag'
+import { createGeometryService } from '../editing/geometry-service'
 import { createGestureContext } from './gesture-context'
 import { applySelectionIntent } from './selection-intent'
 
@@ -48,6 +49,7 @@ export function useCanvasInteractionController(ctx: CanvasInteractionControllerC
   const { store } = ctx
 
   const currentGesture = ref<GestureContext | null>(null)
+  const geometry = createGeometryService(store, { getPageEl: ctx.getPageEl })
 
   const drag = useElementDrag({
     store,
@@ -64,13 +66,7 @@ export function useCanvasInteractionController(ctx: CanvasInteractionControllerC
     const pageEl = ctx.getPageEl()
     if (!pageEl)
       return null
-    const rect = pageEl.getBoundingClientRect()
-    const zoom = store.workbench.viewport.zoom
-    const um = new UnitManager(store.schema.unit)
-    return {
-      x: um.screenToDocument(e.clientX, rect.left, 0, zoom),
-      y: um.screenToDocument(e.clientY, rect.top, 0, zoom),
-    }
+    return geometry.screenToDocument({ x: e.clientX, y: e.clientY })
   }
 
   function handleElementPointerDown(e: PointerEvent, elementId: string) {

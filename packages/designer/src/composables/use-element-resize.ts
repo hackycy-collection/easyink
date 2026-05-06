@@ -1,7 +1,8 @@
 import type { DesignerStore } from '../store/designer-store'
 import type { SnapLine } from '../types'
-import { ResizeMaterialCommand, UnitManager } from '@easyink/core'
+import { ResizeMaterialCommand } from '@easyink/core'
 import { markRaw } from 'vue'
+import { createGeometryService } from '../editing/geometry-service'
 import { collectSnapCandidates, pickBestSnap } from '../snap'
 
 export type ResizeHandle
@@ -33,6 +34,8 @@ export interface ElementResizeContext {
  * remains material-agnostic.
  */
 export function useElementResize(ctx: ElementResizeContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   function onHandlePointerDown(e: PointerEvent, elementId: string, handle: ResizeHandle) {
     e.stopPropagation()
     e.preventDefault()
@@ -49,19 +52,13 @@ export function useElementResize(ctx: ElementResizeContext) {
     const designerExt = store.getDesignerExtension(node.type)
     const resizeAdapter = designerExt?.resize
 
-    const unitManager = new UnitManager(store.schema.unit)
     const zoom = store.workbench.viewport.zoom
 
     const pageEl = ctx.getPageEl()
     if (!pageEl)
       return
 
-    const pageRect = pageEl.getBoundingClientRect()
-    const canvasOffsetX = pageRect.left
-    const canvasOffsetY = pageRect.top
-
-    const startDocX = unitManager.screenToDocument(e.clientX, canvasOffsetX, 0, zoom)
-    const startDocY = unitManager.screenToDocument(e.clientY, canvasOffsetY, 0, zoom)
+    const startPoint = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
 
     const origX = node.x
     const origY = node.y
@@ -206,11 +203,10 @@ export function useElementResize(ctx: ElementResizeContext) {
       if (ev.pointerId !== pointerId)
         return
 
-      const docX = unitManager.screenToDocument(ev.clientX, canvasOffsetX, 0, zoom)
-      const docY = unitManager.screenToDocument(ev.clientY, canvasOffsetY, 0, zoom)
+      const point = geometry.screenToDocument({ x: ev.clientX, y: ev.clientY })
 
-      let dx = docX - startDocX
-      let dy = docY - startDocY
+      let dx = point.x - startPoint.x
+      let dy = point.y - startPoint.y
 
       if (dx === 0 && dy === 0)
         return

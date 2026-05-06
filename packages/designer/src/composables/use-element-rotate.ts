@@ -1,5 +1,6 @@
 import type { DesignerStore } from '../store/designer-store'
-import { normalizeRotation, RotateMaterialCommand, UnitManager } from '@easyink/core'
+import { normalizeRotation, RotateMaterialCommand } from '@easyink/core'
+import { createGeometryService } from '../editing/geometry-service'
 import { isElementRotatable } from '../materials/capabilities'
 
 export interface ElementRotateContext {
@@ -16,6 +17,8 @@ export interface ElementRotateContext {
  * - Command merge for single undo entry
  */
 export function useElementRotate(ctx: ElementRotateContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   function onRotatePointerDown(e: PointerEvent, elementId: string) {
     e.stopPropagation()
     e.preventDefault()
@@ -28,25 +31,18 @@ export function useElementRotate(ctx: ElementRotateContext) {
     if (!isElementRotatable(store, node))
       return
 
-    const unitManager = new UnitManager(store.schema.unit)
-    const zoom = store.workbench.viewport.zoom
-
     const pageEl = ctx.getPageEl()
     if (!pageEl)
       return
 
-    const pageRect = pageEl.getBoundingClientRect()
-
-    // Element center in screen pixels
     const centerDocX = node.x + node.width / 2
     const centerDocY = node.y + node.height / 2
-    const centerScreenX = unitManager.documentToScreen(centerDocX, pageRect.left, 0, zoom)
-    const centerScreenY = unitManager.documentToScreen(centerDocY, pageRect.top, 0, zoom)
+    const centerScreen = geometry.documentToScreen({ x: centerDocX, y: centerDocY })
 
     const origRotation = node.rotation ?? 0
 
     // Initial angle from center to pointer
-    const startAngle = Math.atan2(e.clientY - centerScreenY, e.clientX - centerScreenX)
+    const startAngle = Math.atan2(e.clientY - centerScreen.y, e.clientX - centerScreen.x)
 
     let moved = false
 
@@ -54,7 +50,7 @@ export function useElementRotate(ctx: ElementRotateContext) {
     el.setPointerCapture(e.pointerId)
 
     function onMove(ev: PointerEvent) {
-      const currentAngle = Math.atan2(ev.clientY - centerScreenY, ev.clientX - centerScreenX)
+      const currentAngle = Math.atan2(ev.clientY - centerScreen.y, ev.clientX - centerScreen.x)
       const delta = (currentAngle - startAngle) * (180 / Math.PI)
       let newRotation = origRotation + delta
 

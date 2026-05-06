@@ -96,7 +96,7 @@ export class EditingSessionManager {
 
     // If an initial point is provided, hitTest to set initial selection
     if (initialPoint && extension.geometry) {
-      const localPoint = geometry.canvasToLocal(initialPoint, node)
+      const localPoint = geometry.documentToLocal(initialPoint, node)
       const hit = extension.geometry.hitTest(localPoint, node)
       if (hit) {
         selectionStore.set(hit)

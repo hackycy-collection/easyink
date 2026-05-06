@@ -189,13 +189,13 @@ describe('createTableGeometry', () => {
     expect(layout.contentBox).toEqual({ x: 0, y: 0, width: 200, height: 60 })
   })
 
-  it('resolveLocation returns canvas-coordinate rect', () => {
+  it('resolveLocation returns document-coordinate rect', () => {
     const node = makeTableNode()
     const geo = createTableGeometry(makeDelegate(2, node))
     const sel = { type: 'table.cell', nodeId: 'table1', payload: { row: 0, col: 0 } }
     const rects = geo.resolveLocation(sel, node)
     // Cell rect: { x: 0, y: 0, w: 100, h: 30 }
-    // Canvas coords: offset by node position (x=10, y=20)
+    // Document coords: offset by node position (x=10, y=20)
     expect(rects).toEqual([{ x: 10, y: 20, width: 100, height: 30 }])
   })
 

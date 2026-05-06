@@ -189,6 +189,16 @@ interface PanelToggleState {
 
 ## 10.4 画布区结构
 
+### 页面几何模型
+
+画布页面采用两层结构：内层 page 保持 document 单位尺寸，外层 wrapper 承载缩放后的视觉占位。
+
+- page：`width/height` 使用 Schema 的 `document` 单位，元素和 overlay 均在这个坐标系内定位。
+- wrapper：宽高等于 page 尺寸乘以 `viewport.zoom`，只用于让滚动容器拿到正确视觉占位。
+- viewport：只表达观察状态，即 `zoom / scrollLeft / scrollTop`，不参与 Schema 和命令历史。
+
+所有 pointer、drag、drop、resize、rotate、marquee、guide 相关的 `screen <-> document` 换算只能通过 `GeometryService`。调用方只传浏览器 `clientX/clientY` 或 document 点，不能自行读取 page rect、scroll 与 zoom 拼公式。
+
 ### 标尺与辅助线
 
 - 顶部与左侧标尺常驻

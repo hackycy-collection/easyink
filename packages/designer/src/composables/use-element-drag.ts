@@ -1,7 +1,8 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
-import { isInteractable, MoveMaterialCommand, UnitManager } from '@easyink/core'
+import { isInteractable, MoveMaterialCommand } from '@easyink/core'
 import { markRaw } from 'vue'
+import { createGeometryService } from '../editing/geometry-service'
 import { collectSnapCandidates, computeSnap, getSelectionBox } from '../snap'
 
 export interface ElementDragContext {
@@ -40,6 +41,8 @@ export interface ElementDragContext {
  *   boundaries; `pointercancel` rolls back geometry and skips command commit.
  */
 export function useElementDrag(ctx: ElementDragContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   function onPointerDown(e: PointerEvent, elementId: string) {
     const { store } = ctx
     const node = store.getElementById(elementId)
@@ -54,7 +57,6 @@ export function useElementDrag(ctx: ElementDragContext) {
     if (selectedNodes.length === 0)
       return
 
-    const unitManager = new UnitManager(store.schema.unit)
     const zoom = store.workbench.viewport.zoom
 
     const pageEl = ctx.getPageEl()
@@ -62,12 +64,7 @@ export function useElementDrag(ctx: ElementDragContext) {
     if (!pageEl || !scrollEl)
       return
 
-    const pageRect = pageEl.getBoundingClientRect()
-    const canvasOffsetX = pageRect.left
-    const canvasOffsetY = pageRect.top
-
-    const startDocX = unitManager.screenToDocument(e.clientX, canvasOffsetX, 0, zoom)
-    const startDocY = unitManager.screenToDocument(e.clientY, canvasOffsetY, 0, zoom)
+    const startPoint = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
 
     const origPositions = selectedNodes.map(n => ({ id: n.id, x: n.x, y: n.y }))
 
@@ -117,11 +114,10 @@ export function useElementDrag(ctx: ElementDragContext) {
       if (ev.pointerId !== pointerId)
         return
 
-      const currentDocX = unitManager.screenToDocument(ev.clientX, canvasOffsetX, 0, zoom)
-      const currentDocY = unitManager.screenToDocument(ev.clientY, canvasOffsetY, 0, zoom)
+      const currentPoint = geometry.screenToDocument({ x: ev.clientX, y: ev.clientY })
 
-      let dx = currentDocX - startDocX
-      let dy = currentDocY - startDocY
+      let dx = currentPoint.x - startPoint.x
+      let dy = currentPoint.y - startPoint.y
 
       if (dx === 0 && dy === 0)
         return

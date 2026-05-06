@@ -95,8 +95,8 @@ export function hitTestWithPlaceholders(
  * Create a MaterialGeometry implementation for table editing.
  *
  * Coordinate convention (per architecture §22.4):
- * - getContentLayout / resolveLocation return canvas (page-relative) coords
- * - hitTest receives material-local coords (already converted by GeometryService.canvasToLocal)
+ * - getContentLayout / resolveLocation return document coords
+ * - hitTest receives material-local coords (already converted by GeometryService.documentToLocal)
  */
 export function createTableGeometry(delegate: TableEditingDelegate): MaterialGeometry {
   const getHidden = (node: TableNode) => delegate.getHiddenRowMask?.(node)
@@ -123,7 +123,7 @@ export function createTableGeometry(delegate: TableEditingDelegate): MaterialGeo
       if (!rect)
         return []
 
-      // Translate node-local rect to canvas coords so SelectionOverlay can render it
+      // Translate node-local rect to document coords so SelectionOverlay can render it
       // directly with absolute positioning under the page element.
       return [{ x: rect.x + node.x, y: rect.y + node.y, width: rect.w, height: rect.h }]
     },
