@@ -22,6 +22,9 @@
     "build": "tsdown",
     "dev": "tsdown --watch"
   },
+  "peerDependencies": {
+    "vue": "catalog:framework"
+  },
   "dependencies": {
     "@easyink/datasource": "workspace:*",
     "@easyink/designer": "workspace:*",
@@ -30,7 +33,6 @@
     "@easyink/schema-tools": "workspace:*",
     "@easyink/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:framework",
-    "@vueuse/core": "catalog:framework",
-    "vue": "catalog:framework"
+    "@vueuse/core": "catalog:framework"
   }
 }

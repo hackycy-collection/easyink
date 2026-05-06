@@ -29,7 +29,8 @@
     "@codemirror/language": "catalog:framework",
     "@codemirror/state": "catalog:framework",
     "@codemirror/view": "catalog:framework",
-    "@lezer/highlight": "catalog:framework"
+    "@lezer/highlight": "catalog:framework",
+    "vue": "catalog:framework"
   },
   "dependencies": {
     "@easyink/builtin": "workspace:*",
@@ -39,7 +40,6 @@
     "@easyink/schema": "workspace:*",
     "@easyink/shared": "workspace:*",
     "@easyink/ui": "workspace:*",
-    "mutative": "catalog:framework",
-    "vue": "catalog:framework"
+    "mutative": "catalog:framework"
   }
 }

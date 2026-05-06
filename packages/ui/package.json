@@ -22,9 +22,11 @@
     "build": "tsdown",
     "dev": "tsdown --watch"
   },
+  "peerDependencies": {
+    "vue": "catalog:framework"
+  },
   "dependencies": {
     "@easyink/icons": "workspace:*",
-    "@easyink/shared": "workspace:*",
-    "vue": "catalog:framework"
+    "@easyink/shared": "workspace:*"
   }
 }
