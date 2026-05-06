@@ -1,5 +1,6 @@
 import type { DocumentSchema, MaterialNode, PageSchema } from '@easyink/schema'
 import type { PageMode } from '@easyink/shared'
+import { deepClone } from '@easyink/shared'
 
 /**
  * Page plan result -- describes all pages for rendering.
@@ -182,10 +183,11 @@ function createLabelPagePlan(
       const xOffset = col * (cellW + gapX)
       const yOffset = row * (cellH + gapY)
       for (const el of elements) {
+        const clonedElement = deepClone(el)
         sheetElements.push({
-          ...el,
-          x: el.x + xOffset,
-          y: el.y + yOffset,
+          ...clonedElement,
+          x: clonedElement.x + xOffset,
+          y: clonedElement.y + yOffset,
         })
       }
     }

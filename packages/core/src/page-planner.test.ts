@@ -105,6 +105,39 @@ describe('createPagePlan', () => {
       expect(plan.pages[1]!.elements).toHaveLength(3)
     })
 
+    it('deep clones replicated elements so nested props are isolated', () => {
+      const sourceElement = makeNode('a', {
+        props: {
+          style: {
+            color: 'red',
+          },
+        },
+      })
+      const schema = makeSchema({
+        mode: 'label',
+        width: 80,
+        height: 50,
+        label: { columns: 2, rows: 1, gap: 0 },
+        copies: 2,
+      }, [sourceElement])
+
+      const plan = createPagePlan(schema)
+      const firstCopy = plan.pages[0]!.elements[0]!
+      const secondCopy = plan.pages[0]!.elements[1]!
+      const firstCopyStyle = firstCopy.props.style as { color: string }
+      const secondCopyStyle = secondCopy.props.style as { color: string }
+      const sourceStyle = sourceElement.props.style as { color: string }
+
+      expect(firstCopy.props).not.toBe(sourceElement.props)
+      expect(secondCopy.props).not.toBe(sourceElement.props)
+      expect(firstCopyStyle).not.toBe(secondCopyStyle)
+
+      firstCopyStyle.color = 'blue'
+
+      expect(secondCopyStyle.color).toBe('red')
+      expect(sourceStyle.color).toBe('red')
+    })
+
     it('defaults to 1 column / 1 row / 1 copy', () => {
       const schema = makeSchema({ mode: 'label', width: 80, height: 50 }, [makeNode('a')])
       const plan = createPagePlan(schema)
