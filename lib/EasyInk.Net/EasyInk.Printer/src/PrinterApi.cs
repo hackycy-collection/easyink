@@ -51,7 +51,7 @@ public class PrinterApi : IDisposable
     public string GetPrinters()
     {
         var printers = _printerService.GetPrinters();
-        return JsonConvert.SerializeObject(printers, _jsonSettings);
+        return JsonConvert.SerializeObject(PrinterResult.Ok("printers", printers), _jsonSettings);
     }
 
     public string GetPrinterStatus(string printerName)
@@ -149,7 +149,7 @@ public class PrinterApi : IDisposable
         int limit = 100, int offset = 0)
     {
         var logs = _auditService.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
-        return JsonConvert.SerializeObject(logs, _jsonSettings);
+        return JsonConvert.SerializeObject(PrinterResult.Ok("logs", logs), _jsonSettings);
     }
 
     public string HandleCommand(string json)
