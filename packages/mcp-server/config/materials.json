@@ -30,6 +30,7 @@
       "description": "Text block for static labels and data-bound scalar fields.",
       "properties": [
         "content",
+        "writingMode",
         "fontSize",
         "fontFamily",
         "fontWeight",
@@ -42,7 +43,6 @@
         "letterSpacing",
         "autoWrap",
         "overflow",
-        "richText",
         "prefix",
         "suffix",
         "borderWidth",

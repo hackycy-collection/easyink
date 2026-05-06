@@ -22,6 +22,11 @@ const VERTICAL_ALIGN_OPTIONS: NonNullable<PropSchema['enum']> = [
   { label: 'designer.option.alignBottom', value: 'bottom' },
 ]
 
+const WRITING_MODE_OPTIONS: NonNullable<PropSchema['enum']> = [
+  { label: 'designer.option.writingModeHorizontal', value: 'horizontal' },
+  { label: 'designer.option.writingModeVertical', value: 'vertical' },
+]
+
 const OVERFLOW_OPTIONS: NonNullable<PropSchema['enum']> = [
   { label: 'designer.option.overflowVisible', value: 'visible' },
   { label: 'designer.option.overflowHidden', value: 'hidden' },
@@ -70,7 +75,7 @@ const TEXT_PROP_SCHEMAS: PropSchema[] = [
   { key: 'content', label: 'designer.property.content', type: 'textarea', group: 'content' },
   { key: 'prefix', label: 'designer.property.prefix', type: 'string', group: 'content' },
   { key: 'suffix', label: 'designer.property.suffix', type: 'string', group: 'content' },
-  { key: 'richText', label: 'designer.property.richText', type: 'switch', group: 'content' },
+  { key: 'writingMode', label: 'designer.property.writingMode', type: 'enum', group: 'content', enum: WRITING_MODE_OPTIONS },
   { key: 'fontFamily', label: 'designer.property.font', type: 'font', group: 'typography' },
   { key: 'fontSize', label: 'designer.property.fontSize', type: 'number', group: 'typography', min: 1, max: 200, step: 1 },
   { key: 'fontWeight', label: 'designer.property.fontWeight', type: 'enum', group: 'typography', enum: FONT_WEIGHT_OPTIONS },

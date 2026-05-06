@@ -5,6 +5,7 @@ export const TEXT_TYPE = 'text'
 
 export interface TextProps {
   content: string
+  writingMode: 'horizontal' | 'vertical'
   fontSize: number
   fontFamily: string
   fontWeight: string
@@ -17,7 +18,6 @@ export interface TextProps {
   letterSpacing: number
   autoWrap: boolean
   overflow: 'visible' | 'hidden' | 'ellipsis'
-  richText: boolean
   prefix: string
   suffix: string
   borderWidth: number
@@ -27,6 +27,7 @@ export interface TextProps {
 
 export const TEXT_DEFAULTS: TextProps = {
   content: '',
+  writingMode: 'horizontal',
   fontSize: 4.23,
   fontFamily: '',
   fontWeight: 'normal',
@@ -39,7 +40,6 @@ export const TEXT_DEFAULTS: TextProps = {
   letterSpacing: 0,
   autoWrap: true,
   overflow: 'hidden',
-  richText: false,
   prefix: '',
   suffix: '',
   borderWidth: 0,
