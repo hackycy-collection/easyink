@@ -22,7 +22,9 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@types/lodash-es": "catalog:types",
     "lodash-es": "catalog:inlined"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "catalog:types"
   }
 }
