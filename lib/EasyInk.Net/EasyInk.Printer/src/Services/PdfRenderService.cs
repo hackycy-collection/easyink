@@ -1,13 +1,11 @@
 using System.Drawing;
 using EasyInk.Printer.Models;
+using EasyInk.Printer.Services.Abstractions;
 using PdfiumViewer;
 
 namespace EasyInk.Printer.Services;
 
-/// <summary>
-/// PDF渲染服务
-/// </summary>
-public class PdfRenderService
+public class PdfRenderService : IPdfRenderService
 {
     /// <summary>
     /// 将PDF渲染为图片列表

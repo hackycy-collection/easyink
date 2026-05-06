@@ -2,13 +2,11 @@ using System.Diagnostics;
 using System.Drawing.Printing;
 using System.Management;
 using EasyInk.Printer.Models;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
-/// <summary>
-/// 打印机管理服务
-/// </summary>
-public class PrinterService
+public class PrinterService : IPrinterService
 {
     /// <summary>
     /// 获取所有打印机

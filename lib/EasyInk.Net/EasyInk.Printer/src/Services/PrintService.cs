@@ -1,19 +1,17 @@
 using System.Drawing;
 using System.Drawing.Printing;
 using EasyInk.Printer.Models;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
-/// <summary>
-/// 打印服务核心
-/// </summary>
-public class PrintService
+public class PrintService : IPrintService
 {
-    private readonly PrinterService _printerService;
-    private readonly PdfRenderService _pdfRenderService;
-    private readonly AuditService _auditService;
+    private readonly IPrinterService _printerService;
+    private readonly IPdfRenderService _pdfRenderService;
+    private readonly IAuditService _auditService;
 
-    public PrintService(PrinterService printerService, PdfRenderService pdfRenderService, AuditService auditService)
+    public PrintService(IPrinterService printerService, IPdfRenderService pdfRenderService, IAuditService auditService)
     {
         _printerService = printerService;
         _pdfRenderService = pdfRenderService;

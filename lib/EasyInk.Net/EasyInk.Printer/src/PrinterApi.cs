@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer;
 
@@ -9,12 +10,14 @@ namespace EasyInk.Printer;
 /// 打印插件公共API
 /// 供 Electron 通过 edge-js 或 node-ffi 调用
 /// </summary>
-public class PrinterApi
+public class PrinterApi : IDisposable
 {
-    private readonly PrinterService _printerService;
-    private readonly PrintService _printService;
-    private readonly AuditService _auditService;
-    private readonly PdfRenderService _pdfRenderService;
+    private readonly IPrinterService _printerService;
+    private readonly IPrintService _printService;
+    private readonly IAuditService _auditService;
+    private readonly IPdfRenderService _pdfRenderService;
+    private readonly PrintJobQueue _jobQueue;
+    private readonly bool _ownsServices;
 
     private static readonly JsonSerializerSettings _jsonSettings = new()
     {
@@ -23,63 +26,72 @@ public class PrinterApi
     };
 
     public PrinterApi(string dbPath = null)
+        : this(null, null, null, null, dbPath)
     {
-        _printerService = new PrinterService();
-        _pdfRenderService = new PdfRenderService();
-        _auditService = new AuditService(dbPath);
-        _printService = new PrintService(_printerService, _pdfRenderService, _auditService);
     }
 
-    /// <summary>
-    /// 获取打印机列表
-    /// </summary>
+    public PrinterApi(
+        IPrinterService printerService = null,
+        IPdfRenderService pdfRenderService = null,
+        IAuditService auditService = null,
+        IPrintService printService = null,
+        string dbPath = null)
+    {
+        _ownsServices = printerService == null;
+        _printerService = printerService ?? new PrinterService();
+        _pdfRenderService = pdfRenderService ?? new PdfRenderService();
+        _auditService = auditService ?? new AuditService(dbPath);
+        _printService = printService ?? new PrintService(_printerService, _pdfRenderService, _auditService);
+        _jobQueue = new PrintJobQueue(_printService);
+    }
+
     public string GetPrinters()
     {
         var printers = _printerService.GetPrinters();
         return JsonConvert.SerializeObject(printers, _jsonSettings);
     }
 
-    /// <summary>
-    /// 获取打印机状态
-    /// </summary>
     public string GetPrinterStatus(string printerName)
     {
         var status = _printerService.GetPrinterStatus(printerName);
         return JsonConvert.SerializeObject(status, _jsonSettings);
     }
 
-    /// <summary>
-    /// 打印PDF
-    /// </summary>
     public string Print(string printerName, string pdfBase64, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
         string userId = null, string labelType = null)
     {
-        var request = new PrintRequestParams
-        {
-            PrinterName = printerName,
-            PdfBase64 = pdfBase64,
-            Copies = copies,
-            Dpi = dpi,
-            PaperSize = paperWidth.HasValue && paperHeight.HasValue
-                ? new PaperSizeParams { Width = paperWidth.Value, Height = paperHeight.Value, Unit = paperUnit }
-                : null,
-            Offset = offsetX.HasValue || offsetY.HasValue
-                ? new OffsetParams { X = offsetX ?? 0, Y = offsetY ?? 0, Unit = offsetUnit }
-                : null,
-            UserData = !string.IsNullOrEmpty(userId) || !string.IsNullOrEmpty(labelType)
-                ? new UserDataParams { UserId = userId, LabelType = labelType }
-                : null
-        };
+        var request = BuildPrintRequest(printerName, pdfBase64, copies,
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
         var response = _printService.Print(Guid.NewGuid().ToString(), request);
         return JsonConvert.SerializeObject(response, _jsonSettings);
     }
 
-    /// <summary>
-    /// 查询审计日志
-    /// </summary>
+    public string PrintAsync(string printerName, string pdfBase64, int copies = 1,
+        double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
+        int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
+        string userId = null, string labelType = null)
+    {
+        var request = BuildPrintRequest(printerName, pdfBase64, copies,
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
+
+        var jobId = _jobQueue.Enqueue(null, request);
+        return JsonConvert.SerializeObject(new { jobId, status = "queued" }, _jsonSettings);
+    }
+
+    public string GetJobStatus(string jobId)
+    {
+        var info = _jobQueue.GetJobStatus(jobId);
+        if (info == null)
+        {
+            return JsonConvert.SerializeObject(
+                CommandResponse.Error(jobId, "JOB_NOT_FOUND", $"任务不存在: {jobId}"), _jsonSettings);
+        }
+        return JsonConvert.SerializeObject(info, _jsonSettings);
+    }
+
     public string QueryLogs(DateTime? startTime = null, DateTime? endTime = null,
         string printerName = null, string userId = null, string status = null,
         int limit = 100, int offset = 0)
@@ -88,9 +100,6 @@ public class PrinterApi
         return JsonConvert.SerializeObject(logs, _jsonSettings);
     }
 
-    /// <summary>
-    /// 处理JSON命令（兼容stdin模式）
-    /// </summary>
     public string HandleCommand(string json)
     {
         var request = JsonConvert.DeserializeObject<CommandRequest>(json, _jsonSettings);
@@ -112,6 +121,12 @@ public class PrinterApi
             case "print":
                 response = HandlePrint(request);
                 break;
+            case "printAsync":
+                response = HandlePrintAsync(request);
+                break;
+            case "getJobStatus":
+                response = HandleGetJobStatus(request);
+                break;
             case "queryLogs":
                 response = HandleQueryLogs(request);
                 break;
@@ -121,6 +136,38 @@ public class PrinterApi
         }
 
         return JsonConvert.SerializeObject(response, _jsonSettings);
+    }
+
+    public void Dispose()
+    {
+        _jobQueue.Dispose();
+        if (_ownsServices)
+        {
+            (_pdfRenderService as IDisposable)?.Dispose();
+            (_auditService as IDisposable)?.Dispose();
+        }
+    }
+
+    private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64, int copies,
+        double? paperWidth, double? paperHeight, string paperUnit, int dpi,
+        double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType)
+    {
+        return new PrintRequestParams
+        {
+            PrinterName = printerName,
+            PdfBase64 = pdfBase64,
+            Copies = copies,
+            Dpi = dpi,
+            PaperSize = paperWidth.HasValue && paperHeight.HasValue
+                ? new PaperSizeParams { Width = paperWidth.Value, Height = paperHeight.Value, Unit = paperUnit }
+                : null,
+            Offset = offsetX.HasValue || offsetY.HasValue
+                ? new OffsetParams { X = offsetX ?? 0, Y = offsetY ?? 0, Unit = offsetUnit }
+                : null,
+            UserData = !string.IsNullOrEmpty(userId) || !string.IsNullOrEmpty(labelType)
+                ? new UserDataParams { UserId = userId, LabelType = labelType }
+                : null
+        };
     }
 
     private CommandResponse HandleGetPrinterStatus(CommandRequest request)
@@ -137,30 +184,59 @@ public class PrinterApi
 
     private CommandResponse HandlePrint(CommandRequest request)
     {
+        var printParams = ExtractPrintParams(request);
+        if (printParams == null)
+        {
+            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+        }
+
+        return _printService.Print(request.Id, printParams);
+    }
+
+    private CommandResponse HandlePrintAsync(CommandRequest request)
+    {
+        var printParams = ExtractPrintParams(request);
+        if (printParams == null)
+        {
+            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+        }
+
+        var jobId = _jobQueue.Enqueue(request.Id, printParams);
+        return CommandResponse.Ok(request.Id, new { jobId, status = "queued" });
+    }
+
+    private CommandResponse HandleGetJobStatus(CommandRequest request)
+    {
+        var jobId = GetParam<string>(request, "jobId");
+        if (string.IsNullOrEmpty(jobId))
+        {
+            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少jobId参数");
+        }
+
+        var info = _jobQueue.GetJobStatus(jobId);
+        if (info == null)
+        {
+            return CommandResponse.Error(request.Id, "JOB_NOT_FOUND", $"任务不存在: {jobId}");
+        }
+        return CommandResponse.Ok(request.Id, info);
+    }
+
+    private PrintRequestParams ExtractPrintParams(CommandRequest request)
+    {
         var paramsToken = request.Params != null && request.Params.ContainsKey("params")
             ? request.Params["params"]
             : null;
 
         if (paramsToken == null)
-        {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "缺少打印参数");
-        }
+            return null;
 
-        PrintRequestParams printParams;
         if (paramsToken is JObject jObj)
-        {
-            printParams = jObj.ToObject<PrintRequestParams>();
-        }
-        else if (paramsToken is PrintRequestParams p)
-        {
-            printParams = p;
-        }
-        else
-        {
-            return CommandResponse.Error(request.Id, "INVALID_PARAMS", "参数格式错误");
-        }
+            return jObj.ToObject<PrintRequestParams>();
 
-        return _printService.Print(request.Id, printParams);
+        if (paramsToken is PrintRequestParams p)
+            return p;
+
+        return null;
     }
 
     private CommandResponse HandleQueryLogs(CommandRequest request)
