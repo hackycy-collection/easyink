@@ -55,11 +55,11 @@ public class PrintJobQueue : IDisposable
 
     public PrintJob GetJobStatus(string jobId)
     {
-        if (!_jobs.TryGetValue(jobId, out var info))
-            return null;
-
         lock (_jobLock)
         {
+            if (!_jobs.TryGetValue(jobId, out var info))
+                return null;
+
             return new PrintJob
             {
                 JobId = info.JobId,

@@ -24,10 +24,15 @@ static class Program
             return;
         }
 
-        Run();
-
-        _mutex.ReleaseMutex();
-        _mutex.Dispose();
+        try
+        {
+            Run();
+        }
+        finally
+        {
+            _mutex.ReleaseMutex();
+            _mutex.Dispose();
+        }
     }
 
     private static void Run()

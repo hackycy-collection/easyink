@@ -39,7 +39,7 @@ public class PrintController
         {
             ["command"] = command,
             ["id"] = Guid.NewGuid().ToString(),
-            ["params"] = new JObject { ["params"] = ParseBody(body) }
+            ["params"] = ParseBody(body)
         };
         return _api.HandleCommand(commandObj.ToString(Formatting.None));
     }

@@ -101,24 +101,24 @@ public class PrinterService : IPrinterService
         try
         {
             printer = new ManagementObject(printerPath);
-            printer.Get();
-        }
-        catch (ManagementException)
-        {
-            return new PrinterStatus
+            try
             {
-                IsReady = false,
-                StatusCode = "STATUS_UNKNOWN",
-                Message = "无法获取打印机状态详情（WMI查询无结果）",
-                IsOnline = false,
-                HasPaper = false,
-                IsPaperJam = false,
-                PrinterState = "Unknown"
-            };
-        }
+                printer.Get();
+            }
+            catch (ManagementException)
+            {
+                return new PrinterStatus
+                {
+                    IsReady = false,
+                    StatusCode = "STATUS_UNKNOWN",
+                    Message = "无法获取打印机状态详情（WMI查询无结果）",
+                    IsOnline = false,
+                    HasPaper = false,
+                    IsPaperJam = false,
+                    PrinterState = "Unknown"
+                };
+            }
 
-        try
-        {
             // PrinterStatus: 1=Other, 2=Unknown, 3=Idle, 4=Printing, 5=Warmup, 6=Stopped, 7=Offline
             var printerStatus = GetUInt32(printer, "PrinterStatus");
             // PrinterState: 0=Idle, 1=Printing, 2=Warmup, 3=Stopped, 4=Offline,
@@ -185,7 +185,7 @@ public class PrinterService : IPrinterService
         }
         finally
         {
-            printer.Dispose();
+            printer?.Dispose();
         }
     }
 

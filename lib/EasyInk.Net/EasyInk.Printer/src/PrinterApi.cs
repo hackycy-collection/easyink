@@ -322,20 +322,12 @@ public class PrinterApi : IDisposable
 
     private PrintRequestParams ExtractPrintParams(PrinterCommand request)
     {
-        var paramsToken = request.Params != null && request.Params.ContainsKey("params")
-            ? request.Params["params"]
-            : null;
-
-        if (paramsToken == null)
+        if (request.Params == null || request.Params.Count == 0)
             return null;
 
-        if (paramsToken is JObject jObj)
-            return jObj.ToObject<PrintRequestParams>();
-
-        if (paramsToken is PrintRequestParams p)
-            return p;
-
-        return null;
+        // 直接从 Params 字典构造 JObject 再反序列化
+        var jObj = JObject.FromObject(request.Params);
+        return jObj.ToObject<PrintRequestParams>();
     }
 
     private PrinterResult HandleQueryLogs(PrinterCommand request)

@@ -264,9 +264,9 @@ public class MainWindow : Form
 
     private async void RefreshPrinters(ListView listView)
     {
-        listView.Items.Clear();
         try
         {
+            listView.Items.Clear();
             var json = await Task.Run(() => _api.GetPrinters());
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
@@ -287,17 +287,19 @@ public class MainWindow : Form
                 }
             }
         }
+        catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            MessageBox.Show($"获取打印机列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            try { MessageBox.Show($"获取打印机列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (ObjectDisposedException) { }
         }
     }
 
     private async void RefreshJobs(ListView listView)
     {
-        listView.Items.Clear();
         try
         {
+            listView.Items.Clear();
             var json = await Task.Run(() => _api.GetAllJobs());
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
@@ -317,9 +319,11 @@ public class MainWindow : Form
                 }
             }
         }
+        catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            MessageBox.Show($"获取任务列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            try { MessageBox.Show($"获取任务列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (ObjectDisposedException) { }
         }
     }
 
@@ -414,9 +418,9 @@ public class MainWindow : Form
 
     private async void RefreshLogs(ListView listView, DateTime from, DateTime to)
     {
-        listView.Items.Clear();
         try
         {
+            listView.Items.Clear();
             var json = await Task.Run(() => _api.QueryLogs(from, to, limit: 200));
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
@@ -437,9 +441,11 @@ public class MainWindow : Form
                 }
             }
         }
+        catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            MessageBox.Show($"查询日志失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            try { MessageBox.Show($"查询日志失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (ObjectDisposedException) { }
         }
     }
 

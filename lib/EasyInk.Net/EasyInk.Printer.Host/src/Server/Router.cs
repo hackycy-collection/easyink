@@ -146,10 +146,20 @@ public class Router
         if (request.InputStream == null) return null;
         if (request.ContentLength64 > MaxRequestBodyBytes)
             throw new InvalidOperationException($"请求体过大: {request.ContentLength64 / 1024 / 1024}MB，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
-        using (var reader = new StreamReader(request.InputStream, request.ContentEncoding))
+
+        var buffer = new byte[MaxRequestBodyBytes];
+        int totalRead = 0;
+        int bytesRead;
+        while (totalRead < buffer.Length &&
+               (bytesRead = request.InputStream.Read(buffer, totalRead, buffer.Length - totalRead)) > 0)
         {
-            return reader.ReadToEnd();
+            totalRead += bytesRead;
         }
+
+        if (totalRead >= MaxRequestBodyBytes)
+            throw new InvalidOperationException($"请求体过大，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
+
+        return request.ContentEncoding.GetString(buffer, 0, totalRead);
     }
 
     private static string ErrorJson(string code, string message)

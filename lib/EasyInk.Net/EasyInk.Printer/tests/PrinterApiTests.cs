@@ -108,11 +108,8 @@ public class PrinterApiTests
 
         var parms = new Dictionary<string, object>
         {
-            ["params"] = JObject.FromObject(new PrintRequestParams
-            {
-                PrinterName = "Test",
-                PdfBase64 = Convert.ToBase64String(new byte[] { 1, 2, 3 })
-            })
+            ["printerName"] = "Test",
+            ["pdfBase64"] = Convert.ToBase64String(new byte[] { 1, 2, 3 })
         };
 
         using var api = CreateApi(printService: printService);

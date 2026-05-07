@@ -31,7 +31,7 @@ public class PrintService : IPrintService
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);
         }
 
-        List<Image> images;
+        List<Image> images = null;
         try
         {
             images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi);
@@ -120,7 +120,8 @@ public class PrintService : IPrintService
         }
         finally
         {
-            _pdfRenderService.DisposeImages(images);
+            if (images != null)
+                _pdfRenderService.DisposeImages(images);
         }
     }
 }
