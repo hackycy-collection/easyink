@@ -122,7 +122,7 @@ export type {
 
 export { createPagePlan } from './page-planner'
 
-export type { PagePlan, PagePlanDiagnostic, PagePlanEntry } from './page-planner'
+export type { PagePlan, PagePlanDiagnostic, PagePlanEntry, PagePlanOptions } from './page-planner'
 
 export { applyJsonPatches, PatchCommand } from './patch-command'
 export type { PatchCommandOptions } from './patch-command'

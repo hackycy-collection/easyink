@@ -203,6 +203,51 @@ describe('viewer runtime stack reflow', () => {
     expect(Number.parseFloat(afterEl!.style.top)).toBeCloseTo(56.38, 2)
   })
 
+  it('keeps the original template trailing gap after stack page height recompute', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    registerTestMaterials(viewer)
+
+    const pageHeight = 100
+    const trailingGap = 30
+    const schema: DocumentSchema = {
+      version: '1.0.0',
+      unit: 'mm',
+      page: {
+        mode: 'stack',
+        width: 80,
+        height: pageHeight,
+      },
+      guides: { x: [], y: [] },
+      elements: [
+        makeTableNode('items', { x: 5, y: 10, width: 70, height: 24 }),
+        makeNode('after', {
+          y: pageHeight - trailingGap - 8,
+          x: 5,
+          width: 70,
+          height: 8,
+        }),
+      ],
+    }
+
+    await viewer.open({
+      schema,
+      data: {
+        items: Array.from({ length: 10 }, (_, index) => ({ name: `Item ${index + 1}`, qty: index + 1 })),
+      },
+    })
+
+    const pageEl = container.querySelector('.ei-viewer-page') as HTMLElement | null
+    const afterEl = container.querySelector('[data-element-id="after"]') as HTMLElement | null
+    expect(pageEl).not.toBeNull()
+    expect(afterEl).not.toBeNull()
+
+    const pageBottom = Number.parseFloat(pageEl!.style.height)
+    const afterBottom = Number.parseFloat(afterEl!.style.top) + Number.parseFloat(afterEl!.style.height)
+    expect(pageBottom).toBeGreaterThan(pageHeight)
+    expect(pageBottom - afterBottom).toBeCloseTo(trailingGap, 2)
+  })
+
   it('keeps legacy line templates visible by promoting lineWidth into render height', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })

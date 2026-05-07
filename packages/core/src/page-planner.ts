@@ -28,11 +28,15 @@ export interface PagePlanDiagnostic {
   message: string
 }
 
+export interface PagePlanOptions {
+  originalSchema?: DocumentSchema
+}
+
 /**
  * Create a page plan for fixed-page mode.
  * Elements are assigned to pages based on their y coordinate.
  */
-export function createPagePlan(schema: DocumentSchema): PagePlan {
+export function createPagePlan(schema: DocumentSchema, options: PagePlanOptions = {}): PagePlan {
   const { page, elements } = schema
   const diagnostics: PagePlanDiagnostic[] = []
 
@@ -40,7 +44,7 @@ export function createPagePlan(schema: DocumentSchema): PagePlan {
     case 'fixed':
       return createFixedPagePlan(page, elements, diagnostics)
     case 'stack':
-      return createStackPagePlan(page, elements, diagnostics)
+      return createStackPagePlan(page, elements, diagnostics, options.originalSchema)
     case 'label':
       return createLabelPagePlan(page, elements, diagnostics)
     default:
@@ -120,15 +124,12 @@ function createStackPagePlan(
   page: PageSchema,
   elements: MaterialNode[],
   diagnostics: PagePlanDiagnostic[],
+  originalSchema: DocumentSchema | undefined,
 ): PagePlan {
   // Stack mode: single continuous page
-  let totalHeight = page.height
-  for (const el of elements) {
-    const bottom = el.y + el.height
-    if (bottom > totalHeight) {
-      totalHeight = bottom
-    }
-  }
+  const contentBottom = getContentBottom(elements)
+  const trailingGap = getStackTrailingGap(originalSchema)
+  const totalHeight = Math.max(page.height, contentBottom + trailingGap)
 
   return {
     mode: 'stack',
@@ -141,6 +142,24 @@ function createStackPagePlan(
     }],
     diagnostics,
   }
+}
+
+function getStackTrailingGap(originalSchema: DocumentSchema | undefined): number {
+  if (!originalSchema || originalSchema.page.mode !== 'stack')
+    return 0
+  const originalContentBottom = getContentBottom(originalSchema.elements)
+  return Math.max(originalSchema.page.height - originalContentBottom, 0)
+}
+
+function getContentBottom(elements: MaterialNode[]): number {
+  let bottom = 0
+  for (const el of elements) {
+    const elementBottom = el.y + el.height
+    if (elementBottom > bottom) {
+      bottom = elementBottom
+    }
+  }
+  return bottom
 }
 
 function createLabelPagePlan(

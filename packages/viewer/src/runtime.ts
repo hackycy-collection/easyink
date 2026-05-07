@@ -105,7 +105,7 @@ export class ViewerRuntime {
     diagnostics.push(...layoutDiagnostics)
 
     // Stage 4: Page planning
-    const plan = createPagePlan(measuredSchema)
+    const plan = createPagePlan(measuredSchema, { originalSchema: this._schema })
 
     for (const d of plan.diagnostics) {
       diagnostics.push({

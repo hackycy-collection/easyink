@@ -69,6 +69,21 @@ describe('createPagePlan', () => {
       const plan = createPagePlan(schema)
       expect(plan.pages[0]!.height).toBe(500)
     })
+
+    it('preserves original trailing gap when stack content grows', () => {
+      const originalSchema = makeSchema(
+        { mode: 'stack', height: 200 },
+        [makeNode('last', { y: 150, height: 30 })],
+      )
+      const measuredSchema = makeSchema(
+        { mode: 'stack', height: 200 },
+        [makeNode('last', { y: 200, height: 30 })],
+      )
+
+      const plan = createPagePlan(measuredSchema, { originalSchema })
+
+      expect(plan.pages[0]!.height).toBe(250)
+    })
   })
 
   describe('label mode', () => {

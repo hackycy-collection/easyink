@@ -50,6 +50,7 @@ type PageMode = 'fixed' | 'stack' | 'label'
 - 默认所有元素都参与 flow；显式 `layoutMode='fixed'` 的元素保留原始坐标
 - 回流规则只看文档纵向顺序：原始 `y` 更靠后的 flow 元素整体平移，保留原始间距
 - 同一原始 `y` 带内的元素互不推动，避免并排元素因排序差异互相串扰
+- 连续纸最终页高由回流后内容底边决定，但必须保留原模板尾部留白：`trailingGap = max(page.height - originalContentBottom, 0)`，最终高度为 `max(page.height, reflowedContentBottom + trailingGap)`
 - `keepTogether`、`pageBreakBefore`、`pageBreakAfter` 先入 schema / UI，首版不生效
 
 ### `label`
@@ -78,7 +79,7 @@ Viewer 的 PagePlanner 与表格物料的 ViewerExtension 采用协作模式：
 1. ViewerRuntime 在测量阶段检测到 table-data 元素时，调用其 ViewerExtension 的 `measure()` 方法
 2. 表格 ViewerExtension 负责展开 repeat-template 行（按绑定集合数据逐项生成），返回展开后的行序列和每行高度
 3. `stack` 模式下，ViewerRuntime 把测量后的高度差折算为后续 flow 元素的整体平移量
-4. PagePlanner 再根据回流后的几何结果和页面高度决定切分点，在切分点处注入 header 行重复
+4. PagePlanner 再根据回流后的几何结果和页面高度决定切分点，并在 `stack` 模式下用原始 schema 恢复模板尾部留白，在切分点处注入 header 行重复
 5. 最终的 `TablePagePlan` 传回表格 ViewerExtension 用于渲染
 
 ```typescript
