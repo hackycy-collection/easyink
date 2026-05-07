@@ -1,7 +1,7 @@
 import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
 import type { ViewerRuntime } from './runtime'
 import { LINE_TYPE, renderLine } from '@easyink/material-line'
-import { getTableDataDesignerVisualHeight, measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
+import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { describe, expect, it } from 'vitest'
 import { createViewer } from './index'
 import { applyStackFlowLayout } from './stack-flow-layout'
@@ -137,11 +137,11 @@ describe('applyStackFlowLayout', () => {
     ])
   })
 
-  it('preserves the designer visual gap for table-data placeholder rows', () => {
+  it('preserves the schema-height gap for table-data placeholder rows', () => {
     const originalTable = makeTableNode('table', { y: 56, height: 24 })
     const measuredTable = makeTableNode('table', { y: 56, height: 56 })
     const originalGap = 4
-    const originalBottom = originalTable.y + getTableDataDesignerVisualHeight(originalTable)
+    const originalBottom = originalTable.y + originalTable.height
     const original = [
       originalTable,
       makeNode('grand-total', { y: originalBottom + originalGap, x: 140, width: 60, height: 8 }),
@@ -198,8 +198,9 @@ describe('viewer runtime stack reflow', () => {
     const afterEl = container.querySelector('[data-element-id="after"]') as HTMLElement | null
     expect(afterEl).not.toBeNull()
 
-    // Position is now in document units (mm), not px
-    expect(afterEl!.style.top).toBe('56mm')
+    // Position is in document units (mm), and includes the measured table delta.
+    expect(afterEl!.style.top.endsWith('mm')).toBe(true)
+    expect(Number.parseFloat(afterEl!.style.top)).toBeCloseTo(56.38, 2)
   })
 
   it('keeps legacy line templates visible by promoting lineWidth into render height', async () => {

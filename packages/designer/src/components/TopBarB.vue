@@ -4,10 +4,12 @@ import type { Component } from 'vue'
 import {
   AddMaterialCommand,
   getBoundingRect,
+  isInteractable,
   MoveMaterialCommand,
   normalizeRotation,
   RemoveMaterialCommand,
   RotateMaterialCommand,
+  UpdateMaterialMetaCommand,
   UpdateMaterialPropsCommand,
 } from '@easyink/core'
 import {
@@ -112,7 +114,13 @@ const clipboardActions = createClipboardActions(store, () => selectedNodes.value
 
 const hasSelection = computed(() => !store.selection.isEmpty)
 
-const rotatableSelectedNodes = computed(() => filterRotatableElements(store, selectedNodes.value))
+const editableSelectedNodes = computed(() => selectedNodes.value.filter(isInteractable))
+
+const hasEditableSelection = computed(() => editableSelectedNodes.value.length > 0)
+
+const canToggleVisibility = computed(() => selectedNodes.value.length > 0 && selectedNodes.value.every(node => !node.locked))
+
+const rotatableSelectedNodes = computed(() => filterRotatableElements(store, editableSelectedNodes.value))
 
 const hasRotatableSelection = computed(() => rotatableSelectedNodes.value.length > 0)
 
@@ -188,7 +196,7 @@ function handleClear() {
 
 // ─── Font Style (bold / italic / underline) ──────────────────
 function toggleFontProp(prop: 'fontWeight' | 'fontStyle' | 'textDecoration') {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length === 0)
     return
 
@@ -242,18 +250,17 @@ function handleRotation() {
 
 // ─── Visibility ──────────────────────────────────────────────
 function handleVisibility() {
-  const nodes = selectedNodes.value
+  const nodes = selectedNodes.value.filter(node => !node.locked)
   if (nodes.length === 0)
     return
 
-  for (const node of nodes) {
-    store.updateElement(node.id, { hidden: !node.hidden })
-  }
+  const allHidden = nodes.every(node => node.hidden)
+  runMetaTransaction(allHidden ? 'Show' : 'Hide', nodes, { hidden: !allHidden })
 }
 
 // ─── Select ──────────────────────────────────────────────────
 function handleSelectAll() {
-  selectMany(store, store.schema.elements.map(el => el.id))
+  selectMany(store, store.schema.elements.filter(isInteractable).map(el => el.id))
 }
 
 function handleSelectSameType() {
@@ -263,14 +270,14 @@ function handleSelectSameType() {
 
   const types = new Set(nodes.map(n => n.type))
   const sameTypeIds = store.schema.elements
-    .filter(el => types.has(el.type))
+    .filter(el => types.has(el.type) && isInteractable(el))
     .map(el => el.id)
   selectMany(store, sameTypeIds)
 }
 
 // ─── Distribute ──────────────────────────────────────────────
 function handleDistribute() {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length < 3)
     return
 
@@ -296,7 +303,7 @@ function handleDistribute() {
 
 // ─── Align ───────────────────────────────────────────────────
 function handleAlign(mode: 'left' | 'center' | 'right') {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length < 2)
     return
 
@@ -329,7 +336,7 @@ function handleAlign(mode: 'left' | 'center' | 'right') {
 
 // ─── Layer ───────────────────────────────────────────────────
 function handleLayerUp() {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length === 0)
     return
 
@@ -347,7 +354,7 @@ function handleLayerUp() {
 }
 
 function handleLayerDown() {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length === 0)
     return
 
@@ -366,7 +373,7 @@ function handleLayerDown() {
 
 // ─── Group / Ungroup ─────────────────────────────────────────
 function handleGroup() {
-  const nodes = selectedNodes.value
+  const nodes = editableSelectedNodes.value
   if (nodes.length < 2)
     return
 
@@ -440,8 +447,21 @@ function handleLock() {
     return
 
   const allLocked = nodes.every(n => n.locked)
-  for (const node of nodes) {
-    store.updateElement(node.id, { locked: !allLocked })
+  runMetaTransaction(allLocked ? 'Unlock' : 'Lock', nodes.filter(node => allLocked ? node.locked : !node.locked), { locked: !allLocked })
+}
+
+function runMetaTransaction(label: string, nodes: MaterialNode[], updates: Partial<Record<'hidden' | 'locked', boolean | undefined>>) {
+  if (nodes.length === 0)
+    return
+  store.commands.beginTransaction(label)
+  try {
+    for (const node of nodes)
+      store.commands.execute(new UpdateMaterialMetaCommand(store.schema.elements, node.id, updates))
+    store.commands.commitTransaction()
+  }
+  catch (err) {
+    store.commands.rollbackTransaction()
+    throw err
   }
 }
 
@@ -571,7 +591,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.italic')"
             @click="handleItalic"
           >
@@ -579,7 +599,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.underline')"
             @click="handleUnderline"
           >
@@ -603,7 +623,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'visibility'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!canToggleVisibility"
             :title="store.t('designer.property.hidden')"
             @click="handleVisibility"
           >
@@ -622,7 +642,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.selectSameType')"
             @click="handleSelectSameType"
           >
@@ -634,7 +654,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'distribute'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="selectedNodes.length < 3"
+            :disabled="editableSelectedNodes.length < 3"
             :title="store.t('designer.toolbar.distribute')"
             @click="handleDistribute"
           >
@@ -646,7 +666,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'align'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="selectedNodes.length < 2"
+            :disabled="editableSelectedNodes.length < 2"
             :title="store.t('designer.toolbar.alignLeft')"
             @click="handleAlign('left')"
           >
@@ -654,7 +674,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="selectedNodes.length < 2"
+            :disabled="editableSelectedNodes.length < 2"
             :title="store.t('designer.toolbar.alignCenter')"
             @click="handleAlign('center')"
           >
@@ -662,7 +682,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="selectedNodes.length < 2"
+            :disabled="editableSelectedNodes.length < 2"
             :title="store.t('designer.toolbar.alignRight')"
             @click="handleAlign('right')"
           >
@@ -674,7 +694,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'layer'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.layerUp')"
             @click="handleLayerUp"
           >
@@ -682,7 +702,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.layerDown')"
             @click="handleLayerDown"
           >
@@ -694,7 +714,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'group'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="selectedNodes.length < 2"
+            :disabled="editableSelectedNodes.length < 2"
             :title="store.t('designer.toolbar.group')"
             @click="handleGroup"
           >
@@ -702,7 +722,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!selectedNodes.some(n => n.type === 'group')"
+            :disabled="!editableSelectedNodes.some(n => n.type === 'group')"
             :title="store.t('designer.toolbar.ungroup')"
             @click="handleUngroup"
           >
@@ -726,7 +746,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'clipboard'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.copy')"
             @click="handleCopy"
           >
@@ -742,7 +762,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!hasSelection"
+            :disabled="!hasEditableSelection"
             :title="store.t('designer.toolbar.delete')"
             @click="handleDelete"
           >

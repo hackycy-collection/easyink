@@ -16,7 +16,7 @@ export function selectionMiddleware(): BehaviorRegistration {
       }
 
       const { point } = ctx.event
-      const localPoint = ctx.geometry.canvasToLocal(point, ctx.node)
+      const localPoint = ctx.geometry.documentToLocal(point, ctx.node)
       const hit = ctx.materialGeometry.hitTest(localPoint, ctx.node) as Selection | null
 
       if (hit) {

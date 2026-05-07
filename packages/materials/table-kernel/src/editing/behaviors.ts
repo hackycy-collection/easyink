@@ -21,8 +21,7 @@ export function createTableCellSelectBehavior(delegate: TableEditingDelegate): B
         return next()
 
       const point = (ctx.event as { point: { x: number, y: number } }).point
-      // Convert canvas coords to material-local coords
-      const localPoint = ctx.geometry.canvasToLocal(point, node)
+      const localPoint = ctx.geometry.documentToLocal(point, node)
 
       const gridCell = hitTestWithPlaceholders(
         node,

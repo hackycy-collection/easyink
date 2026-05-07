@@ -33,7 +33,7 @@ export function createTableCellSelectionType(delegate: TableEditingDelegate): Se
       if (!rect)
         return []
 
-      // Canvas coords (page-relative) — see createTableGeometry.resolveLocation
+      // Document coords (page-relative) - see createTableGeometry.resolveLocation
       return [{ x: rect.x + node.x, y: rect.y + node.y, width: rect.w, height: rect.h }]
     },
 

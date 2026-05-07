@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type { DesignerStore } from '../store/designer-store'
-import { getRotatedAABB, isInteractable, rectsIntersect, UnitManager } from '@easyink/core'
+import { getRotatedAABB, isInteractable, rectsIntersect } from '@easyink/core'
+import { createGeometryService } from '../editing/geometry-service'
 import { applySelectionIntent } from '../interactions/selection-intent'
 
 export interface MarqueeRect {
@@ -51,6 +52,8 @@ const MARQUEE_ACTIVATION_DISTANCE = 1
  *   show a distinct cursor; do NOT infer it from drag direction.
  */
 export function useMarqueeSelect(ctx: MarqueeSelectContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   function onCanvasPointerDown(e: PointerEvent) {
     e.preventDefault()
 
@@ -64,15 +67,7 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
     if (!pageEl)
       return
 
-    const unitManager = new UnitManager(store.schema.unit)
-    const zoom = store.workbench.viewport.zoom
-
-    const pageRect = pageEl.getBoundingClientRect()
-    const canvasOffsetX = pageRect.left
-    const canvasOffsetY = pageRect.top
-
-    const startDocX = unitManager.screenToDocument(e.clientX, canvasOffsetX, 0, zoom)
-    const startDocY = unitManager.screenToDocument(e.clientY, canvasOffsetY, 0, zoom)
+    const startPoint = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
 
     const additive = e.ctrlKey || e.metaKey
     const originalSelection = additive ? [...store.selection.ids] : []
@@ -96,9 +91,9 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       for (const node of elements) {
         if (!isInteractable(node))
           continue
-        const visual = store.getVisualSize(node)
+        const size = store.getElementSize(node)
         const aabb = getRotatedAABB(
-          { x: node.x, y: node.y, width: visual.width, height: visual.height },
+          { x: node.x, y: node.y, width: size.width, height: size.height },
           node.rotation,
         )
         if (rectsIntersect(rect, aabb))
@@ -127,11 +122,10 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       if (ev.pointerId !== pointerId)
         return
 
-      const docX = unitManager.screenToDocument(ev.clientX, canvasOffsetX, 0, zoom)
-      const docY = unitManager.screenToDocument(ev.clientY, canvasOffsetY, 0, zoom)
+      const point = geometry.screenToDocument({ x: ev.clientX, y: ev.clientY })
 
-      const dx = docX - startDocX
-      const dy = docY - startDocY
+      const dx = point.x - startPoint.x
+      const dy = point.y - startPoint.y
 
       if (!dragging && Math.abs(dx) < MARQUEE_ACTIVATION_DISTANCE && Math.abs(dy) < MARQUEE_ACTIVATION_DISTANCE)
         return
@@ -148,8 +142,8 @@ export function useMarqueeSelect(ctx: MarqueeSelectContext) {
       }
 
       const rect: MarqueeRect = {
-        x: Math.min(startDocX, docX),
-        y: Math.min(startDocY, docY),
+        x: Math.min(startPoint.x, point.x),
+        y: Math.min(startPoint.y, point.y),
         width: Math.abs(dx),
         height: Math.abs(dy),
       }

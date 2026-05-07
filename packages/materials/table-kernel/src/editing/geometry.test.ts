@@ -13,7 +13,7 @@ import {
  *   Row 0: header       (height 30)
  *   Row 1: repeat-template (height 30)
  *   Row 2: footer        (height 30)
- *   Total declared row height: 90, element height: 90 => rowScale = 1
+ *   Total declared row height + 2 virtual rows: 150, element height: 90 => rowScale = 0.6
  *   Columns: 2 equal ratios (0.5 each), element width: 200 => each col 100
  *   Node position: x=10, y=20
  */
@@ -84,9 +84,9 @@ function makeDelegate(placeholderCount: number, node?: TableNode): TableEditingD
 describe('computePlaceholderHeight', () => {
   it('computes correct height for placeholder rows', () => {
     const node = makeTableNode()
-    // repeat-template row height = 30, rowScale = 90/90 = 1, count = 2
-    // expected: 30 * 1 * 2 = 60
-    expect(computePlaceholderHeight(node, 2)).toBe(60)
+    // repeat-template row height = 30, rowScale = 90/(90+60) = 0.6, count = 2
+    // expected: 30 * 0.6 * 2 = 36
+    expect(computePlaceholderHeight(node, 2)).toBe(36)
   })
 
   it('returns 0 when placeholderCount is 0', () => {
@@ -107,20 +107,20 @@ describe('computeCellRectWithPlaceholders', () => {
 
   it('header cell is not offset', () => {
     const rect = computeCellRectWithPlaceholders(node, 0, 0, 2)
-    expect(rect).toEqual({ x: 0, y: 0, w: 100, h: 30 })
+    expect(rect).toEqual({ x: 0, y: 0, w: 100, h: 18 })
   })
 
   it('repeat-template cell is not offset', () => {
     const rect = computeCellRectWithPlaceholders(node, 1, 1, 2)
-    expect(rect).toEqual({ x: 100, y: 30, w: 100, h: 30 })
+    expect(rect).toEqual({ x: 100, y: 18, w: 100, h: 18 })
   })
 
   it('footer cell is offset by placeholder height', () => {
-    // Footer row 2 without placeholder: y = 60
-    // Placeholder height = 60
-    // With placeholder: y = 60 + 60 = 120
+    // Footer row 2 without placeholder: y = 36
+    // Placeholder height = 36
+    // With placeholder: y = 36 + 36 = 72
     const rect = computeCellRectWithPlaceholders(node, 2, 0, 2)
-    expect(rect).toEqual({ x: 0, y: 120, w: 100, h: 30 })
+    expect(rect).toEqual({ x: 0, y: 72, w: 100, h: 18 })
   })
 
   it('returns non-offset rect when placeholderCount is 0', () => {
@@ -140,26 +140,26 @@ describe('hitTestWithPlaceholders', () => {
   const node = makeTableNode()
 
   it('hits header region', () => {
-    // y=15 is in header row (0-30)
+    // y=15 is in header row (0-18)
     expect(hitTestWithPlaceholders(node, 50, 15, 2)).toEqual({ row: 0, col: 0 })
   })
 
   it('hits repeat-template region', () => {
-    // y=45 is in repeat-template row (30-60)
-    expect(hitTestWithPlaceholders(node, 150, 45, 2)).toEqual({ row: 1, col: 1 })
+    // y=25 is in repeat-template row (18-36)
+    expect(hitTestWithPlaceholders(node, 150, 25, 2)).toEqual({ row: 1, col: 1 })
   })
 
   it('returns null in placeholder region', () => {
-    // Placeholder region: y in (60, 120)
-    // repeatBottom = 60, placeholder height = 60
-    expect(hitTestWithPlaceholders(node, 50, 80, 2)).toBeNull()
+    // Placeholder region: y in (36, 72)
+    // repeatBottom = 36, placeholder height = 36
+    expect(hitTestWithPlaceholders(node, 50, 50, 2)).toBeNull()
   })
 
   it('hits footer region after placeholders', () => {
-    // Footer occupies y in [120, 150) in the visual layout
-    // hitTest remaps by subtracting placeholder height: 125 - 60 = 65
-    // In the original table, y=65 is in footer row (60-90)
-    expect(hitTestWithPlaceholders(node, 50, 125, 2)).toEqual({ row: 2, col: 0 })
+    // Footer occupies y in [72, 90) in the schema-height layout
+    // hitTest remaps by subtracting placeholder height: 80 - 36 = 44
+    // In the compressed real-row table, y=44 is in footer row (36-54)
+    expect(hitTestWithPlaceholders(node, 50, 80, 2)).toEqual({ row: 2, col: 0 })
   })
 
   it('returns null outside element bounds', () => {
@@ -174,12 +174,11 @@ describe('hitTestWithPlaceholders', () => {
 // ─── createTableGeometry ─────────────────────────────────────────
 
 describe('createTableGeometry', () => {
-  it('getContentLayout includes placeholder height', () => {
+  it('getContentLayout equals schema dimensions with placeholders', () => {
     const node = makeTableNode()
     const geo = createTableGeometry(makeDelegate(2, node))
     const layout = geo.getContentLayout(node)
-    // node.height (90) + placeholder height (60) = 150
-    expect(layout.contentBox).toEqual({ x: 10, y: 20, width: 200, height: 150 })
+    expect(layout.contentBox).toEqual({ x: 10, y: 20, width: 200, height: 90 })
   })
 
   it('getContentLayout without placeholders equals node dimensions', () => {
@@ -189,14 +188,14 @@ describe('createTableGeometry', () => {
     expect(layout.contentBox).toEqual({ x: 0, y: 0, width: 200, height: 60 })
   })
 
-  it('resolveLocation returns canvas-coordinate rect', () => {
+  it('resolveLocation returns document-coordinate rect', () => {
     const node = makeTableNode()
     const geo = createTableGeometry(makeDelegate(2, node))
     const sel = { type: 'table.cell', nodeId: 'table1', payload: { row: 0, col: 0 } }
     const rects = geo.resolveLocation(sel, node)
-    // Cell rect: { x: 0, y: 0, w: 100, h: 30 }
-    // Canvas coords: offset by node position (x=10, y=20)
-    expect(rects).toEqual([{ x: 10, y: 20, width: 100, height: 30 }])
+    // Cell rect: { x: 0, y: 0, w: 100, h: 18 }
+    // Document coords: offset by node position (x=10, y=20)
+    expect(rects).toEqual([{ x: 10, y: 20, width: 100, height: 18 }])
   })
 
   it('resolveLocation returns [] for non-table node', () => {
@@ -221,8 +220,8 @@ describe('createTableGeometry', () => {
   it('hitTest returns null in placeholder region', () => {
     const node = makeTableNode()
     const geo = createTableGeometry(makeDelegate(2, node))
-    // Point in placeholder region: local coords (50, 80)
-    expect(geo.hitTest({ x: 50, y: 80 }, node)).toBeNull()
+    // Point in placeholder region: local coords (50, 50)
+    expect(geo.hitTest({ x: 50, y: 50 }, node)).toBeNull()
   })
 
   it('hitTest returns null for non-table node', () => {
@@ -236,11 +235,11 @@ describe('createTableGeometry', () => {
 
 describe('hidden row mask', () => {
   it('placeholder height uses visible-row scale (header hidden)', () => {
-    // 3 rows of height 30 each, node.height already adjusted to 60 (only repeat+footer visible).
-    // visible-row scale = 60 / (30+30) = 1; placeholder h = 30 * 1 * 2 = 60
+    // visible rows repeat+footer plus 2 virtual rows: scale = 60 / (30+30+60) = 0.5.
+    // placeholder h = 30 * 0.5 * 2 = 30
     const node = makeTableNode({ height: 60 })
     const hidden = [true, false, false]
-    expect(computePlaceholderHeight(node, 2, hidden)).toBe(60)
+    expect(computePlaceholderHeight(node, 2, hidden)).toBe(30)
   })
 
   it('cell rect for hidden row returns null', () => {
@@ -254,15 +253,15 @@ describe('hidden row mask', () => {
     const hidden = [true, false, false]
     // Visible rows: repeat (idx 1) and footer (idx 2). repeat starts at y=0.
     expect(computeCellRectWithPlaceholders(node, 1, 0, 2, hidden))
-      .toEqual({ x: 0, y: 0, w: 100, h: 30 })
+      .toEqual({ x: 0, y: 0, w: 100, h: 15 })
   })
 
   it('footer cell offset by placeholder height when header hidden', () => {
     const node = makeTableNode({ height: 60 })
     const hidden = [true, false, false]
-    // repeatBottom = 30, placeholder = 60, footer at y = 30 + 60 = 90
+    // repeatBottom = 15, placeholder = 30, footer at y = 15 + 30 = 45
     expect(computeCellRectWithPlaceholders(node, 2, 0, 2, hidden))
-      .toEqual({ x: 0, y: 90, w: 100, h: 30 })
+      .toEqual({ x: 0, y: 45, w: 100, h: 15 })
   })
 
   it('hitTest in zero-height hidden row region falls into next visible row', () => {
@@ -275,15 +274,15 @@ describe('hidden row mask', () => {
   it('hitTest in placeholder region returns null', () => {
     const node = makeTableNode({ height: 60 })
     const hidden = [true, false, false]
-    // repeatBottom=30, placeholder=60. y=60 is in placeholder region.
-    expect(hitTestWithPlaceholders(node, 50, 60, 2, hidden)).toBeNull()
+    // repeatBottom=15, placeholder=30. y=30 is in placeholder region.
+    expect(hitTestWithPlaceholders(node, 50, 30, 2, hidden)).toBeNull()
   })
 
   it('hitTest after placeholder maps to footer row', () => {
     const node = makeTableNode({ height: 60 })
     const hidden = [true, false, false]
-    // y=120 in visual, remap to y=120-60=60 in original; repeat=[0,30) footer=[30,60)
-    expect(hitTestWithPlaceholders(node, 50, 100, 2, hidden)).toEqual({ row: 2, col: 0 })
+    // y=50 in schema-height layout, remap to y=50-30=20; repeat=[0,15) footer=[15,30)
+    expect(hitTestWithPlaceholders(node, 50, 50, 2, hidden)).toEqual({ row: 2, col: 0 })
   })
 
   it('createTableGeometry honors delegate.getHiddenRowMask', () => {
@@ -295,8 +294,7 @@ describe('hidden row mask', () => {
     }
     const geo = createTableGeometry(delegate)
 
-    // contentBox includes placeholder
-    expect(geo.getContentLayout(node).contentBox).toEqual({ x: 10, y: 20, width: 200, height: 120 })
+    expect(geo.getContentLayout(node).contentBox).toEqual({ x: 10, y: 20, width: 200, height: 60 })
 
     // hidden header cell cannot be located
     expect(geo.resolveLocation({ type: 'table.cell', nodeId: 'table1', payload: { row: 0, col: 0 } }, node)).toEqual([])

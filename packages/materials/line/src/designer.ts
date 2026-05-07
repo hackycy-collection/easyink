@@ -2,7 +2,6 @@ import type { MaterialDesignerExtension, MaterialExtensionContext } from '@easyi
 import type { MaterialNode } from '@easyink/schema'
 import type { LineProps } from './schema'
 import { getNodeProps } from '@easyink/schema'
-import { getLineThickness } from './schema'
 
 function buildHtml(node: MaterialNode, unit: string): string {
   const props = getNodeProps<Partial<LineProps>>(node)
@@ -29,9 +28,6 @@ export function createLineExtension(context: MaterialExtensionContext): Material
       render()
       const unsub = nodeSignal.subscribe(render)
       return unsub
-    },
-    getVisualHeight(node) {
-      return getLineThickness(node)
     },
   }
 }

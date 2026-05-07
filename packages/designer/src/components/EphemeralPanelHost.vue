@@ -26,7 +26,7 @@ const panelStyle = computed(() => {
   if (pos.anchor === 'selection-bottom') {
     return {
       left: `${node.value.x + offset.x}${unit.value}`,
-      top: `${node.value.y + store.getVisualHeight(node.value) + offset.y}${unit.value}`,
+      top: `${node.value.y + node.value.height + offset.y}${unit.value}`,
     }
   }
 

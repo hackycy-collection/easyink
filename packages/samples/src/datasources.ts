@@ -4,6 +4,7 @@ import { SCHEMA_VERSION } from '@easyink/shared'
 import { badgeDataSource } from './templates/badge'
 import { certificateDataSource } from './templates/certificate'
 import { supermarketDataSource } from './templates/supermarket-receipt'
+import { verticalMixedTextDataSource } from './templates/vertical-mixed-text'
 
 // ---------------------------------------------------------------------------
 // A. 发票数据源
@@ -163,6 +164,7 @@ export const sampleDataSources: DataSourceDescriptor[] = [
   certificateDataSource,
   badgeDataSource,
   supermarketDataSource,
+  verticalMixedTextDataSource,
 ]
 
 // ---------------------------------------------------------------------------
@@ -176,7 +178,7 @@ function createInvoiceTableNode(): TableNode {
     x: 10,
     y: 56,
     width: 190,
-    height: 24,
+    height: 40,
     props: {
       headerBackground: '#f5f5f5',
       summaryBackground: '#fafafa',

@@ -24,12 +24,23 @@ export function computeRowScale(
   elementHeight: number,
   hidden?: readonly boolean[],
 ): number {
+  return computeRowScaleWithVirtualRows(rows, elementHeight, hidden)
+}
+
+export function computeRowScaleWithVirtualRows(
+  rows: TableRowSchema[],
+  elementHeight: number,
+  hidden?: readonly boolean[],
+  virtualRows?: { rowHeight: number, count: number },
+): number {
   let total = 0
   for (let i = 0; i < rows.length; i++) {
     if (hidden?.[i])
       continue
     total += rows[i]!.height
   }
+  if (virtualRows && virtualRows.count > 0 && virtualRows.rowHeight > 0)
+    total += virtualRows.rowHeight * virtualRows.count
   return total > 0 ? elementHeight / total : 1
 }
 

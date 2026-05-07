@@ -2,7 +2,8 @@ import type { DatasourceDropZone, DatasourceFieldInfo } from '@easyink/core'
 import type { BindingRef } from '@easyink/schema'
 import type { BindingDisplayFormat } from '@easyink/shared'
 import type { DesignerStore } from '../store/designer-store'
-import { BindFieldCommand, pointInRect, UnitManager } from '@easyink/core'
+import { BindFieldCommand, pointInRect } from '@easyink/core'
+import { createGeometryService } from '../editing/geometry-service'
 import { selectOne } from '../interactions/selection-api'
 
 /**
@@ -34,6 +35,8 @@ export interface DatasourceDropContext {
  * Otherwise, the default behavior is used (whole element as drop zone + BindFieldCommand).
  */
 export function useDatasourceDrop(ctx: DatasourceDropContext) {
+  const geometry = createGeometryService(ctx.store, { getPageEl: ctx.getPageEl })
+
   // ─── Drop Zone Overlay DOM ──────────────────────────────────────
 
   let overlayEl: HTMLElement | null = null
@@ -61,8 +64,6 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     zone: DatasourceDropZone,
     target: ReturnType<DesignerStore['getElements']>[number],
     elementSize: { width: number, height: number },
-    zoom: number,
-    unitManager: UnitManager,
   ) {
     const el = ensureOverlay()
     const pageEl = ctx.getPageEl()
@@ -74,14 +75,18 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     }
 
     const pageRect = pageEl.getBoundingClientRect()
-    const elementLeft = unitManager.documentToScreen(target.x, pageRect.left, 0, zoom) - pageRect.left
-    const elementTop = unitManager.documentToScreen(target.y, pageRect.top, 0, zoom) - pageRect.top
-    const elementWidth = unitManager.documentToScreen(elementSize.width, 0, 0, zoom)
-    const elementHeight = unitManager.documentToScreen(elementSize.height, 0, 0, zoom)
-    const zoneLeft = unitManager.documentToScreen(zone.rect.x, 0, 0, zoom)
-    const zoneTop = unitManager.documentToScreen(zone.rect.y, 0, 0, zoom)
-    const zoneWidth = unitManager.documentToScreen(zone.rect.w, 0, 0, zoom)
-    const zoneHeight = unitManager.documentToScreen(zone.rect.h, 0, 0, zoom)
+    const elementScreen = geometry.documentToScreen({ x: target.x, y: target.y })
+    const elementScreenEnd = geometry.documentToScreen({ x: target.x + elementSize.width, y: target.y + elementSize.height })
+    const zoneScreen = geometry.documentToScreen({ x: target.x + zone.rect.x, y: target.y + zone.rect.y })
+    const zoneScreenEnd = geometry.documentToScreen({ x: target.x + zone.rect.x + zone.rect.w, y: target.y + zone.rect.y + zone.rect.h })
+    const elementLeft = elementScreen.x - pageRect.left
+    const elementTop = elementScreen.y - pageRect.top
+    const elementWidth = elementScreenEnd.x - elementScreen.x
+    const elementHeight = elementScreenEnd.y - elementScreen.y
+    const zoneLeft = zoneScreen.x - elementScreen.x
+    const zoneTop = zoneScreen.y - elementScreen.y
+    const zoneWidth = zoneScreenEnd.x - zoneScreen.x
+    const zoneHeight = zoneScreenEnd.y - zoneScreen.y
 
     el.style.left = `${elementLeft}px`
     el.style.top = `${elementTop}px`
@@ -139,44 +144,11 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     overlayLabelEl = null
   }
 
-  function rotatePoint(
-    point: { x: number, y: number },
-    center: { x: number, y: number },
-    degrees: number,
-  ) {
-    const rad = (degrees * Math.PI) / 180
-    const cos = Math.cos(rad)
-    const sin = Math.sin(rad)
-    const dx = point.x - center.x
-    const dy = point.y - center.y
-    return {
-      x: center.x + dx * cos - dy * sin,
-      y: center.y + dx * sin + dy * cos,
-    }
-  }
-
   function documentPointToElementLocal(
     point: { x: number, y: number },
     element: ReturnType<DesignerStore['getElements']>[number],
-    elementSize: { width: number, height: number },
   ) {
-    const rotation = element.rotation ?? 0
-    if (!rotation) {
-      return {
-        x: point.x - element.x,
-        y: point.y - element.y,
-      }
-    }
-
-    const center = {
-      x: element.x + elementSize.width / 2,
-      y: element.y + elementSize.height / 2,
-    }
-    const unrotatedPoint = rotatePoint(point, center, -rotation)
-    return {
-      x: unrotatedPoint.x - element.x,
-      y: unrotatedPoint.y - element.y,
-    }
+    return geometry.documentToLocal(point, element)
   }
 
   // ─── Drag Event Handlers ────────────────────────────────────────
@@ -213,9 +185,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       const el = elements[i]!
       if (el.hidden || el.locked)
         continue
-      const visualSize = store.getVisualSize(el)
-      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, el, visualSize)
-      if (pointInRect(localPoint, { x: 0, y: 0, width: visualSize.width, height: visualSize.height })) {
+      const elementSize = store.getElementSize(el)
+      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, el)
+      if (pointInRect(localPoint, { x: 0, y: 0, width: elementSize.width, height: elementSize.height })) {
         const mat = store.getMaterial(el.type)
         if (mat && mat.capabilities.bindable === false)
           continue
@@ -239,11 +211,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       return
     }
 
-    const unitManager = new UnitManager(store.schema.unit)
-    const zoom = store.workbench.viewport.zoom
-    const pageRect = pageEl.getBoundingClientRect()
-    const docX = unitManager.screenToDocument(e.clientX, pageRect.left, 0, zoom)
-    const docY = unitManager.screenToDocument(e.clientY, pageRect.top, 0, zoom)
+    const point = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
+    const docX = point.x
+    const docY = point.y
 
     const target = hitTestElement(docX, docY)
     if (!target) {
@@ -253,8 +223,8 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
 
     // Get extension for custom drop handler
     const ext = store.getDesignerExtension(target.type)
-    const visualSize = store.getVisualSize(target)
-    const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target, visualSize)
+    const elementSize = store.getElementSize(target)
+    const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target)
     if (ext?.datasourceDrop) {
       // Try to parse field data for dragOver feedback
       // During dragOver, getData may return empty on some browsers,
@@ -267,7 +237,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
       }
       const zone = ext.datasourceDrop.onDragOver(fieldInfo, localPoint, target)
       if (zone) {
-        showDropZone(zone, target, visualSize, zoom, unitManager)
+        showDropZone(zone, target, elementSize)
       }
       else {
         hideDropZone()
@@ -276,11 +246,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     else {
       // Default: highlight the whole element
       showDropZone(
-        { status: 'accepted', rect: { x: 0, y: 0, w: visualSize.width, h: visualSize.height } },
+        { status: 'accepted', rect: { x: 0, y: 0, w: elementSize.width, h: elementSize.height } },
         target,
-        visualSize,
-        zoom,
-        unitManager,
+        elementSize,
       )
     }
   }
@@ -306,11 +274,9 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     if (!pageEl)
       return
 
-    const unitManager = new UnitManager(store.schema.unit)
-    const zoom = store.workbench.viewport.zoom
-    const pageRect = pageEl.getBoundingClientRect()
-    const docX = unitManager.screenToDocument(e.clientX, pageRect.left, 0, zoom)
-    const docY = unitManager.screenToDocument(e.clientY, pageRect.top, 0, zoom)
+    const point = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
+    const docX = point.x
+    const docY = point.y
 
     const target = hitTestElement(docX, docY)
     if (!target)
@@ -319,8 +285,7 @@ export function useDatasourceDrop(ctx: DatasourceDropContext) {
     // Check for custom handler
     const ext = store.getDesignerExtension(target.type)
     if (ext?.datasourceDrop) {
-      const visualSize = store.getVisualSize(target)
-      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target, visualSize)
+      const localPoint = documentPointToElementLocal({ x: docX, y: docY }, target)
       ext.datasourceDrop.onDrop(toFieldInfo(fieldData), localPoint, target)
       selectOne(store, target.id)
       return

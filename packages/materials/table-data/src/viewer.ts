@@ -1,8 +1,9 @@
 import type { BindingRef, MaterialNode, TableCellSchema, TableDataSchema, TableRowSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
 import { extractCollectionPath, formatBindingDisplayValue, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
-import { computeAutoRowHeights, computeRowScale, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
+import { computeAutoRowHeights, computeRowScaleWithVirtualRows, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { getNodeProps, isTableNode } from '@easyink/schema'
+import { TABLE_DATA_PLACEHOLDER_ROW_COUNT } from './layout'
 
 interface ViewerRenderContext {
   data: Record<string, unknown>
@@ -85,9 +86,13 @@ function resolveRuntimeLayout(
   const expandedRows = expandRepeatTemplateRows(node.table.topology.rows, data, node.id, reportDiagnostic)
   const visibleRows = filterVisibleRows(expandedRows, showHeader, showFooter)
 
-  // Baseline scale from ORIGINAL declared topology + ORIGINAL element height.
-  // Each row keeps its declared visual size after repeat-template expansion.
-  const baselineScale = computeRowScale(node.table.topology.rows, declaredElementHeight)
+  const repeatRow = node.table.topology.rows.find(row => row.role === 'repeat-template')
+  const baselineScale = computeRowScaleWithVirtualRows(
+    node.table.topology.rows,
+    declaredElementHeight,
+    undefined,
+    repeatRow ? { rowHeight: repeatRow.height, count: TABLE_DATA_PLACEHOLDER_ROW_COUNT } : undefined,
+  )
   const baselineHeights = visibleRows.map(row => row.height * baselineScale)
 
   const props = getNodeProps<TableDataProps>(node)

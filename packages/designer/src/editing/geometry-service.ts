@@ -1,52 +1,126 @@
-import type { GeometryService, Point, Rect } from '@easyink/core'
+import type { GeometryService, LocalCoordinateOptions, PageGeometrySnapshot, Point, Rect } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
 import { UnitManager } from '@easyink/core'
 
+export interface GeometryServiceOptions {
+  getPageEl?: () => HTMLElement | null
+}
+
+type TransformableNode = MaterialNode & {
+  scaleX?: number
+  scaleY?: number
+}
+
 /**
  * Create a GeometryService bound to the designer's viewport state.
- * Canvas coordinates are in the schema's document unit (mm/in/cm/pt),
- * not CSS pixels — use UnitManager for screen<->canvas conversion.
+ * Document coordinates are the schema unit values used by page and nodes.
  */
-export function createGeometryService(store: DesignerStore): GeometryService {
+export function createGeometryService(store: DesignerStore, options: GeometryServiceOptions = {}): GeometryService {
+  function getPageEl(): HTMLElement | null {
+    return options.getPageEl?.() ?? store.getPageEl()
+  }
+
+  function getPageGeometry(): PageGeometrySnapshot {
+    const { zoom, scrollLeft, scrollTop } = store.workbench.viewport
+    const pageRect = getPageEl()?.getBoundingClientRect()
+    return {
+      pageOffset: {
+        x: (pageRect?.left ?? 0) + scrollLeft,
+        y: (pageRect?.top ?? 0) + scrollTop,
+      },
+      zoom,
+      scroll: { x: scrollLeft, y: scrollTop },
+      documentUnit: store.schema.unit,
+    }
+  }
+
+  function getNodeSize(node: MaterialNode): { width: number, height: number } {
+    return store.getElementSize(node)
+  }
+
+  function shouldIncludeTransform(options?: LocalCoordinateOptions): boolean {
+    return options?.includeTransform !== false
+  }
+
+  function getNodeTransform(node: MaterialNode) {
+    const transformable = node as TransformableNode
+    const scaleX = transformable.scaleX ?? 1
+    const scaleY = transformable.scaleY ?? 1
+    return {
+      rotation: node.rotation ?? 0,
+      scaleX: Math.abs(scaleX) > Number.EPSILON ? scaleX : 1,
+      scaleY: Math.abs(scaleY) > Number.EPSILON ? scaleY : 1,
+    }
+  }
+
+  function rotate(point: Point, radians: number): Point {
+    const cos = Math.cos(radians)
+    const sin = Math.sin(radians)
+    return {
+      x: point.x * cos - point.y * sin,
+      y: point.x * sin + point.y * cos,
+    }
+  }
+
   return {
-    screenToCanvas(px: { x: number, y: number }): Point {
-      const { zoom, scrollLeft, scrollTop } = store.workbench.viewport
-      const um = new UnitManager(store.schema.unit)
-      const pageEl = store.getPageEl()
-      const pageRect = pageEl?.getBoundingClientRect()
-      const offsetX = pageRect?.left ?? 0
-      const offsetY = pageRect?.top ?? 0
+    getPageGeometry,
+
+    screenToDocument(px: Point): Point {
+      const { pageOffset, scroll, zoom, documentUnit } = getPageGeometry()
+      const unitManager = new UnitManager(documentUnit)
       return {
-        x: um.screenToDocument(px.x, offsetX, scrollLeft, zoom),
-        y: um.screenToDocument(px.y, offsetY, scrollTop, zoom),
+        x: unitManager.screenToDocument(px.x, pageOffset.x, scroll.x, zoom),
+        y: unitManager.screenToDocument(px.y, pageOffset.y, scroll.y, zoom),
       }
     },
 
-    canvasToScreen(pt: Point): { x: number, y: number } {
-      const { zoom, scrollLeft, scrollTop } = store.workbench.viewport
-      const um = new UnitManager(store.schema.unit)
-      const pageEl = store.getPageEl()
-      const pageRect = pageEl?.getBoundingClientRect()
-      const offsetX = pageRect?.left ?? 0
-      const offsetY = pageRect?.top ?? 0
+    documentToScreen(pt: Point): Point {
+      const { pageOffset, scroll, zoom, documentUnit } = getPageGeometry()
+      const unitManager = new UnitManager(documentUnit)
       return {
-        x: um.documentToScreen(pt.x, offsetX, scrollLeft, zoom),
-        y: um.documentToScreen(pt.y, offsetY, scrollTop, zoom),
+        x: unitManager.documentToScreen(pt.x, pageOffset.x, scroll.x, zoom),
+        y: unitManager.documentToScreen(pt.y, pageOffset.y, scroll.y, zoom),
       }
     },
 
-    canvasToLocal(pt: Point, node: MaterialNode): Point {
+    documentToLocal(pt: Point, node: MaterialNode, options?: LocalCoordinateOptions): Point {
+      if (!shouldIncludeTransform(options)) {
+        return {
+          x: pt.x - node.x,
+          y: pt.y - node.y,
+        }
+      }
+
+      const size = getNodeSize(node)
+      const center = { x: node.x + size.width / 2, y: node.y + size.height / 2 }
+      const transform = getNodeTransform(node)
+      const unrotated = rotate({ x: pt.x - center.x, y: pt.y - center.y }, -(transform.rotation * Math.PI) / 180)
       return {
-        x: pt.x - node.x,
-        y: pt.y - node.y,
+        x: unrotated.x / transform.scaleX + size.width / 2,
+        y: unrotated.y / transform.scaleY + size.height / 2,
       }
     },
 
-    localToCanvas(pt: Point, node: MaterialNode): Point {
+    localToDocument(pt: Point, node: MaterialNode, options?: LocalCoordinateOptions): Point {
+      if (!shouldIncludeTransform(options)) {
+        return {
+          x: pt.x + node.x,
+          y: pt.y + node.y,
+        }
+      }
+
+      const size = getNodeSize(node)
+      const center = { x: node.x + size.width / 2, y: node.y + size.height / 2 }
+      const transform = getNodeTransform(node)
+      const scaled = {
+        x: (pt.x - size.width / 2) * transform.scaleX,
+        y: (pt.y - size.height / 2) * transform.scaleY,
+      }
+      const rotated = rotate(scaled, (transform.rotation * Math.PI) / 180)
       return {
-        x: pt.x + node.x,
-        y: pt.y + node.y,
+        x: center.x + rotated.x,
+        y: center.y + rotated.y,
       }
     },
 

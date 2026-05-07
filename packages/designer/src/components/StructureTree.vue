@@ -2,6 +2,7 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TreeNode } from '@easyink/ui'
 import type { Component } from 'vue'
+import { UpdateMaterialMetaCommand } from '@easyink/core'
 import {
   IconBarcode,
   IconChart,
@@ -73,6 +74,20 @@ const selectedId = computed(() => {
 function handleSelect(node: TreeNode) {
   selectOne(store, node.id)
 }
+
+function updateNodeMeta(node: MaterialNode, updates: Partial<Record<'hidden' | 'locked', boolean | undefined>>) {
+  store.commands.execute(new UpdateMaterialMetaCommand(store.schema.elements, node.id, updates))
+}
+
+function handleUnlock(node: MaterialNode) {
+  updateNodeMeta(node, { locked: false })
+}
+
+function handleShow(node: MaterialNode) {
+  if (node.locked)
+    return
+  updateNodeMeta(node, { hidden: false })
+}
 </script>
 
 <template>
@@ -89,7 +104,8 @@ function handleSelect(node: TreeNode) {
         :icon="IconLock"
         :size="12"
         :stroke-width="1.5"
-        class="structure-tree__status"
+        class="structure-tree__status structure-tree__status--action"
+        @click.stop="handleUnlock(node.data as MaterialNode)"
       />
       <EiIcon
         v-if="(node.data as MaterialNode)?.hidden"
@@ -97,6 +113,8 @@ function handleSelect(node: TreeNode) {
         :size="12"
         :stroke-width="1.5"
         class="structure-tree__status"
+        :class="{ 'structure-tree__status--action': !(node.data as MaterialNode)?.locked }"
+        @click.stop="handleShow(node.data as MaterialNode)"
       />
     </template>
   </EiTree>
@@ -105,5 +123,13 @@ function handleSelect(node: TreeNode) {
 <style scoped lang="scss">
 .structure-tree__status {
   color: var(--ei-text-secondary, #999);
+
+  &--action {
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ei-primary, #1890ff);
+    }
+  }
 }
 </style>

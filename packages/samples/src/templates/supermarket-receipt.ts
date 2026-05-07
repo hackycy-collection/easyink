@@ -117,7 +117,7 @@ function createReceiptItemsTable(): TableNode {
     x: 4,
     y: 52,
     width: 72,
-    height: 12,
+    height: 24,
     props: {
       headerBackground: '#f5f5f5',
       summaryBackground: '#fafafa',

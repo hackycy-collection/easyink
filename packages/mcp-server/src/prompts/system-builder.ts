@@ -59,6 +59,7 @@ If 1 and 2 disagree on paper or table strategy, follow 1 ONLY when the user expl
 - stack mode (thermal receipts): minimum text size 10pt; horizontal padding 2-4mm; let height grow with rows.
 - label mode: minimum text size 8pt; padding ≥ 1mm; never overflow the printable area.
 - Tables MUST leave gutters; cells MUST have non-zero height and width.
+- For \`table-data\`, element \`height\` already represents the full semantic table box in the designer. Virtual preview rows stay inside that height; they do not extend the outer frame.
 
 ## DocumentSchema structure (canonical example)
 \`\`\`json
@@ -207,7 +208,7 @@ If 1 and 2 disagree on paper or table strategy, follow 1 ONLY when the user expl
 ## table-data special semantics
 - A \`table-data\` element has one real header band, one real repeat-template band, and optionally one real footer band.
 - The repeat-template row defines the data content area once. At runtime it expands into however many records exist in the bound array.
-- In the designer, EasyInk may show two virtual preview rows after the repeat-template row so the user can see the data area. Those preview rows are display-only and MUST NOT be emitted in \`table.topology.rows\`.
+- In the designer, EasyInk may show two virtual preview rows after the repeat-template row so the user can see the data area. Those preview rows are display-only, share the element \`height\` with the real rows, and MUST NOT be emitted in \`table.topology.rows\`.
 - If the request asks for multiple example rows in a dynamic table, keep ONE repeat-template row in schema unless the user explicitly wants a fixed non-repeating table.
 
 ## Common Mistakes (and why they break things)
@@ -219,6 +220,7 @@ If 1 and 2 disagree on paper or table strategy, follow 1 ONLY when the user expl
 - Omitting required fields the plan listed under \`generationPlan.requiredFieldHints\` — the deterministic builder cannot recover items/total if the intent never declared them.
 - Repeating row templates inside \`table-static\` — static tables have fixed rows; repeating data goes in \`table-data\` only.
 - Encoding the designer's two preview rows as real \`table-data\` rows — runtime expansion will duplicate the data area. Keep exactly one repeat-template row and let the designer render the preview rows.
+- Treating preview rows as extra outer height — in EasyInk the schema \`height\` is already the full designer box, so adding extra gap below the table misaligns follow-up content.
 
 ## Pre-output self-check (reasoning only, do not emit)
 Before emitting JSON, silently verify:
@@ -263,7 +265,7 @@ export function buildIntentSystemPrompt(): string {
 3. English camelCase paths with \`/\` separators; \`title\` / \`fieldLabel\` follow the user's prompt language. Mixed languages allowed only for established proper nouns (SKU, QR Code, ID).
 4. For arrays/detail lists, declare an array field with \`children\` AND an \`array-table\` section pointing to the array path. Skipping either half breaks the builder.
 5. An \`array-table\` section describes the real dynamic columns once. It does NOT enumerate sample rows.
-6. EasyInk's designer may display two virtual preview rows for a data table, but those preview rows are display-only. Do NOT create extra fields, columns, or sections for them.
+6. EasyInk's designer may display two virtual preview rows for a data table, but those preview rows are display-only, stay inside the element height, and must not create extra fields, columns, or sections.
 7. \`sampleData\` is optional, but if provided MUST match \`fields\` exactly (every leaf path, types align, domain-appropriate values).
 8. Trust the resolved domain. When the plan domain is supermarket-receipt / restaurant-receipt, items + total are NON-NEGOTIABLE.
 9. Every path listed in \`generationPlan.requiredFieldHints\` MUST appear in \`fields\` with the declared type. Keep the children when the hint declares them.
@@ -274,6 +276,7 @@ export function buildIntentSystemPrompt(): string {
 - Skipping \`requiredFieldHints\` paths — the builder injects placeholders and triggers a retry, wasting a model call.
 - Declaring an array field but no \`array-table\` section (or vice versa) — the builder cannot render rows.
 - Treating the designer's two preview rows as real data rows — the builder already turns one \`array-table\` section into one repeat-template band, and the designer previews extra rows itself.
+- Treating preview rows as extra layout height — the builder should size the table's \`height\` to the intended full box instead of leaving blank space for renderer-only rows.
 - Mixing Chinese fieldLabel with English sampleData strings — end users see broken bilingual rows.
 - Reusing invoice/company sample data when the domain is a receipt or label — domain-mismatched data fails accuracy validation.
 - Padding fields with speculative additions when the user just asked to fix one issue — keeps the diff noisy and invites contradiction.

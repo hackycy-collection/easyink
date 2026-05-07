@@ -1,5 +1,5 @@
 import type { MaterialNode, TableDataSchema, TableNode } from '@easyink/schema'
-import { computeRowScale } from '@easyink/material-table-kernel'
+import { computeRowScaleWithVirtualRows } from '@easyink/material-table-kernel'
 import { isTableNode } from '@easyink/schema'
 
 export const TABLE_DATA_PLACEHOLDER_ROW_COUNT = 2
@@ -31,14 +31,13 @@ export function getTableDataPlaceholderHeight(node: MaterialNode, placeholderRow
     return 0
 
   const hidden = buildHiddenMask(node)
-  const scale = computeRowScale(node.table.topology.rows, node.height, hidden)
+  const scale = computeRowScaleWithVirtualRows(
+    node.table.topology.rows,
+    node.height,
+    hidden,
+    { rowHeight: repeatRow.height, count: placeholderRowCount },
+  )
   return repeatRow.height * scale * placeholderRowCount
-}
-
-export function getTableDataDesignerVisualHeight(node: MaterialNode, placeholderRowCount = TABLE_DATA_PLACEHOLDER_ROW_COUNT): number {
-  if (!isTableNode(node) || node.type !== 'table-data')
-    return node.height
-  return node.height + getTableDataPlaceholderHeight(node, placeholderRowCount)
 }
 
 export function isTableDataNodeForLayout(node: MaterialNode): node is TableNode {

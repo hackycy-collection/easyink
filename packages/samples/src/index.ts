@@ -4,11 +4,13 @@ import { flowInvoiceTemplate } from './datasources'
 import { badgeDemoData, badgeTemplate } from './templates/badge'
 import { certificateDemoData, certificateTemplate } from './templates/certificate'
 import { supermarketDemoData, supermarketReceiptTemplate } from './templates/supermarket-receipt'
+import { verticalMixedTextDemoData, verticalMixedTextTemplate } from './templates/vertical-mixed-text'
 
 export * from './datasources'
 export { badgeDataSource, badgeDemoData, badgeTemplate } from './templates/badge'
 export { certificateDataSource, certificateDemoData, certificateTemplate } from './templates/certificate'
 export { supermarketDataSource, supermarketDemoData, supermarketReceiptTemplate } from './templates/supermarket-receipt'
+export { verticalMixedTextDataSource, verticalMixedTextDemoData, verticalMixedTextTemplate } from './templates/vertical-mixed-text'
 
 export interface SampleTemplateEntry {
   id: string
@@ -271,5 +273,12 @@ export const sampleTemplates: SampleTemplateEntry[] = [
     category: 'badge',
     schema: badgeTemplate,
     demoData: badgeDemoData,
+  },
+  {
+    id: 'vertical-mixed-text',
+    name: '竖排混排文本',
+    category: 'typography',
+    schema: verticalMixedTextTemplate,
+    demoData: verticalMixedTextDemoData,
   },
 ]

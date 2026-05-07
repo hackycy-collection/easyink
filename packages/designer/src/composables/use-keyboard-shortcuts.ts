@@ -62,9 +62,7 @@ export function useKeyboardShortcuts(ctx: KeyboardShortcutsContext) {
   }
 
   function selectAll() {
-    // Mirrors CanvasContextMenu: hidden elements stay out of selection so
-    // bulk drag/delete cannot mutate invisible nodes.
-    selectMany(store, store.schema.elements.filter(el => !el.hidden).map(el => el.id))
+    selectMany(store, store.schema.elements.filter(isInteractable).map(el => el.id))
   }
 
   function nudge(dx: number, dy: number) {

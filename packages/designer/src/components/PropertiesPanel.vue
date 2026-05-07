@@ -5,7 +5,7 @@ import type { BindingDisplayFormat } from '@easyink/shared'
 import type { Component } from 'vue'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup } from '../page-properties'
 import type { PanelSectionId, PropSchema } from '../types'
-import { ClearBindingCommand, getByPath, setByPath, UpdateBindingFormatCommand, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
+import { ClearBindingCommand, getByPath, setByPath, UpdateBindingFormatCommand, UpdateDocumentCommand, UpdateGeometryCommand, UpdateMaterialMetaCommand, UpdateMaterialPropsCommand, UpdatePageCommand } from '@easyink/core'
 import { deepClone, PAPER_PRESETS } from '@easyink/shared'
 import { EiNumberInput, EiPanel, EiSwitch } from '@easyink/ui'
 import { computed, shallowRef, watchEffect } from 'vue'
@@ -31,6 +31,12 @@ const selectedElement = computed(() =>
 const selectedElementRotatable = computed(() =>
   isElementRotatable(store, selectedElement.value),
 )
+
+const selectedElementLocked = computed(() => selectedElement.value?.locked === true)
+const selectedElementHidden = computed(() => selectedElement.value?.hidden === true)
+const canEditSelectedElement = computed(() => !selectedElementLocked.value && !selectedElementHidden.value)
+const showHiddenSwitch = computed(() => !selectedElementLocked.value)
+const showLockedSwitch = computed(() => true)
 
 // ─── Sub-Property Schema (auto-derived from editing session selection) ──
 
@@ -433,7 +439,15 @@ function commitGeometry(key: string, value: number) {
 function updateElementMeta(key: string, value: unknown) {
   if (!selectedElement.value)
     return
-  store.updateElement(selectedElement.value.id, { [key]: value })
+  if (key !== 'hidden' && key !== 'locked')
+    return
+  const boolValue = value === true
+  const cmd = new UpdateMaterialMetaCommand(
+    store.schema.elements,
+    selectedElement.value.id,
+    { [key]: boolValue },
+  )
+  store.commands.execute(cmd)
 }
 
 // ─── Binding ────────────────────────────────────────────────────
@@ -475,7 +489,7 @@ function readPropValue(schema: PropSchema): unknown {
     <!-- Element properties: only when a single element is selected -->
     <template v-if="selectedElement">
       <!-- Geometry -->
-      <EiPanel v-if="isSectionVisible('geometry')" :title="`${store.t('designer.property.position')} / ${store.t('designer.property.size')}`" collapsible flat>
+      <EiPanel v-if="canEditSelectedElement && isSectionVisible('geometry')" :title="`${store.t('designer.property.position')} / ${store.t('designer.property.size')}`" collapsible flat>
         <div class="ei-properties-panel__grid">
           <EiNumberInput
             label="X"
@@ -524,7 +538,7 @@ function readPropValue(schema: PropSchema): unknown {
       </EiPanel>
 
       <!-- Material-specific properties (PropSchema-driven) -->
-      <template v-if="isSectionVisible('props')">
+      <template v-if="canEditSelectedElement && isSectionVisible('props')">
         <EiPanel
           v-for="[group, schemas] in groupedSchemas"
           :key="group"
@@ -549,7 +563,7 @@ function readPropValue(schema: PropSchema): unknown {
       </template>
 
       <!-- Sub-property layer: auto-derived from editing session selection -->
-      <template v-if="subPropertySchema && isSectionVisible('overlay')">
+      <template v-if="canEditSelectedElement && subPropertySchema && isSectionVisible('overlay')">
         <EiPanel
           v-for="[group, schemas] in subGroupedSchemas"
           :key="`sub-${group}`"
@@ -574,7 +588,7 @@ function readPropValue(schema: PropSchema): unknown {
       </template>
 
       <!-- Data binding -->
-      <EiPanel v-if="!hideBindingSection && (isSectionVisible('binding') || hasSubBinding)" :title="store.t('designer.property.dataBinding')" collapsible flat>
+      <EiPanel v-if="canEditSelectedElement && !hideBindingSection && (isSectionVisible('binding') || hasSubBinding)" :title="store.t('designer.property.dataBinding')" collapsible flat>
         <BindingSection
           :element="selectedElement"
           :t="store.t.bind(store)"
@@ -590,11 +604,13 @@ function readPropValue(schema: PropSchema): unknown {
       <EiPanel v-if="isSectionVisible('visibility')" :title="store.t('designer.property.style')" collapsible flat>
         <div class="ei-properties-panel__fields">
           <EiSwitch
+            v-if="showHiddenSwitch"
             :label="store.t('designer.property.hidden')"
             :model-value="selectedElement.hidden ?? false"
             @update:model-value="updateElementMeta('hidden', $event)"
           />
           <EiSwitch
+            v-if="showLockedSwitch"
             :label="store.t('designer.property.locked')"
             :model-value="selectedElement.locked ?? false"
             @update:model-value="updateElementMeta('locked', $event)"

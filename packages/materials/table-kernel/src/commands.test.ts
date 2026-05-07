@@ -51,7 +51,7 @@ describe('updateTableVisibilityCommand', () => {
     expect(node.height).toBe(24)
   })
 
-  it('preserves visible row visual height when current scale != 1', () => {
+  it('preserves visible row height when current scale != 1', () => {
     const node = makeDataTableNode({ height: 48 }) // scale=2, each row 16
     const cmd = new UpdateTableVisibilityCommand(node, 'showHeader', false)
     cmd.execute()

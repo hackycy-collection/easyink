@@ -11,8 +11,7 @@ import {
 } from '@easyink/core'
 import {
   computeCellRectWithPlaceholders,
-  computePlaceholderHeight,
-  computeRowScale,
+  computeRowScaleWithVirtualRows,
   createTableCellDecorationComponent,
   createTableCellEditBehavior,
   createTableCellSelectBehavior,
@@ -34,6 +33,8 @@ const ROLE_BG_MAP: Record<string, keyof TableDataProps> = {
   header: 'headerBackground',
   footer: 'summaryBackground',
 }
+
+const PLACEHOLDER_ROW_COUNT = 2
 
 function readRowBackground(props: TableDataProps, key: keyof TableDataProps): string {
   const value = props[key]
@@ -84,7 +85,12 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     const pad = p.cellPadding ?? 4
     // rowScale must use the SAME hidden mask as renderTableHtml so the
     // placeholder height matches the actually-rendered repeat-template row.
-    const rowScale = computeRowScale(node.table.topology.rows, node.height, hidden)
+    const rowScale = computeRowScaleWithVirtualRows(
+      node.table.topology.rows,
+      node.height,
+      hidden,
+      { rowHeight: repeatRow.height, count: PLACEHOLDER_ROW_COUNT },
+    )
     const scaledRepeatHeight = repeatRow.height * rowScale
 
     let placeholderRowsHtml = ''
@@ -114,6 +120,7 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     virtualRowsConfig = {
       afterRowIndex: repeatTemplateIndex,
       count: 2,
+      rowHeight: repeatRow.height,
       rowsHtml: placeholderRowsHtml,
     }
   }
@@ -155,8 +162,6 @@ function buildHtml(node: MaterialNode, unit: UnitType, context: MaterialExtensio
     virtualRows: virtualRowsConfig,
   })
 }
-
-const PLACEHOLDER_ROW_COUNT = 2
 
 function createDelegate(context: MaterialExtensionContext): TableEditingDelegate {
   const unitManager = new UnitManager(context.getSchema().unit)
@@ -314,10 +319,5 @@ export function createTableDataExtension(context: MaterialExtensionContext): Mat
     datasourceDrop: createDatasourceDropHandler(context),
     resize: createTableResizeAdapter({ getHiddenRowMask }),
 
-    getVisualHeight(node) {
-      if (!isTableNode(node))
-        return node.height
-      return node.height + computePlaceholderHeight(node, PLACEHOLDER_ROW_COUNT, getHiddenRowMask(node))
-    },
   }
 }

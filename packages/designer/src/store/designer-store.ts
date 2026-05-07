@@ -223,31 +223,10 @@ export class DesignerStore {
     return typeof current === 'string' ? current : key
   }
 
-  // ─── Visual geometry ─────────────────────────────────────────────
+  // ─── Element geometry ───────────────────────────────────────────
 
-  /** Visual height in the designer, accounting for virtual content (e.g. placeholder rows). Falls back to node.height. */
-  getVisualHeight(node: MaterialNode): number {
-    const ext = this.getDesignerExtension(node.type)
-    return ext?.getVisualHeight?.(node) ?? node.height
-  }
-
-  /** Visual width counterpart to {@link getVisualHeight}. Falls back to node.width. */
-  getVisualWidth(node: MaterialNode): number {
-    const ext = this.getDesignerExtension(node.type)
-    return ext?.getVisualWidth?.(node) ?? node.width
-  }
-
-  /**
-   * Combined visual size lookup. Snap engine and selection-box assembly
-   * use this so both axes go through one ext lookup and no caller has to
-   * remember to query height vs width separately.
-   */
-  getVisualSize(node: MaterialNode): { width: number, height: number } {
-    const ext = this.getDesignerExtension(node.type)
-    return {
-      width: ext?.getVisualWidth?.(node) ?? node.width,
-      height: ext?.getVisualHeight?.(node) ?? node.height,
-    }
+  getElementSize(node: MaterialNode): { width: number, height: number } {
+    return { width: node.width, height: node.height }
   }
 
   // ─── Editing Session ────────────────────────────────────────────

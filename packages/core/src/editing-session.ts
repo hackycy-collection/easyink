@@ -1,5 +1,5 @@
 import type { BindingRef, MaterialNode } from '@easyink/schema'
-import type { BindingDisplayFormat } from '@easyink/shared'
+import type { BindingDisplayFormat, UnitType } from '@easyink/shared'
 import type { Point, Rect } from './geometry'
 import type { DatasourceFieldInfo, PropSchemaLike } from './material-extension'
 
@@ -37,7 +37,9 @@ export interface SelectionType<T = unknown> {
 export interface MaterialGeometry {
   /**
    * Overall editing-time layout of the material.
-   * contentBox may differ from node dimensions (e.g. placeholder rows in designer).
+   * contentBox defaults to schema element dimensions. Materials may describe
+   * internal viewports/scrolling here, but designer-only previews must not
+   * enlarge the element footprint.
    */
   getContentLayout: (node: MaterialNode) => ContentLayout
   /** Map a selection to screen rectangles. Range selections return multiple rects. */
@@ -47,7 +49,7 @@ export interface MaterialGeometry {
 }
 
 export interface ContentLayout {
-  /** Total rectangle in canvas coordinates (may include virtual rows, etc.) */
+  /** Total rectangle in document coordinates. */
   contentBox: Rect
   /** Visible sub-rectangle within contentBox (for clipping) */
   viewport?: Rect
@@ -183,16 +185,34 @@ export interface SelectionStore {
 
 /** Framework-provided coordinate conversion service. */
 export interface GeometryService {
-  /** Screen pixels to canvas logical units */
-  screenToCanvas: (px: { x: number, y: number }) => Point
-  /** Canvas logical units to screen pixels */
-  canvasToScreen: (pt: Point) => { x: number, y: number }
-  /** Canvas coordinates to material-local coordinates */
-  canvasToLocal: (pt: Point, node: MaterialNode) => Point
-  /** Material-local coordinates to canvas coordinates */
-  localToCanvas: (pt: Point, node: MaterialNode) => Point
+  /** Current page geometry used by all screen/document conversions. */
+  getPageGeometry: () => PageGeometrySnapshot
+  /** Browser CSS pixels to schema document-unit coordinates. */
+  screenToDocument: (px: Point) => Point
+  /** Schema document-unit coordinates to browser CSS pixels. */
+  documentToScreen: (pt: Point) => Point
+  /** Document coordinates to material-local coordinates. Includes node transform by default. */
+  documentToLocal: (pt: Point, node: MaterialNode, options?: LocalCoordinateOptions) => Point
+  /** Material-local coordinates to document coordinates. Includes node transform by default. */
+  localToDocument: (pt: Point, node: MaterialNode, options?: LocalCoordinateOptions) => Point
   /** Current selection rectangles (aggregated from resolveLocation + viewport clipping) */
   getSelectionRects: () => Rect[]
+}
+
+export interface PageGeometrySnapshot {
+  /** Unscrolled page origin in browser CSS pixels. */
+  pageOffset: Point
+  /** Current visual zoom. */
+  zoom: number
+  /** Scroll offset of the viewport that observes the page. */
+  scroll: Point
+  /** Unit used by schema page, node coordinates, and node sizes. */
+  documentUnit: UnitType
+}
+
+export interface LocalCoordinateOptions {
+  /** Set false for axis-aligned document/local translation only. Defaults to true. */
+  includeTransform?: boolean
 }
 
 // ─── EditingSessionRef ──────────────────────────────────────────────
