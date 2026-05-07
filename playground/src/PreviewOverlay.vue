@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
-import { usePrinter } from './hooks/usePrinter'
+import { usePrinter } from './hooks/useHiPrint'
 
 const props = defineProps<{
   schema: DocumentSchema

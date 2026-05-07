@@ -1,5 +1,5 @@
 import type { PrintAdapter, ViewerExportContext } from '@easyink/viewer'
-import { usePrinter } from '../hooks/usePrinter'
+import { usePrinter } from '../hooks/useHiPrint'
 
 const UNIT_TO_MM = {
   cm: 10,

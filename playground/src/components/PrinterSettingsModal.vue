@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { usePrinter } from '../hooks/usePrinter'
+import { usePrinter } from '../hooks/useHiPrint'
 
 const emit = defineEmits<{
   close: []
