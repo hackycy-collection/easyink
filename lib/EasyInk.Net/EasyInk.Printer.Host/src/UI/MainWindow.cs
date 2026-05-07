@@ -491,7 +491,7 @@ public class MainWindow : Form
         {
             Text = "",
             Anchor = AnchorStyles.Left,
-            Checked = _config.AutoStart
+            Checked = HostConfig.GetAutoStartRegistry()
         };
 
         basicPanel.Controls.Add(lblPort, 0, 0);
@@ -585,6 +585,8 @@ public class MainWindow : Form
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
             _config.TrustAllOrigins = chkTrustAllOrigins.Checked;
             _config.Save();
+
+            HostConfig.SetAutoStartRegistry(chkAutoStart.Checked);
 
             var result = MessageBox.Show(
                 "设置已保存，是否立即重启程序使配置生效？",

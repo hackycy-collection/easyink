@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Reflection;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Host.Config;
@@ -17,6 +19,48 @@ public class HostConfig
         "EasyInk.Printer.Host");
 
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
+
+    private const string AutoStartRegKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string AutoStartRegName = "EasyInkPrinterHost";
+
+    public static bool GetAutoStartRegistry()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(AutoStartRegKey, false);
+            return key?.GetValue(AutoStartRegName) != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static void SetAutoStartRegistry(bool enable)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(AutoStartRegKey, true);
+            if (key == null) return;
+
+            if (enable)
+            {
+                var exePath = Assembly.GetExecutingAssembly().Location;
+                // .NET Framework WinForms exe is a .exe, not .dll
+                if (exePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    exePath = exePath.Substring(0, exePath.Length - 4) + ".exe";
+                key.SetValue(AutoStartRegName, $"\"{exePath}\"");
+            }
+            else
+            {
+                key.DeleteValue(AutoStartRegName, false);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HostConfig] 设置开机自启动失败: {ex.Message}");
+        }
+    }
 
     public static HostConfig Load()
     {

@@ -111,11 +111,24 @@ static class Program
         mainWindow.ShowInTaskbar = false;
         mainWindow.FormClosing += (s, e) =>
         {
-            if (e.CloseReason == CloseReason.UserClosing)
+            if (e.CloseReason != CloseReason.UserClosing) return;
+
+            if (config.MinimizeToTray)
             {
                 e.Cancel = true;
                 mainWindow.Hide();
+                return;
             }
+
+            var result = MessageBox.Show(
+                "关闭窗口后打印服务将停止运行，已提交的打印任务会中断。\n确定要退出吗？",
+                "退出确认",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (result != DialogResult.Yes)
+                e.Cancel = true;
         };
 
         Application.Run(mainWindow);
