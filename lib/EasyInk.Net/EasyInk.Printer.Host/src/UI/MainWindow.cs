@@ -1,9 +1,12 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using EasyInk.Printer.Host.Api;
 using EasyInk.Printer.Host.Config;
 using EasyInk.Printer.Host.Server;
+using EasyInk.Printer.Host.Utils;
 
 namespace EasyInk.Printer.Host.UI;
 
@@ -57,18 +60,7 @@ public class MainWindow : Form
     private TabPage CreateDashboardTab()
     {
         var tab = new TabPage("仪表盘");
-
         var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
-
-        var cardsPanel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 110,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Padding = new Padding(0, 0, 0, 8),
-            AutoSize = false
-        };
 
         var titleFont = new Font("Microsoft YaHei UI", 9f);
         var valueFont = new Font("Microsoft YaHei UI", 18f, FontStyle.Bold);
@@ -78,25 +70,35 @@ public class MainWindow : Form
         var colorError = Color.FromArgb(211, 47, 47);
         var colorPort = Color.FromArgb(63, 81, 181);
         var colorWs = Color.FromArgb(255, 152, 0);
+        var colorIdle = Color.FromArgb(56, 142, 142);
+        var colorBusy = Color.FromArgb(255, 111, 0);
 
         var hasError = !_server.IsRunning && _server.LastError != null;
         var statusColor = hasError ? colorError : colorRunning;
         var statusText = _server.IsRunning ? "运行中" : (hasError ? "异常" : "已停止");
 
-        // 状态卡片
-        Label lblStatusVal, lblPortVal, lblWsVal;
+        // -- 状态卡片 --
+        var cardsPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 118,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(0, 0, 0, 8),
+            AutoSize = false
+        };
+
+        Label lblStatusVal, lblPortVal, lblWsVal, lblQueueVal;
         var cardStatus = CreateCardPanel(cardSize, statusColor, "服务状态",
             statusText, valueFont, statusColor, titleFont, out lblStatusVal);
-
-        // 端口卡片
         var cardPort = CreateCardPanel(cardSize, colorPort, "端口",
             _server.Port.ToString(), valueFont, colorPort, titleFont, out lblPortVal);
-
-        // WebSocket 连接卡片
         var cardWs = CreateCardPanel(cardSize, colorWs, "WebSocket 连接",
             _wsHandler.ConnectionCount.ToString(), valueFont, colorWs, titleFont, out lblWsVal);
+        var cardQueue = CreateCardPanel(cardSize, colorIdle, "打印队列",
+            "空闲", valueFont, colorIdle, titleFont, out lblQueueVal);
 
-        cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs });
+        cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs, cardQueue });
 
         _wsHandler.ConnectionCountChanged += () =>
         {
@@ -107,7 +109,73 @@ public class MainWindow : Form
                 lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
         };
 
-        // 错误提示区域
+        // -- 设备信息区域 --
+        var infoPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 160,
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle,
+            Padding = new Padding(16, 12, 16, 12),
+            Margin = new Padding(0, 0, 0, 12)
+        };
+
+        var infoTitleFont = new Font("Microsoft YaHei UI", 10f, FontStyle.Bold);
+        var infoKeyFont = new Font("Microsoft YaHei UI", 9f);
+        var infoValFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Bold);
+
+        var lblInfoTitle = new Label
+        {
+            Text = "设备信息",
+            Font = infoTitleFont,
+            ForeColor = Color.FromArgb(50, 50, 50),
+            Dock = DockStyle.Top,
+            Height = 24
+        };
+
+        var infoGrid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 3,
+            Padding = new Padding(0, 4, 0, 0)
+        };
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.4f));
+        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+
+        // 第一行：服务地址 | 设备编号
+        var lanIps = NetworkHelper.GetLanIpv4Addresses();
+        var addresses = lanIps.Count > 0
+            ? string.Join("  ", lanIps.Select(ip => $"http://{ip}:{_server.Port}"))
+            : $"http://localhost:{_server.Port}";
+
+        var deviceNumber = NetworkHelper.GenerateDeviceNumber();
+        var appVersion = typeof(StatusController).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+
+        Label lblAddrVal, lblDeviceVal, lblVersionVal, lblMacVal;
+
+        AddInfoRow(infoGrid, 0, "服务地址:", addresses, infoKeyFont, infoValFont, out lblAddrVal);
+        AddInfoRowPair(infoGrid, 0, "设备编号:", deviceNumber, infoKeyFont, infoValFont, out lblDeviceVal);
+
+        // 第二行：应用版本 | MAC地址
+        var macs = NetworkHelper.GetActivePhysicalMacs();
+        var macText = macs.Count > 0 ? string.Join("  /  ", macs) : "未检测到";
+
+        AddInfoRow(infoGrid, 1, "应用版本:", appVersion, infoKeyFont, infoValFont, out lblVersionVal);
+        AddInfoRowPair(infoGrid, 1, "MAC 地址:", macText, infoKeyFont, infoValFont, out lblMacVal);
+
+        // 第三行：补充信息（空行占位，保持行高一致）
+        infoGrid.RowStyles[2] = new RowStyle(SizeType.Absolute, 0);
+
+        infoPanel.Controls.Add(infoGrid);
+        infoPanel.Controls.Add(lblInfoTitle);
+
+        // -- 错误提示区域 --
         var errorPanel = new Panel
         {
             Dock = DockStyle.Top,
@@ -115,9 +183,8 @@ public class MainWindow : Form
             Visible = false,
             BackColor = Color.FromArgb(255, 243, 224),
             Padding = new Padding(12),
-            Margin = new Padding(0, 8, 0, 0)
+            Margin = new Padding(0, 0, 0, 8)
         };
-
         var lblError = new Label
         {
             Dock = DockStyle.Fill,
@@ -133,13 +200,13 @@ public class MainWindow : Form
             errorPanel.Visible = true;
         }
 
+        // -- 刷新按钮 --
         var btnRefresh = new Button
         {
             Text = "刷新",
             Size = new Size(72, 28),
             Margin = new Padding(0)
         };
-
         var btnBar = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -149,15 +216,21 @@ public class MainWindow : Form
             Padding = new Padding(0, 4, 0, 0)
         };
         btnBar.Controls.Add(btnRefresh);
+
         btnRefresh.Click += (s, e) =>
         {
+            // 刷新服务状态卡片
             var err = !_server.IsRunning && _server.LastError != null;
             lblStatusVal.Text = _server.IsRunning ? "运行中" : (err ? "异常" : "已停止");
             lblStatusVal.ForeColor = err ? colorError : colorRunning;
-            cardStatus.Controls[1].BackColor = err ? colorError : colorRunning; // accentBar
+            cardStatus.Controls[1].BackColor = err ? colorError : colorRunning;
             lblPortVal.Text = _server.Port.ToString();
             lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
 
+            // 刷新打印队列状态
+            RefreshQueueStatus(lblQueueVal, cardQueue, colorIdle, colorBusy);
+
+            // 刷新错误区域
             if (err)
             {
                 lblError.Text = $"启动失败: {_server.LastError}  请检查端口是否被占用或权限是否足够。";
@@ -171,11 +244,88 @@ public class MainWindow : Form
             }
         };
 
+        // 添加顺序决定 Dock.Top 的视觉排列（后添加的更靠上）
         panel.Controls.Add(btnBar);
         panel.Controls.Add(errorPanel);
+        panel.Controls.Add(infoPanel);
         panel.Controls.Add(cardsPanel);
         tab.Controls.Add(panel);
         return tab;
+    }
+
+    private static void AddInfoRow(TableLayoutPanel grid, int row, string key, string value,
+        Font keyFont, Font valFont, out Label valLabel)
+    {
+        var lblKey = new Label
+        {
+            Text = key,
+            Font = keyFont,
+            ForeColor = Color.FromArgb(128, 128, 128),
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Margin = new Padding(0)
+        };
+        valLabel = new Label
+        {
+            Text = value,
+            Font = valFont,
+            ForeColor = Color.FromArgb(50, 50, 50),
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Margin = new Padding(0)
+        };
+        grid.Controls.Add(lblKey, 0, row);
+        grid.Controls.Add(valLabel, 1, row);
+    }
+
+    private static void AddInfoRowPair(TableLayoutPanel grid, int row, string key, string value,
+        Font keyFont, Font valFont, out Label valLabel)
+    {
+        var lblKey = new Label
+        {
+            Text = key,
+            Font = keyFont,
+            ForeColor = Color.FromArgb(128, 128, 128),
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Margin = new Padding(0)
+        };
+        valLabel = new Label
+        {
+            Text = value,
+            Font = valFont,
+            ForeColor = Color.FromArgb(50, 50, 50),
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Margin = new Padding(0)
+        };
+        grid.Controls.Add(lblKey, 2, row);
+        grid.Controls.Add(valLabel, 3, row);
+    }
+
+    private void RefreshQueueStatus(Label lblQueueVal, Panel cardQueue, Color colorIdle, Color colorBusy)
+    {
+        try
+        {
+            var json = _api.GetAllJobs();
+            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
+            var data = result["data"] as Newtonsoft.Json.Linq.JArray;
+            var hasActive = data != null && data.Any(j =>
+            {
+                var st = j["status"]?.ToString();
+                return st == "printing" || st == "queued";
+            });
+
+            var isBusy = hasActive;
+            lblQueueVal.Text = isBusy ? "忙碌" : "空闲";
+            lblQueueVal.ForeColor = isBusy ? colorBusy : colorIdle;
+            cardQueue.Controls[1].BackColor = isBusy ? colorBusy : colorIdle;
+        }
+        catch
+        {
+            lblQueueVal.Text = "--";
+            lblQueueVal.ForeColor = colorIdle;
+        }
     }
 
     private Panel CreateCardPanel(Size size, Color accentColor, string title, string value, Font valueFont, Color valueColor, Font titleFont, out Label valueLabel)
