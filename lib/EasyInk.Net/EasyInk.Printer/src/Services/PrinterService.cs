@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing.Printing;
 using System.Management;
 using EasyInk.Printer.Models;
@@ -57,48 +56,8 @@ public class PrinterService : IPrinterService
                         var printerState = GetUInt32(printer, "PrinterState");
                         var isOffline = GetBool(printer, "WorkOffline");
                         var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
-                        var paperJam = printerState == 13;
-                        var isReady = !isOffline && printerStatus == 3;
 
-                        string statusCode;
-                        string message;
-                        string stateDesc;
-
-                        if (isOffline)
-                        {
-                            statusCode = "PRINTER_OFFLINE"; message = "打印机离线"; stateDesc = "Offline";
-                        }
-                        else if (paperJam)
-                        {
-                            statusCode = "PAPER_JAM"; message = "打印机卡纸"; stateDesc = "PaperJam";
-                        }
-                        else if (paperOut)
-                        {
-                            statusCode = "PAPER_OUT"; message = "打印机缺纸"; stateDesc = "PaperOut";
-                        }
-                        else if (printerStatus == 6)
-                        {
-                            statusCode = "PRINTER_STOPPED"; message = "打印机已停止"; stateDesc = "Stopped";
-                        }
-                        else if (printerStatus == 3 || printerStatus == 4)
-                        {
-                            statusCode = "READY"; message = printerStatus == 4 ? "打印中" : "打印机就绪"; stateDesc = printerStatus == 4 ? "Printing" : "Idle";
-                        }
-                        else
-                        {
-                            statusCode = "PRINTER_ERROR"; message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})"; stateDesc = $"Unknown({printerStatus})";
-                        }
-
-                        map[name] = new PrinterStatus
-                        {
-                            IsReady = isReady,
-                            StatusCode = statusCode,
-                            Message = message,
-                            IsOnline = !isOffline,
-                            HasPaper = !paperOut,
-                            IsPaperJam = paperJam,
-                            PrinterState = stateDesc
-                        };
+                        map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
                     }
                     finally
                     {
@@ -109,7 +68,7 @@ public class PrinterService : IPrinterService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[EasyInk.Printer] 批量查询打印机状态失败: {ex.Message}");
+            EasyInk.Printer.SimpleLogger.Error("批量查询打印机状态失败", ex);
         }
         return map;
     }
@@ -201,74 +160,79 @@ public class PrinterService : IPrinterService
                 };
             }
 
-            // PrinterStatus: 1=Other, 2=Unknown, 3=Idle, 4=Printing, 5=Warmup, 6=Stopped, 7=Offline
             var printerStatus = GetUInt32(printer, "PrinterStatus");
-            // PrinterState: 0=Idle, 1=Printing, 2=Warmup, 3=Stopped, 4=Offline,
-            //               5=Error(ready), 6=Busy, 7=Not_Available, 8=Waiting,
-            //               9=Processing, 10=Initialization, 11=Power_Save, 12=Pending_Deletion, 13=Paper_Jam
             var printerState = GetUInt32(printer, "PrinterState");
             var isOffline = GetBool(printer, "WorkOffline");
             var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
-            var paperJam = printerState == 13;
 
-            var isReady = !isOffline && printerStatus == 3;
-
-            string statusCode;
-            string message;
-            string stateDesc;
-
-            if (isOffline)
-            {
-                statusCode = "PRINTER_OFFLINE";
-                message = "打印机离线";
-                stateDesc = "Offline";
-            }
-            else if (paperJam)
-            {
-                statusCode = "PAPER_JAM";
-                message = "打印机卡纸";
-                stateDesc = "PaperJam";
-            }
-            else if (paperOut)
-            {
-                statusCode = "PAPER_OUT";
-                message = "打印机缺纸";
-                stateDesc = "PaperOut";
-            }
-            else if (printerStatus == 6)
-            {
-                statusCode = "PRINTER_STOPPED";
-                message = "打印机已停止";
-                stateDesc = "Stopped";
-            }
-            else if (printerStatus == 3 || printerStatus == 4)
-            {
-                statusCode = "READY";
-                message = printerStatus == 4 ? "打印中" : "打印机就绪";
-                stateDesc = printerStatus == 4 ? "Printing" : "Idle";
-            }
-            else
-            {
-                statusCode = "PRINTER_ERROR";
-                message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})";
-                stateDesc = $"Unknown({printerStatus})";
-            }
-
-            return new PrinterStatus
-            {
-                IsReady = isReady,
-                StatusCode = statusCode,
-                Message = message,
-                IsOnline = !isOffline,
-                HasPaper = !paperOut,
-                IsPaperJam = paperJam,
-                PrinterState = stateDesc
-            };
+            return MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
         }
         finally
         {
             printer?.Dispose();
         }
+    }
+
+    // PrinterStatus: 1=Other, 2=Unknown, 3=Idle, 4=Printing, 5=Warmup, 6=Stopped, 7=Offline
+    // PrinterState: 0=Idle, 1=Printing, 2=Warmup, 3=Stopped, 4=Offline,
+    //               5=Error(ready), 6=Busy, 7=Not_Available, 8=Waiting,
+    //               9=Processing, 10=Initialization, 11=Power_Save, 12=Pending_Deletion, 13=Paper_Jam
+    private static PrinterStatus MapPrinterStatus(uint printerStatus, uint printerState, bool isOffline, bool paperOut)
+    {
+        var paperJam = printerState == 13;
+        var isReady = !isOffline && printerStatus == 3;
+
+        string statusCode;
+        string message;
+        string stateDesc;
+
+        if (isOffline)
+        {
+            statusCode = "PRINTER_OFFLINE";
+            message = "打印机离线";
+            stateDesc = "Offline";
+        }
+        else if (paperJam)
+        {
+            statusCode = "PAPER_JAM";
+            message = "打印机卡纸";
+            stateDesc = "PaperJam";
+        }
+        else if (paperOut)
+        {
+            statusCode = "PAPER_OUT";
+            message = "打印机缺纸";
+            stateDesc = "PaperOut";
+        }
+        else if (printerStatus == 6)
+        {
+            statusCode = "PRINTER_STOPPED";
+            message = "打印机已停止";
+            stateDesc = "Stopped";
+        }
+        else if (printerStatus == 3 || printerStatus == 4)
+        {
+            statusCode = "READY";
+            message = printerStatus == 4 ? "打印中" : "打印机就绪";
+            stateDesc = printerStatus == 4 ? "Printing" : "Idle";
+        }
+        else
+        {
+            statusCode = "PRINTER_ERROR";
+            message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})";
+            stateDesc = $"Unknown({printerStatus})";
+        }
+
+        return new PrinterStatus
+        {
+            IsReady = isReady,
+            StatusCode = statusCode,
+            Message = message,
+            IsOnline = !isOffline,
+            HasPaper = !paperOut,
+            IsPaperJam = paperJam,
+            PrinterState = stateDesc
+        };
     }
 
     private static uint GetUInt32(ManagementObject obj, string property)
@@ -302,7 +266,7 @@ public class PrinterService : IPrinterService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[EasyInk.Printer] 获取打印机 {printerName} 纸张尺寸失败: {ex.Message}");
+            EasyInk.Printer.SimpleLogger.Error($"获取打印机 {printerName} 纸张尺寸失败", ex);
         }
 
         return sizes;

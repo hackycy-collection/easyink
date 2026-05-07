@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.UI;
@@ -41,6 +42,12 @@ static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var config = HostConfig.Load();
+
+        var logDir = config.DbPath != null
+            ? Path.GetDirectoryName(config.DbPath)
+            : Path.Combine(AppContext.BaseDirectory, "data");
+        EasyInk.Printer.SimpleLogger.Configure(logDir);
+
         var printerApi = new PrinterApi(config.DbPath);
         var httpServer = new HttpServer(config.HttpPort);
         var wsHandler = new WebSocketHandler();
@@ -57,7 +64,7 @@ static class Program
 
         if (!httpServer.TryStart())
         {
-            System.Diagnostics.Debug.WriteLine($"[Program] HTTP 服务启动失败: {httpServer.LastError}");
+            EasyInk.Printer.SimpleLogger.Error($"HTTP 服务启动失败: {httpServer.LastError}");
         }
 
         var trayIcon = new TrayIcon(httpServer);
@@ -66,6 +73,7 @@ static class Program
         mainWindow.OnRestart += () =>
         {
             httpServer.Stop();
+            wsHandler.Dispose();
             printerApi.Dispose();
             trayIcon.Dispose();
 
@@ -88,7 +96,7 @@ static class Program
             httpServer.Stop();
             if (!httpServer.TryStart())
             {
-                System.Diagnostics.Debug.WriteLine($"[Program] HTTP 服务重启失败: {httpServer.LastError}");
+                EasyInk.Printer.SimpleLogger.Error($"HTTP 服务重启失败: {httpServer.LastError}");
             }
             if (httpServer.IsRunning)
             {
@@ -105,6 +113,7 @@ static class Program
         trayIcon.OnExit += () =>
         {
             httpServer.Stop();
+            wsHandler.Dispose();
             printerApi.Dispose();
             trayIcon.Dispose();
             Application.Exit();
@@ -143,5 +152,7 @@ static class Program
 
         if (httpServer.IsRunning)
             httpServer.Stop();
+        wsHandler.Dispose();
+        printerApi.Dispose();
     }
 }

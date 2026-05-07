@@ -207,42 +207,38 @@ public class PrinterApi : IDisposable
                 PrinterResult.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
         }
 
-        PrinterResult response;
+        var response = HandleCommand(request);
+        return JsonConvert.SerializeObject(response, _jsonSettings);
+    }
+
+    /// <summary>
+    /// 处理命令（对象入口，避免 JSON 序列化往返）
+    /// </summary>
+    public PrinterResult HandleCommand(PrinterCommand request)
+    {
         switch (request.Command)
         {
             case "getPrinters":
-                response = PrinterResult.Ok(request.Id, _printerService.GetPrinters());
-                break;
+                return PrinterResult.Ok(request.Id, _printerService.GetPrinters());
             case "getPrinterStatus":
-                response = HandleGetPrinterStatus(request);
-                break;
+                return HandleGetPrinterStatus(request);
             case "print":
-                response = HandlePrint(request);
-                break;
+                return HandlePrint(request);
             case "printAsync":
-                response = HandlePrintAsync(request);
-                break;
+                return HandlePrintAsync(request);
             case "getJobStatus":
-                response = HandleGetJobStatus(request);
-                break;
+                return HandleGetJobStatus(request);
             case "getAllJobs":
-                response = PrinterResult.Ok(request.Id, _jobQueue.GetAllJobs());
-                break;
+                return PrinterResult.Ok(request.Id, _jobQueue.GetAllJobs());
             case "queryLogs":
-                response = HandleQueryLogs(request);
-                break;
+                return HandleQueryLogs(request);
             case "batchPrint":
-                response = HandleBatchPrint(request, async: false);
-                break;
+                return HandleBatchPrint(request, async: false);
             case "batchPrintAsync":
-                response = HandleBatchPrint(request, async: true);
-                break;
+                return HandleBatchPrint(request, async: true);
             default:
-                response = PrinterResult.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
-                break;
+                return PrinterResult.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
         }
-
-        return JsonConvert.SerializeObject(response, _jsonSettings);
     }
 
     /// <summary>
@@ -402,7 +398,7 @@ public class PrinterApi : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[EasyInk.Printer] 参数 '{key}' 转换失败: {ex.Message}");
+            SimpleLogger.Error($"参数 '{key}' 转换失败", ex);
             return default;
         }
     }

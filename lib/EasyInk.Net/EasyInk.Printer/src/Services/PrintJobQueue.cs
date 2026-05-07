@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -147,7 +146,7 @@ public class PrintJobQueue : IDisposable
                     jobInfo.Status = "failed";
                     jobInfo.ErrorMessage = ex.Message;
                 }
-                Debug.WriteLine($"[EasyInk.Printer] 打印任务 {requestId} 失败: {ex.Message}");
+                EasyInk.Printer.SimpleLogger.Error($"打印任务 {requestId} 失败", ex);
             }
             finally
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
@@ -10,21 +11,52 @@ using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Host.Server;
 
-public class WebSocketHandler
+public class WebSocketHandler : IDisposable
 {
     private const int MaxBinaryMessageSize = 60 * 1024 * 1024; // 60MB (50MB PDF + 10MB metadata)
 
+    private static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(30);
+
     private readonly ConcurrentDictionary<string, WebSocket> _connections = new();
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
+    private readonly Timer _pingTimer;
     private WebSocketCommandHandler _commandHandler;
 
     public int ConnectionCount => _connections.Count;
 
     public event Action ConnectionCountChanged;
 
+    public WebSocketHandler()
+    {
+        _pingTimer = new Timer(SendPings, null, PingInterval, PingInterval);
+    }
+
     public void SetCommandHandler(WebSocketCommandHandler handler)
     {
         _commandHandler = handler;
+    }
+
+    private void SendPings(object state)
+    {
+        var pingPayload = Array.Empty<byte>();
+        foreach (var kvp in _connections)
+        {
+            try
+            {
+                if (kvp.Value.State == WebSocketState.Open)
+                    kvp.Value.SendAsync(new ArraySegment<byte>(pingPayload), WebSocketMessageType.Binary, true, CancellationToken.None).Wait(5000);
+                else
+                    _connections.TryRemove(kvp.Key, out _);
+            }
+            catch
+            {
+                _connections.TryRemove(kvp.Key, out _);
+                try { kvp.Value.Dispose(); } catch { }
+            }
+        }
+
+        if (_connections.Count == 0)
+            ConnectionCountChanged?.Invoke();
     }
 
     public async Task HandleConnection(HttpListenerContext context)
@@ -159,5 +191,16 @@ public class WebSocketHandler
         {
             _broadcastLock.Release();
         }
+    }
+
+    public void Dispose()
+    {
+        _pingTimer.Dispose();
+        foreach (var kvp in _connections)
+        {
+            try { kvp.Value.Dispose(); } catch { }
+        }
+        _connections.Clear();
+        _broadcastLock.Dispose();
     }
 }

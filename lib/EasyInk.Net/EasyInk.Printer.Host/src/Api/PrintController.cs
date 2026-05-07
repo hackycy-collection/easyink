@@ -1,13 +1,21 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using EasyInk.Printer;
+using EasyInk.Printer.Models;
 
 namespace EasyInk.Printer.Host.Api;
 
 public class PrintController
 {
     private readonly PrinterApi _api;
+
+    private static readonly JsonSerializerSettings JsonSettings = new()
+    {
+        ContractResolver = new CamelCasePropertyNamesContractResolver()
+    };
 
     public PrintController(PrinterApi api)
     {
@@ -46,72 +54,75 @@ public class PrintController
 
     private string ExecuteCommand(string command, string body)
     {
-        var commandObj = new JObject
+        var cmd = new PrinterCommand
         {
-            ["command"] = command,
-            ["id"] = Guid.NewGuid().ToString(),
-            ["params"] = ParseBody(body)
+            Command = command,
+            Id = Guid.NewGuid().ToString(),
+            Params = ParseBodyToDictionary(body)
         };
-        return _api.HandleCommand(commandObj.ToString(Formatting.None));
+        var result = _api.HandleCommand(cmd);
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
     private string ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
     {
-        var paramsObj = ParseBody(body) as JObject ?? new JObject();
-        paramsObj["pdfBytes"] = pdfBytes != null ? Convert.ToBase64String(pdfBytes) : null;
+        var parms = ParseBodyToDictionary(body) ?? new Dictionary<string, object>();
+        if (pdfBytes != null)
+            parms["pdfBytes"] = Convert.ToBase64String(pdfBytes);
 
-        var commandObj = new JObject
+        var cmd = new PrinterCommand
         {
-            ["command"] = command,
-            ["id"] = Guid.NewGuid().ToString(),
-            ["params"] = paramsObj
+            Command = command,
+            Id = Guid.NewGuid().ToString(),
+            Params = parms
         };
-        return _api.HandleCommand(commandObj.ToString(Formatting.None));
+        var result = _api.HandleCommand(cmd);
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
     private string ExecuteBatchCommand(string command, string body)
     {
-        JArray jobs;
         if (string.IsNullOrEmpty(body))
         {
-            return JsonConvert.SerializeObject(new
-            {
-                success = false,
-                errorInfo = new { code = "INVALID_PARAMS", message = "缺少请求体" }
-            });
+            return JsonConvert.SerializeObject(PrinterResult.Error(
+                Guid.NewGuid().ToString(), "INVALID_PARAMS", "缺少请求体"), JsonSettings);
         }
 
         var token = JToken.Parse(body);
+        JArray jobs;
         if (token is JArray arr)
-        {
             jobs = arr;
-        }
         else if (token is JObject obj && obj["jobs"] is JArray jArr)
-        {
             jobs = jArr;
-        }
         else
         {
-            return JsonConvert.SerializeObject(new
-            {
-                success = false,
-                errorInfo = new { code = "INVALID_PARAMS", message = "jobs 必须是数组" }
-            });
+            return JsonConvert.SerializeObject(PrinterResult.Error(
+                Guid.NewGuid().ToString(), "INVALID_PARAMS", "jobs 必须是数组"), JsonSettings);
         }
 
-        var commandObj = new JObject
+        var cmd = new PrinterCommand
         {
-            ["command"] = command,
-            ["id"] = Guid.NewGuid().ToString(),
-            ["params"] = new JObject { ["jobs"] = jobs }
+            Command = command,
+            Id = Guid.NewGuid().ToString(),
+            Params = new Dictionary<string, object> { ["jobs"] = jobs }
         };
-        return _api.HandleCommand(commandObj.ToString(Formatting.None));
+        var result = _api.HandleCommand(cmd);
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
-    private static JToken ParseBody(string body)
+    private static Dictionary<string, object> ParseBodyToDictionary(string body)
     {
         if (string.IsNullOrEmpty(body))
-            return new JObject();
-        return JToken.Parse(body);
+            return null;
+        var token = JToken.Parse(body);
+        if (token is JObject obj)
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var prop in obj.Properties())
+                dict[prop.Name] = prop.Value;
+            return dict;
+        }
+        return null;
     }
+
 }

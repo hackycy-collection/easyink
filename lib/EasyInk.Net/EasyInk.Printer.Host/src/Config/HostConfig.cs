@@ -56,7 +56,7 @@ public class HostConfig
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[HostConfig] 设置开机自启动失败: {ex.Message}");
+            EasyInk.Printer.SimpleLogger.Error("设置开机自启动失败", ex);
         }
     }
 
@@ -72,7 +72,7 @@ public class HostConfig
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[HostConfig] 配置读取失败，使用默认值: {ex.Message}");
+            EasyInk.Printer.SimpleLogger.Error("配置读取失败，使用默认值", ex);
         }
         return new HostConfig();
     }

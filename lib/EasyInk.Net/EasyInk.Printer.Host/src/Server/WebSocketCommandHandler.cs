@@ -59,12 +59,13 @@ public class WebSocketCommandHandler
         if (request == null)
             return ErrorJson(message.Id, "INVALID_PARAMS", "缺少打印参数");
 
-        return _api.HandleCommand(JsonConvert.SerializeObject(new PrinterCommand
+        var result = _api.HandleCommand(new PrinterCommand
         {
             Command = "print",
             Id = message.Id,
             Params = ConvertToDictionary(message.Params)
-        }, JsonSettings));
+        });
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
     private string HandlePrintAsync(WebSocketMessage message)
@@ -73,12 +74,13 @@ public class WebSocketCommandHandler
         if (request == null)
             return ErrorJson(message.Id, "INVALID_PARAMS", "缺少打印参数");
 
-        return _api.HandleCommand(JsonConvert.SerializeObject(new PrinterCommand
+        var result = _api.HandleCommand(new PrinterCommand
         {
             Command = "printAsync",
             Id = message.Id,
             Params = ConvertToDictionary(message.Params)
-        }, JsonSettings));
+        });
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
     private string HandleGetPrinterStatus(WebSocketMessage message)
@@ -101,12 +103,13 @@ public class WebSocketCommandHandler
 
     private string HandleQueryLogs(WebSocketMessage message)
     {
-        return _api.HandleCommand(JsonConvert.SerializeObject(new PrinterCommand
+        var result = _api.HandleCommand(new PrinterCommand
         {
             Command = "queryLogs",
             Id = message.Id,
             Params = ConvertToDictionary(message.Params)
-        }, JsonSettings));
+        });
+        return JsonConvert.SerializeObject(result, JsonSettings);
     }
 
     private static Dictionary<string, object> ConvertToDictionary(JObject obj)

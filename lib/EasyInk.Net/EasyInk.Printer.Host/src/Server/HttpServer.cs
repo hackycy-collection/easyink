@@ -64,9 +64,9 @@ public class HttpServer
         IsRunning = false;
         _cts?.Cancel();
         try { _listener?.Stop(); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HttpServer] 停止监听器异常: {ex.Message}"); }
+        catch (Exception ex) { EasyInk.Printer.SimpleLogger.Error("停止监听器异常", ex); }
         try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HttpServer] 等待监听任务异常: {ex.Message}"); }
+        catch (Exception ex) { EasyInk.Printer.SimpleLogger.Error("等待监听任务异常", ex); }
         _cts?.Dispose();
         _listener?.Close();
         _listener = null;
@@ -91,7 +91,7 @@ public class HttpServer
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[HttpServer] 请求处理异常: {ex.Message}");
+                            EasyInk.Printer.SimpleLogger.Error("请求处理异常", ex);
                             try
                             {
                                 context.Response.StatusCode = 500;
@@ -111,7 +111,7 @@ public class HttpServer
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[HttpServer] 监听异常: {ex.Message}");
+                EasyInk.Printer.SimpleLogger.Error("监听异常", ex);
             }
         }
     }
