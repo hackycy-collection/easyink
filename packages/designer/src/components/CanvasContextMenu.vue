@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { MaterialNode } from '@easyink/schema'
 import type { Component } from 'vue'
-import { isInteractable, UpdateMaterialMetaCommand } from '@easyink/core'
+import { AddElementGroupCommand, isInteractable, RemoveElementGroupCommand, UpdateMaterialMetaCommand } from '@easyink/core'
 import {
   IconCopy,
   IconCopyPlus,
   IconDelete,
+  IconGroup,
   IconHidden,
   IconLayerBottom,
   IconLayerDown,
@@ -15,11 +16,14 @@ import {
   IconPaste,
   IconScissors,
   IconSelectAll,
+  IconUngroup,
   IconUnlock,
 } from '@easyink/icons'
+import { generateId } from '@easyink/shared'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { createClipboardActions } from '../interactions/clipboard-actions'
+import { hasGroupedElement, selectedLogicalGroupIds } from '../interactions/logical-groups'
 import { selectMany } from '../interactions/selection-api'
 
 interface ContextMenuItem {
@@ -107,7 +111,16 @@ function buildGroups(isBlank: boolean): ContextMenuGroup[] {
     })
   }
 
-  // Group 3: control
+  // Group 3: logical grouping
+  const groupItems: ContextMenuItem[] = []
+  if (nodes.length >= 2 && !hasGroupedElement(store, nodes.map(node => node.id)))
+    groupItems.push({ id: 'group', label: store.t('designer.context.group'), icon: IconGroup })
+  if (selectedLogicalGroupIds(store).length > 0)
+    groupItems.push({ id: 'ungroup', label: store.t('designer.context.ungroup'), icon: IconUngroup })
+  if (groupItems.length > 0)
+    groups.push({ id: 'group', items: groupItems })
+
+  // Group 4: control
   const controlItems: ContextMenuItem[] = []
   const allLocked = nodes.every(n => n.locked)
   if (allLocked) {
@@ -118,7 +131,7 @@ function buildGroups(isBlank: boolean): ContextMenuGroup[] {
   }
   groups.push({ id: 'control', items: controlItems })
 
-  // Group 4: danger
+  // Group 5: danger
   groups.push({
     id: 'danger',
     items: [
@@ -221,6 +234,36 @@ function handleAction(item: ContextMenuItem) {
         }
       }
       break
+
+    case 'group':
+      if (nodes.length >= 2 && nodes.every(isInteractable) && !hasGroupedElement(store, nodes.map(node => node.id))) {
+        const group = { id: generateId('grp'), memberIds: nodes.map(node => node.id) }
+        store.commands.execute(new AddElementGroupCommand(store.schema, group))
+        selectMany(store, group.memberIds)
+      }
+      break
+
+    case 'ungroup': {
+      const groupIds = selectedLogicalGroupIds(store)
+      const memberIds: string[] = []
+      for (const groupId of groupIds) {
+        const group = store.getElementGroupById(groupId)
+        if (group)
+          memberIds.push(...group.memberIds)
+      }
+      store.commands.beginTransaction('Ungroup')
+      try {
+        for (const groupId of groupIds)
+          store.commands.execute(new RemoveElementGroupCommand(store.schema, groupId))
+        store.commands.commitTransaction()
+      }
+      catch (err) {
+        store.commands.rollbackTransaction()
+        throw err
+      }
+      selectMany(store, memberIds)
+      break
+    }
 
     case 'lock':
       runMetaTransaction('Lock', nodes, { locked: true })

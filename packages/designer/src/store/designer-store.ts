@@ -1,5 +1,5 @@
 import type { EphemeralPanelDef, PropertyPanelOverlay } from '@easyink/core'
-import type { DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { DocumentSchema, ElementGroupSchema, MaterialNode } from '@easyink/schema'
 import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, SnapLine } from '../types'
 import { CommandManager, FontManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
@@ -22,12 +22,14 @@ export class DesignerStore {
   // ─── Core services ────────────────────────────────────────────
   readonly commands = new CommandManager()
   readonly selection = new SelectionModel()
-  readonly dataSourceRegistry = new DataSourceRegistry() /**
-                                                          * Designer-level diagnostics channel. Recoverable errors (rejected
-                                                          * selection payload, behavior middleware throws, transaction rollback)
-                                                          * push here so the workbench DebugPanel and host Contributions can both
-                                                          * surface them. See `./diagnostics.ts` for rationale.
-                                                          */
+  readonly dataSourceRegistry = new DataSourceRegistry()
+
+  /**
+   * Designer-level diagnostics channel. Recoverable errors (rejected
+   * selection payload, behavior middleware throws, transaction rollback)
+   * push here so the workbench DebugPanel and host Contributions can both
+   * surface them. See `./diagnostics.ts` for rationale.
+   */
   readonly diagnostics = new DiagnosticsChannel()
   readonly fontManager = new FontManager()
   // ─── Clipboard (internal, not in Schema) ──────────────────────
@@ -127,6 +129,18 @@ export class DesignerStore {
 
   getElements(): MaterialNode[] {
     return this._schema.elements
+  }
+
+  getElementGroups(): ElementGroupSchema[] {
+    return this._schema.groups ?? []
+  }
+
+  getElementGroupById(groupId: string): ElementGroupSchema | undefined {
+    return this.getElementGroups().find(group => group.id === groupId)
+  }
+
+  getElementGroupForElement(elementId: string): ElementGroupSchema | undefined {
+    return this.getElementGroups().find(group => group.memberIds.includes(elementId))
   }
 
   getElementById(id: string): MaterialNode | undefined {

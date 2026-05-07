@@ -1,4 +1,4 @@
-import type { DocumentSchema, GuideSchema, MaterialNode, PageSchema } from '@easyink/schema'
+import type { DocumentSchema, ElementGroupSchema, GuideSchema, MaterialNode, PageSchema } from '@easyink/schema'
 import type { Command } from '../command'
 import type { MaterialResizeSideEffect } from '../material-extension'
 import { deepClone, generateId } from '@easyink/shared'
@@ -32,11 +32,13 @@ export class RemoveMaterialCommand implements Command {
   readonly type = 'remove-material'
   readonly description = 'Remove material'
   private snapshot: MaterialNode | undefined
+  private groupsSnapshot: ElementGroupSchema[] | undefined
   private index = -1
 
   constructor(
     private elements: MaterialNode[],
     private nodeId: string,
+    private schema?: DocumentSchema,
   ) {}
 
   execute(): void {
@@ -46,12 +48,82 @@ export class RemoveMaterialCommand implements Command {
     this.index = idx
     this.snapshot = deepClone(this.elements[idx]!)
     this.elements.splice(idx, 1)
+    if (this.schema?.groups) {
+      this.groupsSnapshot = deepClone(this.schema.groups)
+      pruneElementFromGroups(this.schema, this.nodeId)
+    }
   }
 
   undo(): void {
     if (this.snapshot)
       this.elements.splice(this.index, 0, this.snapshot)
+    if (this.schema && this.groupsSnapshot)
+      this.schema.groups = deepClone(this.groupsSnapshot)
   }
+}
+
+export class AddElementGroupCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'add-element-group'
+  readonly description = 'Add element group'
+  private oldGroups: ElementGroupSchema[] | undefined
+
+  constructor(
+    private schema: DocumentSchema,
+    private group: ElementGroupSchema,
+  ) {}
+
+  execute(): void {
+    this.oldGroups = deepClone(this.schema.groups ?? [])
+    const groups = this.schema.groups ?? (this.schema.groups = [])
+    const existingIndex = groups.findIndex(group => group.id === this.group.id)
+    const nextGroup = deepClone(this.group)
+    if (existingIndex >= 0)
+      groups.splice(existingIndex, 1, nextGroup)
+    else
+      groups.push(nextGroup)
+  }
+
+  undo(): void {
+    this.schema.groups = deepClone(this.oldGroups ?? [])
+  }
+}
+
+export class RemoveElementGroupCommand implements Command {
+  readonly id = generateId('cmd')
+  readonly type = 'remove-element-group'
+  readonly description = 'Remove element group'
+  private oldGroups: ElementGroupSchema[] | undefined
+
+  constructor(
+    private schema: DocumentSchema,
+    private groupId: string,
+  ) {}
+
+  execute(): void {
+    this.oldGroups = deepClone(this.schema.groups ?? [])
+    if (!this.schema.groups)
+      return
+    const index = this.schema.groups.findIndex(group => group.id === this.groupId)
+    if (index >= 0)
+      this.schema.groups.splice(index, 1)
+  }
+
+  undo(): void {
+    this.schema.groups = deepClone(this.oldGroups ?? [])
+  }
+}
+
+function pruneElementFromGroups(schema: DocumentSchema, elementId: string): void {
+  if (!schema.groups)
+    return
+  const nextGroups: ElementGroupSchema[] = []
+  for (const group of schema.groups) {
+    const memberIds = group.memberIds.filter(id => id !== elementId)
+    if (memberIds.length >= 2)
+      nextGroups.push({ ...group, memberIds })
+  }
+  schema.groups = nextGroups
 }
 
 export class MoveMaterialCommand implements Command {

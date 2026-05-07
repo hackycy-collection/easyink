@@ -63,7 +63,7 @@ export function createClipboardActions(
 
     runTransaction('Cut', () => {
       for (const node of nodes)
-        store.commands.execute(new RemoveMaterialCommand(elements, node.id))
+        store.commands.execute(new RemoveMaterialCommand(elements, node.id, store.schema))
     })
 
     clearSelection(store)
@@ -127,7 +127,7 @@ export function createClipboardActions(
 
     runTransaction('Delete', () => {
       for (const node of nodes)
-        store.commands.execute(new RemoveMaterialCommand(elements, node.id))
+        store.commands.execute(new RemoveMaterialCommand(elements, node.id, store.schema))
     })
 
     clearSelection(store)

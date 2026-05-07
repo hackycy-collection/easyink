@@ -25,18 +25,20 @@
  */
 
 import type { DesignerStore } from '../store/designer-store'
+import { expandElementIdsForGroups } from './logical-groups'
 
-/** Replace selection with a single element. Used by structure-tree, MaterialPanel, datasource-drop, post-group/paste. */
+/** Replace selection with a single element, expanded to its logical group when present. Used by structure-tree, MaterialPanel, datasource-drop, post-group/paste. */
 export function selectOne(store: DesignerStore, elementId: string): void {
-  store.selection.select(elementId)
+  selectMany(store, [elementId])
 }
 
-/** Replace selection with the given ids. Used by select-all, select-by-type, paste/duplicate, ungroup. */
+/** Replace selection with the given ids, expanding logical group members. Used by select-all, select-by-type, paste/duplicate, ungroup. */
 export function selectMany(store: DesignerStore, elementIds: readonly string[]): void {
-  if (elementIds.length === 0)
+  const ids = expandElementIdsForGroups(store, elementIds)
+  if (ids.length === 0)
     store.selection.clear()
   else
-    store.selection.selectMultiple([...elementIds])
+    store.selection.selectMultiple(ids)
 }
 
 /** Clear selection. Used by keyboard Esc, post-cut/delete. */

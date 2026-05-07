@@ -21,6 +21,7 @@ export interface DocumentSchema {
   page: PageSchema
   guides: GuideSchema
   elements: MaterialNode[]
+  groups?: ElementGroupSchema[]
   extensions?: DocumentSchemaExtensions
   compat?: BenchmarkCompatState
 }
@@ -157,6 +158,13 @@ export interface GuideGroupSchema {
   id: string
   x: number[]
   y: number[]
+}
+
+// ─── Logical Element Groups ───────────────────────────────────────
+
+export interface ElementGroupSchema {
+  id: string
+  memberIds: string[]
 }
 
 // ─── Compat State ──────────────────────────────────────────────────

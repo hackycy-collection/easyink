@@ -9,6 +9,7 @@ EasyInk 的历史系统只服务文档编辑，不服务工作台编排。
 - 页面配置修改
 - 辅助线修改
 - 元素增删改
+- 逻辑分组关系增删
 - 绑定修改
 - 表格行列和单元格编辑
 - 动画配置修改
@@ -87,8 +88,12 @@ class CommandManager {
 - `UpdatePageCommand`
 - `UpdateGuidesCommand`
 - `UpdateGeometryCommand`（属性面板 X/Y/W/H/rotation/opacity 修改，支持 merge 和 precomputedOldValues）
+- `AddElementGroupCommand`
+- `RemoveElementGroupCommand`
 
 命令层只表达 schema 变更，不读取物料注册表，也不判断 `capabilities`。例如 `RotateMaterialCommand` / `UpdateGeometryCommand(rotation)` 可以写入 rotation；是否允许用户从 Designer 入口触发旋转，由 Designer 侧的统一 capability 判断负责。这保持 core 与具体物料解耦，同时保留旧模板/导入数据中 rotation 的渲染兼容性。
+
+逻辑分组命令只修改 `DocumentSchema.groups`。它们不能删除原始物料、不能创建 `type: 'group'` 节点，也不能触发新的物料渲染链路。删除物料时，`RemoveMaterialCommand` 在拿到完整 schema 的场景下同步修剪组成员关系，避免 schema 留下不存在的成员 id。
 
 #### `ResizeMaterialCommand` 与物料 side-effect
 

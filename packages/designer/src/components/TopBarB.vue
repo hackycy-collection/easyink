@@ -2,12 +2,12 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { Component } from 'vue'
 import {
-  AddMaterialCommand,
+  AddElementGroupCommand,
   getBoundingRect,
   isInteractable,
   MoveMaterialCommand,
   normalizeRotation,
-  RemoveMaterialCommand,
+  RemoveElementGroupCommand,
   RotateMaterialCommand,
   UpdateMaterialMetaCommand,
   UpdateMaterialPropsCommand,
@@ -52,13 +52,14 @@ import {
   IconZoomOut,
 } from '@easyink/icons'
 import { createDefaultSchema } from '@easyink/schema'
-import { deepClone, generateId } from '@easyink/shared'
+import { generateId } from '@easyink/shared'
 import { EiNumberInput, EiPopover, EiSwitch } from '@easyink/ui'
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { useDesignerStore } from '../composables'
 import { CONTRIBUTION_REGISTRY_KEY } from '../contributions/injection'
 import { createClipboardActions } from '../interactions/clipboard-actions'
-import { selectMany, selectOne } from '../interactions/selection-api'
+import { hasGroupedElement, selectedLogicalGroupIds } from '../interactions/logical-groups'
+import { selectMany } from '../interactions/selection-api'
 import { filterRotatableElements } from '../materials/capabilities'
 
 const contributionRegistry = inject(CONTRIBUTION_REGISTRY_KEY, undefined)
@@ -117,6 +118,15 @@ const hasSelection = computed(() => !store.selection.isEmpty)
 const editableSelectedNodes = computed(() => selectedNodes.value.filter(isInteractable))
 
 const hasEditableSelection = computed(() => editableSelectedNodes.value.length > 0)
+
+const canGroupSelection = computed(() => {
+  const nodes = editableSelectedNodes.value
+  return nodes.length >= 2 && !hasGroupedElement(store, nodes.map(node => node.id))
+})
+
+const groupedSelectionIds = computed(() => selectedLogicalGroupIds(store))
+
+const canUngroupSelection = computed(() => groupedSelectionIds.value.length > 0)
 
 const canToggleVisibility = computed(() => selectedNodes.value.length > 0 && selectedNodes.value.every(node => !node.locked))
 
@@ -374,70 +384,37 @@ function handleLayerDown() {
 // ─── Group / Ungroup ─────────────────────────────────────────
 function handleGroup() {
   const nodes = editableSelectedNodes.value
-  if (nodes.length < 2)
+  if (!canGroupSelection.value)
     return
 
-  const rects = nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
-  const bounds = getBoundingRect(rects)
-  if (!bounds)
-    return
-
-  const elements = store.schema.elements
-  const children: MaterialNode[] = nodes.map(n => ({
-    ...deepClone(n),
-    x: n.x - bounds.x,
-    y: n.y - bounds.y,
-  }))
-
-  store.commands.beginTransaction('Group')
-  for (const node of nodes) {
-    store.commands.execute(new RemoveMaterialCommand(elements, node.id))
-  }
-  const groupNode: MaterialNode = {
+  const group = {
     id: generateId('grp'),
-    type: 'group',
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-    props: {},
-    children,
+    memberIds: nodes.map(node => node.id),
   }
-  store.commands.execute(new AddMaterialCommand(elements, groupNode))
-  store.commands.commitTransaction()
+  store.commands.execute(new AddElementGroupCommand(store.schema, group))
 
-  selectOne(store, groupNode.id)
+  selectMany(store, group.memberIds)
 }
 
 function handleUngroup() {
-  const nodes = selectedNodes.value
-  if (nodes.length === 0)
+  const groupIds = groupedSelectionIds.value
+  if (groupIds.length === 0)
     return
 
-  const elements = store.schema.elements
-  const ungroupedIds: string[] = []
+  const memberIds: string[] = []
+  for (const groupId of groupIds) {
+    const group = store.getElementGroupById(groupId)
+    if (group)
+      memberIds.push(...group.memberIds)
+  }
 
   store.commands.beginTransaction('Ungroup')
-  for (const node of nodes) {
-    if (node.type !== 'group' || !node.children?.length)
-      continue
-    const children = node.children.map(c => ({
-      ...deepClone(c),
-      id: generateId('el'),
-      x: c.x + node.x,
-      y: c.y + node.y,
-    }))
-    store.commands.execute(new RemoveMaterialCommand(elements, node.id))
-    for (const child of children) {
-      store.commands.execute(new AddMaterialCommand(elements, child))
-      ungroupedIds.push(child.id)
-    }
+  for (const groupId of groupIds) {
+    store.commands.execute(new RemoveElementGroupCommand(store.schema, groupId))
   }
   store.commands.commitTransaction()
 
-  if (ungroupedIds.length > 0) {
-    selectMany(store, ungroupedIds)
-  }
+  selectMany(store, memberIds)
 }
 
 // ─── Lock ────────────────────────────────────────────────────
@@ -714,7 +691,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         <div v-else-if="group.id === 'group'" class="ei-topbar-b__group">
           <button
             class="ei-topbar-b__btn"
-            :disabled="editableSelectedNodes.length < 2"
+            :disabled="!canGroupSelection"
             :title="store.t('designer.toolbar.group')"
             @click="handleGroup"
           >
@@ -722,7 +699,7 @@ function toggleSnapMenu(ev: MouseEvent) {
           </button>
           <button
             class="ei-topbar-b__btn"
-            :disabled="!editableSelectedNodes.some(n => n.type === 'group')"
+            :disabled="!canUngroupSelection"
             :title="store.t('designer.toolbar.ungroup')"
             @click="handleUngroup"
           >

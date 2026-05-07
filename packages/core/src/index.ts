@@ -13,11 +13,13 @@ export {
 export { CommandManager, CompositeCommand, createBatchCommand } from './command'
 export type { Command, HistoryEntry } from './command'
 export {
+  AddElementGroupCommand,
   AddMaterialCommand,
   BindFieldCommand,
   ClearBindingCommand,
   getByPath,
   MoveMaterialCommand,
+  RemoveElementGroupCommand,
   RemoveMaterialCommand,
   ResizeMaterialCommand,
   RotateMaterialCommand,

@@ -167,6 +167,47 @@ describe('useCanvasInteractionController', () => {
     expect(store.selection.ids).toEqual(['b'])
   })
 
+  it('selects every logical group member when one member is clicked', () => {
+    const { store, controller, pdOn } = setup()
+    store.schema.groups = [{ id: 'grp_1', memberIds: ['a', 'b'] }]
+
+    pdOn('a', pdEvent('pointerdown', 10, 10))
+    window.dispatchEvent(pdEvent('pointerup', 10, 10))
+    controller.handleElementClick(clickEvent(10, 10), 'a')
+
+    expect(store.selection.ids.sort()).toEqual(['a', 'b'])
+  })
+
+  it('drags every logical group member through existing multi-selection move', () => {
+    const { store, pdOn } = setup()
+    store.schema.unit = 'px'
+    store.schema.groups = [{ id: 'grp_1', memberIds: ['a', 'b'] }]
+    const a = store.getElementById('a')!
+    const b = store.getElementById('b')!
+
+    pdOn('a', pdEvent('pointerdown', 10, 10))
+    window.dispatchEvent(pdEvent('pointermove', 30, 40))
+
+    expect(a.x).toBe(20)
+    expect(a.y).toBe(30)
+    expect(b.x).toBe(120)
+    expect(b.y).toBe(30)
+
+    window.dispatchEvent(pdEvent('pointerup', 30, 40))
+  })
+
+  it('cmd-click toggles an entire logical group off', () => {
+    const { store, controller, pdOn } = setup()
+    store.schema.groups = [{ id: 'grp_1', memberIds: ['a', 'b'] }]
+    store.selection.selectMultiple(['a', 'b'])
+
+    pdOn('a', pdEvent('pointerdown', 10, 10, { meta: true }))
+    window.dispatchEvent(pdEvent('pointerup', 10, 10, { meta: true }))
+    controller.handleElementClick(clickEvent(10, 10, { meta: true }), 'a')
+
+    expect(store.selection.ids).toEqual([])
+  })
+
   it('element pointerdown prevents the browser default drag or text-selection behavior', () => {
     const { pdOn } = setup()
     const event = pdEvent('pointerdown', 10, 10)

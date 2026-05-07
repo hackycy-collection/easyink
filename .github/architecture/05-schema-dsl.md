@@ -32,8 +32,14 @@ interface DocumentSchema {
   page: PageSchema
   guides: GuideSchema
   elements: MaterialNode[]
+  groups?: ElementGroupSchema[]
   extensions?: Record<string, unknown>
   compat?: BenchmarkCompatState
+}
+
+interface ElementGroupSchema {
+  id: string
+  memberIds: string[]
 }
 
 type UnitType = 'mm' | 'pt' | 'px'
@@ -216,6 +222,26 @@ interface BenchmarkElementCompatState {
 
 - 页面级结构树、对齐、排序、批量选择都更清晰
 - 只有明确声明支持子树的结构物料才持有 `children`
+
+## 5.4.1 逻辑分组
+
+组合能力只表达元素之间的成员关系，不表达新的渲染节点：
+
+```typescript
+interface ElementGroupSchema {
+  id: string
+  memberIds: string[]
+}
+```
+
+约束：
+
+- `groups` 是文档编辑语义，进入 Schema 和撤销/重做历史
+- 组成员仍保留在顶层 `elements` 中，位置、尺寸、内容和物料类型不变
+- 组本身不出现在 `elements` 中，不注册 `type: 'group'` 物料，不参与 Viewer 渲染链路
+- 不支持嵌套组；已在组内的元素不能再次作为新组成员
+- 隐藏、锁定、拖拽移动等组操作由 Designer 把成员展开为普通多选后复用既有批量能力
+- 解组只删除 `groups` 中对应关系，不对成员做几何变换
 
 ## 5.5 绑定模型
 

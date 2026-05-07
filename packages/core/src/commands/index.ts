@@ -6,8 +6,10 @@ export {
 } from './data'
 
 export {
+  AddElementGroupCommand,
   AddMaterialCommand,
   MoveMaterialCommand,
+  RemoveElementGroupCommand,
   RemoveMaterialCommand,
   ResizeMaterialCommand,
   RotateMaterialCommand,

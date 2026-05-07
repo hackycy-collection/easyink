@@ -1,6 +1,8 @@
+import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { Command } from './command'
 import { describe, expect, it } from 'vitest'
 import { CommandManager } from './command'
+import { AddElementGroupCommand, RemoveElementGroupCommand, RemoveMaterialCommand } from './commands'
 
 function makeCommand(id: string, log: string[]): Command {
   return {
@@ -223,5 +225,55 @@ describe('commandManager', () => {
     expect(mgr.historyEntries).toHaveLength(0)
     expect(mgr.cursor).toBe(0)
     expect(mgr.totalCount).toBe(0)
+  })
+})
+
+describe('logical element group commands', () => {
+  function makeNode(id: string): MaterialNode {
+    return { id, type: 'rect', x: 0, y: 0, width: 10, height: 10, props: {} }
+  }
+
+  function makeSchema(): DocumentSchema {
+    return {
+      version: '1.0.0',
+      unit: 'px',
+      page: { mode: 'fixed', width: 100, height: 100 },
+      guides: { x: [], y: [] },
+      elements: [makeNode('a'), makeNode('b'), makeNode('c')],
+    }
+  }
+
+  it('adds and removes logical groups through undoable commands', () => {
+    const schema = makeSchema()
+    const manager = new CommandManager()
+
+    manager.execute(new AddElementGroupCommand(schema, { id: 'grp_1', memberIds: ['a', 'b'] }))
+    expect(schema.groups).toEqual([{ id: 'grp_1', memberIds: ['a', 'b'] }])
+
+    manager.undo()
+    expect(schema.groups).toEqual([])
+
+    manager.redo()
+    expect(schema.groups).toEqual([{ id: 'grp_1', memberIds: ['a', 'b'] }])
+
+    manager.execute(new RemoveElementGroupCommand(schema, 'grp_1'))
+    expect(schema.groups).toEqual([])
+
+    manager.undo()
+    expect(schema.groups).toEqual([{ id: 'grp_1', memberIds: ['a', 'b'] }])
+  })
+
+  it('prunes removed elements from logical groups and restores them on undo', () => {
+    const schema = makeSchema()
+    schema.groups = [{ id: 'grp_1', memberIds: ['a', 'b', 'c'] }]
+    const manager = new CommandManager()
+
+    manager.execute(new RemoveMaterialCommand(schema.elements, 'b', schema))
+    expect(schema.elements.map(node => node.id)).toEqual(['a', 'c'])
+    expect(schema.groups).toEqual([{ id: 'grp_1', memberIds: ['a', 'c'] }])
+
+    manager.undo()
+    expect(schema.elements.map(node => node.id)).toEqual(['a', 'b', 'c'])
+    expect(schema.groups).toEqual([{ id: 'grp_1', memberIds: ['a', 'b', 'c'] }])
   })
 })

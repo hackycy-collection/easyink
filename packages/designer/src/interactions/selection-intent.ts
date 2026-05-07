@@ -1,4 +1,5 @@
 import type { DesignerStore } from '../store/designer-store'
+import { expandElementIdsForGroups } from './logical-groups'
 
 /**
  * SelectionIntent — declarative entry point for **canvas pointer gesture**
@@ -41,20 +42,40 @@ export type SelectionIntent
 
 export function applySelectionIntent(store: DesignerStore, intent: SelectionIntent): void {
   switch (intent.kind) {
-    case 'single':
-      store.selection.select(intent.elementId)
-      return
-    case 'add':
-      store.selection.add(intent.elementId)
-      return
-    case 'toggle':
-      store.selection.toggle(intent.elementId)
-      return
-    case 'replace':
-      if (intent.elementIds.length === 0)
+    case 'single': {
+      const ids = expandElementIdsForGroups(store, [intent.elementId])
+      if (ids.length === 0)
         store.selection.clear()
       else
-        store.selection.selectMultiple(intent.elementIds)
+        store.selection.selectMultiple(ids)
+      return
+    }
+    case 'add':
+      for (const id of expandElementIdsForGroups(store, [intent.elementId]))
+        store.selection.add(id)
+      return
+    case 'toggle': {
+      const ids = expandElementIdsForGroups(store, [intent.elementId])
+      const shouldRemove = ids.length > 0 && ids.every(id => store.selection.has(id))
+      for (const id of ids) {
+        if (shouldRemove)
+          store.selection.remove(id)
+        else
+          store.selection.add(id)
+      }
+      return
+    }
+    case 'replace':
+      if (intent.elementIds.length === 0) {
+        store.selection.clear()
+      }
+      else {
+        const ids = expandElementIdsForGroups(store, intent.elementIds)
+        if (ids.length === 0)
+          store.selection.clear()
+        else
+          store.selection.selectMultiple(ids)
+      }
       return
     case 'collapse-to-session-owner':
       // Editing-session and multi-selection are mutually exclusive (see
@@ -67,7 +88,12 @@ export function applySelectionIntent(store: DesignerStore, intent: SelectionInte
       store.selection.clear()
       return
     case 'preserve-for-context-menu':
-      if (!store.selection.has(intent.elementId))
-        store.selection.select(intent.elementId)
+      if (!store.selection.has(intent.elementId)) {
+        const ids = expandElementIdsForGroups(store, [intent.elementId])
+        if (ids.length === 0)
+          store.selection.clear()
+        else
+          store.selection.selectMultiple(ids)
+      }
   }
 }
