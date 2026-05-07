@@ -64,32 +64,34 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(status, _jsonSettings);
     }
 
-    public string Print(string printerName, string pdfBase64, int copies = 1,
+    public string Print(string printerName, string pdfBase64 = null, string pdfUrl = null,
+        byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
         string userId = null, string labelType = null)
     {
-        var error = ValidatePrintParams(printerName, pdfBase64, copies);
+        var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
 
-        var request = BuildPrintRequest(printerName, pdfBase64, copies,
+        var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
         var response = _printService.Print(Guid.NewGuid().ToString(), request);
         return JsonConvert.SerializeObject(response, _jsonSettings);
     }
 
-    public string PrintAsync(string printerName, string pdfBase64, int copies = 1,
+    public string PrintAsync(string printerName, string pdfBase64 = null, string pdfUrl = null,
+        byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
         string userId = null, string labelType = null)
     {
-        var error = ValidatePrintParams(printerName, pdfBase64, copies);
+        var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
 
-        var request = BuildPrintRequest(printerName, pdfBase64, copies,
+        var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
 
         try
@@ -212,7 +214,8 @@ public class PrinterApi : IDisposable
         _jobQueue.Dispose();
     }
 
-    private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64, int copies,
+    private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64,
+        string pdfUrl, byte[] pdfBytes, int copies,
         double? paperWidth, double? paperHeight, string paperUnit, int dpi,
         double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType)
     {
@@ -220,6 +223,8 @@ public class PrinterApi : IDisposable
         {
             PrinterName = printerName,
             PdfBase64 = pdfBase64,
+            PdfUrl = pdfUrl,
+            PdfBytes = pdfBytes,
             Copies = copies,
             Dpi = dpi,
             PaperSize = paperWidth.HasValue && paperHeight.HasValue
@@ -363,12 +368,22 @@ public class PrinterApi : IDisposable
         }
     }
 
-    private static string ValidatePrintParams(string printerName, string pdfBase64, int copies)
+    private static string ValidatePrintParams(string printerName, string pdfBase64,
+        string pdfUrl, byte[] pdfBytes, int copies)
     {
         if (string.IsNullOrEmpty(printerName))
             return "缺少printerName参数";
-        if (string.IsNullOrEmpty(pdfBase64))
-            return "缺少pdfBase64参数";
+
+        int sourceCount = 0;
+        if (!string.IsNullOrEmpty(pdfBase64)) sourceCount++;
+        if (!string.IsNullOrEmpty(pdfUrl)) sourceCount++;
+        if (pdfBytes != null && pdfBytes.Length > 0) sourceCount++;
+
+        if (sourceCount == 0)
+            return "必须提供 PdfBase64、PdfUrl 或 PdfBytes 之一";
+        if (sourceCount > 1)
+            return "只能提供一种 PDF 来源";
+
         if (copies < 1)
             return "copies必须大于0";
         return null;

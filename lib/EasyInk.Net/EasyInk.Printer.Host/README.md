@@ -62,9 +62,9 @@ EasyInk.Printer.Host/
 │   │   ├── HttpServer.cs             # HttpListener 封装
 │   │   ├── Router.cs                 # HTTP 路由分发
 │   │   ├── WebSocketHandler.cs       # WebSocket 连接管理
-│   │   └── Middleware/
-│   │       ├── CorsMiddleware.cs     # CORS 处理
-│   │       └── JsonMiddleware.cs     # JSON 序列化
+│   │   ├── WebSocketMessage.cs       # WebSocket 消息解析
+│   │   ├── WebSocketCommandHandler.cs # WebSocket 命令处理
+│   │   └── MultipartParser.cs        # multipart/form-data 解析
 │   ├── Api/
 │   │   ├── PrinterController.cs      # 打印机相关 API
 │   │   ├── PrintController.cs        # 打印操作 API
@@ -90,7 +90,6 @@ EasyInk.Printer.Host/
 ### 基础约定
 
 - 基地址：`http://localhost:{port}/api/`
-- Content-Type：`application/json`
 - 响应格式与 DLL 插件的 `PrinterResult` 一致：
 
 ```json
@@ -141,20 +140,105 @@ EasyInk.Printer.Host/
 | GET | `/api/config` | 获取配置 |
 | PUT | `/api/config` | 更新配置 |
 
-### WebSocket
+### PDF 数据源支持
 
-- 地址：`ws://localhost:{port}/ws`
-- 用途：实时推送打印任务状态变更
+打印接口支持三种 PDF 输入方式：
 
-客户端发送订阅：
-```json
+| 格式 | HTTP 传输方式 | 说明 |
+|------|--------------|------|
+| `pdfBase64` | JSON body | Base64 编码的 PDF 字符串 |
+| `pdfUrl` | JSON body | 远程 PDF URL 地址 |
+| `pdfBytes` | multipart/form-data | 二进制 PDF 数据 |
+
+#### JSON 方式（pdfBase64 / pdfUrl）
+
+```
+POST /api/print
+Content-Type: application/json
+
 {
-  "action": "subscribe",
-  "channel": "jobs"
+  "printerName": "HP LaserJet",
+  "pdfBase64": "JVBERi0xLjQK..." 或 "pdfUrl": "https://example.com/invoice.pdf",
+  "copies": 1
 }
 ```
 
-服务端推送：
+#### Multipart 方式（pdfBytes）
+
+```
+POST /api/print
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="params"
+Content-Type: application/json
+
+{"printerName": "HP LaserJet", "copies": 1}
+------FormBoundary
+Content-Disposition: form-data; name="pdf"; filename="invoice.pdf"
+Content-Type: application/pdf
+
+<binary PDF data>
+------FormBoundary--
+```
+
+### WebSocket
+
+- 地址：`ws://localhost:{port}/ws`
+- 支持双向通信：命令请求 + 状态推送
+
+#### 文本帧（JSON 命令）
+
+发送命令：
+```json
+{
+  "command": "print",
+  "id": "uuid",
+  "params": {
+    "printerName": "HP LaserJet",
+    "pdfBase64": "JVBERi0xLjQK...",
+    // 或
+    // "pdfUrl": "https://example.com/invoice.pdf",
+    "copies": 1
+  }
+}
+```
+
+#### 二进制帧（blob PDF）
+
+```
+┌────────────────┬─────────────────┬─────────────────┐
+│ 4 字节 (uint32) │ N 字节 (JSON)    │ 剩余 (PDF 二进制) │
+│ 元数据长度 N     │ 元数据           │ PDF 数据         │
+└────────────────┴─────────────────┴─────────────────┘
+```
+
+元数据 JSON：
+```json
+{
+  "command": "print",
+  "id": "uuid",
+  "params": {
+    "printerName": "HP LaserJet",
+    "copies": 1
+  }
+}
+```
+
+#### 支持的命令
+
+| 命令 | 说明 |
+|------|------|
+| `print` | 同步打印 |
+| `printAsync` | 异步打印 |
+| `getPrinters` | 获取打印机列表 |
+| `getPrinterStatus` | 获取打印机状态 |
+| `getJobStatus` | 获取任务状态 |
+| `getAllJobs` | 获取所有任务 |
+| `queryLogs` | 查询审计日志 |
+
+#### 服务端推送
+
 ```json
 {
   "event": "jobStatusChanged",

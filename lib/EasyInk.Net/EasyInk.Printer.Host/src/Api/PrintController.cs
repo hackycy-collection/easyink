@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -18,9 +19,19 @@ public class PrintController
         return ExecuteCommand("print", body);
     }
 
+    public string Print(string body, byte[] pdfBytes)
+    {
+        return ExecuteCommandWithBlob("print", body, pdfBytes);
+    }
+
     public string PrintAsync(string body)
     {
         return ExecuteCommand("printAsync", body);
+    }
+
+    public string PrintAsync(string body, byte[] pdfBytes)
+    {
+        return ExecuteCommandWithBlob("printAsync", body, pdfBytes);
     }
 
     public string BatchPrint(string body)
@@ -40,6 +51,20 @@ public class PrintController
             ["command"] = command,
             ["id"] = Guid.NewGuid().ToString(),
             ["params"] = ParseBody(body)
+        };
+        return _api.HandleCommand(commandObj.ToString(Formatting.None));
+    }
+
+    private string ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
+    {
+        var paramsObj = ParseBody(body) as JObject ?? new JObject();
+        paramsObj["pdfBytes"] = pdfBytes != null ? Convert.ToBase64String(pdfBytes) : null;
+
+        var commandObj = new JObject
+        {
+            ["command"] = command,
+            ["id"] = Guid.NewGuid().ToString(),
+            ["params"] = paramsObj
         };
         return _api.HandleCommand(commandObj.ToString(Formatting.None));
     }

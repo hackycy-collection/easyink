@@ -13,12 +13,14 @@ public class PdfRenderService : IPdfRenderService
     private const long MaxPdfBytes = 50L * 1024 * 1024; // 50MB
     private const int MaxPages = 200;
 
-    public List<Image> RenderToImages(string pdfBase64, int dpi)
+    public List<Image> RenderToImages(IPdfProvider provider, int dpi)
     {
+        if (provider == null)
+            throw new ArgumentNullException(nameof(provider));
         if (dpi <= 0 || dpi > MaxDpi)
             throw new ArgumentException($"DPI 必须在 1-{MaxDpi} 之间，当前值: {dpi}");
 
-        var pdfBytes = Convert.FromBase64String(pdfBase64);
+        var pdfBytes = provider.GetPdfBytes();
         if (pdfBytes.Length > MaxPdfBytes)
             throw new ArgumentException($"PDF 文件过大: {pdfBytes.Length / 1024 / 1024}MB，上限 {MaxPdfBytes / 1024 / 1024}MB");
 

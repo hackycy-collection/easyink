@@ -21,6 +21,7 @@ public class Router
     private readonly LogController _logController;
     private readonly StatusController _statusController;
     private readonly WebSocketHandler _wsHandler;
+    private readonly WebSocketCommandHandler _wsCommandHandler;
     private readonly bool _trustAllOrigins;
     private readonly string _apiKey;
 
@@ -37,6 +38,7 @@ public class Router
         _logController = new LogController(printerApi);
         _statusController = new StatusController();
         _wsHandler = wsHandler;
+        _wsCommandHandler = new WebSocketCommandHandler(printerApi, wsHandler);
         _trustAllOrigins = config.TrustAllOrigins;
         _apiKey = config.ApiKey;
     }
@@ -126,16 +128,16 @@ public class Router
         }
 
         if (method == "POST" && path == "/api/print")
-            return _printController.Print(ReadBody(request));
+            return HandlePrintRequest(request);
 
         if (method == "POST" && path == "/api/print/async")
-            return _printController.PrintAsync(ReadBody(request));
+            return HandlePrintAsyncRequest(request);
 
         if (method == "POST" && path == "/api/print/batch")
-            return _printController.BatchPrint(ReadBody(request));
+            return _printController.BatchPrint(ReadBodyAsString(request));
 
         if (method == "POST" && path == "/api/print/batch/async")
-            return _printController.BatchPrintAsync(ReadBody(request));
+            return _printController.BatchPrintAsync(ReadBodyAsString(request));
 
         if (method == "GET" && path == "/api/jobs")
             return _jobController.GetAllJobs();
@@ -154,7 +156,47 @@ public class Router
         return ErrorJson("NOT_FOUND", $"路由不存在: {method} {path}");
     }
 
-    private static string ReadBody(HttpListenerRequest request)
+    private string HandlePrintRequest(HttpListenerRequest request)
+    {
+        var contentType = request.ContentType ?? "";
+
+        if (contentType.Contains("multipart/form-data"))
+        {
+            var body = ReadBodyAsBytes(request);
+            var multipart = MultipartParser.Parse(body, contentType);
+
+            if (multipart.Params == null)
+                return ErrorJson("INVALID_PARAMS", "缺少 params 字段");
+            if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
+                return ErrorJson("INVALID_PARAMS", "缺少 pdf 字段");
+
+            return _printController.Print(multipart.Params.ToString(), multipart.PdfBytes);
+        }
+
+        return _printController.Print(ReadBodyAsString(request));
+    }
+
+    private string HandlePrintAsyncRequest(HttpListenerRequest request)
+    {
+        var contentType = request.ContentType ?? "";
+
+        if (contentType.Contains("multipart/form-data"))
+        {
+            var body = ReadBodyAsBytes(request);
+            var multipart = MultipartParser.Parse(body, contentType);
+
+            if (multipart.Params == null)
+                return ErrorJson("INVALID_PARAMS", "缺少 params 字段");
+            if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
+                return ErrorJson("INVALID_PARAMS", "缺少 pdf 字段");
+
+            return _printController.PrintAsync(multipart.Params.ToString(), multipart.PdfBytes);
+        }
+
+        return _printController.PrintAsync(ReadBodyAsString(request));
+    }
+
+    private static string ReadBodyAsString(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
@@ -171,6 +213,30 @@ public class Router
         }
 
         return request.ContentEncoding.GetString(buffer, 0, totalRead);
+    }
+
+    private static byte[] ReadBodyAsBytes(HttpListenerRequest request)
+    {
+        if (request.InputStream == null) return null;
+        if (request.ContentLength64 < 0) return null;
+        if (request.ContentLength64 > MaxRequestBodyBytes)
+            throw new InvalidOperationException($"请求体过大: {request.ContentLength64 / 1024 / 1024}MB，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
+
+        var buffer = new byte[request.ContentLength64];
+        int totalRead = 0;
+        int bytesRead;
+        while (totalRead < buffer.Length &&
+               (bytesRead = request.InputStream.Read(buffer, totalRead, buffer.Length - totalRead)) > 0)
+        {
+            totalRead += bytesRead;
+        }
+
+        if (totalRead == buffer.Length)
+            return buffer;
+
+        var result = new byte[totalRead];
+        Array.Copy(buffer, result, totalRead);
+        return result;
     }
 
     private static string ErrorJson(string code, string message)

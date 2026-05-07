@@ -55,6 +55,48 @@ public class PrintServiceTests
     }
 
     [Fact]
+    public void Print_NoPdfSource_ReturnsError()
+    {
+        _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
+            .Returns(ReadyStatus());
+
+        var service = CreateService();
+        var request = new PrintRequestParams
+        {
+            PrinterName = "TestPrinter",
+            Copies = 1,
+            Dpi = 300
+        };
+        var result = service.Print("req-1", request);
+
+        Assert.False(result.Success);
+        Assert.Equal("INVALID_PDF_SOURCE", result.ErrorInfo.Code);
+    }
+
+    [Fact]
+    public void Print_WithPdfBytes_Success()
+    {
+        _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
+            .Returns(ReadyStatus());
+
+        var images = new List<Image> { new Bitmap(1, 1) };
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
+            .Returns(images);
+
+        var service = CreateService();
+        var request = new PrintRequestParams
+        {
+            PrinterName = "TestPrinter",
+            PdfBytes = new byte[] { 1, 2, 3 },
+            Copies = 1,
+            Dpi = 300
+        };
+        service.Print("req-1", request);
+
+        _pdfRenderService.Verify(s => s.RenderToImages(It.IsAny<IPdfProvider>(), 300), Times.Once);
+    }
+
+    [Fact]
     public void Print_PrinterNotReady_ReturnsError()
     {
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
@@ -73,7 +115,7 @@ public class PrintServiceTests
     {
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
             .Returns(ReadyStatus());
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Throws(new ArgumentException("无效的PDF"));
 
         var service = CreateService();
@@ -89,7 +131,7 @@ public class PrintServiceTests
     {
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
             .Returns(ReadyStatus());
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(new List<Image>());
 
         var service = CreateService();
@@ -106,7 +148,7 @@ public class PrintServiceTests
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
             .Returns(ReadyStatus());
         var images = new List<Image>();
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(images);
 
         var service = CreateService();
@@ -122,7 +164,7 @@ public class PrintServiceTests
             .Returns(ReadyStatus());
 
         var images = new List<Image> { new Bitmap(1, 1) };
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(images);
 
         PrintAuditLog capturedLog = null;
@@ -150,7 +192,7 @@ public class PrintServiceTests
             .Returns(ReadyStatus());
 
         var images = new List<Image> { new Bitmap(1, 1) };
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(images);
 
         var service = CreateService();
@@ -169,7 +211,7 @@ public class PrintServiceTests
             .Returns(ReadyStatus());
 
         var images = new List<Image> { new Bitmap(100, 100) };
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(images);
 
         var request = CreateRequest();
@@ -190,7 +232,7 @@ public class PrintServiceTests
             .Returns(ReadyStatus());
 
         var images = new List<Image> { new Bitmap(100, 100) };
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Returns(images);
 
         var request = CreateRequest();
@@ -209,7 +251,7 @@ public class PrintServiceTests
             .Returns(ReadyStatus());
 
         // First call returns images, but we want to test the case where render throws
-        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<string>(), It.IsAny<int>()))
+        _pdfRenderService.Setup(s => s.RenderToImages(It.IsAny<IPdfProvider>(), It.IsAny<int>()))
             .Throws(new OutOfMemoryException("OOM"));
 
         var service = CreateService();

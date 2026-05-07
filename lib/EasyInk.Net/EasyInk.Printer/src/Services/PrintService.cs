@@ -31,10 +31,20 @@ public class PrintService : IPrintService
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);
         }
 
+        IPdfProvider provider;
+        try
+        {
+            provider = request.CreatePdfProvider();
+        }
+        catch (Exception ex)
+        {
+            return PrinterResult.Error(requestId, "INVALID_PDF_SOURCE", ex.Message);
+        }
+
         List<Image> images;
         try
         {
-            images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi);
+            images = _pdfRenderService.RenderToImages(provider, request.Dpi);
         }
         catch (Exception ex)
         {

@@ -12,12 +12,20 @@ namespace EasyInk.Printer.Host.Server;
 
 public class WebSocketHandler
 {
+    private const int MaxBinaryMessageSize = 60 * 1024 * 1024; // 60MB (50MB PDF + 10MB metadata)
+
     private readonly ConcurrentDictionary<string, WebSocket> _connections = new();
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
+    private WebSocketCommandHandler _commandHandler;
 
     public int ConnectionCount => _connections.Count;
 
     public event Action ConnectionCountChanged;
+
+    public void SetCommandHandler(WebSocketCommandHandler handler)
+    {
+        _commandHandler = handler;
+    }
 
     public async Task HandleConnection(HttpListenerContext context)
     {
@@ -36,13 +44,7 @@ public class WebSocketHandler
 
         try
         {
-            var buffer = new byte[4096];
-            while (ws.State == WebSocketState.Open)
-            {
-                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close)
-                    break;
-            }
+            await ReceiveLoop(ws);
         }
         catch (WebSocketException) { }
         catch (IOException) { }
@@ -59,6 +61,73 @@ public class WebSocketHandler
             catch (WebSocketException) { }
             ws.Dispose();
         }
+    }
+
+    private async Task ReceiveLoop(WebSocket ws)
+    {
+        var buffer = new byte[8192];
+
+        while (ws.State == WebSocketState.Open)
+        {
+            var messageBuffer = new MemoryStream();
+            WebSocketMessageType messageType = WebSocketMessageType.Text;
+            bool endOfMessage = false;
+
+            // 接收完整消息（可能分多个帧）
+            while (!endOfMessage)
+            {
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                if (result.MessageType == WebSocketMessageType.Close)
+                    return;
+
+                messageType = result.MessageType;
+                endOfMessage = result.EndOfMessage;
+
+                messageBuffer.Write(buffer, 0, result.Count);
+
+                if (messageBuffer.Length > MaxBinaryMessageSize)
+                {
+                    await SendError(ws, "MESSAGE_TOO_LARGE", "消息体过大");
+                    return;
+                }
+            }
+
+            // 处理消息
+            if (_commandHandler != null)
+            {
+                try
+                {
+                    WebSocketMessage message;
+                    if (messageType == WebSocketMessageType.Binary)
+                    {
+                        message = WebSocketMessage.FromBinary(messageBuffer.ToArray());
+                    }
+                    else
+                    {
+                        var json = Encoding.UTF8.GetString(messageBuffer.ToArray());
+                        message = WebSocketMessage.FromText(json);
+                    }
+
+                    await _commandHandler.HandleMessage(ws, message);
+                }
+                catch (Exception ex)
+                {
+                    await SendError(ws, "INVALID_MESSAGE", ex.Message);
+                }
+            }
+        }
+    }
+
+    private static async Task SendError(WebSocket ws, string code, string errorMessage)
+    {
+        var errorJson = JsonConvert.SerializeObject(new
+        {
+            success = false,
+            errorInfo = new { code, message = errorMessage }
+        });
+        var bytes = Encoding.UTF8.GetBytes(errorJson);
+        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
     public async Task Broadcast(string message)

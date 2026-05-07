@@ -28,10 +28,20 @@ EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管
 │ Printer     │ Print       │ PdfRender   │ Audit             │
 │ Service     │ Service     │ Service     │ Service           │
 │ (WMI)       │ (PrintDoc)  │ (PDFium)    │ (SQLite)          │
-├─────────────┴─────────────┼─────────────┴───────────────────┤
-│                     PrintJobQueue                            │
-│                   (异步任务队列)                               │
-└─────────────────────────────────────────────────────────────┘
+├─────────────┴─────────────┼──────┬──────┴───────────────────┤
+│                     PrintJobQueue │                          │
+│                   (异步任务队列)   │                          │
+└──────────────────────────────────┼──────────────────────────┘
+                                   │
+                                   ▼
+                    ┌──────────────────────────┐
+                    │      IPdfProvider        │
+                    │    (PDF 数据源抽象)       │
+                    ├──────────────────────────┤
+                    │ Base64PdfProvider        │
+                    │ UrlPdfProvider           │
+                    │ BlobPdfProvider          │
+                    └──────────────────────────┘
 ```
 
 ### 技术栈
@@ -60,7 +70,7 @@ EasyInk.Printer/
 │   │   ├── PaperSizeParams.cs    # 纸张尺寸参数
 │   │   ├── OffsetParams.cs       # 偏移参数
 │   │   ├── UserDataParams.cs     # 用户数据参数
-│   │   ├── PrintRequest.cs       # 打印请求参数
+│   │   ├── PrintRequestParams.cs # 打印请求参数
 │   │   ├── PrintResult.cs        # 打印结果
 │   │   ├── PrintJob.cs           # 打印任务信息
 │   │   ├── PrintAuditLog.cs      # 审计日志
@@ -72,7 +82,12 @@ EasyInk.Printer/
 │       │   ├── IPrinterService.cs
 │       │   ├── IPrintService.cs
 │       │   ├── IPdfRenderService.cs
+│       │   ├── IPdfProvider.cs   # PDF 数据源抽象
 │       │   └── IAuditService.cs
+│       ├── Providers/            # PDF 数据源实现
+│       │   ├── Base64PdfProvider.cs
+│       │   ├── UrlPdfProvider.cs
+│       │   └── BlobPdfProvider.cs
 │       ├── PrinterService.cs     # 打印机管理（WMI 查询）
 │       ├── PrintService.cs       # 打印执行
 │       ├── PdfRenderService.cs   # PDF 渲染
@@ -99,11 +114,19 @@ public class PrinterApi : IDisposable
     // 获取打印机状态（JSON）
     string GetPrinterStatus(string printerName);
 
-    // 同步打印
-    string Print(string printerName, string pdfBase64, int copies, ...);
+    // 同步打印 - 支持三种 PDF 来源（三选一）
+    string Print(string printerName,
+        string pdfBase64 = null,    // Base64 编码
+        string pdfUrl = null,       // URL 地址
+        byte[] pdfBytes = null,     // 二进制数据
+        int copies = 1, ...);
 
-    // 异步打印
-    string PrintAsync(string printerName, string pdfBase64, int copies, ...);
+    // 异步打印 - 支持三种 PDF 来源（三选一）
+    string PrintAsync(string printerName,
+        string pdfBase64 = null,
+        string pdfUrl = null,
+        byte[] pdfBytes = null,
+        int copies = 1, ...);
 
     // 批量打印
     string BatchPrint(string jobsJson);
@@ -119,6 +142,18 @@ public class PrinterApi : IDisposable
     string HandleCommand(string json);
 }
 ```
+
+### PDF 数据源
+
+通过 `IPdfProvider` 接口支持多种 PDF 输入方式：
+
+| Provider | 输入 | 说明 |
+|----------|------|------|
+| `Base64PdfProvider` | `string base64` | Base64 编码的 PDF |
+| `UrlPdfProvider` | `string url` | 远程 URL（直接下载，无重试） |
+| `BlobPdfProvider` | `byte[] bytes` | 二进制数据（Uint8Array/Buffer） |
+
+一次调用只能提供一种 PDF 来源，同时传入多种会返回 `INVALID_PARAMS` 错误。
 
 ### 命令格式
 
@@ -179,6 +214,7 @@ CREATE TABLE PrintAuditLog (
 | `PAPER_OUT` | 打印机缺纸 |
 | `PRINTER_ERROR` | 打印机错误 |
 | `INVALID_PDF` | PDF 格式无效 |
+| `INVALID_PDF_SOURCE` | PDF 来源无效（未提供或格式错误） |
 | `PRINT_FAILED` | 打印失败 |
 | `INVALID_PARAMS` | 参数无效 |
 | `UNKNOWN_COMMAND` | 未知命令 |

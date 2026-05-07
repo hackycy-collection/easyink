@@ -179,13 +179,49 @@ public class PrinterApiTests
     }
 
     [Fact]
-    public void Print_MissingPdfBase64_ReturnsError()
+    public void Print_MissingPdfSource_ReturnsError()
     {
         using var api = CreateApi();
-        var json = api.Print("TestPrinter", null);
+        var json = api.Print("TestPrinter");
         var result = JsonConvert.DeserializeObject<JObject>(json);
         Assert.False(result["success"].ToObject<bool>());
         Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+    }
+
+    [Fact]
+    public void Print_MultiplePdfSources_ReturnsError()
+    {
+        using var api = CreateApi();
+        var json = api.Print("TestPrinter", pdfBase64: "base64data", pdfUrl: "http://example.com/test.pdf");
+        var result = JsonConvert.DeserializeObject<JObject>(json);
+        Assert.False(result["success"].ToObject<bool>());
+        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+    }
+
+    [Fact]
+    public void Print_WithPdfUrl_Success()
+    {
+        var printService = new Mock<IPrintService>();
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+            .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
+
+        using var api = CreateApi(printService: printService);
+        var json = api.Print("TestPrinter", pdfUrl: "http://example.com/test.pdf");
+        var result = JsonConvert.DeserializeObject<JObject>(json);
+        Assert.True(result["success"].ToObject<bool>());
+    }
+
+    [Fact]
+    public void Print_WithPdfBytes_Success()
+    {
+        var printService = new Mock<IPrintService>();
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+            .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
+
+        using var api = CreateApi(printService: printService);
+        var json = api.Print("TestPrinter", pdfBytes: new byte[] { 1, 2, 3 });
+        var result = JsonConvert.DeserializeObject<JObject>(json);
+        Assert.True(result["success"].ToObject<bool>());
     }
 
     [Fact]
