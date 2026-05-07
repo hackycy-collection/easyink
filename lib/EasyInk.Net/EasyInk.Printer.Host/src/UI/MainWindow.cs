@@ -74,14 +74,19 @@ public class MainWindow : Form
         var valueFont = new Font("Microsoft YaHei UI", 18f, FontStyle.Bold);
         var cardSize = new Size(180, 90);
 
-        var colorStatus = Color.FromArgb(56, 142, 142);
+        var colorRunning = Color.FromArgb(56, 142, 142);
+        var colorError = Color.FromArgb(211, 47, 47);
         var colorPort = Color.FromArgb(63, 81, 181);
         var colorWs = Color.FromArgb(255, 152, 0);
 
+        var hasError = !_server.IsRunning && _server.LastError != null;
+        var statusColor = hasError ? colorError : colorRunning;
+        var statusText = _server.IsRunning ? "运行中" : (hasError ? "异常" : "已停止");
+
         // 状态卡片
         Label lblStatusVal, lblPortVal, lblWsVal;
-        var cardStatus = CreateCardPanel(cardSize, colorStatus, "服务状态",
-            _server.IsRunning ? "运行中" : "已停止", valueFont, colorStatus, titleFont, out lblStatusVal);
+        var cardStatus = CreateCardPanel(cardSize, statusColor, "服务状态",
+            statusText, valueFont, statusColor, titleFont, out lblStatusVal);
 
         // 端口卡片
         var cardPort = CreateCardPanel(cardSize, colorPort, "端口",
@@ -93,22 +98,72 @@ public class MainWindow : Form
 
         cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs });
 
+        // 错误提示区域
+        var errorPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 0,
+            Visible = false,
+            BackColor = Color.FromArgb(255, 243, 224),
+            Padding = new Padding(12),
+            Margin = new Padding(0, 8, 0, 0)
+        };
+
+        var lblError = new Label
+        {
+            Dock = DockStyle.Fill,
+            ForeColor = Color.FromArgb(191, 63, 0),
+            Font = new Font("Microsoft YaHei UI", 9f)
+        };
+        errorPanel.Controls.Add(lblError);
+
+        if (hasError)
+        {
+            lblError.Text = $"启动失败: {_server.LastError}  请检查端口是否被占用或权限是否足够。";
+            errorPanel.Height = 40;
+            errorPanel.Visible = true;
+        }
+
         var btnRefresh = new Button
         {
             Text = "刷新",
-            Dock = DockStyle.Top,
-            Height = 30,
-            Width = 80,
-            Margin = new Padding(0, 8, 0, 0)
-        };
-        btnRefresh.Click += (s, e) =>
-        {
-            lblStatusVal.Text = _server.IsRunning ? "运行中" : "已停止";
-            lblPortVal.Text = _server.Port.ToString();
-            lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
+            Size = new Size(72, 28),
+            Margin = new Padding(0)
         };
 
-        panel.Controls.Add(btnRefresh);
+        var btnBar = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 36,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(0, 4, 0, 0)
+        };
+        btnBar.Controls.Add(btnRefresh);
+        btnRefresh.Click += (s, e) =>
+        {
+            var err = !_server.IsRunning && _server.LastError != null;
+            lblStatusVal.Text = _server.IsRunning ? "运行中" : (err ? "异常" : "已停止");
+            lblStatusVal.ForeColor = err ? colorError : colorRunning;
+            cardStatus.Controls[1].BackColor = err ? colorError : colorRunning; // accentBar
+            lblPortVal.Text = _server.Port.ToString();
+            lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
+
+            if (err)
+            {
+                lblError.Text = $"启动失败: {_server.LastError}  请检查端口是否被占用或权限是否足够。";
+                errorPanel.Height = 40;
+                errorPanel.Visible = true;
+            }
+            else
+            {
+                errorPanel.Height = 0;
+                errorPanel.Visible = false;
+            }
+        };
+
+        panel.Controls.Add(btnBar);
+        panel.Controls.Add(errorPanel);
         panel.Controls.Add(cardsPanel);
         tab.Controls.Add(panel);
         return tab;

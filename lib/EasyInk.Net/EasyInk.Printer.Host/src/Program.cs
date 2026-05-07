@@ -48,7 +48,7 @@ static class Program
             return router.HandleRequest(context);
         };
 
-        httpServer.Start();
+        httpServer.TryStart();
 
         var trayIcon = new TrayIcon(httpServer);
         var mainWindow = new MainWindow(httpServer, wsHandler, printerApi, config);
@@ -76,9 +76,17 @@ static class Program
         trayIcon.OnRestartServer += () =>
         {
             httpServer.Stop();
-            httpServer.Start();
-            trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
-            trayIcon.ShowBalloon("EasyInk Printer", "服务已重启");
+            httpServer.TryStart();
+            if (httpServer.IsRunning)
+            {
+                trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
+                trayIcon.ShowBalloon("EasyInk Printer", "服务已重启");
+            }
+            else
+            {
+                trayIcon.UpdateStatus("异常 - 启动失败");
+                trayIcon.ShowBalloon("EasyInk Printer", $"服务启动失败: {httpServer.LastError}");
+            }
         };
 
         trayIcon.OnExit += () =>
@@ -89,7 +97,10 @@ static class Program
             Application.Exit();
         };
 
-        trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
+        if (httpServer.IsRunning)
+            trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
+        else
+            trayIcon.UpdateStatus("异常 - 启动失败");
 
         mainWindow.WindowState = FormWindowState.Minimized;
         mainWindow.ShowInTaskbar = false;

@@ -15,6 +15,7 @@ public class HttpServer
 
     public int Port => _port;
     public bool IsRunning { get; private set; }
+    public string LastError { get; private set; }
 
     public Func<HttpListenerContext, Task> OnRequest { get; set; }
 
@@ -24,22 +25,36 @@ public class HttpServer
         _concurrency = new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests);
     }
 
-    public void Start()
+    public bool TryStart()
     {
-        if (IsRunning) return;
+        if (IsRunning) return true;
 
-        _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://localhost:{_port}/");
-        _listener.Start();
+        try
+        {
+            _listener = new HttpListener();
+            _listener.Prefixes.Add($"http://localhost:{_port}/");
+            _listener.Start();
 
-        _cts = new CancellationTokenSource();
-        IsRunning = true;
+            _cts = new CancellationTokenSource();
+            IsRunning = true;
+            LastError = null;
 
-        _listenTask = Task.Factory.StartNew(
-            ListenLoop,
-            _cts.Token,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default);
+            _listenTask = Task.Factory.StartNew(
+                ListenLoop,
+                _cts.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _listener?.Close();
+            _listener = null;
+            IsRunning = false;
+            return false;
+        }
     }
 
     public void Stop()
