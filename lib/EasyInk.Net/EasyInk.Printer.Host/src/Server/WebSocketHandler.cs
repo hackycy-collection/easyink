@@ -16,6 +16,8 @@ public class WebSocketHandler
 
     public int ConnectionCount => _connections.Count;
 
+    public event Action ConnectionCountChanged;
+
     public async Task HandleConnection(HttpListenerContext context)
     {
         if (!context.Request.IsWebSocketRequest)
@@ -29,6 +31,7 @@ public class WebSocketHandler
         var ws = wsContext.WebSocket;
         var connectionId = Guid.NewGuid().ToString();
         _connections[connectionId] = ws;
+        ConnectionCountChanged?.Invoke();
 
         try
         {
@@ -44,6 +47,7 @@ public class WebSocketHandler
         finally
         {
             _connections.TryRemove(connectionId, out _);
+            ConnectionCountChanged?.Invoke();
             try
             {
                 if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)

@@ -98,6 +98,15 @@ public class MainWindow : Form
 
         cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs });
 
+        _wsHandler.ConnectionCountChanged += () =>
+        {
+            if (IsDisposed) return;
+            if (InvokeRequired)
+                BeginInvoke(new Action(() => lblWsVal.Text = _wsHandler.ConnectionCount.ToString()));
+            else
+                lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
+        };
+
         // 错误提示区域
         var errorPanel = new Panel
         {
