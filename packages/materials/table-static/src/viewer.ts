@@ -1,6 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { TableStaticProps } from './schema'
-import { formatBindingDisplayValue, resolveBindingValue } from '@easyink/core'
+import { formatBindingDisplayValue, resolveBindingValue, trustedViewerHtml } from '@easyink/core'
 import { renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { getNodeProps, isTableNode } from '@easyink/schema'
 
@@ -16,7 +16,7 @@ export function renderTableStatic(node: MaterialNode, contextOrUnit: ViewerRende
   const data = context?.data ?? {}
   if (!isTableNode(node)) {
     return {
-      html: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f9f9f9;color:#999;font-size:12px;">[Table]</div>',
+      html: trustedViewerHtml('<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f9f9f9;color:#999;font-size:12px;">[Table]</div>'),
     }
   }
 
@@ -38,5 +38,5 @@ export function renderTableStatic(node: MaterialNode, contextOrUnit: ViewerRende
       return renderPlainTextCell(cell.content?.text)
     },
   })
-  return { html }
+  return { html: trustedViewerHtml(html) }
 }

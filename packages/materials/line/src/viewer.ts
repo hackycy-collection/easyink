@@ -1,6 +1,7 @@
 import type { ViewerRenderContext } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { LineProps } from './schema'
+import { trustedViewerHtml } from '@easyink/core'
 import { getNodeProps } from '@easyink/schema'
 
 import { getLineThickness } from './schema'
@@ -35,6 +36,6 @@ export function renderLine(node: MaterialNode, _context: ViewerRenderContext) {
   const content = buildShapeMarkup(lineType, node.width, thickness, lineColor)
 
   return {
-    html: `<svg style="display:block;width:100%;height:100%;overflow:hidden;shape-rendering:crispEdges;" width="100%" height="100%" viewBox="0 0 ${node.width} ${thickness}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${content}</svg>`,
+    html: trustedViewerHtml(`<svg style="display:block;width:100%;height:100%;overflow:hidden;shape-rendering:crispEdges;" width="100%" height="100%" viewBox="0 0 ${node.width} ${thickness}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${content}</svg>`),
   }
 }

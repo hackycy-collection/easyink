@@ -13,32 +13,45 @@ import type {
   ViewerPrintPolicy,
   ViewerRenderResult,
 } from './types'
+import type { ViewerHostAdapter } from './viewer-host'
 import { registerBuiltinViewerMaterials } from '@easyink/builtin'
 import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
 import { traverseNodes, validateSchema } from '@easyink/schema'
 import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
+import { resolveViewerDataContext } from './data-source-resolver'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
 import { MaterialRendererRegistry } from './material-registry'
 import { PrintPolicyError, resolvePrintPolicy } from './print-policy'
 import { renderPages } from './render-surface'
 import { applyStackFlowLayout } from './stack-flow-layout'
+import { createThumbnails } from './thumbnail-pipeline'
+import { createBrowserViewerHost, createIframeViewerHost } from './viewer-host'
 
 export class ViewerRuntime {
   private _options: ViewerOptions
   private _schema?: DocumentSchema
   private _data: Record<string, unknown> = {}
+  private _dataSources: ViewerOpenInput['dataSources'] = []
   private _diagnosticHandler?: (event: ViewerDiagnosticEvent) => void
   private _exportAdapters: ExportAdapter[] = []
   private _printAdapters: PrintAdapter[] = []
   private _materialRegistry = new MaterialRendererRegistry()
   private _fontManager: FontManager
   private _hooks: InternalHooks
+  private _host?: ViewerHostAdapter
   private _renderedPageMetrics: ViewerPageMetrics[] = []
   private _destroyed = false
+  private _emittingHookFailure = false
 
   constructor(options: ViewerOptions = {}) {
     this._options = options
+    this._host = options.host
+      ?? (options.iframe
+        ? createIframeViewerHost(options.iframe)
+        : options.container
+          ? createBrowserViewerHost(options.container)
+          : undefined)
     this._fontManager = new FontManager(options.fontProvider)
     this._hooks = createInternalHooks()
     registerBuiltinViewerMaterials((type, extension) => {
@@ -52,6 +65,7 @@ export class ViewerRuntime {
 
   async open(input: ViewerOpenInput): Promise<void> {
     this.ensureNotDestroyed()
+    this._diagnosticHandler = input.onDiagnostic
 
     // 1. Validate schema
     const errors = validateSchema(input.schema)
@@ -63,27 +77,33 @@ export class ViewerRuntime {
         message: errors.join('; '),
         scope: 'schema',
       }
-      input.onDiagnostic?.(event)
+      this.emitDiagnostic(event)
       throw new Error(`Invalid schema: ${errors.join('; ')}`)
     }
 
     // 2. Hook: beforeSchemaNormalize
-    const normalizedSchema = this._hooks.beforeSchemaNormalize.call(input.schema)
+    const normalizedSchema = this.callSchemaNormalizeHook(input.schema)
     this._schema = normalizedSchema
 
-    this._data = input.data || {}
-    this._diagnosticHandler = input.onDiagnostic
+    const dataResolution = resolveViewerDataContext({ data: input.data, dataSources: input.dataSources })
+    this._data = dataResolution.data
+    this._dataSources = input.dataSources ?? []
+    for (const diagnostic of dataResolution.diagnostics)
+      this.emitDiagnostic(diagnostic)
 
     // 3. Render (font loading + binding + page plan + DOM)
-    if (this._options.container) {
+    if (this._host) {
       await this.render()
     }
   }
 
   async updateData(data: Record<string, unknown>): Promise<void> {
     this.ensureNotDestroyed()
-    this._data = data
-    if (this._options.container && this._schema) {
+    const dataResolution = resolveViewerDataContext({ data, dataSources: this._dataSources })
+    this._data = dataResolution.data
+    for (const diagnostic of dataResolution.diagnostics)
+      this.emitDiagnostic(diagnostic)
+    if (this._host && this._schema) {
       await this.render()
     }
   }
@@ -103,7 +123,22 @@ export class ViewerRuntime {
     const resolvedPropsMap = this.resolveAllBindings(diagnostics)
 
     // Stage 3: Hook - beforePagePlan
-    this._hooks.beforePagePlan.call({ schema: this._schema, mode: this._schema.page.mode })
+    try {
+      this._hooks.beforePagePlan.call({ schema: this._schema, mode: this._schema.page.mode })
+    }
+    catch (err) {
+      const diagnostic: ViewerDiagnosticEvent = {
+        category: 'viewer',
+        severity: 'error',
+        code: 'BEFORE_PAGE_PLAN_HOOK_ERROR',
+        message: `beforePagePlan hook failed: ${err instanceof Error ? err.message : String(err)}`,
+        scope: 'hook',
+        cause: serializeCause(err),
+      }
+      diagnostics.push(diagnostic)
+      this.emitDiagnostic(diagnostic)
+      throw err
+    }
 
     // Stage 3.5: Measure elements that need expansion (e.g., table-data)
     const { schema: measuredSchema, diagnostics: layoutDiagnostics } = this.applyMeasureAndLayout()
@@ -139,12 +174,13 @@ export class ViewerRuntime {
       unit: this._schema!.unit,
     }))
 
-    if (this._options.container) {
+    if (this._host) {
       const pageDOMs = renderPages(
         plan.pages,
         this._materialRegistry,
         {
-          container: this._options.container,
+          container: this._host.mount,
+          document: this._host.document,
           zoom: this.resolveZoom(),
           unit: this._schema.unit,
           data: this._data,
@@ -162,7 +198,7 @@ export class ViewerRuntime {
       }
 
       // Apply page-level viewport offset (preview only, not print)
-      this.applyViewportOffset(this._options.container)
+      this.applyViewportOffset(this._host.mount)
     }
 
     // Emit all diagnostics
@@ -170,7 +206,7 @@ export class ViewerRuntime {
       this.emitDiagnostic(d)
     }
 
-    return { pages, thumbnails: [], diagnostics }
+    return { pages, thumbnails: createThumbnails(pages, this._schema.unit), diagnostics }
   }
 
   async print(options: ViewerPrintOptions = {}): Promise<void> {
@@ -184,26 +220,33 @@ export class ViewerRuntime {
 
     if (this._printAdapters.length > 0) {
       const adapter = this._printAdapters[0]!
-      await adapter.print({
-        schema: this._schema,
-        data: this._data,
-        entry: 'preview',
-        printOptions: { browserTarget: printPolicy.browserTarget },
-        printPolicy,
-        renderedPages: this.renderedPages,
-        container: this._options.container,
-      })
+      try {
+        await adapter.print({
+          schema: this._schema,
+          data: this._data,
+          dataSources: this._dataSources,
+          entry: 'preview',
+          printOptions: { browserTarget: printPolicy.browserTarget },
+          printPolicy,
+          renderedPages: this.renderedPages,
+          container: this._host?.mount,
+        })
+      }
+      catch (err) {
+        this.emitPrintError(err)
+      }
       return
     }
 
     // Fallback: window.print with DOM isolation
-    if (typeof window !== 'undefined') {
-      if (this._options.container) {
+    const fallbackWindow = this._host?.window ?? getGlobalWindow()
+    if (fallbackWindow) {
+      if (this._host) {
         await this.printWithIsolation(printPolicy)
       }
       else {
         try {
-          window.print()
+          fallbackWindow.print()
         }
         catch (err) {
           this.emitPrintError(err)
@@ -227,10 +270,11 @@ export class ViewerRuntime {
   }
 
   private async printWithIsolation(printPolicy: ViewerPrintPolicy): Promise<void> {
-    const container = this._options.container!
+    const host = this._host!
+    const container = host.mount
     const doc = container.ownerDocument
     const ancestors: HTMLElement[] = []
-    let style: HTMLStyleElement | undefined
+    let removeStyle: (() => void) | undefined
 
     try {
       let el: HTMLElement | null = container.parentElement
@@ -243,17 +287,15 @@ export class ViewerRuntime {
       }
       container.setAttribute('data-ei-printing', '')
 
-      style = doc.createElement('style')
-      style.textContent = this.buildPrintStyles(printPolicy)
-      doc.head.appendChild(style)
+      removeStyle = host.appendStyle(this.buildPrintStyles(printPolicy))
 
-      window.print()
+      host.print()
     }
     catch (err) {
       this.emitPrintError(err)
     }
     finally {
-      style?.remove()
+      removeStyle?.()
       container.removeAttribute('data-ei-printing')
       for (const ancestor of ancestors) {
         ancestor.removeAttribute('data-ei-print-ancestor')
@@ -370,14 +412,21 @@ ${pageSizeCSS}    margin: 0;
     const context = {
       schema: this._schema,
       data: this._data,
+      dataSources: this._dataSources,
       entry: 'api' as const,
     }
 
-    if (adapter.prepare) {
-      await adapter.prepare(context)
-    }
+    try {
+      if (adapter.prepare) {
+        await adapter.prepare(context)
+      }
 
-    return adapter.export(context)
+      return await adapter.export(context)
+    }
+    catch (err) {
+      this.emitExportError(adapter.id, format, err)
+      return undefined
+    }
   }
 
   destroy(): void {
@@ -389,9 +438,7 @@ ${pageSizeCSS}    margin: 0;
     this._printAdapters = []
     this._renderedPageMetrics = []
     this._fontManager.clear()
-    if (this._options.container) {
-      this._options.container.innerHTML = ''
-    }
+    this._host?.clear()
   }
 
   // ---------------------------------------------------------------------------
@@ -515,7 +562,22 @@ ${pageSizeCSS}    margin: 0;
     }
 
     let elements = this._schema.elements.map((node) => {
-      const result = this._materialRegistry.measure(node, measureCtx)
+      let result
+      try {
+        result = this._materialRegistry.measure(node, measureCtx)
+      }
+      catch (err) {
+        diagnostics.push({
+          category: 'viewer',
+          severity: 'warning',
+          code: 'MATERIAL_MEASURE_ERROR',
+          message: `Material measure failed for ${node.id}: ${err instanceof Error ? err.message : String(err)}`,
+          nodeId: node.id,
+          scope: 'material',
+          cause: serializeCause(err),
+        })
+        return node
+      }
       if (!result || (result.width === node.width && result.height === node.height))
         return node
       modified = true
@@ -547,13 +609,23 @@ ${pageSizeCSS}    margin: 0;
     if (families.size === 0)
       return
 
-    const container = this._options.container
-    if (!container)
+    if (!this._host)
       return
 
-    const target = container.ownerDocument
-    const fontDiags = await loadAndInjectFonts(families, this._fontManager, target)
-    diagnostics.push(...fontDiags)
+    try {
+      const fontDiags = await loadAndInjectFonts(families, this._fontManager, this._host.document)
+      diagnostics.push(...fontDiags)
+    }
+    catch (err) {
+      diagnostics.push({
+        category: 'viewer',
+        severity: 'warning',
+        code: 'FONT_LOAD_ERROR',
+        message: `Font loading failed: ${err instanceof Error ? err.message : String(err)}`,
+        scope: 'font',
+        cause: serializeCause(err),
+      })
+    }
   }
 
   private resolveAllBindings(diagnostics: ViewerDiagnosticEvent[]): Map<string, Record<string, unknown>> {
@@ -568,7 +640,7 @@ ${pageSizeCSS}    margin: 0;
       }
 
       try {
-        const projected = projectBindings(node, this._data)
+        const projected = projectBindings(node, this._data, this._dataSources)
         for (const binding of projected) {
           for (const diagnostic of binding.diagnostics ?? []) {
             diagnostics.push({
@@ -622,7 +694,7 @@ ${pageSizeCSS}    margin: 0;
     if (typeof scale === 'number')
       return scale
 
-    const container = this._options.container
+    const container = this._host?.mount
     if (!container)
       return 1
 
@@ -662,7 +734,63 @@ ${pageSizeCSS}    margin: 0;
   private emitDiagnostic(event: ViewerDiagnosticEvent): void {
     this._diagnosticHandler?.(event)
     this._hooks.diagnosticsEmitted.call(event).catch(() => {
-      // hook 失败不应阻断渲染
+      this.emitDiagnosticHookError()
     })
   }
+
+  private callSchemaNormalizeHook(schema: DocumentSchema): DocumentSchema {
+    try {
+      return this._hooks.beforeSchemaNormalize.call(schema)
+    }
+    catch (err) {
+      this.emitDiagnostic({
+        category: 'viewer',
+        severity: 'error',
+        code: 'SCHEMA_NORMALIZE_HOOK_ERROR',
+        message: `Schema normalize hook failed: ${err instanceof Error ? err.message : String(err)}`,
+        scope: 'hook',
+        cause: serializeCause(err),
+      })
+      throw err
+    }
+  }
+
+  private emitExportError(adapterId: string, format: string | undefined, err: unknown): void {
+    this.emitDiagnostic({
+      category: 'export-adapter',
+      severity: 'error',
+      code: 'EXPORT_ADAPTER_ERROR',
+      message: `Export adapter "${adapterId}" failed for format "${format || 'default'}": ${err instanceof Error ? err.message : String(err)}`,
+      scope: 'export-adapter',
+      cause: serializeCause(err),
+    })
+  }
+
+  private emitDiagnosticHookError(): void {
+    if (this._emittingHookFailure)
+      return
+    this._emittingHookFailure = true
+    try {
+      this._diagnosticHandler?.({
+        category: 'viewer',
+        severity: 'warning',
+        code: 'DIAGNOSTIC_HOOK_ERROR',
+        message: 'diagnosticsEmitted hook failed',
+        scope: 'hook',
+      })
+    }
+    finally {
+      this._emittingHookFailure = false
+    }
+  }
+}
+
+function getGlobalWindow(): Window | undefined {
+  return typeof window === 'undefined' ? undefined : window
+}
+
+function serializeCause(err: unknown): unknown {
+  if (err instanceof Error)
+    return { name: err.name, message: err.message, stack: err.stack }
+  return err
 }

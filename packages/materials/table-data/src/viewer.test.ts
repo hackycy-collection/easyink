@@ -1,4 +1,5 @@
 import type { TableNode } from '@easyink/schema'
+import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { createTableDataNode } from './schema'
 import { renderTableData } from './viewer'
@@ -18,7 +19,8 @@ describe('renderTableData', () => {
       zoom: 1,
     })
 
-    expect(output.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
-    expect(output.html).not.toContain('<script>alert(1)</script>')
+    const html = readTrustedViewerHtml(output.html!)
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(html).not.toContain('<script>alert(1)</script>')
   })
 })

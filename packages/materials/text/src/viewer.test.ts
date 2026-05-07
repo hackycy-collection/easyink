@@ -1,3 +1,4 @@
+import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { createTextNode } from './schema'
 import { renderText } from './viewer'
@@ -13,7 +14,7 @@ describe('renderText', () => {
       },
     })
 
-    const { html } = renderText(node)
+    const html = readTrustedViewerHtml(renderText(node).html!)
 
     expect(html).toContain('writing-mode:vertical-rl')
     expect(html).toContain('text-orientation:mixed')
@@ -30,7 +31,7 @@ describe('renderText', () => {
       },
     })
 
-    const { html } = renderText(node)
+    const html = readTrustedViewerHtml(renderText(node).html!)
 
     expect(html).toContain('&lt;b&gt;unsafe&lt;/b&gt;')
     expect(html).not.toContain('<b>unsafe</b>')

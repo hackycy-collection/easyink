@@ -1,5 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from './types'
+import { trustedViewerHtml } from '@easyink/core'
 import { escapeHtml } from '@easyink/shared'
 
 /**
@@ -58,6 +59,6 @@ export class MaterialRendererRegistry {
 function renderUnknownMaterial(node: MaterialNode): ViewerRenderOutput {
   const typeText = escapeHtml(node.type)
   return {
-    html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff3f3;border:1px dashed #ff4d4f;color:#ff4d4f;font-size:12px;box-sizing:border-box;">[Unknown: ${typeText}]</div>`,
+    html: trustedViewerHtml(`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff3f3;border:1px dashed #ff4d4f;color:#ff4d4f;font-size:12px;box-sizing:border-box;">[Unknown: ${typeText}]</div>`),
   }
 }

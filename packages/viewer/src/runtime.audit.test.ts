@@ -1,0 +1,263 @@
+import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
+import type { ViewerRuntime } from './runtime'
+import type { ViewerDiagnosticEvent } from './types'
+import { LINE_TYPE, renderLine } from '@easyink/material-line'
+import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { applyBindingsToProps, projectBindings } from './binding-projector'
+import { createIframeViewerHost, createViewer } from './index'
+
+function textNode(id: string, binding?: MaterialNode['binding'], props: Record<string, unknown> = {}): MaterialNode {
+  return {
+    id,
+    type: 'text',
+    x: 5,
+    y: 5,
+    width: 40,
+    height: 8,
+    props: { content: '', ...props },
+    binding,
+  }
+}
+
+function fixedSchema(elements: MaterialNode[]): DocumentSchema {
+  return {
+    version: '1.0.0',
+    unit: 'mm',
+    page: { mode: 'fixed', width: 80, height: 60 },
+    guides: { x: [], y: [] },
+    elements,
+  }
+}
+
+function tableNode(): TableNode {
+  return {
+    id: 'items',
+    type: 'table-data',
+    x: 5,
+    y: 10,
+    width: 70,
+    height: 16,
+    props: {},
+    table: {
+      kind: 'data',
+      showHeader: false,
+      showFooter: false,
+      topology: {
+        columns: [{ ratio: 1 }],
+        rows: [
+          {
+            height: 8,
+            role: 'repeat-template',
+            cells: [
+              { binding: { sourceId: 'invoice', fieldPath: 'items/name', fieldLabel: 'Name' } },
+            ],
+          },
+        ],
+      },
+      layout: {},
+    } as TableNode['table'],
+  }
+}
+
+function registerTableMaterial(viewer: ViewerRuntime): void {
+  viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
+  viewer.registerMaterial(TABLE_DATA_TYPE, {
+    render: (node, ctx) => renderTableData(node, ctx),
+    measure: (node, ctx) => measureTableData(node, ctx),
+  })
+}
+
+function collectDiagnostics(): { diagnostics: ViewerDiagnosticEvent[], onDiagnostic: (event: ViewerDiagnosticEvent) => void } {
+  const diagnostics: ViewerDiagnosticEvent[] = []
+  return {
+    diagnostics,
+    onDiagnostic(event) {
+      diagnostics.push(event)
+    },
+  }
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  document.body.replaceChildren()
+})
+
+describe('viewer audit risk regressions', () => {
+  it('renders and prints through an iframe host document', async () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const frameWindow = iframe.contentWindow!
+    const printSpy = vi.fn()
+    Object.defineProperty(frameWindow, 'print', {
+      configurable: true,
+      value: printSpy,
+    })
+
+    const viewer = createViewer({ iframe })
+    await viewer.open({ schema: fixedSchema([textNode('title', undefined, { content: 'Iframe' })]) })
+
+    expect(iframe.contentDocument!.querySelector('.ei-viewer-page')).not.toBeNull()
+    expect(document.querySelector('.ei-viewer-page')).toBeNull()
+
+    await viewer.print()
+
+    expect(printSpy).toHaveBeenCalledTimes(1)
+    expect(iframe.contentDocument!.head.querySelector('style')).toBeNull()
+    expect(document.head.querySelector('style')).toBeNull()
+  })
+
+  it('accepts an explicit iframe host adapter', async () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const host = createIframeViewerHost(iframe)
+    const viewer = createViewer({ host })
+
+    const result = await viewer.open({ schema: fixedSchema([textNode('hosted', undefined, { content: 'Host' })]) })
+
+    expect(result).toBeUndefined()
+    expect(host.document.querySelector('[data-element-id="hosted"]')).not.toBeNull()
+  })
+
+  it('resolves bindings from multiple dataSources by sourceId and sourceTag', async () => {
+    const container = document.createElement('div')
+    const { diagnostics, onDiagnostic } = collectDiagnostics()
+    const viewer = createViewer({ container })
+    const schema = fixedSchema([
+      textNode('customer', { sourceId: 'customer', fieldPath: 'name' }),
+      textNode('total', { sourceId: 'order', sourceTag: 'order-tag', fieldPath: 'total' }),
+      textNode('missing', { sourceId: 'customer', fieldPath: 'missing/path' }),
+    ])
+
+    await viewer.open({
+      schema,
+      dataSources: [
+        { id: 'customer', name: 'Customer', fields: [] },
+        { id: 'order', name: 'Order', tag: 'order-tag', fields: [] },
+      ],
+      data: {
+        'customer': { name: 'Ada' },
+        'order-tag': { total: 42 },
+      },
+      onDiagnostic,
+    })
+
+    expect(container.textContent).toContain('Ada')
+    expect(container.textContent).toContain('42')
+    expect(diagnostics.some(d => d.code === 'BINDING_PATH_NOT_FOUND')).toBe(true)
+  })
+
+  it('keeps table-data source resolution inside the selected data source', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    registerTableMaterial(viewer)
+
+    await viewer.open({
+      schema: fixedSchema([tableNode()]),
+      dataSources: [{ id: 'invoice', name: 'Invoice', fields: [] }],
+      data: {
+        invoice: {
+          items: [{ name: 'Paper' }, { name: 'Ink' }],
+        },
+        items: [{ name: 'Wrong Root' }],
+      },
+    })
+
+    expect(container.textContent).toContain('Paper')
+    expect(container.textContent).toContain('Ink')
+    expect(container.textContent).not.toContain('Wrong Root')
+  })
+
+  it('preserves raw binding value types before material render boundaries', () => {
+    const node: MaterialNode = {
+      id: 'barcode',
+      type: 'barcode',
+      x: 0,
+      y: 0,
+      width: 30,
+      height: 10,
+      props: {},
+      binding: [
+        { sourceId: 'product', fieldPath: 'value', bindIndex: 0 },
+        { sourceId: 'product', fieldPath: 'format', bindIndex: 1 },
+        { sourceId: 'product', fieldPath: 'params', bindIndex: 2 },
+      ],
+    }
+
+    const projected = projectBindings(node, {
+      product: {
+        value: 123456,
+        format: 'CODE128',
+        params: { width: 2 },
+      },
+    })
+    const props = applyBindingsToProps(node.props, projected, node.type)
+
+    expect(props.value).toBe(123456)
+    expect(props.format).toBe('CODE128')
+    expect(props.params).toEqual({ width: 2 })
+  })
+
+  it('returns one thumbnail entry per rendered page', async () => {
+    const viewer = createViewer()
+    await viewer.open({ schema: fixedSchema([textNode('title', undefined, { content: 'Thumb' })]) })
+
+    const result = await viewer.render()
+
+    expect(result.thumbnails).toHaveLength(result.pages.length)
+    expect(result.thumbnails[0]!.dataUrl).toMatch(/^data:image\/svg\+xml/)
+  })
+
+  it('emits diagnostics for font, export, print, and diagnostics hook failures', async () => {
+    const container = document.createElement('div')
+    const { diagnostics, onDiagnostic } = collectDiagnostics()
+    const viewer = createViewer({
+      container,
+      fontProvider: {
+        async listFonts() {
+          return []
+        },
+        async loadFont() {
+          return ''
+        },
+      },
+    })
+    const fontManager = viewer.fontManager as unknown as {
+      loadFonts: ViewerRuntime['fontManager']['loadFonts']
+    }
+    fontManager.loadFonts = async () => {
+      throw new Error('font boom')
+    }
+
+    viewer.registerExportAdapter({
+      id: 'boom-export',
+      format: 'pdf',
+      async prepare() {
+        throw new Error('prepare boom')
+      },
+      async export() {},
+    })
+    viewer.registerPrintAdapter({
+      id: 'boom-print',
+      async print() {
+        throw new Error('print boom')
+      },
+    })
+    viewer.hooks.diagnosticsEmitted.tap(async () => {
+      throw new Error('hook boom')
+    })
+
+    await viewer.open({
+      schema: fixedSchema([textNode('fonted', undefined, { content: 'Fonted', fontFamily: 'MissingFont' })]),
+      onDiagnostic,
+    })
+    await viewer.exportDocument('pdf')
+    await viewer.print()
+    await Promise.resolve()
+
+    expect(diagnostics.some(d => d.code === 'FONT_LOAD_ERROR')).toBe(true)
+    expect(diagnostics.some(d => d.code === 'EXPORT_ADAPTER_ERROR')).toBe(true)
+    expect(diagnostics.some(d => d.code === 'PRINT_ERROR')).toBe(true)
+    expect(diagnostics.some(d => d.code === 'DIAGNOSTIC_HOOK_ERROR')).toBe(true)
+  })
+})

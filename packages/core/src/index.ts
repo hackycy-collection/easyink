@@ -114,11 +114,15 @@ export type {
 
 export type {
   MaterialViewerExtension,
+  TrustedViewerHtml,
+  TrustedViewerHtmlSource,
   ViewerMeasureContext,
   ViewerMeasureResult,
   ViewerRenderContext,
   ViewerRenderOutput,
 } from './material-viewer'
+
+export { readTrustedViewerHtml, trustedViewerHtml } from './material-viewer'
 
 export { createPagePlan } from './page-planner'
 

@@ -1,6 +1,6 @@
 import type { BindingRef, MaterialNode, TableCellSchema, TableDataSchema, TableRowSchema } from '@easyink/schema'
 import type { TableDataProps } from './schema'
-import { extractCollectionPath, formatBindingDisplayValue, resolveBindingValue, resolveFieldFromRecord } from '@easyink/core'
+import { extractCollectionPath, formatBindingDisplayValue, resolveBindingValue, resolveFieldFromRecord, trustedViewerHtml } from '@easyink/core'
 import { computeAutoRowHeights, computeRowScaleWithVirtualRows, renderPlainTextCell, renderTableHtml } from '@easyink/material-table-kernel'
 import { getNodeProps, isTableNode } from '@easyink/schema'
 import { TABLE_DATA_PLACEHOLDER_ROW_COUNT } from './layout'
@@ -15,7 +15,7 @@ interface ViewerRenderContext {
 }
 
 interface ViewerRenderOutput {
-  html?: string
+  html?: ReturnType<typeof trustedViewerHtml>
   element?: HTMLElement
 }
 
@@ -132,7 +132,7 @@ export function measureTableData(node: MaterialNode, context: ViewerMeasureConte
 export function renderTableData(node: MaterialNode, context?: ViewerRenderContext): ViewerRenderOutput {
   if (!isTableNode(node)) {
     return {
-      html: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f9f9f9;color:#999;font-size:12px;">[Data Table]</div>',
+      html: trustedViewerHtml('<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f9f9f9;color:#999;font-size:12px;">[Data Table]</div>'),
     }
   }
 
@@ -176,7 +176,7 @@ export function renderTableData(node: MaterialNode, context?: ViewerRenderContex
       return {}
     },
   })
-  return { html }
+  return { html: trustedViewerHtml(html) }
 }
 
 /**
@@ -199,9 +199,10 @@ function expandRepeatTemplateRows(
     }
 
     // Collect all binding field paths from repeat-template cells
-    const fieldPaths = row.cells
-      .filter(c => c.binding?.fieldPath)
-      .map(c => c.binding!.fieldPath)
+    const bindings = row.cells
+      .map(c => c.binding)
+      .filter((binding): binding is BindingRef => !!binding?.fieldPath)
+    const fieldPaths = bindings.map(binding => binding.fieldPath)
 
     if (fieldPaths.length === 0) {
       // No bindings — render as single row with static content
@@ -216,7 +217,12 @@ function expandRepeatTemplateRows(
     }
 
     // Resolve collection from data
-    const collectionBinding: BindingRef = { sourceId: '', fieldPath: collectionPath }
+    const firstBinding = bindings[0]
+    const collectionBinding: BindingRef = {
+      sourceId: firstBinding?.sourceId ?? '',
+      sourceTag: firstBinding?.sourceTag,
+      fieldPath: collectionPath,
+    }
     const collectionData = resolveBindingValue(collectionBinding, data)
     if (!Array.isArray(collectionData) || collectionData.length === 0) {
       // Empty or non-array — render single empty row

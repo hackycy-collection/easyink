@@ -1,6 +1,8 @@
 import type { BindingFormatDiagnostic, FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from '@easyink/core'
+import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
+import type { ViewerHostAdapter } from './viewer-host'
 
 export * from '@easyink/datasource'
 export * from '@easyink/schema'
@@ -15,12 +17,15 @@ export type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult
 export interface ViewerOptions {
   mode?: 'fixed' | 'stack' | 'label'
   container?: HTMLElement
+  host?: ViewerHostAdapter
+  iframe?: HTMLIFrameElement
   fontProvider?: FontProvider
 }
 
 export interface ViewerOpenInput {
   schema: DocumentSchema
   data?: Record<string, unknown>
+  dataSources?: DataSourceDescriptor[]
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
 
@@ -36,7 +41,7 @@ export interface ViewerDiagnosticEvent {
   nodeId?: string
   detail?: unknown
   /** 6.10: 诊断来源阶段 */
-  scope?: 'schema' | 'datasource' | 'font' | 'material' | 'print' | 'export-adapter'
+  scope?: 'schema' | 'datasource' | 'font' | 'material' | 'print' | 'export-adapter' | 'hook'
   /** 6.10: 原始异常对象，用于根因追踪 */
   cause?: unknown
 }
@@ -85,6 +90,7 @@ export interface ExportAdapter {
 export interface ViewerExportContext {
   schema: DocumentSchema
   data?: Record<string, unknown>
+  dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
 }
 

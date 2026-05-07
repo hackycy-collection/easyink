@@ -1,6 +1,8 @@
+import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { MaterialNode } from '@easyink/schema'
 import type { ProjectedBinding } from './types'
-import { formatBindingDisplayValue, resolveBindingValue } from '@easyink/core'
+import { formatBindingDisplayValue, hasBindingFormat } from '@easyink/core'
+import { resolveBindingWithDiagnostics } from './data-source-resolver'
 
 /**
  * Resolve all bindings for a material node against the provided data.
@@ -8,6 +10,7 @@ import { formatBindingDisplayValue, resolveBindingValue } from '@easyink/core'
 export function projectBindings(
   node: MaterialNode,
   data: Record<string, unknown>,
+  dataSources: DataSourceDescriptor[] = [],
 ): ProjectedBinding[] {
   if (!node.binding)
     return []
@@ -16,12 +19,22 @@ export function projectBindings(
   const results: ProjectedBinding[] = []
 
   for (const ref of refs) {
-    const value = resolveBindingValue(ref, data)
-    const formatted = formatBindingDisplayValue(value, ref)
+    const resolved = resolveBindingWithDiagnostics({ binding: ref, data, dataSources })
+    const formatted = hasBindingFormat(ref.format)
+      ? formatBindingDisplayValue(resolved.value, ref)
+      : { value: resolved.value, diagnostics: [] }
     results.push({
       bindIndex: ref.bindIndex ?? 0,
       value: formatted.value,
-      diagnostics: formatted.diagnostics,
+      diagnostics: [
+        ...resolved.diagnostics.map(diagnostic => ({
+          code: diagnostic.code,
+          message: diagnostic.message,
+          severity: 'warning' as const,
+          cause: diagnostic.cause,
+        })),
+        ...formatted.diagnostics,
+      ],
     })
   }
 
@@ -52,10 +65,7 @@ export function applyBindingsToProps(
       : getIndexedBindProp(nodeType, binding.bindIndex)
 
     if (propKey) {
-      // Bindings deliver raw data values (any JS type), but material renderers
-      // assume their primary content prop is a string. Coerce here at the
-      // boundary so renderers can rely on `String.prototype` methods.
-      result[propKey] = binding.value == null ? '' : String(binding.value)
+      result[propKey] = binding.value
     }
   }
 

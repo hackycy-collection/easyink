@@ -1,4 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
+import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { sanitizeSvgContent } from './sanitize'
 import { renderSvg } from './viewer'
@@ -47,7 +48,7 @@ describe('renderSvg', () => {
       },
     } satisfies MaterialNode
 
-    const output = renderSvg(node).html
+    const output = readTrustedViewerHtml(renderSvg(node).html!)
 
     expect(output).toContain('<circle')
     expect(output).not.toContain('onmouseover')

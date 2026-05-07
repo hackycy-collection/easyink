@@ -13,8 +13,10 @@ export function resolveBindingValue(
   if (!path)
     return undefined
 
+  const sourceData = resolveBindingSource(binding, data)
+
   const segments = path.split(FIELD_PATH_SEPARATOR).filter(Boolean)
-  let current: unknown = data
+  let current: unknown = sourceData
 
   for (const segment of segments) {
     if (BLOCKED_PATH_KEYS.has(segment))
@@ -25,6 +27,14 @@ export function resolveBindingValue(
   }
 
   return current
+}
+
+function resolveBindingSource(binding: BindingRef, data: Record<string, unknown>): unknown {
+  if (binding.sourceId && Object.hasOwn(data, binding.sourceId))
+    return data[binding.sourceId]
+  if (binding.sourceTag && Object.hasOwn(data, binding.sourceTag))
+    return data[binding.sourceTag]
+  return data
 }
 
 /**

@@ -1,3 +1,4 @@
+import type { TrustedViewerHtml } from '@easyink/core'
 import type { ViewerDiagnosticEvent } from './types'
 
 export type DiagnosticScope = NonNullable<ViewerDiagnosticEvent['scope']>
@@ -6,7 +7,7 @@ export interface SafeRenderOptions {
   scope: DiagnosticScope
   code: string
   nodeId?: string
-  placeholderHtml: string
+  placeholderHtml: TrustedViewerHtml
 }
 
 export interface SafeCallOptions {
@@ -81,10 +82,10 @@ export function safeRender<T>(
  */
 export interface ErrorSentinel {
   __errorSentinel: true
-  html: string
+  html: TrustedViewerHtml
 }
 
-function buildErrorSentinel(html: string): ErrorSentinel {
+function buildErrorSentinel(html: TrustedViewerHtml): ErrorSentinel {
   return { __errorSentinel: true, html }
 }
 

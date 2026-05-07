@@ -1,6 +1,29 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { BindingFormatDiagnostic } from './binding-format'
 
+export type TrustedViewerHtmlSource = 'material-internal' | 'sanitized-rich-text'
+
+export interface TrustedViewerHtml {
+  readonly __easyinkTrustedViewerHtml: true
+  readonly value: string
+  readonly source: TrustedViewerHtmlSource
+}
+
+export function trustedViewerHtml(
+  value: string,
+  source: TrustedViewerHtmlSource = 'material-internal',
+): TrustedViewerHtml {
+  return {
+    __easyinkTrustedViewerHtml: true,
+    value,
+    source,
+  }
+}
+
+export function readTrustedViewerHtml(html: TrustedViewerHtml): string {
+  return html.value
+}
+
 /**
  * Viewer render context passed to each material's render function.
  * Provides document-level unit and zoom for physical unit calculations.
@@ -16,7 +39,7 @@ export interface ViewerRenderContext {
 }
 
 export interface ViewerRenderOutput {
-  html?: string
+  html?: TrustedViewerHtml
   element?: HTMLElement
 }
 

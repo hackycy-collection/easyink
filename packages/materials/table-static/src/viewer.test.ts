@@ -1,4 +1,5 @@
 import type { TableNode } from '@easyink/schema'
+import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { createTableStaticNode } from './schema'
 import { renderTableStatic } from './viewer'
@@ -12,7 +13,8 @@ describe('renderTableStatic', () => {
 
     const output = renderTableStatic(node)
 
-    expect(output.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
-    expect(output.html).not.toContain('<img src=x onerror=alert(1)>')
+    const html = readTrustedViewerHtml(output.html!)
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).not.toContain('<img src=x onerror=alert(1)>')
   })
 })

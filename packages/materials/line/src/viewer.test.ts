@@ -1,3 +1,4 @@
+import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { createLineNode, getLineThickness } from './schema'
 import { renderLine } from './viewer'
@@ -20,11 +21,13 @@ describe('renderLine', () => {
       zoom: 1,
     })
 
-    expect(output.html).toContain('<svg')
-    expect(output.html).toContain('display:block')
+    const html = readTrustedViewerHtml(output.html!)
+
+    expect(html).toContain('<svg')
+    expect(html).toContain('display:block')
     // viewBox uses document-unit values directly (no px conversion)
-    expect(output.html).toContain(`viewBox="0 0 ${node.width} 0.5"`)
-    expect(output.html).toContain(`<rect x="0" y="0" width="${node.width}" height="0.5" fill="#333333" />`)
+    expect(html).toContain(`viewBox="0 0 ${node.width} 0.5"`)
+    expect(html).toContain(`<rect x="0" y="0" width="${node.width}" height="0.5" fill="#333333" />`)
   })
 
   it('keeps dashed and dotted line types in viewer output', () => {
@@ -58,12 +61,15 @@ describe('renderLine', () => {
       zoom: 1,
     })
 
+    const dashedHtml = readTrustedViewerHtml(dashedOutput.html!)
+    const dottedHtml = readTrustedViewerHtml(dottedOutput.html!)
+
     // Dashed: segment=3, gap=2 in document units
-    expect(dashedOutput.html).toContain('<rect x="0" y="0" width="3" height="1" fill="#111111" />')
-    expect(dashedOutput.html).toContain('<rect x="5" y="0" width="3" height="1" fill="#111111" />')
+    expect(dashedHtml).toContain('<rect x="0" y="0" width="3" height="1" fill="#111111" />')
+    expect(dashedHtml).toContain('<rect x="5" y="0" width="3" height="1" fill="#111111" />')
     // Dotted: segment=0.5, gap=1.5 in document units
-    expect(dottedOutput.html).toContain('<rect x="0" y="0" width="0.5" height="1" fill="#222222" />')
-    expect(dottedOutput.html).toContain('<rect x="2" y="0" width="0.5" height="1" fill="#222222" />')
+    expect(dottedHtml).toContain('<rect x="0" y="0" width="0.5" height="1" fill="#222222" />')
+    expect(dottedHtml).toContain('<rect x="2" y="0" width="0.5" height="1" fill="#222222" />')
   })
 
   it('falls back to legacy lineWidth when old templates still have zero height', () => {

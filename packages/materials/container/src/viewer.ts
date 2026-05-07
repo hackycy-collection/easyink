@@ -1,5 +1,6 @@
 import type { MaterialNode } from '@easyink/schema'
 import type { ContainerProps } from './schema'
+import { trustedViewerHtml } from '@easyink/core'
 import { getNodeProps } from '@easyink/schema'
 
 export function renderContainer(node: MaterialNode, unit = 'mm') {
@@ -8,6 +9,6 @@ export function renderContainer(node: MaterialNode, unit = 'mm') {
     ? `border:${props.borderWidth}${unit} ${props.borderType} ${props.borderColor};`
     : ''
   return {
-    html: `<div style="width:100%;height:100%;display:flex;flex-direction:${props.direction};gap:${props.gap}${unit};padding:${props.padding}${unit};background:${props.fillColor};${border}box-sizing:border-box;"></div>`,
+    html: trustedViewerHtml(`<div style="width:100%;height:100%;display:flex;flex-direction:${props.direction};gap:${props.gap}${unit};padding:${props.padding}${unit};background:${props.fillColor};${border}box-sizing:border-box;"></div>`),
   }
 }

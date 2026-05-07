@@ -1,13 +1,15 @@
-import type { PagePlanEntry } from '@easyink/core'
+import type { PagePlanEntry, TrustedViewerHtml } from '@easyink/core'
 import type { MaterialNode, PageBackground, PageSchema } from '@easyink/schema'
 import type { MaterialRendererRegistry } from './material-registry'
 import type { ViewerDiagnosticEvent, ViewerRenderContext } from './types'
+import { readTrustedViewerHtml, trustedViewerHtml } from '@easyink/core'
 import { getLineThickness, LINE_TYPE } from '@easyink/material-line'
 import { escapeHtml, UNIT_FACTOR } from '@easyink/shared'
 import { isErrorSentinel, safeRender } from './diagnostic-middleware'
 
 export interface RenderSurfaceOptions {
   container: HTMLElement
+  document: Document
   zoom: number
   unit: string
   data: Record<string, unknown>
@@ -32,13 +34,13 @@ export function renderPages(
   options: RenderSurfaceOptions,
   diagnostics: ViewerDiagnosticEvent[],
 ): PageDOM[] {
-  const { container, zoom, unit, data, resolvedPropsMap, pageSchema } = options
-  container.innerHTML = ''
+  const { container, document, zoom, unit, data, resolvedPropsMap, pageSchema } = options
+  container.replaceChildren()
 
   const pageDOMs: PageDOM[] = []
 
   for (const page of pages) {
-    const { wrapper, pageEl } = createPageElement(page, pageSchema, unit, zoom)
+    const { wrapper, pageEl } = createPageElement(document, page, pageSchema, unit, zoom)
 
     const context: ViewerRenderContext = {
       data,
@@ -69,7 +71,7 @@ export function renderPages(
 
       // Render through the material registry, wrapped by unified diagnostic middleware.
       const nodeForRender: MaterialNode = { ...node, props: resolved }
-      const fallbackHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff3f3;border:1px dashed #ff4d4f;color:#ff4d4f;font-size:11px;box-sizing:border-box;" title="Render failed">&#x26A0; [${escapeHtml(node.type)}]</div>`
+      const fallbackHtml = trustedViewerHtml(`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff3f3;border:1px dashed #ff4d4f;color:#ff4d4f;font-size:11px;box-sizing:border-box;" title="Render failed">&#x26A0; [${escapeHtml(node.type)}]</div>`)
 
       const safeResult = safeRender(
         () => registry.render(nodeForRender, context),
@@ -90,7 +92,7 @@ export function renderPages(
         output = safeResult
       }
 
-      const elWrapper = createElementWrapper(node, page, unit)
+      const elWrapper = createElementWrapper(document, node, page, unit)
       if (output.element) {
         elWrapper.appendChild(output.element)
       }
@@ -109,6 +111,7 @@ export function renderPages(
 }
 
 function createPageElement(
+  document: Document,
   page: PagePlanEntry,
   pageSchema: PageSchema,
   unit: string,
@@ -214,6 +217,7 @@ function applyPageBackground(el: HTMLElement, bg: PageBackground | undefined, un
 }
 
 function createElementWrapper(
+  document: Document,
   node: MaterialNode,
   page: PagePlanEntry,
   unit: string,
@@ -257,6 +261,8 @@ function getPxFactorForLayout(unit: string): number {
   return 96 / factor
 }
 
-function setMaterialHtml(element: HTMLElement, html: string): void {
-  element.innerHTML = html
+function setMaterialHtml(element: HTMLElement, html: TrustedViewerHtml): void {
+  const template = element.ownerDocument.createElement('template')
+  template.innerHTML = readTrustedViewerHtml(html)
+  element.replaceChildren(template.content.cloneNode(true))
 }
