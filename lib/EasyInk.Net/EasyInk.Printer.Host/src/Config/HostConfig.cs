@@ -1,6 +1,6 @@
 using System;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 
@@ -45,10 +45,7 @@ public class HostConfig
 
             if (enable)
             {
-                var exePath = Assembly.GetExecutingAssembly().Location;
-                // .NET Framework WinForms exe is a .exe, not .dll
-                if (exePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                    exePath = exePath.Substring(0, exePath.Length - 4) + ".exe";
+                var exePath = Process.GetCurrentProcess().MainModule.FileName;
                 key.SetValue(AutoStartRegName, $"\"{exePath}\"");
             }
             else

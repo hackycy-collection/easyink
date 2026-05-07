@@ -20,7 +20,6 @@ public class PrinterApi : IDisposable
     private readonly IAuditService _auditService;
     private readonly IPdfRenderService _pdfRenderService;
     private readonly PrintJobQueue _jobQueue;
-    private readonly bool _ownsServices;
 
     private static readonly JsonSerializerSettings _jsonSettings = new()
     {
@@ -40,7 +39,6 @@ public class PrinterApi : IDisposable
         IPrintService printService = null,
         string dbPath = null)
     {
-        _ownsServices = printerService == null;
         _printerService = printerService ?? new PrinterService();
         _pdfRenderService = pdfRenderService ?? new PdfRenderService();
         _auditService = auditService ?? new AuditService(dbPath);
@@ -212,12 +210,6 @@ public class PrinterApi : IDisposable
     public void Dispose()
     {
         _jobQueue.Dispose();
-        if (_ownsServices)
-        {
-            (_printerService as IDisposable)?.Dispose();
-            (_pdfRenderService as IDisposable)?.Dispose();
-            (_auditService as IDisposable)?.Dispose();
-        }
     }
 
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64, int copies,

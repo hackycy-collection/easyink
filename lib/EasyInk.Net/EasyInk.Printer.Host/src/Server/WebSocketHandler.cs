@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
@@ -43,7 +44,9 @@ public class WebSocketHandler
                     break;
             }
         }
-        catch { }
+        catch (WebSocketException) { }
+        catch (IOException) { }
+        catch (OperationCanceledException) { }
         finally
         {
             _connections.TryRemove(connectionId, out _);
@@ -53,7 +56,7 @@ public class WebSocketHandler
                 if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
             }
-            catch { }
+            catch (WebSocketException) { }
             ws.Dispose();
         }
     }
@@ -73,7 +76,11 @@ public class WebSocketHandler
                     if (kvp.Value.State == WebSocketState.Open)
                         await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
                 }
-                catch
+                catch (WebSocketException)
+                {
+                    _connections.TryRemove(kvp.Key, out _);
+                }
+                catch (IOException)
                 {
                     _connections.TryRemove(kvp.Key, out _);
                 }

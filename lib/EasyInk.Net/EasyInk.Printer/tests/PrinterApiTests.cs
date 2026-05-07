@@ -189,7 +189,7 @@ public class PrinterApiTests
     }
 
     [Fact]
-    public void Dispose_DisposesOwnedServices()
+    public void Dispose_DisposesJobQueue()
     {
         var printerService = new Mock<IPrinterService>();
         var printService = new Mock<IPrintService>();

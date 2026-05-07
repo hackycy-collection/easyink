@@ -271,69 +271,61 @@ public class MainWindow : Form
         return tab;
     }
 
-    private async void RefreshPrinters(ListView listView)
+    private async Task RefreshListViewAsync(ListView listView, string operationName, Func<string> dataFetcher, Action<ListView, Newtonsoft.Json.Linq.JArray> rowMapper)
     {
         try
         {
             listView.Items.Clear();
-            var json = await Task.Run(() => _api.GetPrinters());
+            var json = await Task.Run(dataFetcher);
             var result = Newtonsoft.Json.Linq.JObject.Parse(json);
             if (result["success"]?.ToObject<bool>() == true)
             {
-                var printers = result["data"] as Newtonsoft.Json.Linq.JArray;
-                if (printers != null)
-                {
-                    foreach (var p in printers)
-                    {
-                        var item = new ListViewItem(p["name"]?.ToString());
-                        item.SubItems.Add(p["isDefault"]?.ToObject<bool>() == true ? "是" : "");
-                        var status = p["status"];
-                        item.SubItems.Add(status?["message"]?.ToString() ?? "");
-                        item.SubItems.Add(status?["isOnline"]?.ToObject<bool>() == true ? "是" : "否");
-                        item.SubItems.Add(status?["hasPaper"]?.ToObject<bool>() == true ? "是" : "否");
-                        listView.Items.Add(item);
-                    }
-                }
+                var data = result["data"] as Newtonsoft.Json.Linq.JArray;
+                if (data != null)
+                    rowMapper(listView, data);
             }
         }
         catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            try { MessageBox.Show($"获取打印机列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            try { MessageBox.Show($"{operationName}失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             catch (ObjectDisposedException) { }
         }
     }
 
+    private async void RefreshPrinters(ListView listView)
+    {
+        await RefreshListViewAsync(listView, "获取打印机列表", () => _api.GetPrinters(),
+            (listViewCtrl, data) =>
+            {
+                foreach (var p in data)
+                {
+                    var item = new ListViewItem(p["name"]?.ToString());
+                    item.SubItems.Add(p["isDefault"]?.ToObject<bool>() == true ? "是" : "");
+                    var status = p["status"];
+                    item.SubItems.Add(status?["message"]?.ToString() ?? "");
+                    item.SubItems.Add(status?["isOnline"]?.ToObject<bool>() == true ? "是" : "否");
+                    item.SubItems.Add(status?["hasPaper"]?.ToObject<bool>() == true ? "是" : "否");
+                    listViewCtrl.Items.Add(item);
+                }
+            });
+    }
+
     private async void RefreshJobs(ListView listView)
     {
-        try
-        {
-            listView.Items.Clear();
-            var json = await Task.Run(() => _api.GetAllJobs());
-            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
-            if (result["success"]?.ToObject<bool>() == true)
+        await RefreshListViewAsync(listView, "获取任务列表", () => _api.GetAllJobs(),
+            (listViewCtrl, data) =>
             {
-                var jobs = result["data"] as Newtonsoft.Json.Linq.JArray;
-                if (jobs != null)
+                foreach (var job in data)
                 {
-                    foreach (var job in jobs)
-                    {
-                        var item = new ListViewItem(job["jobId"]?.ToString());
-                        item.SubItems.Add(job["printerName"]?.ToString());
-                        item.SubItems.Add(job["status"]?.ToString());
-                        item.SubItems.Add(job["createdAt"]?.ToString());
-                        item.SubItems.Add(job["errorMessage"]?.ToString());
-                        listView.Items.Add(item);
-                    }
+                    var item = new ListViewItem(job["jobId"]?.ToString());
+                    item.SubItems.Add(job["printerName"]?.ToString());
+                    item.SubItems.Add(job["status"]?.ToString());
+                    item.SubItems.Add(job["createdAt"]?.ToString());
+                    item.SubItems.Add(job["errorMessage"]?.ToString());
+                    listViewCtrl.Items.Add(item);
                 }
-            }
-        }
-        catch (ObjectDisposedException) { }
-        catch (Exception ex)
-        {
-            try { MessageBox.Show($"获取任务列表失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            catch (ObjectDisposedException) { }
-        }
+            });
     }
 
     private TabPage CreateJobsTab()
@@ -427,35 +419,20 @@ public class MainWindow : Form
 
     private async void RefreshLogs(ListView listView, DateTime from, DateTime to)
     {
-        try
-        {
-            listView.Items.Clear();
-            var json = await Task.Run(() => _api.QueryLogs(from, to, limit: 200));
-            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
-            if (result["success"]?.ToObject<bool>() == true)
+        await RefreshListViewAsync(listView, "查询日志", () => _api.QueryLogs(from, to, limit: 200),
+            (listViewCtrl, data) =>
             {
-                var logs = result["data"] as Newtonsoft.Json.Linq.JArray;
-                if (logs != null)
+                foreach (var log in data)
                 {
-                    foreach (var log in logs)
-                    {
-                        var item = new ListViewItem(log["timestamp"]?.ToString());
-                        item.SubItems.Add(log["printerName"]?.ToString());
-                        item.SubItems.Add(log["status"]?.ToString());
-                        item.SubItems.Add(log["userId"]?.ToString());
-                        item.SubItems.Add(log["jobId"]?.ToString());
-                        item.SubItems.Add(log["errorMessage"]?.ToString());
-                        listView.Items.Add(item);
-                    }
+                    var item = new ListViewItem(log["timestamp"]?.ToString());
+                    item.SubItems.Add(log["printerName"]?.ToString());
+                    item.SubItems.Add(log["status"]?.ToString());
+                    item.SubItems.Add(log["userId"]?.ToString());
+                    item.SubItems.Add(log["jobId"]?.ToString());
+                    item.SubItems.Add(log["errorMessage"]?.ToString());
+                    listViewCtrl.Items.Add(item);
                 }
-            }
-        }
-        catch (ObjectDisposedException) { }
-        catch (Exception ex)
-        {
-            try { MessageBox.Show($"查询日志失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            catch (ObjectDisposedException) { }
-        }
+            });
     }
 
     private TabPage CreateSettingsTab()

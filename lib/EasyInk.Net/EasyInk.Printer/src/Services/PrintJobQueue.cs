@@ -15,9 +15,9 @@ public class PrintJobQueue : IDisposable
     private const int DefaultMaxQueueSize = 100;
 
     private readonly IPrintService _printService;
-    private readonly ConcurrentDictionary<string, PrintJob> _jobs = new();
+    private readonly Dictionary<string, PrintJob> _jobs = new Dictionary<string, PrintJob>();
     private readonly BlockingCollection<(string requestId, PrintRequestParams request)> _queue;
-    private readonly CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly Task _worker;
     private readonly object _jobLock = new object();
 
@@ -47,7 +47,7 @@ public class PrintJobQueue : IDisposable
         }
         if (!_queue.TryAdd((jobId, request), TimeSpan.FromSeconds(5)))
         {
-            _jobs.TryRemove(jobId, out _);
+            lock (_jobLock) { _jobs.Remove(jobId); }
             throw new InvalidOperationException("打印队列已满，请稍后重试");
         }
         return jobId;
@@ -97,10 +97,14 @@ public class PrintJobQueue : IDisposable
         var processedCount = 0;
         foreach (var (requestId, request) in _queue.GetConsumingEnumerable(_cts.Token))
         {
-            if (!_jobs.TryGetValue(requestId, out var jobInfo))
-                continue;
-
-            lock (_jobLock) { jobInfo.Status = "printing"; jobInfo.StartedAt = DateTime.UtcNow; }
+            PrintJob jobInfo;
+            lock (_jobLock)
+            {
+                if (!_jobs.TryGetValue(requestId, out jobInfo))
+                    continue;
+                jobInfo.Status = "printing";
+                jobInfo.StartedAt = DateTime.UtcNow;
+            }
 
             try
             {
@@ -137,11 +141,12 @@ public class PrintJobQueue : IDisposable
         var cutoff = DateTime.UtcNow.AddHours(-1);
         lock (_jobLock)
         {
-            foreach (var kvp in _jobs)
-            {
-                if (kvp.Value.CompletedAt.HasValue && kvp.Value.CompletedAt.Value < cutoff)
-                    _jobs.TryRemove(kvp.Key, out _);
-            }
+            var expiredKeys = _jobs
+                .Where(kvp => kvp.Value.CompletedAt.HasValue && kvp.Value.CompletedAt.Value < cutoff)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            foreach (var key in expiredKeys)
+                _jobs.Remove(key);
         }
     }
 

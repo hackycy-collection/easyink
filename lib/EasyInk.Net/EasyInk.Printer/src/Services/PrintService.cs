@@ -31,14 +31,10 @@ public class PrintService : IPrintService
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);
         }
 
-        List<Image> images = null;
+        List<Image> images;
         try
         {
             images = _pdfRenderService.RenderToImages(request.PdfBase64, request.Dpi);
-            if (images.Count == 0)
-            {
-                return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
-            }
         }
         catch (Exception ex)
         {
@@ -47,6 +43,11 @@ public class PrintService : IPrintService
 
         try
         {
+            if (images.Count == 0)
+            {
+                return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
+            }
+
             using (var printDoc = new PrintDocument())
             {
                 printDoc.PrinterSettings.PrinterName = request.PrinterName;
