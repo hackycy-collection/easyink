@@ -8,6 +8,9 @@ using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
+/// <summary>
+/// 打印机服务，通过 WMI 查询打印机状态
+/// </summary>
 public class PrinterService : IPrinterService
 {
     /// <summary>

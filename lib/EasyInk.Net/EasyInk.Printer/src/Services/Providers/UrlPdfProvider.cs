@@ -11,6 +11,10 @@ public class UrlPdfProvider : IPdfProvider
 {
     private readonly string _url;
 
+    /// <summary>
+    /// 初始化 URL PDF 提供者
+    /// </summary>
+    /// <param name="url">PDF 文件的 URL 地址</param>
     public UrlPdfProvider(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -20,6 +24,9 @@ public class UrlPdfProvider : IPdfProvider
         _url = url;
     }
 
+    /// <summary>
+    /// 下载并获取 PDF 二进制数据
+    /// </summary>
     public byte[] GetPdfBytes()
     {
         try

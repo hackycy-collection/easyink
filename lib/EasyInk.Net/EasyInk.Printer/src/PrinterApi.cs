@@ -27,11 +27,17 @@ public class PrinterApi : IDisposable
         Formatting = Formatting.None
     };
 
+    /// <summary>
+    /// 初始化打印 API（使用默认服务实现）
+    /// </summary>
     public PrinterApi(string dbPath = null)
         : this(null, null, null, null, dbPath)
     {
     }
 
+    /// <summary>
+    /// 初始化打印 API
+    /// </summary>
     public PrinterApi(
         IPrinterService printerService = null,
         IPdfRenderService pdfRenderService = null,
@@ -46,12 +52,18 @@ public class PrinterApi : IDisposable
         _jobQueue = new PrintJobQueue(_printService);
     }
 
+    /// <summary>
+    /// 获取打印机列表
+    /// </summary>
     public string GetPrinters()
     {
         var printers = _printerService.GetPrinters();
         return JsonConvert.SerializeObject(PrinterResult.Ok("printers", printers), _jsonSettings);
     }
 
+    /// <summary>
+    /// 获取打印机状态
+    /// </summary>
     public string GetPrinterStatus(string printerName)
     {
         if (string.IsNullOrEmpty(printerName))
@@ -64,6 +76,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(status, _jsonSettings);
     }
 
+    /// <summary>
+    /// 同步打印（支持 Base64、URL、二进制三种 PDF 来源）
+    /// </summary>
     public string Print(string printerName, string pdfBase64 = null, string pdfUrl = null,
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
@@ -81,6 +96,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(response, _jsonSettings);
     }
 
+    /// <summary>
+    /// 异步打印（支持 Base64、URL、二进制三种 PDF 来源）
+    /// </summary>
     public string PrintAsync(string printerName, string pdfBase64 = null, string pdfUrl = null,
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
@@ -105,6 +123,9 @@ public class PrinterApi : IDisposable
         }
     }
 
+    /// <summary>
+    /// 批量同步打印
+    /// </summary>
     public string BatchPrint(string jobsJson)
     {
         var jobs = DeserializeJobs(jobsJson);
@@ -116,6 +137,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(result, _jsonSettings);
     }
 
+    /// <summary>
+    /// 批量异步打印
+    /// </summary>
     public string BatchPrintAsync(string jobsJson)
     {
         var jobs = DeserializeJobs(jobsJson);
@@ -127,6 +151,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(result, _jsonSettings);
     }
 
+    /// <summary>
+    /// 获取打印任务状态
+    /// </summary>
     public string GetJobStatus(string jobId)
     {
         var info = _jobQueue.GetJobStatus(jobId);
@@ -138,12 +165,18 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(info, _jsonSettings);
     }
 
+    /// <summary>
+    /// 获取所有打印任务
+    /// </summary>
     public string GetAllJobs()
     {
         var jobs = _jobQueue.GetAllJobs();
         return JsonConvert.SerializeObject(PrinterResult.Ok("all", jobs), _jsonSettings);
     }
 
+    /// <summary>
+    /// 查询审计日志
+    /// </summary>
     public string QueryLogs(DateTime? startTime = null, DateTime? endTime = null,
         string printerName = null, string userId = null, string status = null,
         int limit = 100, int offset = 0)
@@ -152,6 +185,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(PrinterResult.Ok("logs", logs), _jsonSettings);
     }
 
+    /// <summary>
+    /// 处理 JSON 命令（统一入口）
+    /// </summary>
     public string HandleCommand(string json)
     {
         PrinterCommand request;
@@ -209,6 +245,9 @@ public class PrinterApi : IDisposable
         return JsonConvert.SerializeObject(response, _jsonSettings);
     }
 
+    /// <summary>
+    /// 释放资源
+    /// </summary>
     public void Dispose()
     {
         _jobQueue.Dispose();

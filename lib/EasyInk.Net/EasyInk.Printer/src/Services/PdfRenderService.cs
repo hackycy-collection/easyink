@@ -7,12 +7,20 @@ using PdfiumViewer;
 
 namespace EasyInk.Printer.Services;
 
+/// <summary>
+/// PDF 渲染服务，将 PDF 页面转换为图片
+/// </summary>
 public class PdfRenderService : IPdfRenderService
 {
     private const int MaxDpi = 600;
     private const long MaxPdfBytes = 50L * 1024 * 1024; // 50MB
     private const int MaxPages = 200;
 
+    /// <summary>
+    /// 将 PDF 渲染为图片列表
+    /// </summary>
+    /// <param name="provider">PDF 数据提供者</param>
+    /// <param name="dpi">渲染 DPI</param>
     public List<Image> RenderToImages(IPdfProvider provider, int dpi)
     {
         if (provider == null)
@@ -50,6 +58,10 @@ public class PdfRenderService : IPdfRenderService
         }
     }
 
+    /// <summary>
+    /// 释放渲染后的图片资源
+    /// </summary>
+    /// <param name="images">待释放的图片列表</param>
     public void DisposeImages(List<Image> images)
     {
         foreach (var image in images)

@@ -10,6 +10,9 @@ using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
+/// <summary>
+/// 打印任务队列，异步处理打印请求
+/// </summary>
 public class PrintJobQueue : IDisposable
 {
     private const int DefaultMaxQueueSize = 100;
@@ -21,6 +24,11 @@ public class PrintJobQueue : IDisposable
     private readonly Task _worker;
     private readonly object _jobLock = new object();
 
+    /// <summary>
+    /// 初始化打印任务队列
+    /// </summary>
+    /// <param name="printService">打印服务</param>
+    /// <param name="maxQueueSize">队列最大容量</param>
     public PrintJobQueue(IPrintService printService, int maxQueueSize = DefaultMaxQueueSize)
     {
         _printService = printService;
@@ -32,6 +40,12 @@ public class PrintJobQueue : IDisposable
             TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// 将打印任务加入队列
+    /// </summary>
+    /// <param name="requestId">请求ID</param>
+    /// <param name="request">打印请求参数</param>
+    /// <returns>任务ID</returns>
     public string Enqueue(string requestId, PrintRequestParams request)
     {
         var jobId = requestId ?? Guid.NewGuid().ToString();
@@ -53,6 +67,11 @@ public class PrintJobQueue : IDisposable
         return jobId;
     }
 
+    /// <summary>
+    /// 获取指定任务的状态
+    /// </summary>
+    /// <param name="jobId">任务ID</param>
+    /// <returns>任务信息，不存在时返回 null</returns>
     public PrintJob GetJobStatus(string jobId)
     {
         lock (_jobLock)
@@ -74,6 +93,10 @@ public class PrintJobQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// 获取所有任务列表
+    /// </summary>
+    /// <returns>按创建时间倒序排列的任务列表</returns>
     public List<PrintJob> GetAllJobs()
     {
         lock (_jobLock)
@@ -150,6 +173,9 @@ public class PrintJobQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放队列资源
+    /// </summary>
     public void Dispose()
     {
         _queue.CompleteAdding();

@@ -10,6 +10,10 @@ public class Base64PdfProvider : IPdfProvider
 {
     private readonly string _base64;
 
+    /// <summary>
+    /// 初始化 Base64 PDF 提供者
+    /// </summary>
+    /// <param name="base64">Base64 编码的 PDF 数据</param>
     public Base64PdfProvider(string base64)
     {
         if (string.IsNullOrWhiteSpace(base64))
@@ -17,6 +21,9 @@ public class Base64PdfProvider : IPdfProvider
         _base64 = base64;
     }
 
+    /// <summary>
+    /// 获取 PDF 二进制数据
+    /// </summary>
     public byte[] GetPdfBytes()
     {
         try

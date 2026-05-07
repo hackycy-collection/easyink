@@ -10,6 +10,10 @@ public class BlobPdfProvider : IPdfProvider
 {
     private readonly byte[] _bytes;
 
+    /// <summary>
+    /// 初始化二进制 PDF 提供者
+    /// </summary>
+    /// <param name="bytes">PDF 二进制数据</param>
     public BlobPdfProvider(byte[] bytes)
     {
         if (bytes == null || bytes.Length == 0)
@@ -17,6 +21,9 @@ public class BlobPdfProvider : IPdfProvider
         _bytes = bytes;
     }
 
+    /// <summary>
+    /// 获取 PDF 二进制数据
+    /// </summary>
     public byte[] GetPdfBytes()
     {
         return _bytes;

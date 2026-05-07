@@ -7,12 +7,21 @@ using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
+/// <summary>
+/// 打印服务，协调打印机状态检查、PDF渲染和打印执行
+/// </summary>
 public class PrintService : IPrintService
 {
     private readonly IPrinterService _printerService;
     private readonly IPdfRenderService _pdfRenderService;
     private readonly IAuditService _auditService;
 
+    /// <summary>
+    /// 初始化打印服务
+    /// </summary>
+    /// <param name="printerService">打印机服务</param>
+    /// <param name="pdfRenderService">PDF渲染服务</param>
+    /// <param name="auditService">审计日志服务</param>
     public PrintService(IPrinterService printerService, IPdfRenderService pdfRenderService, IAuditService auditService)
     {
         _printerService = printerService;

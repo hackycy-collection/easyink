@@ -7,7 +7,7 @@ EasyInk 的 .NET 包集合，基于 .NET Framework 4.8 开发，兼容 Windows 7
 | 包名 | 说明 | 状态 |
 |------|------|------|
 | [EasyInk.Printer](EasyInk.Printer/) | 打印插件（DLL） | 开发中 |
-| [EasyInk.Printer.Host](EasyInk.Printer.Host/) | 打印服务宿主程序 | 规划中 |
+| [EasyInk.Printer.Host](EasyInk.Printer.Host/) | 打印服务宿主程序 | 开发中 |
 
 ## 架构
 

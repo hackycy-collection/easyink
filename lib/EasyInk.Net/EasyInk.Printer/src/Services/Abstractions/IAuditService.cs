@@ -4,9 +4,19 @@ using EasyInk.Printer.Models;
 
 namespace EasyInk.Printer.Services.Abstractions;
 
+/// <summary>
+/// 审计日志服务
+/// </summary>
 public interface IAuditService
 {
+    /// <summary>
+    /// 记录打印日志
+    /// </summary>
     void LogPrint(PrintAuditLog log);
+
+    /// <summary>
+    /// 查询打印日志
+    /// </summary>
     List<PrintAuditLog> QueryLogs(
         DateTime? startTime = null,
         DateTime? endTime = null,

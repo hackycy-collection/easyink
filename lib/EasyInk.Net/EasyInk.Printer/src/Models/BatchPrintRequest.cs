@@ -7,5 +7,8 @@ namespace EasyInk.Printer.Models;
 /// </summary>
 public class BatchPrintRequest
 {
+    /// <summary>
+    /// 打印任务列表
+    /// </summary>
     public List<PrintRequestParams> Jobs { get; set; } = new List<PrintRequestParams>();
 }

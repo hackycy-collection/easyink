@@ -9,10 +9,17 @@ using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Services;
 
+/// <summary>
+/// 审计日志服务，使用 SQLite 存储打印日志
+/// </summary>
 public class AuditService : IAuditService
 {
     private readonly string _connectionString;
 
+    /// <summary>
+    /// 初始化审计服务
+    /// </summary>
+    /// <param name="dbPath">数据库文件路径，默认为应用目录下 data/audit.db</param>
     public AuditService(string dbPath = null)
     {
         var path = dbPath ?? Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
