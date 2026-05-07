@@ -58,38 +58,112 @@ public class MainWindow : Form
 
         var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
 
-        var lblTitle = new Label
+        var cardsPanel = new FlowLayoutPanel
         {
-            Text = "服务状态",
-            Font = new Font("Microsoft YaHei UI", 14f, FontStyle.Bold),
-            AutoSize = true,
-            Location = new Point(16, 16)
+            Dock = DockStyle.Top,
+            Height = 110,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(0, 0, 0, 8),
+            AutoSize = false
         };
 
-        var lblStatus = new Label
-        {
-            Text = $"状态: 运行中\n端口: {_server.Port}\nWebSocket 连接: {_wsHandler.ConnectionCount}",
-            Font = new Font("Microsoft YaHei UI", 11f),
-            AutoSize = true,
-            Location = new Point(16, 56)
-        };
+        var titleFont = new Font("Microsoft YaHei UI", 9f);
+        var valueFont = new Font("Microsoft YaHei UI", 18f, FontStyle.Bold);
+        var cardSize = new Size(180, 90);
+
+        var colorStatus = Color.FromArgb(56, 142, 142);
+        var colorPort = Color.FromArgb(63, 81, 181);
+        var colorWs = Color.FromArgb(255, 152, 0);
+
+        // 状态卡片
+        Label lblStatusVal, lblPortVal, lblWsVal;
+        var cardStatus = CreateCardPanel(cardSize, colorStatus, "服务状态",
+            _server.IsRunning ? "运行中" : "已停止", valueFont, colorStatus, titleFont, out lblStatusVal);
+
+        // 端口卡片
+        var cardPort = CreateCardPanel(cardSize, colorPort, "端口",
+            _server.Port.ToString(), valueFont, colorPort, titleFont, out lblPortVal);
+
+        // WebSocket 连接卡片
+        var cardWs = CreateCardPanel(cardSize, colorWs, "WebSocket 连接",
+            _wsHandler.ConnectionCount.ToString(), valueFont, colorWs, titleFont, out lblWsVal);
+
+        cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs });
 
         var btnRefresh = new Button
         {
             Text = "刷新",
-            Location = new Point(16, 160),
-            Size = new Size(80, 30)
+            Dock = DockStyle.Top,
+            Height = 30,
+            Width = 80,
+            Margin = new Padding(0, 8, 0, 0)
         };
         btnRefresh.Click += (s, e) =>
         {
-            lblStatus.Text = $"状态: {(_server.IsRunning ? "运行中" : "已停止")}\n" +
-                           $"端口: {_server.Port}\n" +
-                           $"WebSocket 连接: {_wsHandler.ConnectionCount}";
+            lblStatusVal.Text = _server.IsRunning ? "运行中" : "已停止";
+            lblPortVal.Text = _server.Port.ToString();
+            lblWsVal.Text = _wsHandler.ConnectionCount.ToString();
         };
 
-        panel.Controls.AddRange(new Control[] { lblTitle, lblStatus, btnRefresh });
+        panel.Controls.Add(btnRefresh);
+        panel.Controls.Add(cardsPanel);
         tab.Controls.Add(panel);
         return tab;
+    }
+
+    private Panel CreateCardPanel(Size size, Color accentColor, string title, string value, Font valueFont, Color valueColor, Font titleFont, out Label valueLabel)
+    {
+        var card = new Panel
+        {
+            BackColor = Color.White,
+            Size = size,
+            Margin = new Padding(0, 0, 12, 0),
+            Padding = new Padding(0),
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        var accentBar = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 3,
+            BackColor = accentColor
+        };
+
+        var contentPanel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(8, 12, 8, 8)
+        };
+
+        var lblTitle = new Label
+        {
+            Text = title,
+            Font = titleFont,
+            ForeColor = Color.FromArgb(128, 128, 128),
+            Dock = DockStyle.Top,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Height = 20,
+            Margin = new Padding(0)
+        };
+
+        valueLabel = new Label
+        {
+            Text = value,
+            Font = valueFont,
+            ForeColor = valueColor,
+            Dock = DockStyle.Top,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Height = 40,
+            Margin = new Padding(0)
+        };
+
+        contentPanel.Controls.Add(valueLabel);
+        contentPanel.Controls.Add(lblTitle);
+
+        card.Controls.Add(contentPanel);
+        card.Controls.Add(accentBar);
+        return card;
     }
 
     private TabPage CreatePrintersTab()
@@ -109,16 +183,25 @@ public class MainWindow : Form
         listView.Columns.Add("在线", 60);
         listView.Columns.Add("有纸", 60);
 
+        var toolPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 44,
+            Padding = new Padding(8)
+        };
+
         var btnRefresh = new Button
         {
-            Text = "刷新打印机列表",
-            Dock = DockStyle.Top,
-            Height = 36
+            Text = "刷新",
+            Dock = DockStyle.Left,
+            Width = 80
         };
         btnRefresh.Click += (s, e) => RefreshPrinters(listView);
 
+        toolPanel.Controls.Add(btnRefresh);
+
         tab.Controls.Add(listView);
-        tab.Controls.Add(btnRefresh);
+        tab.Controls.Add(toolPanel);
         return tab;
     }
 
@@ -200,16 +283,25 @@ public class MainWindow : Form
         listView.Columns.Add("创建时间", 150);
         listView.Columns.Add("错误信息", 200);
 
+        var toolPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 44,
+            Padding = new Padding(8)
+        };
+
         var btnRefresh = new Button
         {
-            Text = "刷新任务列表",
-            Dock = DockStyle.Top,
-            Height = 36
+            Text = "刷新",
+            Dock = DockStyle.Left,
+            Width = 80
         };
         btnRefresh.Click += (s, e) => RefreshJobs(listView);
 
+        toolPanel.Controls.Add(btnRefresh);
+
         tab.Controls.Add(listView);
-        tab.Controls.Add(btnRefresh);
+        tab.Controls.Add(toolPanel);
         return tab;
     }
 
@@ -217,15 +309,30 @@ public class MainWindow : Form
     {
         var tab = new TabPage("日志");
 
-        var filterPanel = new Panel { Dock = DockStyle.Top, Height = 44 };
+        var filterPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 44,
+            Padding = new Padding(8)
+        };
 
-        var lblFrom = new Label { Text = "从:", Location = new Point(8, 12), AutoSize = true };
-        var dtpFrom = new DateTimePicker { Location = new Point(30, 8), Width = 160, Format = DateTimePickerFormat.Short };
-        var lblTo = new Label { Text = "到:", Location = new Point(200, 12), AutoSize = true };
-        var dtpTo = new DateTimePicker { Location = new Point(222, 8), Width = 160, Format = DateTimePickerFormat.Short };
-        var btnQuery = new Button { Text = "查询", Location = new Point(400, 7), Size = new Size(70, 26) };
+        var flowLayout = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = false,
+            Padding = new Padding(0)
+        };
 
-        filterPanel.Controls.AddRange(new Control[] { lblFrom, dtpFrom, lblTo, dtpTo, btnQuery });
+        var lblFrom = new Label { Text = "从:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
+        var dtpFrom = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0) };
+        var lblTo = new Label { Text = "到:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
+        var dtpTo = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0) };
+        var btnQuery = new Button { Text = "查询", Width = 70, Margin = new Padding(0) };
+
+        flowLayout.Controls.AddRange(new Control[] { lblFrom, dtpFrom, lblTo, dtpTo, btnQuery });
+        filterPanel.Controls.Add(flowLayout);
 
         var listView = new ListView
         {
@@ -285,52 +392,109 @@ public class MainWindow : Form
 
         var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
 
-        var y = 16;
+        // 基本设置组
+        var grpBasic = new GroupBox
+        {
+            Text = "基本设置",
+            Dock = DockStyle.Top,
+            Height = 100,
+            Padding = new Padding(12, 8, 12, 12)
+        };
 
-        var lblPort = new Label { Text = "HTTP 端口:", Location = new Point(16, y), AutoSize = true };
+        var basicPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 2,
+            Padding = new Padding(4)
+        };
+        basicPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        basicPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+
+        var lblPort = new Label { Text = "HTTP 端口:", Anchor = AnchorStyles.Left, AutoSize = true };
         var numPort = new NumericUpDown
         {
-            Location = new Point(120, y - 2),
-            Width = 100,
+            Width = 120,
             Minimum = 1024,
             Maximum = 65535,
-            Value = _config.HttpPort
+            Value = _config.HttpPort,
+            Anchor = AnchorStyles.Left
         };
-        y += 36;
 
+        var lblAutoStart = new Label { Text = "开机自启动:", Anchor = AnchorStyles.Left, AutoSize = true };
         var chkAutoStart = new CheckBox
         {
-            Text = "开机自启动",
-            Location = new Point(16, y),
-            AutoSize = true,
+            Text = "",
+            Anchor = AnchorStyles.Left,
             Checked = _config.AutoStart
         };
-        y += 30;
+
+        basicPanel.Controls.Add(lblPort, 0, 0);
+        basicPanel.Controls.Add(numPort, 1, 0);
+        basicPanel.Controls.Add(lblAutoStart, 0, 1);
+        basicPanel.Controls.Add(chkAutoStart, 1, 1);
+        grpBasic.Controls.Add(basicPanel);
+
+        // 显示设置组
+        var grpDisplay = new GroupBox
+        {
+            Text = "显示设置",
+            Dock = DockStyle.Top,
+            Height = 68,
+            Padding = new Padding(12, 8, 12, 12)
+        };
 
         var chkMinimizeToTray = new CheckBox
         {
             Text = "关闭窗口时最小化到托盘",
-            Location = new Point(16, y),
-            AutoSize = true,
-            Checked = _config.MinimizeToTray
+            Dock = DockStyle.Top,
+            Height = 28,
+            Checked = _config.MinimizeToTray,
+            Padding = new Padding(4, 2, 4, 2)
         };
-        y += 30;
+        grpDisplay.Controls.Add(chkMinimizeToTray);
 
-        var lblDbPath = new Label { Text = "数据库路径:", Location = new Point(16, y), AutoSize = true };
+        // 路径信息组
+        var grpPath = new GroupBox
+        {
+            Text = "路径信息",
+            Dock = DockStyle.Top,
+            Height = 70,
+            Padding = new Padding(12, 8, 12, 12)
+        };
+
+        var pathPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(4)
+        };
+        pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        var lblDbPath = new Label { Text = "数据库路径:", Anchor = AnchorStyles.Left, AutoSize = true };
         var txtDbPath = new TextBox
         {
-            Location = new Point(120, y - 2),
-            Width = 300,
             Text = _config.DbPath ?? "(默认)",
-            ReadOnly = true
+            ReadOnly = true,
+            Dock = DockStyle.Fill,
+            BackColor = SystemColors.Window
         };
-        y += 44;
 
+        pathPanel.Controls.Add(lblDbPath, 0, 0);
+        pathPanel.Controls.Add(txtDbPath, 1, 0);
+        grpPath.Controls.Add(pathPanel);
+
+        // 保存按钮
         var btnSave = new Button
         {
             Text = "保存设置",
-            Location = new Point(16, y),
-            Size = new Size(100, 30)
+            Dock = DockStyle.Top,
+            Height = 32,
+            Margin = new Padding(0, 12, 0, 0)
         };
         btnSave.Click += (s, e) =>
         {
@@ -341,7 +505,10 @@ public class MainWindow : Form
             MessageBox.Show("设置已保存，部分设置需要重启服务后生效。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
 
-        panel.Controls.AddRange(new Control[] { lblPort, numPort, chkAutoStart, chkMinimizeToTray, lblDbPath, txtDbPath, btnSave });
+        panel.Controls.Add(btnSave);
+        panel.Controls.Add(grpPath);
+        panel.Controls.Add(grpDisplay);
+        panel.Controls.Add(grpBasic);
         tab.Controls.Add(panel);
         return tab;
     }

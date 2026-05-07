@@ -43,6 +43,8 @@ static class Program
             return router.HandleRequest(context);
         };
 
+        httpServer.Start();
+
         var trayIcon = new TrayIcon(httpServer);
         var mainWindow = new MainWindow(httpServer, wsHandler, printerApi, config);
 
@@ -69,7 +71,6 @@ static class Program
             Application.Exit();
         };
 
-        httpServer.Start();
         trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
 
         mainWindow.WindowState = FormWindowState.Minimized;
