@@ -30,7 +30,7 @@ function fixedSchema(elements: MaterialNode[]): DocumentSchema {
   }
 }
 
-function tableNode(): TableNode {
+function tableNode(sourceId = 'invoice'): TableNode {
   return {
     id: 'items',
     type: 'table-data',
@@ -50,7 +50,7 @@ function tableNode(): TableNode {
             height: 8,
             role: 'repeat-template',
             cells: [
-              { binding: { sourceId: 'invoice', fieldPath: 'items/name', fieldLabel: 'Name' } },
+              { binding: { sourceId, fieldPath: 'items/name', fieldLabel: 'Name' } },
             ],
           },
         ],
@@ -127,6 +127,7 @@ describe('viewer audit risk regressions', () => {
       textNode('customer', { sourceId: 'customer', fieldPath: 'name' }),
       textNode('total', { sourceId: 'order', sourceTag: 'order-tag', fieldPath: 'total' }),
       textNode('missing', { sourceId: 'customer', fieldPath: 'missing/path' }),
+      textNode('unknown-source', { sourceId: 'product', fieldPath: 'sku' }),
     ])
 
     await viewer.open({
@@ -145,6 +146,73 @@ describe('viewer audit risk regressions', () => {
     expect(container.textContent).toContain('Ada')
     expect(container.textContent).toContain('42')
     expect(diagnostics.some(d => d.code === 'BINDING_PATH_NOT_FOUND')).toBe(true)
+    expect(diagnostics.some(d => d.code === 'BINDING_SOURCE_MISSING')).toBe(true)
+  })
+
+  it('keeps root-shaped payloads when a data source id collides with a field name', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    registerTableMaterial(viewer)
+
+    await viewer.open({
+      schema: fixedSchema([
+        textNode('company', { sourceId: 'invoice', fieldPath: 'company/name' }),
+        textNode('number', { sourceId: 'invoice', fieldPath: 'invoice/number' }),
+        tableNode(),
+      ]),
+      dataSources: [
+        {
+          id: 'invoice',
+          name: 'Invoice',
+          fields: [
+            { name: 'companyName', path: 'company/name' },
+            { name: 'invoiceNumber', path: 'invoice/number' },
+            { name: 'itemName', path: 'items/name' },
+          ],
+        },
+        { id: 'product', name: 'Product', fields: [{ name: 'sku', path: 'sku' }] },
+      ],
+      data: {
+        company: { name: 'Root Company' },
+        invoice: { number: 'INV-1' },
+        items: [{ name: 'Root Item' }],
+      },
+    })
+
+    expect(container.textContent).toContain('Root Company')
+    expect(container.textContent).toContain('INV-1')
+    expect(container.textContent).toContain('Root Item')
+  })
+
+  it('matches unwrapped root payloads by descriptor fields when multiple data sources are available', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    registerTableMaterial(viewer)
+
+    await viewer.open({
+      schema: fixedSchema([
+        textNode('store', { sourceId: 'supermarket', fieldPath: 'store/name' }),
+        tableNode('supermarket'),
+      ]),
+      dataSources: [
+        {
+          id: 'supermarket',
+          name: 'Supermarket',
+          fields: [
+            { name: 'storeName', path: 'store/name' },
+            { name: 'itemName', path: 'items/name' },
+          ],
+        },
+        { id: 'product', name: 'Product', fields: [{ name: 'sku', path: 'sku' }] },
+      ],
+      data: {
+        store: { name: 'Root Store' },
+        items: [{ name: 'Milk' }],
+      },
+    })
+
+    expect(container.textContent).toContain('Root Store')
+    expect(container.textContent).toContain('Milk')
   })
 
   it('keeps table-data source resolution inside the selected data source', async () => {

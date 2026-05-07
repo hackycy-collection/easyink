@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { DocumentSchema, ViewerRuntime } from '@easyink/viewer'
+import type { DataSourceDescriptor, DocumentSchema, ViewerHostAdapter, ViewerRuntime } from '@easyink/viewer'
 import { IconChevronLeft, IconChevronRight, IconClose, IconMinimize, IconPlus } from '@easyink/icons'
-import { createViewer, resolvePrintPolicy } from '@easyink/viewer'
+import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
@@ -18,6 +18,7 @@ import { usePrinter } from './hooks/useHiPrint'
 const props = defineProps<{
   schema: DocumentSchema
   data: Record<string, unknown>
+  dataSources?: DataSourceDescriptor[]
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +28,8 @@ const emit = defineEmits<{
 const EXPORT_FORMAT = 'playground-demo-json'
 const UNIT_TO_MM = { mm: 1, cm: 10, in: 25.4, pt: 0.352778 } as const
 
-const containerRef = ref<HTMLDivElement>()
+const iframeRef = ref<HTMLIFrameElement>()
+let viewerHost: ViewerHostAdapter | undefined
 let viewer: ViewerRuntime | undefined
 
 const zoom = ref(100)
@@ -47,10 +49,14 @@ function toMillimeters(value: number, unit: string): number {
 // Auto-connect handled inside usePrinter() singleton based on persisted config.
 
 onMounted(async () => {
-  if (!containerRef.value)
+  if (!iframeRef.value)
     return
 
-  viewer = createViewer({ container: containerRef.value })
+  await waitForIframeDocument(iframeRef.value)
+  viewerHost = createIframeViewerHost(iframeRef.value)
+  setupIframeSurface(viewerHost)
+
+  viewer = createViewer({ host: viewerHost })
   viewer.registerExportAdapter({
     id: 'playground-demo-export',
     format: EXPORT_FORMAT,
@@ -64,6 +70,7 @@ onMounted(async () => {
   await viewer.open({
     schema: props.schema,
     data: props.data,
+    dataSources: props.dataSources,
   })
 
   updatePageCount()
@@ -72,14 +79,56 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeyDown)
+  viewerHost?.mount.removeEventListener('wheel', handleWheel)
+  viewerHost?.mount.removeEventListener('scroll', handleScroll)
   viewer?.destroy()
   viewer = undefined
+  viewerHost = undefined
 })
 
+function waitForIframeDocument(iframe: HTMLIFrameElement): Promise<void> {
+  if (iframe.contentDocument)
+    return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      iframe.removeEventListener('load', handleLoad)
+      reject(new Error('Viewer iframe document is not available'))
+    }, 3000)
+
+    function handleLoad() {
+      window.clearTimeout(timeout)
+      iframe.removeEventListener('load', handleLoad)
+      resolve()
+    }
+
+    iframe.addEventListener('load', handleLoad, { once: true })
+  })
+}
+
+function setupIframeSurface(host: ViewerHostAdapter) {
+  host.document.documentElement.style.height = '100%'
+  host.document.body.style.height = '100%'
+  host.document.body.style.margin = '0'
+  host.document.body.style.background = '#525659'
+  host.mount.style.height = '100%'
+  host.mount.style.overflow = 'auto'
+  host.mount.style.boxSizing = 'border-box'
+  host.mount.style.padding = '24px 32px'
+  host.mount.style.background = '#525659'
+  host.mount.addEventListener('wheel', handleWheel, { passive: false })
+  host.mount.addEventListener('scroll', handleScroll)
+}
+
+function getViewerSurface(): HTMLElement | undefined {
+  return viewerHost?.mount
+}
+
 function updatePageCount() {
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
-  const pages = containerRef.value.querySelectorAll('.ei-viewer-page')
+  const pages = surface.querySelectorAll('.ei-viewer-page')
   totalPages.value = Math.max(1, pages.length)
 }
 
@@ -103,9 +152,10 @@ function setZoom(value: number) {
 }
 
 function applyZoom() {
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
-  const pages = containerRef.value.querySelectorAll<HTMLElement>('.ei-viewer-page')
+  const pages = surface.querySelectorAll<HTMLElement>('.ei-viewer-page')
   for (const page of pages) {
     page.style.transform = `scale(${zoom.value / 100})`
     page.style.transformOrigin = 'top center'
@@ -121,13 +171,14 @@ function zoomOut() {
 }
 
 function zoomFit() {
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
-  const firstPage = containerRef.value.querySelector<HTMLElement>('.ei-viewer-page')
+  const firstPage = surface.querySelector<HTMLElement>('.ei-viewer-page')
   if (!firstPage)
     return
 
-  const containerWidth = containerRef.value.clientWidth - 64
+  const containerWidth = surface.clientWidth - 64
   const pageWidth = Number.parseFloat(firstPage.style.width) || firstPage.offsetWidth
   if (pageWidth <= 0)
     return
@@ -150,18 +201,20 @@ function nextPage() {
 }
 
 function scrollToPage(pageNum: number) {
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
-  const pages = containerRef.value.querySelectorAll('.ei-viewer-page')
+  const pages = surface.querySelectorAll('.ei-viewer-page')
   const target = pages[pageNum - 1]
   target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function handleScroll() {
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
-  const pages = containerRef.value.querySelectorAll('.ei-viewer-page')
-  const containerRect = containerRef.value.getBoundingClientRect()
+  const pages = surface.querySelectorAll('.ei-viewer-page')
+  const containerRect = surface.getBoundingClientRect()
   const containerCenter = containerRect.top + containerRect.height / 2
 
   let closest = 1
@@ -212,11 +265,12 @@ async function handleHiPrintPrint() {
     return
   }
 
-  if (!containerRef.value)
+  const surface = getViewerSurface()
+  if (!surface)
     return
 
   const pages = Array.from(
-    containerRef.value.querySelectorAll<HTMLElement>('.ei-viewer-page'),
+    surface.querySelectorAll<HTMLElement>('.ei-viewer-page'),
   )
   if (pages.length === 0) {
     toast.error('没有可打印的页面')
@@ -345,11 +399,10 @@ async function handleExport() {
       </div>
     </div>
 
-    <div
-      ref="containerRef"
-      class="flex-1 overflow-auto px-8 py-6 bg-[#525659]"
-      @wheel="handleWheel"
-      @scroll="handleScroll"
+    <iframe
+      ref="iframeRef"
+      title="EasyInk Viewer"
+      class="flex-1 w-full border-0 bg-[#525659]"
     />
   </div>
 
