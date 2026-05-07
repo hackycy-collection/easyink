@@ -621,7 +621,15 @@ public class MainWindow : Form
             var apiKeyValue = (txtApiKey.ForeColor == SystemColors.GrayText || string.IsNullOrWhiteSpace(txtApiKey.Text))
                 ? null : txtApiKey.Text.Trim();
             _config.ApiKey = apiKeyValue;
-            _config.Save();
+            try
+            {
+                _config.Save();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"配置保存失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
             HostConfig.SetAutoStartRegistry(chkAutoStart.Checked);
 

@@ -79,17 +79,10 @@ public class HostConfig
 
     public void Save()
     {
-        try
-        {
-            if (!Directory.Exists(ConfigDir))
-                Directory.CreateDirectory(ConfigDir);
+        if (!Directory.Exists(ConfigDir))
+            Directory.CreateDirectory(ConfigDir);
 
-            var json = JsonConvert.SerializeObject(this, Formatting.Indented);
-            File.WriteAllText(ConfigPath, json);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[HostConfig] 配置写入失败: {ex.Message}");
-        }
+        var json = JsonConvert.SerializeObject(this, Formatting.Indented);
+        File.WriteAllText(ConfigPath, json);
     }
 }

@@ -59,7 +59,7 @@ public class Router
                 response.Headers.Add("Access-Control-Allow-Origin", origin);
         }
         response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+        response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, X-API-Key");
 
         if (request.HttpMethod == "OPTIONS")
         {
@@ -257,7 +257,15 @@ public class Router
     {
         if (string.IsNullOrEmpty(configuredKey))
             return true;
+        if (string.IsNullOrEmpty(providedKey))
+            return false;
+        if (providedKey.Length != configuredKey.Length)
+            return false;
 
-        return string.Equals(providedKey, configuredKey, StringComparison.Ordinal);
+        // constant-time comparison to prevent timing attacks
+        int diff = 0;
+        for (int i = 0; i < configuredKey.Length; i++)
+            diff |= configuredKey[i] ^ providedKey[i];
+        return diff == 0;
     }
 }

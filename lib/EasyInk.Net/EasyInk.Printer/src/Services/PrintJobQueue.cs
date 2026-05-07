@@ -179,10 +179,9 @@ public class PrintJobQueue : IDisposable
     public void Dispose()
     {
         _queue.CompleteAdding();
-        try { _worker.Wait(TimeSpan.FromSeconds(30)); }
-        catch (AggregateException) { /* 忽略取消异常 */ }
-        catch (OperationCanceledException) { }
         _cts.Cancel();
+        try { _worker.Wait(TimeSpan.FromSeconds(30)); }
+        catch (Exception) { }
         _cts.Dispose();
         _queue.Dispose();
     }
