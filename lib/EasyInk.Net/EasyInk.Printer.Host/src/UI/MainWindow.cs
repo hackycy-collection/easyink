@@ -31,6 +31,7 @@ public class MainWindow : Form
     private void InitializeComponent()
     {
         Text = "EasyInk Printer Host";
+        Icon = TrayIcon.LoadAppIcon();
         Size = new Size(900, 640);
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(700, 500);

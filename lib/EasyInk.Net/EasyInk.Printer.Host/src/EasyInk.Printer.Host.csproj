@@ -7,8 +7,12 @@
     <AssemblyName>EasyInk.Printer.Host</AssemblyName>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

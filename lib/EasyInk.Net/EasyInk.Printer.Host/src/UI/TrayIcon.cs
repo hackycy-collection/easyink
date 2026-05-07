@@ -1,5 +1,7 @@
 using System;
 using System.Drawing;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.Server;
 
@@ -24,7 +26,7 @@ public class TrayIcon : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Text = $"EasyInk Printer - 端口 {server.Port}",
-            Icon = SystemIcons.Application,
+            Icon = LoadAppIcon(),
             Visible = true
         };
 
@@ -46,6 +48,17 @@ public class TrayIcon : IDisposable
     public void ShowBalloon(string title, string text, ToolTipIcon icon = ToolTipIcon.Info)
     {
         _notifyIcon.ShowBalloonTip(3000, title, text, icon);
+    }
+
+    public static Icon LoadAppIcon()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var stream = assembly.GetManifestResourceStream("EasyInk.Printer.Host.app.ico");
+        if (stream != null)
+            return new Icon(stream);
+
+        var path = Path.Combine(Path.GetDirectoryName(assembly.Location), "app.ico");
+        return File.Exists(path) ? new Icon(path) : SystemIcons.Application;
     }
 
     public void Dispose()
