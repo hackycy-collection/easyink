@@ -238,6 +238,7 @@ export class ViewerRuntime {
     const schema = this._schema!
     const page = schema.page
     const unit = schema.unit
+    const usesContinuousPaper = page.mode === 'stack'
 
     // In label mode, page.width/height describe a single cell; the physical
     // sheet is derived from columns/rows/gaps. See LabelPageConfig.
@@ -258,11 +259,15 @@ export class ViewerRuntime {
     const offsetCSS = (hOff !== 0 || vOff !== 0)
       ? `transform: translate(${hOff}${unit}, ${vOff}${unit}) !important;`
       : ''
+    const pageSizeCSS = usesContinuousPaper
+      ? ''
+      : `    size: ${sheetW}${unit} ${sheetH}${unit};\n`
+    const pageBreakAfter = usesContinuousPaper ? 'auto' : 'page'
+    const pageBreakInside = usesContinuousPaper ? 'auto' : 'avoid'
 
     return `@media print {
   @page {
-    size: ${sheetW}${unit} ${sheetH}${unit};
-    margin: 0;
+${pageSizeCSS}    margin: 0;
   }
   [data-ei-print-ancestor] {
     display: block !important;
@@ -309,8 +314,8 @@ export class ViewerRuntime {
     box-shadow: none !important;
     margin: 0 !important;
     transform: none !important;
-    break-after: page;
-    break-inside: avoid;
+    break-after: ${pageBreakAfter};
+    break-inside: ${pageBreakInside};
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     ${offsetCSS}
