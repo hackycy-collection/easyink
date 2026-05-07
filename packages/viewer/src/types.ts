@@ -88,6 +88,12 @@ export interface ExportDispatchState {
   error?: string
 }
 
+export type BrowserPrintTarget = 'printer' | 'pdf'
+
+export interface ViewerPrintOptions {
+  browserTarget?: BrowserPrintTarget
+}
+
 export interface PrintAdapter {
   id: string
   print: (context: ViewerExportContext) => Promise<void>

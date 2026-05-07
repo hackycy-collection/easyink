@@ -1,6 +1,7 @@
 import type { InternalHooks, PagePlan } from '@easyink/core'
 import type { DocumentSchema } from '@easyink/schema'
 import type {
+  BrowserPrintTarget,
   ExportAdapter,
   MaterialViewerExtension,
   PrintAdapter,
@@ -8,6 +9,7 @@ import type {
   ViewerMeasureContext,
   ViewerOpenInput,
   ViewerOptions,
+  ViewerPrintOptions,
   ViewerRenderResult,
 } from './types'
 import { registerBuiltinViewerMaterials } from '@easyink/builtin'
@@ -162,7 +164,7 @@ export class ViewerRuntime {
     return { pages, thumbnails: [], diagnostics }
   }
 
-  async print(): Promise<void> {
+  async print(options: ViewerPrintOptions = {}): Promise<void> {
     this.ensureNotDestroyed()
     if (!this._schema)
       throw new Error('No schema loaded')
@@ -180,7 +182,7 @@ export class ViewerRuntime {
     // Fallback: window.print with DOM isolation
     if (typeof window !== 'undefined') {
       if (this._options.container) {
-        await this.printWithIsolation()
+        await this.printWithIsolation(options)
       }
       else {
         window.print()
@@ -188,7 +190,7 @@ export class ViewerRuntime {
     }
   }
 
-  private async printWithIsolation(): Promise<void> {
+  private async printWithIsolation(options: ViewerPrintOptions = {}): Promise<void> {
     const container = this._options.container!
     const doc = container.ownerDocument
 
@@ -207,7 +209,7 @@ export class ViewerRuntime {
 
       // Inject print stylesheet
       const style = doc.createElement('style')
-      style.textContent = this.buildPrintStyles()
+      style.textContent = this.buildPrintStyles(options)
       doc.head.appendChild(style)
 
       window.print()
@@ -234,11 +236,12 @@ export class ViewerRuntime {
     }
   }
 
-  private buildPrintStyles(): string {
+  private buildPrintStyles(options: ViewerPrintOptions = {}): string {
     const schema = this._schema!
     const page = schema.page
     const unit = schema.unit
-    const usesContinuousPaper = page.mode === 'stack'
+    const browserTarget = options.browserTarget ?? 'printer'
+    const usesDriverPaper = page.mode === 'stack' && browserTarget === 'printer'
 
     // In label mode, page.width/height describe a single cell; the physical
     // sheet is derived from columns/rows/gaps. See LabelPageConfig.
@@ -259,11 +262,14 @@ export class ViewerRuntime {
     const offsetCSS = (hOff !== 0 || vOff !== 0)
       ? `transform: translate(${hOff}${unit}, ${vOff}${unit}) !important;`
       : ''
-    const pageSizeCSS = usesContinuousPaper
+    const renderedPageSize = this.resolveRenderedPageSize(browserTarget)
+    const fixedSheetWidth = renderedPageSize?.width ?? `${sheetW}${unit}`
+    const fixedSheetHeight = renderedPageSize?.height ?? `${sheetH}${unit}`
+    const pageSizeCSS = usesDriverPaper
       ? ''
-      : `    size: ${sheetW}${unit} ${sheetH}${unit};\n`
-    const pageBreakAfter = usesContinuousPaper ? 'auto' : 'page'
-    const pageBreakInside = usesContinuousPaper ? 'auto' : 'avoid'
+      : `    size: ${fixedSheetWidth} ${fixedSheetHeight};\n`
+    const pageBreakAfter = page.mode === 'stack' ? 'auto' : 'page'
+    const pageBreakInside = page.mode === 'stack' ? 'auto' : 'avoid'
 
     return `@media print {
   @page {
@@ -324,6 +330,23 @@ ${pageSizeCSS}    margin: 0;
     break-after: auto;
   }
 }`
+  }
+
+  private resolveRenderedPageSize(browserTarget: BrowserPrintTarget): { width: string, height: string } | undefined {
+    if (browserTarget !== 'pdf' || this._schema?.page.mode !== 'stack')
+      return undefined
+
+    const container = this._options.container
+    if (!container)
+      return undefined
+
+    const firstPage = container.querySelector<HTMLElement>('.ei-viewer-page')
+    const width = firstPage?.style.width?.trim()
+    const height = firstPage?.style.height?.trim()
+    if (!width || !height)
+      return undefined
+
+    return { width, height }
   }
 
   async exportDocument(format?: string): Promise<Blob | void> {

@@ -172,8 +172,11 @@ function handleScroll() {
   currentPage.value = closest
 }
 
-async function handleBrowserPrint() {
-  await viewer?.print()
+async function handleBrowserPrint(browserTarget: 'printer' | 'pdf' = 'printer') {
+  if (browserTarget === 'pdf')
+    toast.info('系统打印对话框打开后，请选择“另存为 PDF”')
+
+  await viewer?.print({ browserTarget })
 }
 
 async function handleHiPrintPrint() {
@@ -309,8 +312,11 @@ async function handleExport() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent class="z-[10002]">
-            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint">
-              浏览器打印
+            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('printer')">
+              浏览器打印（按打印机介质）
+            </DropdownMenuItem>
+            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('pdf')">
+              浏览器打印（PDF）
             </DropdownMenuItem>
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印
