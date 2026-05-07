@@ -15,21 +15,100 @@ public class PrinterService : IPrinterService
     /// </summary>
     public List<PrinterInfo> GetPrinters()
     {
+        var wmiStatusMap = QueryAllWmiStatus();
         var printers = new List<PrinterInfo>();
 
         foreach (string printerName in PrinterSettings.InstalledPrinters)
         {
             var settings = new PrinterSettings { PrinterName = printerName };
+            var status = wmiStatusMap.TryGetValue(printerName, out var s)
+                ? s
+                : GetPrinterStatus(printerName);
             printers.Add(new PrinterInfo
             {
                 Name = printerName,
                 IsDefault = settings.IsDefaultPrinter,
-                Status = GetPrinterStatus(printerName),
+                Status = status,
                 SupportedPaperSizes = GetSupportedPaperSizes(printerName)
             });
         }
 
         return printers;
+    }
+
+    private Dictionary<string, PrinterStatus> QueryAllWmiStatus()
+    {
+        var map = new Dictionary<string, PrinterStatus>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using (var searcher = new ManagementObjectSearcher("SELECT Name, PrinterStatus, PrinterState, WorkOffline, PrinterPaperOutOfPaper FROM Win32_Printer"))
+            {
+                foreach (ManagementObject printer in searcher.Get())
+                {
+                    try
+                    {
+                        var name = printer["Name"] as string;
+                        if (string.IsNullOrEmpty(name)) continue;
+
+                        var printerStatus = GetUInt32(printer, "PrinterStatus");
+                        var printerState = GetUInt32(printer, "PrinterState");
+                        var isOffline = GetBool(printer, "WorkOffline");
+                        var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
+                        var paperJam = printerState == 13;
+                        var isReady = !isOffline && printerStatus == 3;
+
+                        string statusCode;
+                        string message;
+                        string stateDesc;
+
+                        if (isOffline)
+                        {
+                            statusCode = "PRINTER_OFFLINE"; message = "打印机离线"; stateDesc = "Offline";
+                        }
+                        else if (paperJam)
+                        {
+                            statusCode = "PAPER_JAM"; message = "打印机卡纸"; stateDesc = "PaperJam";
+                        }
+                        else if (paperOut)
+                        {
+                            statusCode = "PAPER_OUT"; message = "打印机缺纸"; stateDesc = "PaperOut";
+                        }
+                        else if (printerStatus == 6)
+                        {
+                            statusCode = "PRINTER_STOPPED"; message = "打印机已停止"; stateDesc = "Stopped";
+                        }
+                        else if (printerStatus == 3 || printerStatus == 4)
+                        {
+                            statusCode = "READY"; message = printerStatus == 4 ? "打印中" : "打印机就绪"; stateDesc = printerStatus == 4 ? "Printing" : "Idle";
+                        }
+                        else
+                        {
+                            statusCode = "PRINTER_ERROR"; message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})"; stateDesc = $"Unknown({printerStatus})";
+                        }
+
+                        map[name] = new PrinterStatus
+                        {
+                            IsReady = isReady,
+                            StatusCode = statusCode,
+                            Message = message,
+                            IsOnline = !isOffline,
+                            HasPaper = !paperOut,
+                            IsPaperJam = paperJam,
+                            PrinterState = stateDesc
+                        };
+                    }
+                    finally
+                    {
+                        printer.Dispose();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[EasyInk.Printer] 批量查询打印机状态失败: {ex.Message}");
+        }
+        return map;
     }
 
     /// <summary>

@@ -11,6 +11,7 @@ public class PdfRenderService : IPdfRenderService
 {
     private const int MaxDpi = 600;
     private const long MaxPdfBytes = 50L * 1024 * 1024; // 50MB
+    private const int MaxPages = 200;
 
     public List<Image> RenderToImages(string pdfBase64, int dpi)
     {
@@ -28,6 +29,9 @@ public class PdfRenderService : IPdfRenderService
             using (var stream = new MemoryStream(pdfBytes))
             using (var document = PdfDocument.Load(stream))
             {
+                if (document.PageCount > MaxPages)
+                    throw new ArgumentException($"PDF 页数过多: {document.PageCount} 页，上限 {MaxPages} 页");
+
                 for (int i = 0; i < document.PageCount; i++)
                 {
                     var image = document.Render(i, dpi, dpi, true);

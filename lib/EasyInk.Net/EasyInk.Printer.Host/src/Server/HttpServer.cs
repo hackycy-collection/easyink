@@ -63,8 +63,10 @@ public class HttpServer
 
         IsRunning = false;
         _cts?.Cancel();
-        try { _listener?.Stop(); } catch { }
-        try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); } catch { }
+        try { _listener?.Stop(); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HttpServer] 停止监听器异常: {ex.Message}"); }
+        try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HttpServer] 等待监听任务异常: {ex.Message}"); }
         _cts?.Dispose();
         _listener?.Close();
         _listener = null;

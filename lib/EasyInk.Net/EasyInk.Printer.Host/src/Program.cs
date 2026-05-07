@@ -53,7 +53,10 @@ static class Program
             return router.HandleRequest(context);
         };
 
-        httpServer.TryStart();
+        if (!httpServer.TryStart())
+        {
+            System.Diagnostics.Debug.WriteLine($"[Program] HTTP 服务启动失败: {httpServer.LastError}");
+        }
 
         var trayIcon = new TrayIcon(httpServer);
         var mainWindow = new MainWindow(httpServer, wsHandler, printerApi, config);
@@ -81,7 +84,10 @@ static class Program
         trayIcon.OnRestartServer += () =>
         {
             httpServer.Stop();
-            httpServer.TryStart();
+            if (!httpServer.TryStart())
+            {
+                System.Diagnostics.Debug.WriteLine($"[Program] HTTP 服务重启失败: {httpServer.LastError}");
+            }
             if (httpServer.IsRunning)
             {
                 trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");

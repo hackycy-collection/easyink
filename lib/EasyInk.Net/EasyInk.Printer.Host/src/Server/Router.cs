@@ -22,6 +22,7 @@ public class Router
     private readonly StatusController _statusController;
     private readonly WebSocketHandler _wsHandler;
     private readonly bool _trustAllOrigins;
+    private readonly string _apiKey;
 
     private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
     {
@@ -37,6 +38,7 @@ public class Router
         _statusController = new StatusController();
         _wsHandler = wsHandler;
         _trustAllOrigins = config.TrustAllOrigins;
+        _apiKey = config.ApiKey;
     }
 
     public async Task HandleRequest(HttpListenerContext context)
@@ -60,6 +62,17 @@ public class Router
         if (request.HttpMethod == "OPTIONS")
         {
             response.StatusCode = 200;
+            response.Close();
+            return;
+        }
+
+        if (!ValidateApiKey(request))
+        {
+            var unauthorized = Encoding.UTF8.GetBytes(ErrorJson("UNAUTHORIZED", "无效的 API Key"));
+            response.StatusCode = 401;
+            response.ContentType = "application/json; charset=utf-8";
+            response.ContentLength64 = unauthorized.Length;
+            await response.OutputStream.WriteAsync(unauthorized, 0, unauthorized.Length);
             response.Close();
             return;
         }
@@ -167,5 +180,18 @@ public class Router
             success = false,
             errorInfo = new { code, message }
         }, JsonSettings);
+    }
+
+    private bool ValidateApiKey(HttpListenerRequest request)
+    {
+        return ValidateApiKeyCore(_apiKey, request.Headers["X-API-Key"]);
+    }
+
+    internal static bool ValidateApiKeyCore(string configuredKey, string providedKey)
+    {
+        if (string.IsNullOrEmpty(configuredKey))
+            return true;
+
+        return string.Equals(providedKey, configuredKey, StringComparison.Ordinal);
     }
 }

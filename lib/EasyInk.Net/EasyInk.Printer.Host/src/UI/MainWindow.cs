@@ -510,19 +510,67 @@ public class MainWindow : Form
         {
             Text = "安全设置",
             Dock = DockStyle.Top,
-            Height = 68,
+            Height = 100,
             Padding = new Padding(12, 8, 12, 12)
         };
+
+        var securityPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 2,
+            Padding = new Padding(4)
+        };
+        securityPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        securityPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
 
         var chkTrustAllOrigins = new CheckBox
         {
             Text = "信任所有来源请求（关闭后仅允许本机页面调用）",
-            Dock = DockStyle.Top,
-            Height = 28,
-            Checked = _config.TrustAllOrigins,
-            Padding = new Padding(4, 2, 4, 2)
+            Anchor = AnchorStyles.Left,
+            Checked = _config.TrustAllOrigins
         };
-        grpSecurity.Controls.Add(chkTrustAllOrigins);
+
+        var lblApiKey = new Label { Text = "API Key:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var txtApiKey = new TextBox
+        {
+            Text = _config.ApiKey ?? "",
+            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+
+        var placeholderText = "留空则不启用认证";
+        var isPlaceholder = string.IsNullOrEmpty(_config.ApiKey);
+        if (isPlaceholder)
+        {
+            txtApiKey.Text = placeholderText;
+            txtApiKey.ForeColor = SystemColors.GrayText;
+        }
+
+        txtApiKey.GotFocus += (s, e) =>
+        {
+            if (txtApiKey.Text == placeholderText && txtApiKey.ForeColor == SystemColors.GrayText)
+            {
+                txtApiKey.Text = "";
+                txtApiKey.ForeColor = SystemColors.WindowText;
+            }
+        };
+        txtApiKey.LostFocus += (s, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(txtApiKey.Text))
+            {
+                txtApiKey.Text = placeholderText;
+                txtApiKey.ForeColor = SystemColors.GrayText;
+            }
+        };
+
+        securityPanel.Controls.Add(chkTrustAllOrigins, 0, 0);
+        securityPanel.SetColumnSpan(chkTrustAllOrigins, 2);
+        securityPanel.Controls.Add(lblApiKey, 0, 1);
+        securityPanel.Controls.Add(txtApiKey, 1, 1);
+        grpSecurity.Controls.Add(securityPanel);
 
         // 路径信息组
         var grpPath = new GroupBox
@@ -570,6 +618,9 @@ public class MainWindow : Form
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
             _config.TrustAllOrigins = chkTrustAllOrigins.Checked;
+            var apiKeyValue = (txtApiKey.ForeColor == SystemColors.GrayText || string.IsNullOrWhiteSpace(txtApiKey.Text))
+                ? null : txtApiKey.Text.Trim();
+            _config.ApiKey = apiKeyValue;
             _config.Save();
 
             HostConfig.SetAutoStartRegistry(chkAutoStart.Checked);

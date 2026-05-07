@@ -33,4 +33,8 @@
     <ProjectReference Include="..\..\EasyInk.Printer\src\EasyInk.Printer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="EasyInk.Printer.Host.Tests" />
+  </ItemGroup>
+
 </Project>
