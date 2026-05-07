@@ -59,6 +59,13 @@ export interface ViewerPageResult {
   element?: HTMLElement
 }
 
+export interface ViewerPageMetrics {
+  index: number
+  width: number
+  height: number
+  unit: string
+}
+
 export interface ThumbnailResult {
   pageIndex: number
   dataUrl?: string
@@ -94,9 +101,43 @@ export interface ViewerPrintOptions {
   browserTarget?: BrowserPrintTarget
 }
 
+export interface ViewerResolvedPrintOptions {
+  browserTarget: BrowserPrintTarget
+}
+
+export interface ViewerPrintSheetSize {
+  width: number
+  height: number
+  unit: string
+  source: 'schema' | 'label' | 'rendered'
+}
+
+export interface ViewerPrintPolicy {
+  browserTarget: BrowserPrintTarget
+  pageMode: DocumentSchema['page']['mode']
+  pageSizeMode: 'driver' | 'fixed'
+  sheetSize?: ViewerPrintSheetSize
+  pageBreakBehavior: {
+    after: 'auto' | 'page'
+    inside: 'auto' | 'avoid'
+  }
+  offset: {
+    horizontal: number
+    vertical: number
+    unit: string
+  }
+}
+
+export interface ViewerPrintContext extends ViewerExportContext {
+  printOptions: ViewerResolvedPrintOptions
+  printPolicy: ViewerPrintPolicy
+  renderedPages: ViewerPageMetrics[]
+  container?: HTMLElement
+}
+
 export interface PrintAdapter {
   id: string
-  print: (context: ViewerExportContext) => Promise<void>
+  print: (context: ViewerPrintContext) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------

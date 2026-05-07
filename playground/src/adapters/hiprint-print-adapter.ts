@@ -1,4 +1,4 @@
-import type { PrintAdapter, ViewerExportContext } from '@easyink/viewer'
+import type { PrintAdapter, ViewerPageMetrics, ViewerPrintContext, ViewerPrintSheetSize } from '@easyink/viewer'
 import { usePrinter } from '../hooks/useHiPrint'
 
 const UNIT_TO_MM = {
@@ -8,17 +8,22 @@ const UNIT_TO_MM = {
   pt: 0.352778,
 } as const
 
-function toMillimeters(length: string, fallbackUnit: string): number {
-  const trimmed = length.trim()
-  const match = trimmed.match(/^(-?\d+(?:\.\d+)?)(mm|cm|in|pt)?$/)
-  if (!match)
-    throw new Error(`无法解析打印页面尺寸: ${length}`)
-
-  const value = Number(match[1])
-  const unit = match[2] || fallbackUnit
+function toMillimeters(value: number, unit: string): number {
   const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
-
   return value * factor
+}
+
+function resolvePrintSize(
+  sheetSize: ViewerPrintSheetSize | undefined,
+  renderedPage: ViewerPageMetrics | undefined,
+): { width: number, height: number, unit: string } {
+  if (sheetSize)
+    return sheetSize
+
+  if (!renderedPage)
+    throw new Error('缺少打印页面尺寸')
+
+  return renderedPage
 }
 
 /**
@@ -30,7 +35,7 @@ export function createHiPrintAdapter(): PrintAdapter {
 
   return {
     id: 'hiprint-adapter',
-    async print(context: ViewerExportContext) {
+    async print(context: ViewerPrintContext) {
       if (!printer.enabled.value)
         throw new Error('打印服务未启用')
 
@@ -40,7 +45,7 @@ export function createHiPrintAdapter(): PrintAdapter {
       if (!printer.printerDevice.value)
         throw new Error('未选择打印机')
 
-      const container = document.querySelector('.ei-viewer-page')?.parentElement
+      const container = context.container
       if (!container)
         throw new Error('找不到打印内容')
 
@@ -50,19 +55,16 @@ export function createHiPrintAdapter(): PrintAdapter {
       if (pages.length === 0)
         throw new Error('没有可打印的页面')
 
-      const firstPage = pages[0]!
       const printerDevice = printer.printerDevice.value
-      let width = toMillimeters(`${context.schema.page.width}${context.schema.unit}`, context.schema.unit)
-      // 标签模式下宽度由内容决定，使用页面样式中的宽度（已转换为毫米）
-      if (context.schema.page.mode === 'label') {
-        width = toMillimeters(firstPage.style.width, context.schema.unit)
-      }
-      const height = toMillimeters(firstPage.style.height, context.schema.unit)
+      const printSize = resolvePrintSize(context.printPolicy.sheetSize, context.renderedPages[0])
+      const width = toMillimeters(printSize.width, printSize.unit)
+      const height = toMillimeters(printSize.height, printSize.unit)
 
       await printer.printPages(pages, {
         width,
         height,
         printer: printerDevice,
+        forcePageSize: printer.isForcePageSize(printerDevice),
       })
     },
   }

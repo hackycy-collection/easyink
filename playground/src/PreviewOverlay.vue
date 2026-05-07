@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocumentSchema, ViewerRuntime } from '@easyink/viewer'
 import { IconChevronLeft, IconChevronRight, IconClose, IconMinimize, IconPlus } from '@easyink/icons'
-import { createViewer } from '@easyink/viewer'
+import { createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const EXPORT_FORMAT = 'playground-demo-json'
+const UNIT_TO_MM = { mm: 1, cm: 10, in: 25.4, pt: 0.352778 } as const
 
 const containerRef = ref<HTMLDivElement>()
 let viewer: ViewerRuntime | undefined
@@ -37,6 +38,11 @@ const totalPages = ref(1)
 const printer = usePrinter()
 const showPrinterSettings = ref(false)
 const isPrinting = ref(false)
+
+function toMillimeters(value: number, unit: string): number {
+  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
+  return value * factor
+}
 
 // Auto-connect handled inside usePrinter() singleton based on persisted config.
 
@@ -218,13 +224,19 @@ async function handleHiPrintPrint() {
   }
 
   const printerDevice = printer.printerDevice.value
-  const { width: pageWidth, height: pageHeight } = props.schema.page
-  const { unit } = props.schema
-
-  const UNIT_TO_MM = { mm: 1, cm: 10, in: 25.4, pt: 0.352778 }
-  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
-  const width = pageWidth * factor
-  const height = pageHeight * factor
+  const renderedPages = viewer?.renderedPages ?? []
+  const printPolicy = resolvePrintPolicy({
+    schema: props.schema,
+    options: { browserTarget: 'printer' },
+    renderedPages,
+  })
+  const printSize = printPolicy.sheetSize ?? renderedPages[0]
+  if (!printSize) {
+    toast.error('缺少打印页面尺寸')
+    return
+  }
+  const width = toMillimeters(printSize.width, printSize.unit)
+  const height = toMillimeters(printSize.height, printSize.unit)
 
   isPrinting.value = true
   const progressId = pages.length > 1 ? toast.loading(`打印中 0 / ${pages.length}`) : undefined

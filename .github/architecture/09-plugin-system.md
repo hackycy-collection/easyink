@@ -95,6 +95,24 @@ interface ViewerExtensionRegistry {
 }
 ```
 
+PrintAdapter 接收的是打印上下文，不是普通导出上下文。ViewerRuntime 会先解析统一的打印策略，再把同一份策略传给 adapter 和浏览器 fallback：
+
+```typescript
+interface ViewerPrintContext extends ViewerExportContext {
+  printOptions: { browserTarget: 'printer' | 'pdf' }
+  printPolicy: ViewerPrintPolicy
+  renderedPages: ViewerPageMetrics[]
+  container?: HTMLElement
+}
+
+interface PrintAdapter {
+  id: string
+  print(context: ViewerPrintContext): Promise<void>
+}
+```
+
+适配器必须消费 `context.printPolicy` 或 `context.renderedPages` 中的尺寸信息，不能重新从 `.ei-viewer-page` 的 inline style 反推打印纸张。这样 `browserTarget`、label 纸张计算、stack 连续纸策略在 adapter 和浏览器 fallback 两条路径上保持同一语义。
+
 ## 9.4 Hook 设计
 
 Hook 只做有限可控的编排，不承担任意业务脚本执行。

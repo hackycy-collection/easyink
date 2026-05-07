@@ -43,8 +43,9 @@ MaterialRendererRegistry
 4. `BindingProjector`：处理 `usage / union / bindIndex`。对 table-data 节点执行单元格级预解析（见 6.6.1）。
 5. `MeasureAndFlowResolver`：先测量 table-data 等动态物料的运行态尺寸，再在 `stack` 模式下执行流式回流，把后续 flow 元素按文档顺序重新定位。
 6. `PagePlanner`：基于回流后的几何结果生成固定分页、连续页或标签页计划。对 table-data 元素与 ViewerExtension 协作完成行展开和分页（见 [7.3](./07-layout-engine.md)）。
-7. `RenderSurface`：输出页面 DOM/SVG 和缩略图。
-8. `ExportAdapterLoader`：按需装载导出依赖和适配器。
+7. `RenderSurface`：输出页面 DOM/SVG 和缩略图，并把最终 `ViewerPageMetrics` 缓存在 ViewerRuntime 内。
+8. `PrintPolicyResolver`：基于 `page.mode / browserTarget / renderedPages` 解析打印策略。`stack + printer` 不强制纸张尺寸，交给打印机驱动；`stack + pdf` 必须使用 render 阶段缓存的最终页面尺寸，缺失时发出 `PRINT_RENDER_METRICS_MISSING` 并拒绝打印。
+9. `ExportAdapterLoader`：按需装载导出依赖和适配器。
 
 ## 6.3 Viewer 接口
 
@@ -54,7 +55,7 @@ function createViewer(options?: ViewerOptions): ViewerRuntime
 interface ViewerRuntime {
   open(input: ViewerOpenInput): Promise<void>
   updateData(data: Record<string, unknown>): Promise<void>
-  print(): Promise<void>
+  print(options?: ViewerPrintOptions): Promise<void>
   exportDocument(): Promise<Blob | void>
   destroy(): void
 }
@@ -64,6 +65,10 @@ interface ViewerOpenInput {
   data?: Record<string, unknown>
   dataSources?: DataSourceDescriptor[]
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
+}
+
+interface ViewerPrintOptions {
+  browserTarget?: 'printer' | 'pdf'
 }
 ```
 
@@ -172,7 +177,32 @@ interface ViewerPageResult {
 }
 ```
 
-## 6.8 样式与承载策略
+ViewerRuntime 同时缓存 `ViewerPageMetrics[]`，作为打印策略的尺寸来源。打印阶段不能从 `.ei-viewer-page` 的 inline style 反推纸张尺寸；DOM 只承载输出，布局结果才是打印尺寸真值。
+
+## 6.8 打印策略
+
+打印入口先解析 `ViewerPrintPolicy`，再分发到浏览器 fallback 或 PrintAdapter：
+
+```typescript
+interface ViewerPrintPolicy {
+  browserTarget: 'printer' | 'pdf'
+  pageMode: DocumentSchema['page']['mode']
+  pageSizeMode: 'driver' | 'fixed'
+  sheetSize?: { width: number, height: number, unit: string, source: 'schema' | 'label' | 'rendered' }
+  pageBreakBehavior: { after: 'auto' | 'page', inside: 'auto' | 'avoid' }
+  offset: { horizontal: number, vertical: number, unit: string }
+}
+```
+
+策略规则：
+
+- `stack + printer`：`pageSizeMode='driver'`，不输出固定 `@page size`，避免连续纸被浏览器或驱动裁切。
+- `stack + pdf`：`pageSizeMode='fixed'`，`sheetSize.source='rendered'`，尺寸来自 render 后缓存的 `ViewerPageMetrics`。
+- `fixed`：尺寸来自 schema page。
+- `label`：纸张尺寸由 label columns / rows / gaps 计算，不等同于单个标签 cell。
+- `PagePrintConfig` 的 offset 只进入策略对象，CSS 模板不重新读取 schema。
+
+## 6.9 样式与承载策略
 
 ### 设计器
 
@@ -187,7 +217,7 @@ interface ViewerPageResult {
 - 内部仍以 DOM/SVG 为主要输出
 - 自动生成页面样式、打印样式和缩略图容器
 
-## 6.9 导出依赖装载
+## 6.10 导出依赖装载
 
 对标产品预览时已经验证 `viewer` 会动态加载：
 
@@ -203,7 +233,7 @@ interface ViewerPageResult {
 - 第三方导出依赖按需装载
 - 装载失败时给出可见诊断，而不是让整个 Viewer 崩溃
 
-## 6.10 诊断机制
+## 6.11 诊断机制
 
 诊断事件至少覆盖：
 
@@ -213,12 +243,12 @@ interface ViewerPageResult {
 | datasource | datasource | 数据源缺失、路径无效、字段类型不匹配 |
 | font | viewer | 字体加载失败 |
 | material | viewer | 单个物料渲染异常 |
-| print | print | 打印 DOM 操作或 window.print() 失败 |
+| print | print | 打印策略缺失、打印 DOM 操作或 window.print() 失败 |
 | export-adapter | export-adapter | 第三方依赖加载失败、格式不支持 |
 
 所有问题默认都应该是可见的、可追踪的，而不是静默跳过。
 
-### 6.10.1 统一诊断中间件
+### 6.11.1 统一诊断中间件
 
 Viewer 渲染管线通过 `diagnostic-middleware.ts` 中的 `safeRender` 统一处理所有阶段的异常：
 
@@ -260,7 +290,7 @@ private emitDiagnostic(event: ViewerDiagnosticEvent): void {
 }
 ```
 
-### 6.10.2 诊断阶段覆盖
+### 6.11.2 诊断阶段覆盖
 
 | 阶段 | 文件 | 诊断码 |
 |---|---|---|
@@ -269,5 +299,5 @@ private emitDiagnostic(event: ViewerDiagnosticEvent): void {
 | font 加载 | `font-loader.ts` | `FONT_LOAD_FAILED` |
 | material 渲染 | `render-surface.ts` | `MATERIAL_RENDER_ERROR` |
 | stack-flow 布局 | `stack-flow-layout.ts` | `STACK_FLOW_FIXED_OVERLAP` |
-| print | `runtime.ts` | `PRINT_ERROR` |
+| print | `runtime.ts` | `PRINT_ERROR`, `PRINT_RENDER_METRICS_MISSING` |
 | export-adapter | `runtime.ts` | `NO_EXPORT_ADAPTER` |

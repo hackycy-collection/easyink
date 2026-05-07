@@ -1,7 +1,6 @@
 import type { InternalHooks, PagePlan } from '@easyink/core'
 import type { DocumentSchema } from '@easyink/schema'
 import type {
-  BrowserPrintTarget,
   ExportAdapter,
   MaterialViewerExtension,
   PrintAdapter,
@@ -9,7 +8,9 @@ import type {
   ViewerMeasureContext,
   ViewerOpenInput,
   ViewerOptions,
+  ViewerPageMetrics,
   ViewerPrintOptions,
+  ViewerPrintPolicy,
   ViewerRenderResult,
 } from './types'
 import { registerBuiltinViewerMaterials } from '@easyink/builtin'
@@ -19,6 +20,7 @@ import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
 import { MaterialRendererRegistry } from './material-registry'
+import { PrintPolicyError, resolvePrintPolicy } from './print-policy'
 import { renderPages } from './render-surface'
 import { applyStackFlowLayout } from './stack-flow-layout'
 
@@ -32,6 +34,7 @@ export class ViewerRuntime {
   private _materialRegistry = new MaterialRendererRegistry()
   private _fontManager: FontManager
   private _hooks: InternalHooks
+  private _renderedPageMetrics: ViewerPageMetrics[] = []
   private _destroyed = false
 
   constructor(options: ViewerOptions = {}) {
@@ -129,6 +132,12 @@ export class ViewerRuntime {
       elementCount: p.elements.length,
       element: undefined as HTMLElement | undefined,
     }))
+    this._renderedPageMetrics = pages.map(page => ({
+      index: page.index,
+      width: page.width,
+      height: page.height,
+      unit: this._schema!.unit,
+    }))
 
     if (this._options.container) {
       const pageDOMs = renderPages(
@@ -169,12 +178,20 @@ export class ViewerRuntime {
     if (!this._schema)
       throw new Error('No schema loaded')
 
+    const printPolicy = this.createPrintPolicy(options)
+    if (!printPolicy)
+      return
+
     if (this._printAdapters.length > 0) {
       const adapter = this._printAdapters[0]!
       await adapter.print({
         schema: this._schema,
         data: this._data,
         entry: 'preview',
+        printOptions: { browserTarget: printPolicy.browserTarget },
+        printPolicy,
+        renderedPages: this.renderedPages,
+        container: this._options.container,
       })
       return
     }
@@ -182,21 +199,40 @@ export class ViewerRuntime {
     // Fallback: window.print with DOM isolation
     if (typeof window !== 'undefined') {
       if (this._options.container) {
-        await this.printWithIsolation(options)
+        await this.printWithIsolation(printPolicy)
       }
       else {
-        window.print()
+        try {
+          window.print()
+        }
+        catch (err) {
+          this.emitPrintError(err)
+        }
       }
     }
   }
 
-  private async printWithIsolation(options: ViewerPrintOptions = {}): Promise<void> {
+  private createPrintPolicy(options: ViewerPrintOptions = {}): ViewerPrintPolicy | undefined {
+    try {
+      return resolvePrintPolicy({
+        schema: this._schema!,
+        options,
+        renderedPages: this._renderedPageMetrics,
+      })
+    }
+    catch (err) {
+      this.emitPrintError(err)
+      return undefined
+    }
+  }
+
+  private async printWithIsolation(printPolicy: ViewerPrintPolicy): Promise<void> {
     const container = this._options.container!
     const doc = container.ownerDocument
+    const ancestors: HTMLElement[] = []
+    let style: HTMLStyleElement | undefined
 
     try {
-      // Mark ancestor chain so print CSS can hide everything else
-      const ancestors: HTMLElement[] = []
       let el: HTMLElement | null = container.parentElement
       while (el) {
         el.setAttribute('data-ei-print-ancestor', '')
@@ -207,69 +243,48 @@ export class ViewerRuntime {
       }
       container.setAttribute('data-ei-printing', '')
 
-      // Inject print stylesheet
-      const style = doc.createElement('style')
-      style.textContent = this.buildPrintStyles(options)
+      style = doc.createElement('style')
+      style.textContent = this.buildPrintStyles(printPolicy)
       doc.head.appendChild(style)
 
       window.print()
-
-      // Cleanup
-      style.remove()
-      container.removeAttribute('data-ei-printing')
-      for (const a of ancestors) {
-        a.removeAttribute('data-ei-print-ancestor')
-      }
     }
     catch (err) {
-      const cause = err instanceof Error
-        ? { name: err.name, message: err.message, stack: err.stack }
-        : err
-      this.emitDiagnostic({
-        category: 'print',
-        severity: 'error',
-        code: 'PRINT_ERROR',
-        message: `Print failed: ${err instanceof Error ? err.message : String(err)}`,
-        scope: 'print',
-        cause,
-      })
+      this.emitPrintError(err)
+    }
+    finally {
+      style?.remove()
+      container.removeAttribute('data-ei-printing')
+      for (const ancestor of ancestors) {
+        ancestor.removeAttribute('data-ei-print-ancestor')
+      }
     }
   }
 
-  private buildPrintStyles(options: ViewerPrintOptions = {}): string {
-    const schema = this._schema!
-    const page = schema.page
-    const unit = schema.unit
-    const browserTarget = options.browserTarget ?? 'printer'
-    const usesDriverPaper = page.mode === 'stack' && browserTarget === 'printer'
+  private emitPrintError(err: unknown): void {
+    const cause = err instanceof Error
+      ? { name: err.name, message: err.message, stack: err.stack }
+      : err
+    this.emitDiagnostic({
+      category: 'print',
+      severity: 'error',
+      code: err instanceof PrintPolicyError ? err.code : 'PRINT_ERROR',
+      message: err instanceof PrintPolicyError
+        ? err.message
+        : `Print failed: ${err instanceof Error ? err.message : String(err)}`,
+      scope: 'print',
+      cause,
+    })
+  }
 
-    // In label mode, page.width/height describe a single cell; the physical
-    // sheet is derived from columns/rows/gaps. See LabelPageConfig.
-    let sheetW = page.width
-    let sheetH = page.height
-    if (page.mode === 'label') {
-      const cols = page.label?.columns || 1
-      const rows = page.label?.rows || 1
-      const gapX = page.label?.gap || 0
-      const gapY = page.label?.rowGap || 0
-      sheetW = page.width * cols + gapX * Math.max(cols - 1, 0)
-      sheetH = page.height * rows + gapY * Math.max(rows - 1, 0)
-    }
-
-    // Print offset from PagePrintConfig
-    const hOff = page.print?.horizontalOffset ?? 0
-    const vOff = page.print?.verticalOffset ?? 0
-    const offsetCSS = (hOff !== 0 || vOff !== 0)
-      ? `transform: translate(${hOff}${unit}, ${vOff}${unit}) !important;`
-      : ''
-    const renderedPageSize = this.resolveRenderedPageSize(browserTarget)
-    const fixedSheetWidth = renderedPageSize?.width ?? `${sheetW}${unit}`
-    const fixedSheetHeight = renderedPageSize?.height ?? `${sheetH}${unit}`
-    const pageSizeCSS = usesDriverPaper
+  private buildPrintStyles(printPolicy: ViewerPrintPolicy): string {
+    const pageSizeCSS = printPolicy.pageSizeMode === 'driver'
       ? ''
-      : `    size: ${fixedSheetWidth} ${fixedSheetHeight};\n`
-    const pageBreakAfter = page.mode === 'stack' ? 'auto' : 'page'
-    const pageBreakInside = page.mode === 'stack' ? 'auto' : 'avoid'
+      : `    size: ${printPolicy.sheetSize!.width}${printPolicy.sheetSize!.unit} ${printPolicy.sheetSize!.height}${printPolicy.sheetSize!.unit};\n`
+    const offset = printPolicy.offset
+    const offsetCSS = (offset.horizontal !== 0 || offset.vertical !== 0)
+      ? `transform: translate(${offset.horizontal}${offset.unit}, ${offset.vertical}${offset.unit}) !important;`
+      : ''
 
     return `@media print {
   @page {
@@ -320,8 +335,8 @@ ${pageSizeCSS}    margin: 0;
     box-shadow: none !important;
     margin: 0 !important;
     transform: none !important;
-    break-after: ${pageBreakAfter};
-    break-inside: ${pageBreakInside};
+    break-after: ${printPolicy.pageBreakBehavior.after};
+    break-inside: ${printPolicy.pageBreakBehavior.inside};
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     ${offsetCSS}
@@ -330,23 +345,6 @@ ${pageSizeCSS}    margin: 0;
     break-after: auto;
   }
 }`
-  }
-
-  private resolveRenderedPageSize(browserTarget: BrowserPrintTarget): { width: string, height: string } | undefined {
-    if (browserTarget !== 'pdf' || this._schema?.page.mode !== 'stack')
-      return undefined
-
-    const container = this._options.container
-    if (!container)
-      return undefined
-
-    const firstPage = container.querySelector<HTMLElement>('.ei-viewer-page')
-    const width = firstPage?.style.width?.trim()
-    const height = firstPage?.style.height?.trim()
-    if (!width || !height)
-      return undefined
-
-    return { width, height }
   }
 
   async exportDocument(format?: string): Promise<Blob | void> {
@@ -389,6 +387,7 @@ ${pageSizeCSS}    margin: 0;
     this._materialRegistry.clear()
     this._exportAdapters = []
     this._printAdapters = []
+    this._renderedPageMetrics = []
     this._fontManager.clear()
     if (this._options.container) {
       this._options.container.innerHTML = ''
@@ -421,6 +420,10 @@ ${pageSizeCSS}    margin: 0;
 
   get data(): Record<string, unknown> {
     return this._data
+  }
+
+  get renderedPages(): ViewerPageMetrics[] {
+    return this._renderedPageMetrics.map(page => ({ ...page }))
   }
 
   get hooks(): InternalHooks {
