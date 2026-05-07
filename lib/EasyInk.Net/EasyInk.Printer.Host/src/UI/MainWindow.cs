@@ -113,7 +113,7 @@ public class MainWindow : Form
         var infoPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 160,
+            AutoSize = true,
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle,
             Padding = new Padding(16, 12, 16, 12),
@@ -123,6 +123,7 @@ public class MainWindow : Form
         var infoTitleFont = new Font("Microsoft YaHei UI", 10f, FontStyle.Bold);
         var infoKeyFont = new Font("Microsoft YaHei UI", 9f);
         var infoValFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Bold);
+        var rowHeight = 24;
 
         var lblInfoTitle = new Label
         {
@@ -130,25 +131,9 @@ public class MainWindow : Form
             Font = infoTitleFont,
             ForeColor = Color.FromArgb(50, 50, 50),
             Dock = DockStyle.Top,
-            Height = 24
+            Height = 28
         };
 
-        var infoGrid = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 4,
-            RowCount = 3,
-            Padding = new Padding(0, 4, 0, 0)
-        };
-        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.4f));
-        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-        infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-
-        // 第一行：服务地址 | 设备编号
         var lanIps = NetworkHelper.GetLanIpv4Addresses();
         var addresses = lanIps.Count > 0
             ? string.Join("  ", lanIps.Select(ip => $"http://{ip}:{_server.Port}"))
@@ -156,23 +141,53 @@ public class MainWindow : Form
 
         var deviceNumber = NetworkHelper.GenerateDeviceNumber();
         var appVersion = typeof(StatusController).Assembly.GetName().Version?.ToString() ?? "1.0.0";
-
-        Label lblAddrVal, lblDeviceVal, lblVersionVal, lblMacVal;
-
-        AddInfoRow(infoGrid, 0, "服务地址:", addresses, infoKeyFont, infoValFont, out lblAddrVal);
-        AddInfoRowPair(infoGrid, 0, "设备编号:", deviceNumber, infoKeyFont, infoValFont, out lblDeviceVal);
-
-        // 第二行：应用版本 | MAC地址
         var macs = NetworkHelper.GetActivePhysicalMacs();
         var macText = macs.Count > 0 ? string.Join("  /  ", macs) : "未检测到";
 
-        AddInfoRow(infoGrid, 1, "应用版本:", appVersion, infoKeyFont, infoValFont, out lblVersionVal);
-        AddInfoRowPair(infoGrid, 1, "MAC 地址:", macText, infoKeyFont, infoValFont, out lblMacVal);
+        var infoRows = new[]
+        {
+            new { Key = "服务地址:", Value = addresses },
+            new { Key = "设备编号:", Value = deviceNumber },
+            new { Key = "应用版本:", Value = appVersion },
+            new { Key = "MAC 地址:", Value = macText }
+        };
 
-        // 第三行：补充信息（空行占位，保持行高一致）
-        infoGrid.RowStyles[2] = new RowStyle(SizeType.Absolute, 0);
+        foreach (var row in infoRows.Reverse())
+        {
+            var rowPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = rowHeight,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0),
+                Margin = new Padding(0, 0, 0, 4)
+            };
 
-        infoPanel.Controls.Add(infoGrid);
+            var lblKey = new Label
+            {
+                Text = row.Key,
+                Font = infoKeyFont,
+                ForeColor = Color.FromArgb(128, 128, 128),
+                AutoSize = true,
+                Margin = new Padding(0, 3, 8, 0)
+            };
+
+            var lblVal = new Label
+            {
+                Text = row.Value,
+                Font = infoValFont,
+                ForeColor = Color.FromArgb(50, 50, 50),
+                AutoSize = true,
+                MaximumSize = new Size(600, 0),
+                Margin = new Padding(0, 3, 0, 0)
+            };
+
+            rowPanel.Controls.Add(lblKey);
+            rowPanel.Controls.Add(lblVal);
+            infoPanel.Controls.Add(rowPanel);
+        }
+
         infoPanel.Controls.Add(lblInfoTitle);
 
         // -- 错误提示区域 --
@@ -251,56 +266,6 @@ public class MainWindow : Form
         panel.Controls.Add(cardsPanel);
         tab.Controls.Add(panel);
         return tab;
-    }
-
-    private static void AddInfoRow(TableLayoutPanel grid, int row, string key, string value,
-        Font keyFont, Font valFont, out Label valLabel)
-    {
-        var lblKey = new Label
-        {
-            Text = key,
-            Font = keyFont,
-            ForeColor = Color.FromArgb(128, 128, 128),
-            Anchor = AnchorStyles.Left,
-            AutoSize = true,
-            Margin = new Padding(0)
-        };
-        valLabel = new Label
-        {
-            Text = value,
-            Font = valFont,
-            ForeColor = Color.FromArgb(50, 50, 50),
-            Anchor = AnchorStyles.Left,
-            AutoSize = true,
-            Margin = new Padding(0)
-        };
-        grid.Controls.Add(lblKey, 0, row);
-        grid.Controls.Add(valLabel, 1, row);
-    }
-
-    private static void AddInfoRowPair(TableLayoutPanel grid, int row, string key, string value,
-        Font keyFont, Font valFont, out Label valLabel)
-    {
-        var lblKey = new Label
-        {
-            Text = key,
-            Font = keyFont,
-            ForeColor = Color.FromArgb(128, 128, 128),
-            Anchor = AnchorStyles.Left,
-            AutoSize = true,
-            Margin = new Padding(0)
-        };
-        valLabel = new Label
-        {
-            Text = value,
-            Font = valFont,
-            ForeColor = Color.FromArgb(50, 50, 50),
-            Anchor = AnchorStyles.Left,
-            AutoSize = true,
-            Margin = new Padding(0)
-        };
-        grid.Controls.Add(lblKey, 2, row);
-        grid.Controls.Add(valLabel, 3, row);
     }
 
     private void RefreshQueueStatus(Label lblQueueVal, Panel cardQueue, Color colorIdle, Color colorBusy)
