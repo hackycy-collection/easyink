@@ -1,0 +1,249 @@
+<script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
+import { computed, onMounted } from 'vue'
+import { toast } from 'vue-sonner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { usePrinterHost } from '../hooks/usePrinterHost'
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+const printer = usePrinterHost()
+
+const statusText = computed(() => {
+  if (!printer.enabled.value)
+    return '未启用'
+  switch (printer.connectionState.value) {
+    case 'connected': return '已连接'
+    case 'connecting': return '连接中...'
+    case 'error': return printer.lastError.value || '连接失败'
+    default: return '未连接'
+  }
+})
+
+const statusColor = computed(() => {
+  if (!printer.enabled.value)
+    return 'text-muted-foreground'
+  switch (printer.connectionState.value) {
+    case 'connected': return 'text-green-600'
+    case 'connecting': return 'text-amber-500'
+    case 'error': return 'text-red-500'
+    default: return 'text-red-500'
+  }
+})
+
+const activeJobs = computed(() => {
+  return Array.from(printer.jobs.values()).filter(
+    j => j.status === 'queued' || j.status === 'printing',
+  )
+})
+
+function handleToggleService(checked: boolean) {
+  printer.setEnabled(checked)
+}
+
+async function handleConnect() {
+  try {
+    await printer.connect()
+    toast.success('已连接到 Printer.Host')
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : '连接失败')
+  }
+}
+
+async function handleRefreshDevices() {
+  try {
+    const list = await printer.refreshDevices()
+    if (list.length === 0)
+      toast.info('未发现可用打印机')
+    else
+      toast.success(`发现 ${list.length} 台打印机`)
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : '刷新失败')
+  }
+}
+
+function handleUrlChange(value: string | number) {
+  printer.updateConfig({ serviceUrl: String(value) })
+}
+
+function handleApiKeyChange(value: string | number) {
+  printer.updateConfig({ apiKey: String(value) || undefined })
+}
+
+function handleCopiesChange(value: string | number) {
+  const v = Number(value)
+  printer.updateConfig({ copies: Number.isFinite(v) && v >= 1 ? Math.min(99, Math.trunc(v)) : 1 })
+}
+
+function handleDeviceChange(value: AcceptableValue) {
+  const printerName = typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint'
+    ? String(value)
+    : undefined
+  printer.updateConfig({ printerName })
+}
+
+async function syncPrinterForm() {
+  if (!printer.enabled.value)
+    return
+  try {
+    await printer.refreshDevices()
+  }
+  catch (e) {
+    toast.error(e instanceof Error ? e.message : '连接打印服务失败')
+  }
+}
+
+onMounted(() => {
+  void syncPrinterForm()
+})
+</script>
+
+<template>
+  <Dialog :open="true" @update:open="(val) => { if (!val) emit('close') }">
+    <DialogContent
+      class="max-w-[560px]"
+      sr-description="配置 Printer.Host 打印服务连接、打印机和份数"
+    >
+      <DialogHeader>
+        <DialogTitle>Printer.Host 设置</DialogTitle>
+      </DialogHeader>
+
+      <div class="space-y-4 py-2">
+        <!-- Enable -->
+        <div class="flex items-center justify-between">
+          <Label>启用 Printer.Host</Label>
+          <Switch
+            :model-value="printer.enabled.value"
+            @update:model-value="handleToggleService"
+          />
+        </div>
+
+        <!-- Status -->
+        <div class="space-y-1.5">
+          <Label>连接状态</Label>
+          <div class="flex items-center gap-2">
+            <span class="text-sm" :class="statusColor">{{ statusText }}</span>
+            <Button
+              v-if="printer.enabled.value && printer.connectionState.value !== 'connected'"
+              variant="outline"
+              size="xs"
+              :disabled="printer.isConnecting.value"
+              @click="handleConnect"
+            >
+              {{ printer.isConnecting.value ? '连接中...' : '连接' }}
+            </Button>
+          </div>
+        </div>
+
+        <!-- Service URL -->
+        <div class="space-y-1.5">
+          <Label>服务地址</Label>
+          <Input
+            :model-value="printer.serviceUrl.value"
+            :disabled="!printer.enabled.value"
+            placeholder="http://localhost:18080"
+            @update:model-value="handleUrlChange"
+          />
+        </div>
+
+        <!-- API Key -->
+        <div class="space-y-1.5">
+          <Label>API Key（可选）</Label>
+          <Input
+            :model-value="printer.config.apiKey ?? ''"
+            :disabled="!printer.enabled.value"
+            placeholder="留空则不验证"
+            @update:model-value="handleApiKeyChange"
+          />
+        </div>
+
+        <!-- Device -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <Label>打印机</Label>
+            <Button
+              v-if="printer.enabled.value"
+              variant="outline"
+              size="xs"
+              @click="handleRefreshDevices"
+            >
+              刷新
+            </Button>
+          </div>
+          <Select
+            :model-value="printer.printerName.value"
+            :disabled="!printer.enabled.value || printer.devices.value.length === 0"
+            @update:model-value="handleDeviceChange"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="请选择打印机" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="d in printer.devices.value"
+                :key="d.name"
+                :value="d.name"
+              >
+                {{ d.name }}{{ d.isDefault ? ' (默认)' : '' }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p
+            v-if="printer.enabled.value && printer.isConnected.value && printer.devices.value.length === 0"
+            class="text-xs text-muted-foreground"
+          >
+            未发现打印机，请检查打印机是否在线后点击刷新
+          </p>
+        </div>
+
+        <!-- Copies -->
+        <div class="space-y-1.5">
+          <Label>打印份数</Label>
+          <Input
+            type="number"
+            :model-value="printer.copies.value"
+            :min="1"
+            :max="99"
+            :disabled="!printer.enabled.value"
+            @update:model-value="handleCopiesChange"
+          />
+        </div>
+
+        <!-- Active jobs -->
+        <div v-if="activeJobs.length > 0" class="space-y-1.5">
+          <Label>进行中的任务</Label>
+          <div class="space-y-1 text-xs">
+            <div
+              v-for="job in activeJobs"
+              :key="job.jobId"
+              class="flex items-center justify-between text-muted-foreground"
+            >
+              <span class="truncate max-w-[200px]">{{ job.jobId }}</span>
+              <span>{{ job.status }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+</template>

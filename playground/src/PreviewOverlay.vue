@@ -4,6 +4,7 @@ import { IconChevronLeft, IconChevronRight, IconClose, IconMinimize, IconPlus } 
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
+import PrinterHostSettingsModal from './components/PrinterHostSettingsModal.vue'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
 import { Button } from './components/ui/button'
 import {
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
 import { usePrinter } from './hooks/useHiPrint'
+import { usePrinterHost } from './hooks/usePrinterHost'
 
 const props = defineProps<{
   schema: DocumentSchema
@@ -38,7 +40,9 @@ const totalPages = ref(1)
 
 // Printer integration
 const printer = usePrinter()
+const printerHost = usePrinterHost()
 const showPrinterSettings = ref(false)
+const showPrinterHostSettings = ref(false)
 const isPrinting = ref(false)
 
 function toMillimeters(value: number, unit: string): number {
@@ -323,8 +327,119 @@ async function handleHiPrintPrint() {
   }
 }
 
+async function handlePrinterHostPrint() {
+  if (!printerHost.enabled.value) {
+    toast.error('请先在设置中启用 Printer.Host')
+    showPrinterHostSettings.value = true
+    return
+  }
+
+  if (!printerHost.isConnected.value) {
+    const t = toast.loading('正在连接 Printer.Host...')
+    try {
+      await printerHost.connect()
+      toast.dismiss(t)
+    }
+    catch (e) {
+      toast.dismiss(t)
+      toast.error(e instanceof Error ? e.message : '连接 Printer.Host 失败')
+      showPrinterHostSettings.value = true
+      return
+    }
+  }
+
+  if (!printerHost.printerName.value) {
+    toast.error('请在 Printer.Host 设置中选择打印机')
+    showPrinterHostSettings.value = true
+    return
+  }
+
+  const surface = getViewerSurface()
+  if (!surface)
+    return
+
+  const pages = Array.from(
+    surface.querySelectorAll<HTMLElement>('.ei-viewer-page'),
+  )
+  if (pages.length === 0) {
+    toast.error('没有可打印的页面')
+    return
+  }
+
+  const printerName = printerHost.printerName.value
+  const renderedPages = viewer?.renderedPages ?? []
+  const printPolicy = resolvePrintPolicy({
+    schema: props.schema,
+    options: { browserTarget: 'printer' },
+    renderedPages,
+  })
+  const printSize = printPolicy.sheetSize ?? renderedPages[0]
+  if (!printSize) {
+    toast.error('缺少打印页面尺寸')
+    return
+  }
+  const width = toMillimeters(printSize.width, printSize.unit)
+  const height = toMillimeters(printSize.height, printSize.unit)
+
+  isPrinting.value = true
+  const progressId = toast.loading('生成 PDF 中...')
+
+  try {
+    // dynamic import to keep initial load light
+    const [{ default: html2canvas }, { jsPDF: JsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+
+    const canvases: HTMLCanvasElement[] = []
+    for (let i = 0; i < pages.length; i++) {
+      toast.loading(`渲染页面 ${i + 1} / ${pages.length}`, { id: progressId })
+      const canvas = await html2canvas(pages[i]!, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+      canvases.push(canvas)
+    }
+
+    toast.loading('生成 PDF...', { id: progressId })
+    const orientation = width > height ? 'landscape' : 'portrait'
+    const pdf = new JsPDF({ orientation, unit: 'mm', format: [width, height] })
+    for (let i = 0; i < canvases.length; i++) {
+      if (i > 0)
+        pdf.addPage([width, height], orientation)
+      pdf.addImage(canvases[i]!.toDataURL('image/png'), 'PNG', 0, 0, width, height)
+    }
+    const pdfBlob = pdf.output('blob')
+
+    toast.loading('发送打印任务...', { id: progressId })
+    const jobId = await printerHost.printPdf(pdfBlob, {
+      printerName,
+      copies: printerHost.config.copies || 1,
+      paperSize: { width, height, unit: 'mm' },
+    })
+
+    toast.loading(`打印任务已提交 (${jobId.slice(0, 8)})`, { id: progressId })
+    await printerHost.waitForJob(jobId)
+
+    toast.dismiss(progressId)
+    toast.success(pages.length > 1 ? `已完成打印 (${pages.length} 页)` : '已发送到打印机')
+  }
+  catch (err) {
+    toast.dismiss(progressId)
+    toast.error(`打印失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  finally {
+    isPrinting.value = false
+  }
+}
+
 function openPrinterSettings() {
   showPrinterSettings.value = true
+}
+
+function openPrinterHostSettings() {
+  showPrinterHostSettings.value = true
 }
 
 async function handleExport() {
@@ -387,9 +502,15 @@ async function handleExport() {
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印
             </DropdownMenuItem>
+            <DropdownMenuItem :disabled="isPrinting" @click="handlePrinterHostPrint">
+              Printer.Host 打印
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @click="openPrinterSettings">
               打印设置
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="openPrinterHostSettings">
+              Printer.Host 设置
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -409,5 +530,10 @@ async function handleExport() {
   <PrinterSettingsModal
     v-if="showPrinterSettings"
     @close="showPrinterSettings = false"
+  />
+
+  <PrinterHostSettingsModal
+    v-if="showPrinterHostSettings"
+    @close="showPrinterHostSettings = false"
   />
 </template>

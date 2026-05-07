@@ -769,6 +769,12 @@ importers:
       clsx:
         specifier: catalog:framework
         version: 2.1.1
+      html2canvas:
+        specifier: ^1.4.1
+        version: 1.4.1
+      jspdf:
+        specifier: ^2.5.2
+        version: 2.5.2
       lucide-vue-next:
         specifier: catalog:framework
         version: 1.0.0(vue@3.5.31(typescript@6.0.2))
@@ -7160,7 +7166,6 @@ snapshots:
     dependencies:
       css-line-break: 2.1.0
       text-segmentation: 1.0.3
-    optional: true
 
   http-errors@2.0.1:
     dependencies:

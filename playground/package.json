@@ -21,6 +21,8 @@
     "@vueuse/core": "catalog:",
     "class-variance-authority": "catalog:framework",
     "clsx": "catalog:framework",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "lucide-vue-next": "catalog:framework",
     "radix-vue": "catalog:framework",
     "reka-ui": "catalog:",
