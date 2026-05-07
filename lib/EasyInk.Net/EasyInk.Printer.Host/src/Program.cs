@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.UI;
@@ -9,20 +10,24 @@ namespace EasyInk.Printer.Host;
 
 static class Program
 {
+    private static Mutex _mutex;
+
     [STAThread]
     static void Main(string[] args)
     {
         bool createdNew;
-        using (var mutex = new Mutex(true, "EasyInk.Printer.Host.SingleInstance", out createdNew))
-        {
-            if (!createdNew)
-            {
-                MessageBox.Show("EasyInk Printer Host 已在运行中。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+        _mutex = new Mutex(true, "EasyInk.Printer.Host.SingleInstance", out createdNew);
 
-            Run();
+        if (!createdNew)
+        {
+            MessageBox.Show("EasyInk Printer Host 已在运行中。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
         }
+
+        Run();
+
+        _mutex.ReleaseMutex();
+        _mutex.Dispose();
     }
 
     private static void Run()
@@ -47,6 +52,19 @@ static class Program
 
         var trayIcon = new TrayIcon(httpServer);
         var mainWindow = new MainWindow(httpServer, wsHandler, printerApi, config);
+
+        mainWindow.OnRestart += () =>
+        {
+            httpServer.Stop();
+            printerApi.Dispose();
+            trayIcon.Dispose();
+
+            _mutex.ReleaseMutex();
+            _mutex.Dispose();
+
+            Process.Start(Application.ExecutablePath);
+            Application.Exit();
+        };
 
         trayIcon.OnShowMainWindow += () =>
         {

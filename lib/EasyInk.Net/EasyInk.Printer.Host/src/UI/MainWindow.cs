@@ -18,6 +18,8 @@ public class MainWindow : Form
     private readonly HostConfig _config;
     private TabControl _tabs;
 
+    public event Action OnRestart;
+
     public MainWindow(HttpServer server, WebSocketHandler wsHandler, PrinterApi api, HostConfig config)
     {
         _server = server;
@@ -502,7 +504,21 @@ public class MainWindow : Form
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
             _config.Save();
-            MessageBox.Show("设置已保存，部分设置需要重启服务后生效。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            var result = MessageBox.Show(
+                "设置已保存，是否立即重启程序使配置生效？",
+                "确认",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                OnRestart?.Invoke();
+            }
+            else
+            {
+                MessageBox.Show("部分设置将在下次启动程序后生效。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         };
 
         panel.Controls.Add(btnSave);
