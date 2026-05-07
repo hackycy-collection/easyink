@@ -148,13 +148,15 @@ public class PrinterService : IPrinterService
             }
             catch (ManagementException)
             {
+                // 虚拟打印机（如 Microsoft Print to PDF、WPS PDF）不支持 WMI 状态查询，
+                // 但 PrinterSettings.IsValid 已确认打印机可用，视为就绪。
                 return new PrinterStatus
                 {
-                    IsReady = false,
-                    StatusCode = "STATUS_UNKNOWN",
-                    Message = "无法获取打印机状态详情（WMI查询无结果）",
-                    IsOnline = false,
-                    HasPaper = false,
+                    IsReady = true,
+                    StatusCode = "READY",
+                    Message = "打印机就绪（WMI 状态不可用）",
+                    IsOnline = true,
+                    HasPaper = true,
                     IsPaperJam = false,
                     PrinterState = "Unknown"
                 };
