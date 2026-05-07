@@ -35,12 +35,16 @@ public class PrintJobQueue : IDisposable
     public string Enqueue(string requestId, PrintRequestParams request)
     {
         var jobId = requestId ?? Guid.NewGuid().ToString();
-        _jobs[jobId] = new PrintJob
+        var job = new PrintJob
         {
             JobId = jobId,
             PrinterName = request.PrinterName,
             Status = "queued"
         };
+        lock (_jobLock)
+        {
+            _jobs[jobId] = job;
+        }
         if (!_queue.TryAdd((jobId, request), TimeSpan.FromSeconds(5)))
         {
             _jobs.TryRemove(jobId, out _);

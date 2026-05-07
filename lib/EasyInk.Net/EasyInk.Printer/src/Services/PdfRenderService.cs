@@ -14,17 +14,25 @@ public class PdfRenderService : IPdfRenderService
         var pdfBytes = Convert.FromBase64String(pdfBase64);
         var images = new List<Image>();
 
-        using (var stream = new MemoryStream(pdfBytes))
-        using (var document = PdfDocument.Load(stream))
+        try
         {
-            for (int i = 0; i < document.PageCount; i++)
+            using (var stream = new MemoryStream(pdfBytes))
+            using (var document = PdfDocument.Load(stream))
             {
-                var image = document.Render(i, dpi, dpi, true);
-                images.Add(image);
+                for (int i = 0; i < document.PageCount; i++)
+                {
+                    var image = document.Render(i, dpi, dpi, true);
+                    images.Add(image);
+                }
             }
-        }
 
-        return images;
+            return images;
+        }
+        catch
+        {
+            DisposeImages(images);
+            throw;
+        }
     }
 
     public void DisposeImages(List<Image> images)

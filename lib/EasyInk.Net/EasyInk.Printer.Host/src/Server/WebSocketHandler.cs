@@ -12,6 +12,7 @@ namespace EasyInk.Printer.Host.Server;
 public class WebSocketHandler
 {
     private readonly ConcurrentDictionary<string, WebSocket> _connections = new();
+    private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
 
     public int ConnectionCount => _connections.Count;
 
@@ -55,20 +56,28 @@ public class WebSocketHandler
 
     public async Task Broadcast(string message)
     {
-        var bytes = Encoding.UTF8.GetBytes(message);
-        var segment = new ArraySegment<byte>(bytes);
-
-        foreach (var kvp in _connections)
+        await _broadcastLock.WaitAsync();
+        try
         {
-            try
+            var bytes = Encoding.UTF8.GetBytes(message);
+            var segment = new ArraySegment<byte>(bytes);
+
+            foreach (var kvp in _connections)
             {
-                if (kvp.Value.State == WebSocketState.Open)
-                    await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                try
+                {
+                    if (kvp.Value.State == WebSocketState.Open)
+                        await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+                catch
+                {
+                    _connections.TryRemove(kvp.Key, out _);
+                }
             }
-            catch
-            {
-                _connections.TryRemove(kvp.Key, out _);
-            }
+        }
+        finally
+        {
+            _broadcastLock.Release();
         }
     }
 }
