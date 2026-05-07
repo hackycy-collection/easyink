@@ -39,7 +39,7 @@ static class Program
         var printerApi = new PrinterApi(config.DbPath);
         var httpServer = new HttpServer(config.HttpPort);
         var wsHandler = new WebSocketHandler();
-        var router = new Router(printerApi, wsHandler);
+        var router = new Router(printerApi, wsHandler, config);
 
         httpServer.OnRequest = context =>
         {

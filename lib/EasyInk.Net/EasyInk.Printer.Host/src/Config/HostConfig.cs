@@ -10,6 +10,7 @@ public class HostConfig
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
     public string DbPath { get; set; }
+    public bool TrustAllOrigins { get; set; } = true;
 
     private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

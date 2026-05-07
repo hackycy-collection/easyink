@@ -7,12 +7,13 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Printer;
 using EasyInk.Printer.Host.Api;
+using EasyInk.Printer.Host.Config;
 
 namespace EasyInk.Printer.Host.Server;
 
 public class Router
 {
-    private const long MaxRequestBodyBytes = 50 * 1024 * 1024; // 50MB
+    private const long MaxRequestBodyBytes = 10 * 1024 * 1024; // 10MB
 
     private readonly PrinterController _printerController;
     private readonly PrintController _printController;
@@ -20,13 +21,14 @@ public class Router
     private readonly LogController _logController;
     private readonly StatusController _statusController;
     private readonly WebSocketHandler _wsHandler;
+    private readonly bool _trustAllOrigins;
 
     private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
     {
         ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
     };
 
-    public Router(PrinterApi printerApi, WebSocketHandler wsHandler)
+    public Router(PrinterApi printerApi, WebSocketHandler wsHandler, HostConfig config)
     {
         _printerController = new PrinterController(printerApi);
         _printController = new PrintController(printerApi);
@@ -34,6 +36,7 @@ public class Router
         _logController = new LogController(printerApi);
         _statusController = new StatusController();
         _wsHandler = wsHandler;
+        _trustAllOrigins = config.TrustAllOrigins;
     }
 
     public async Task HandleRequest(HttpListenerContext context)
@@ -41,7 +44,16 @@ public class Router
         var request = context.Request;
         var response = context.Response;
 
-        response.Headers.Add("Access-Control-Allow-Origin", "*");
+        if (_trustAllOrigins)
+        {
+            response.Headers.Add("Access-Control-Allow-Origin", "*");
+        }
+        else
+        {
+            var origin = request.Headers["Origin"];
+            if (!string.IsNullOrEmpty(origin))
+                response.Headers.Add("Access-Control-Allow-Origin", origin);
+        }
         response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
 

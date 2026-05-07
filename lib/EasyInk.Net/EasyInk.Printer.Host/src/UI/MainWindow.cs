@@ -513,6 +513,25 @@ public class MainWindow : Form
         };
         grpDisplay.Controls.Add(chkMinimizeToTray);
 
+        // 安全设置组
+        var grpSecurity = new GroupBox
+        {
+            Text = "安全设置",
+            Dock = DockStyle.Top,
+            Height = 68,
+            Padding = new Padding(12, 8, 12, 12)
+        };
+
+        var chkTrustAllOrigins = new CheckBox
+        {
+            Text = "信任所有来源请求（关闭后仅允许本机页面调用）",
+            Dock = DockStyle.Top,
+            Height = 28,
+            Checked = _config.TrustAllOrigins,
+            Padding = new Padding(4, 2, 4, 2)
+        };
+        grpSecurity.Controls.Add(chkTrustAllOrigins);
+
         // 路径信息组
         var grpPath = new GroupBox
         {
@@ -558,6 +577,7 @@ public class MainWindow : Form
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
+            _config.TrustAllOrigins = chkTrustAllOrigins.Checked;
             _config.Save();
 
             var result = MessageBox.Show(
@@ -578,6 +598,7 @@ public class MainWindow : Form
 
         panel.Controls.Add(btnSave);
         panel.Controls.Add(grpPath);
+        panel.Controls.Add(grpSecurity);
         panel.Controls.Add(grpDisplay);
         panel.Controls.Add(grpBasic);
         tab.Controls.Add(panel);

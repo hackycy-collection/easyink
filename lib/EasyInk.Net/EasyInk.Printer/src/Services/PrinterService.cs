@@ -94,92 +94,99 @@ public class PrinterService : IPrinterService
             };
         }
 
-        var escapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
-        using (var searcher = new ManagementObjectSearcher(
-            $"SELECT * FROM Win32_Printer WHERE Name = '{escapedName}'"))
+        // 通过对象路径精确获取，避免 WQL 字符串拼接注入风险
+        var wmiEscapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
+        var printerPath = new ManagementPath($"Win32_Printer.Name='{wmiEscapedName}'");
+        ManagementObject printer = null;
+        try
         {
-            foreach (ManagementObject printer in searcher.Get())
+            printer = new ManagementObject(printerPath);
+            printer.Get();
+        }
+        catch (ManagementException)
+        {
+            return new PrinterStatus
             {
-                using (printer)
-                {
-                    // PrinterStatus: 1=Other, 2=Unknown, 3=Idle, 4=Printing, 5=Warmup, 6=Stopped, 7=Offline
-                    var printerStatus = GetUInt32(printer, "PrinterStatus");
-                    // PrinterState: 0=Idle, 1=Printing, 2=Warmup, 3=Stopped, 4=Offline,
-                    //               5=Error(ready), 6=Busy, 7=Not_Available, 8=Waiting,
-                    //               9=Processing, 10=Initialization, 11=Power_Save, 12=Pending_Deletion, 13=Paper_Jam
-                    var printerState = GetUInt32(printer, "PrinterState");
-                    var isOffline = GetBool(printer, "WorkOffline");
-                    var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
-                    var paperJam = printerState == 13;
-
-                    var isReady = !isOffline && printerStatus == 3;
-
-                    string statusCode;
-                    string message;
-                    string stateDesc;
-
-                    if (isOffline)
-                    {
-                        statusCode = "PRINTER_OFFLINE";
-                        message = "打印机离线";
-                        stateDesc = "Offline";
-                    }
-                    else if (paperJam)
-                    {
-                        statusCode = "PAPER_JAM";
-                        message = "打印机卡纸";
-                        stateDesc = "PaperJam";
-                    }
-                    else if (paperOut)
-                    {
-                        statusCode = "PAPER_OUT";
-                        message = "打印机缺纸";
-                        stateDesc = "PaperOut";
-                    }
-                    else if (printerStatus == 6)
-                    {
-                        statusCode = "PRINTER_STOPPED";
-                        message = "打印机已停止";
-                        stateDesc = "Stopped";
-                    }
-                    else if (printerStatus == 3 || printerStatus == 4)
-                    {
-                        statusCode = "READY";
-                        message = printerStatus == 4 ? "打印中" : "打印机就绪";
-                        stateDesc = printerStatus == 4 ? "Printing" : "Idle";
-                    }
-                    else
-                    {
-                        statusCode = "PRINTER_ERROR";
-                        message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})";
-                        stateDesc = $"Unknown({printerStatus})";
-                    }
-
-                    return new PrinterStatus
-                    {
-                        IsReady = isReady,
-                        StatusCode = statusCode,
-                        Message = message,
-                        IsOnline = !isOffline,
-                        HasPaper = !paperOut,
-                        IsPaperJam = paperJam,
-                        PrinterState = stateDesc
-                    };
-                }
-            }
+                IsReady = false,
+                StatusCode = "STATUS_UNKNOWN",
+                Message = "无法获取打印机状态详情（WMI查询无结果）",
+                IsOnline = false,
+                HasPaper = false,
+                IsPaperJam = false,
+                PrinterState = "Unknown"
+            };
         }
 
-        // WMI 查询无结果，无法确认真实状态
-        return new PrinterStatus
+        try
         {
-            IsReady = false,
-            StatusCode = "STATUS_UNKNOWN",
-            Message = "无法获取打印机状态详情（WMI查询无结果）",
-            IsOnline = false,
-            HasPaper = false,
-            IsPaperJam = false,
-            PrinterState = "Unknown"
-        };
+            // PrinterStatus: 1=Other, 2=Unknown, 3=Idle, 4=Printing, 5=Warmup, 6=Stopped, 7=Offline
+            var printerStatus = GetUInt32(printer, "PrinterStatus");
+            // PrinterState: 0=Idle, 1=Printing, 2=Warmup, 3=Stopped, 4=Offline,
+            //               5=Error(ready), 6=Busy, 7=Not_Available, 8=Waiting,
+            //               9=Processing, 10=Initialization, 11=Power_Save, 12=Pending_Deletion, 13=Paper_Jam
+            var printerState = GetUInt32(printer, "PrinterState");
+            var isOffline = GetBool(printer, "WorkOffline");
+            var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
+            var paperJam = printerState == 13;
+
+            var isReady = !isOffline && printerStatus == 3;
+
+            string statusCode;
+            string message;
+            string stateDesc;
+
+            if (isOffline)
+            {
+                statusCode = "PRINTER_OFFLINE";
+                message = "打印机离线";
+                stateDesc = "Offline";
+            }
+            else if (paperJam)
+            {
+                statusCode = "PAPER_JAM";
+                message = "打印机卡纸";
+                stateDesc = "PaperJam";
+            }
+            else if (paperOut)
+            {
+                statusCode = "PAPER_OUT";
+                message = "打印机缺纸";
+                stateDesc = "PaperOut";
+            }
+            else if (printerStatus == 6)
+            {
+                statusCode = "PRINTER_STOPPED";
+                message = "打印机已停止";
+                stateDesc = "Stopped";
+            }
+            else if (printerStatus == 3 || printerStatus == 4)
+            {
+                statusCode = "READY";
+                message = printerStatus == 4 ? "打印中" : "打印机就绪";
+                stateDesc = printerStatus == 4 ? "Printing" : "Idle";
+            }
+            else
+            {
+                statusCode = "PRINTER_ERROR";
+                message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})";
+                stateDesc = $"Unknown({printerStatus})";
+            }
+
+            return new PrinterStatus
+            {
+                IsReady = isReady,
+                StatusCode = statusCode,
+                Message = message,
+                IsOnline = !isOffline,
+                HasPaper = !paperOut,
+                IsPaperJam = paperJam,
+                PrinterState = stateDesc
+            };
+        }
+        finally
+        {
+            printer.Dispose();
+        }
     }
 
     private static uint GetUInt32(ManagementObject obj, string property)
