@@ -101,19 +101,19 @@ function wsUrl(): string {
   return url.toString()
 }
 
-function buildBinaryFrame(command: string, id: string, params: Record<string, unknown> | undefined, pdfBytes: ArrayBuffer): ArrayBuffer {
-  const metadata = JSON.stringify({ command, id, params })
-  const metaBytes = new TextEncoder().encode(metadata)
-  const header = new ArrayBuffer(4)
-  new DataView(header).setUint32(0, metaBytes.byteLength, false) // big-endian
-  const frame = new Uint8Array(4 + metaBytes.byteLength + pdfBytes.byteLength)
-  frame.set(new Uint8Array(header), 0)
-  frame.set(metaBytes, 4)
-  frame.set(new Uint8Array(pdfBytes), 4 + metaBytes.byteLength)
-  return frame.buffer
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      resolve(dataUrl.substring(dataUrl.indexOf(',') + 1))
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
 }
 
-function sendBinary(command: string, params: Record<string, unknown> | undefined, pdfBytes: ArrayBuffer): Promise<any> {
+function sendCommand(command: string, params?: Record<string, unknown>): Promise<any> {
   return new Promise((resolve, reject) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       reject(new Error('WebSocket 未连接'))
@@ -125,8 +125,7 @@ function sendBinary(command: string, params: Record<string, unknown> | undefined
       reject(new Error(`请求超时: ${command}`))
     }, RESPONSE_TIMEOUT_MS)
     pendingRequests.set(id, { resolve, reject, timer })
-    const frame = buildBinaryFrame(command, id, params, pdfBytes)
-    ws.send(frame)
+    ws.send(JSON.stringify({ command, id, params }))
   })
 }
 
@@ -316,12 +315,13 @@ async function printPdf(
   pdfBlob: Blob,
   opts: { printerName: string, copies: number, paperSize: PaperSizeParams },
 ): Promise<string> {
-  const pdfBytes = await pdfBlob.arrayBuffer()
-  const data = await sendBinary('printAsync', {
+  const pdfBase64 = await blobToBase64(pdfBlob)
+  const data = await sendCommand('printAsync', {
     printerName: opts.printerName,
     copies: opts.copies,
     paperSize: opts.paperSize,
-  }, pdfBytes)
+    pdfBase64,
+  })
   const jobId: string = data?.jobId ?? ''
   if (jobId) {
     jobs.set(jobId, {
