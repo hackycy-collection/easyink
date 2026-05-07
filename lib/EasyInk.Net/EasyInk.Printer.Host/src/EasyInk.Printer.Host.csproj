@@ -8,6 +8,12 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>EasyInk Printer Host</Product>
+    <Company>EasyInk</Company>
+    <Description>EasyInk 打印服务宿主程序</Description>
   </PropertyGroup>
 
   <ItemGroup>
