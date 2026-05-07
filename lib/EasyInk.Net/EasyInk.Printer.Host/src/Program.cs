@@ -87,6 +87,7 @@ static class Program
         trayIcon.OnShowMainWindow += () =>
         {
             mainWindow.Show();
+            mainWindow.ShowInTaskbar = true;
             mainWindow.WindowState = FormWindowState.Normal;
             mainWindow.BringToFront();
         };
@@ -124,8 +125,11 @@ static class Program
         else
             trayIcon.UpdateStatus("异常 - 启动失败");
 
-        mainWindow.WindowState = FormWindowState.Minimized;
-        mainWindow.ShowInTaskbar = false;
+        if (config.StartMinimized)
+        {
+            mainWindow.WindowState = FormWindowState.Minimized;
+            mainWindow.ShowInTaskbar = false;
+        }
         mainWindow.FormClosing += (s, e) =>
         {
             if (e.CloseReason != CloseReason.UserClosing) return;

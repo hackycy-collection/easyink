@@ -606,7 +606,7 @@ public class MainWindow : Form
         {
             Text = "显示设置",
             Dock = DockStyle.Top,
-            Height = 68,
+            Height = 96,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -618,6 +618,16 @@ public class MainWindow : Form
             Checked = _config.MinimizeToTray,
             Padding = new Padding(4, 2, 4, 2)
         };
+
+        var chkStartMinimized = new CheckBox
+        {
+            Text = "启动时最小化到托盘（不显示主窗口）",
+            Dock = DockStyle.Top,
+            Height = 28,
+            Checked = _config.StartMinimized,
+            Padding = new Padding(4, 2, 4, 2)
+        };
+        grpDisplay.Controls.Add(chkStartMinimized);
         grpDisplay.Controls.Add(chkMinimizeToTray);
 
         // 安全设置组
@@ -732,6 +742,7 @@ public class MainWindow : Form
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
+            _config.StartMinimized = chkStartMinimized.Checked;
             _config.TrustAllOrigins = chkTrustAllOrigins.Checked;
             var apiKeyValue = (txtApiKey.ForeColor == SystemColors.GrayText || string.IsNullOrWhiteSpace(txtApiKey.Text))
                 ? null : txtApiKey.Text.Trim();

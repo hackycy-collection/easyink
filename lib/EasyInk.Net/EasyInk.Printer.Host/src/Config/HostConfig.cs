@@ -11,6 +11,7 @@ public class HostConfig
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
+    public bool StartMinimized { get; set; } = true;
     public string DbPath { get; set; }
     public bool TrustAllOrigins { get; set; } = false;
     public string ApiKey { get; set; }
