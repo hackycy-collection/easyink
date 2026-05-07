@@ -1,6 +1,6 @@
-# EasyInk.Printer.Host 技术架构文档
+# EasyInk.Printer.Host
 
-## 一、项目概述
+## 概述
 
 EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows 桌面应用形式运行，提供以下能力：
 
@@ -8,13 +8,15 @@ EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows
 - **系统托盘**：后台静默运行，不占用任务栏
 - **桌面管理窗口**：查看打印机状态、打印队列、审计日志、服务配置
 
-### 1.1 设计目标
+### 设计目标
 
 - 浏览器通过 HTTP/WebSocket 调用本地打印能力，无需 Electron
 - 兼容 Windows 7 SP1（.NET Framework 4.8）
 - 零配置启动，开箱即用
 
-### 1.2 与 DLL 插件的关系
+## 架构原理
+
+### 与 DLL 插件的关系
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -38,7 +40,7 @@ EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows
 └──────────────────────────────────────────────────────────┘
 ```
 
-## 二、技术栈
+### 技术栈
 
 | 层 | 技术 | 说明 |
 |---|------|------|
@@ -49,7 +51,7 @@ EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows
 | JSON | Newtonsoft.Json | 与 DLL 插件一致 |
 | 日志 | NLog 或 log4net | 文件日志 |
 
-## 三、项目结构
+## 项目结构
 
 ```
 EasyInk.Printer.Host/
@@ -80,14 +82,12 @@ EasyInk.Printer.Host/
 │   │   └── HostConfig.cs            # 配置模型与持久化
 │   └── Plugin/
 │       └── PluginBridge.cs          # DLL 插件包装层
-├── docs/
-│   └── architecture.md
 └── tests/
 ```
 
-## 四、HTTP API 设计
+## HTTP API 设计
 
-### 4.1 基础约定
+### 基础约定
 
 - 基地址：`http://localhost:{port}/api/`
 - Content-Type：`application/json`
@@ -102,7 +102,7 @@ EasyInk.Printer.Host/
 }
 ```
 
-### 4.2 接口列表
+### 接口列表
 
 #### 打印机
 
@@ -141,7 +141,7 @@ EasyInk.Printer.Host/
 | GET | `/api/config` | 获取配置 |
 | PUT | `/api/config` | 更新配置 |
 
-### 4.3 WebSocket
+### WebSocket
 
 - 地址：`ws://localhost:{port}/ws`
 - 用途：实时推送打印任务状态变更
@@ -166,9 +166,9 @@ EasyInk.Printer.Host/
 }
 ```
 
-## 五、UI 设计
+## UI 设计
 
-### 5.1 系统托盘
+### 系统托盘
 
 ```
 ┌─────────────────────────┐
@@ -188,7 +188,7 @@ EasyInk.Printer.Host/
 - 双击托盘图标打开主窗口
 - 右键菜单：显示窗口 / 重启服务 / 退出
 
-### 5.2 主窗口（Tab 布局）
+### 主窗口（Tab 布局）
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -235,9 +235,9 @@ EasyInk.Printer.Host/
 - 日志级别
 - 数据库路径
 
-## 六、核心流程
+## 核心流程
 
-### 6.1 浏览器打印流程
+### 浏览器打印流程
 
 ```
 浏览器                Host                   DLL 插件
@@ -258,7 +258,7 @@ EasyInk.Printer.Host/
   │<───────────────────│                       │
 ```
 
-### 6.2 WebSocket 实时推送流程
+### WebSocket 实时推送流程
 
 ```
 浏览器                Host                   DLL 插件
@@ -278,7 +278,7 @@ EasyInk.Printer.Host/
   │<═══════════════════│                       │
 ```
 
-## 七、配置模型
+## 配置模型
 
 ```json
 {
@@ -293,20 +293,20 @@ EasyInk.Printer.Host/
 
 配置文件路径：`%APPDATA%/EasyInk.Printer.Host/config.json`
 
-## 八、单实例保证
+## 单实例保证
 
 程序启动时通过 `Mutex` 检测是否已有实例运行，避免端口冲突。
 
-## 九、构建与部署
+## 构建与部署
 
-### 9.1 构建
+### 构建
 
 ```bash
 cd lib/EasyInk.Net
 dotnet build EasyInk.Printer.Host/src
 ```
 
-### 9.2 发布产物
+### 发布产物
 
 ```
 publish/
@@ -319,20 +319,15 @@ publish/
 └── ...
 ```
 
-### 9.3 部署要求
+### 部署要求
 
 - Windows 7 SP1 及以上
 - .NET Framework 4.8 运行时
 - 无需额外安装，复制即用
 
-## 十、后续扩展
+## 后续扩展
 
 - 打印模板管理
 - 多机打印负载均衡
 - 打印权限控制（Token 认证）
 - 自动更新机制
-
----
-
-**文档版本**：v1.0
-**创建日期**：2026-05-06

@@ -1,6 +1,6 @@
-# EasyInk.Printer 架构文档
+# EasyInk.Printer
 
-## 一、项目概述
+## 概述
 
 EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管理、PDF 渲染打印、任务队列、审计日志等能力。
 
@@ -8,7 +8,42 @@ EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管
 - **EasyInk.Printer.Host** — 本地 HTTP/WebSocket 服务 + 桌面管理界面（推荐）
 - **Electron** — 通过 edge-js 调用（兼容方案）
 
-## 二、目录结构
+## 架构原理
+
+### 整体架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   调用方（Host / Electron）                   │
+│                                                             │
+│  EasyInk.Printer.Host           或        edge-js           │
+│  (HTTP/WS 服务)                             (Node.js)       │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      PrinterApi                              │
+│                    (公共 API 入口)                            │
+├─────────────┬─────────────┬─────────────┬───────────────────┤
+│ Printer     │ Print       │ PdfRender   │ Audit             │
+│ Service     │ Service     │ Service     │ Service           │
+│ (WMI)       │ (PrintDoc)  │ (PDFium)    │ (SQLite)          │
+├─────────────┴─────────────┼─────────────┴───────────────────┤
+│                     PrintJobQueue                            │
+│                   (异步任务队列)                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 技术栈
+
+- **运行时**：.NET Framework 4.8（兼容 Windows 7 SP1 及以上）
+- **打印 API**：`System.Drawing.Printing` + `PrintDocument`
+- **PDF 渲染**：PDFium（通过 PdfiumViewer）
+- **打印机状态**：WMI（`Win32_Printer`）
+- **数据库**：SQLite + Dapper
+- **JSON 序列化**：Newtonsoft.Json（camelCase）
+
+## 目录结构
 
 ```
 EasyInk.Printer/
@@ -43,51 +78,14 @@ EasyInk.Printer/
 │       ├── PdfRenderService.cs   # PDF 渲染
 │       ├── AuditService.cs       # 审计日志（SQLite）
 │       └── PrintJobQueue.cs      # 异步任务队列
-├── tests/
-│   ├── EasyInk.Printer.Tests.csproj
-│   └── Program.cs
-└── docs/
-    └── architecture.md
+└── tests/
+    ├── EasyInk.Printer.Tests.csproj
+    └── Program.cs
 ```
 
-## 三、技术架构
+## 公共 API
 
-### 3.1 整体架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   调用方（Host / Electron）                   │
-│                                                             │
-│  EasyInk.Printer.Host           或        edge-js           │
-│  (HTTP/WS 服务)                             (Node.js)       │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      PrinterApi                              │
-│                    (公共 API 入口)                            │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│ Printer     │ Print       │ PdfRender   │ Audit             │
-│ Service     │ Service     │ Service     │ Service           │
-│ (WMI)       │ (PrintDoc)  │ (PDFium)    │ (SQLite)          │
-├─────────────┴─────────────┼─────────────┴───────────────────┤
-│                     PrintJobQueue                            │
-│                   (异步任务队列)                               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 3.2 技术栈
-
-- **运行时**：.NET Framework 4.8（兼容 Windows 7 SP1 及以上）
-- **打印 API**：`System.Drawing.Printing` + `PrintDocument`
-- **PDF 渲染**：PDFium（通过 PdfiumViewer）
-- **打印机状态**：WMI（`Win32_Printer`）
-- **数据库**：SQLite + Dapper
-- **JSON 序列化**：Newtonsoft.Json（camelCase）
-
-## 四、公共 API
-
-### 4.1 PrinterApi 类
+### PrinterApi 类
 
 ```csharp
 public class PrinterApi : IDisposable
@@ -122,7 +120,7 @@ public class PrinterApi : IDisposable
 }
 ```
 
-### 4.2 命令格式
+### 命令格式
 
 所有方法返回 JSON，格式统一为 `PrinterResult`：
 
@@ -141,11 +139,13 @@ public class PrinterApi : IDisposable
 {
   "command": "print",
   "id": "uuid",
-  "params": { ... }
+  "params": {
+    // ...
+  }
 }
 ```
 
-## 五、数据库设计
+## 数据库设计
 
 ### PrintAuditLog 表
 
@@ -168,7 +168,7 @@ CREATE TABLE PrintAuditLog (
 );
 ```
 
-## 六、错误码
+## 错误码
 
 | 错误码 | 说明 |
 |--------|------|
@@ -184,7 +184,7 @@ CREATE TABLE PrintAuditLog (
 | `UNKNOWN_COMMAND` | 未知命令 |
 | `JOB_NOT_FOUND` | 任务不存在 |
 
-## 七、构建与部署
+## 构建与部署
 
 ```bash
 # 构建
@@ -196,9 +196,3 @@ dotnet publish EasyInk.Printer/src -c Release
 # 运行测试
 dotnet run --project EasyInk.Printer/tests
 ```
-
----
-
-**文档版本**：v2.0
-**更新日期**：2026-05-06
-**更新内容**：命名优化（PrinterCommand/PrinterResult/PrintJob），模型文件拆分为一个文件一个类
