@@ -748,21 +748,6 @@ importers:
 
   playground:
     dependencies:
-      '@codemirror/commands':
-        specifier: catalog:framework
-        version: 6.10.3
-      '@codemirror/lang-javascript':
-        specifier: catalog:framework
-        version: 6.2.5
-      '@codemirror/language':
-        specifier: catalog:framework
-        version: 6.12.3
-      '@codemirror/state':
-        specifier: catalog:framework
-        version: 6.6.0
-      '@codemirror/view':
-        specifier: catalog:framework
-        version: 6.41.1
       '@easyink/ai':
         specifier: workspace:*
         version: link:../packages/ai

@@ -7,11 +7,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@codemirror/commands": "catalog:framework",
-    "@codemirror/lang-javascript": "catalog:framework",
-    "@codemirror/language": "catalog:framework",
-    "@codemirror/state": "catalog:framework",
-    "@codemirror/view": "catalog:framework",
     "@easyink/ai": "workspace:*",
     "@easyink/designer": "workspace:*",
     "@easyink/export-adapter-dom-pdf": "workspace:*",
