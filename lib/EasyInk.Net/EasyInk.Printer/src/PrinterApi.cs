@@ -18,7 +18,6 @@ public class PrinterApi : IDisposable
     private readonly IPrinterService _printerService;
     private readonly IPrintService _printService;
     private readonly IAuditService _auditService;
-    private readonly IPdfRenderService _pdfRenderService;
     private readonly PrintJobQueue _jobQueue;
 
     private static readonly JsonSerializerSettings _jsonSettings = new()
@@ -28,10 +27,10 @@ public class PrinterApi : IDisposable
     };
 
     /// <summary>
-    /// 初始化打印 API（使用默认服务实现）
+    /// 初始化打印 API（使用默认服务实现，SumatraPDF 直接打印）
     /// </summary>
-    public PrinterApi(string dbPath = null)
-        : this(null, null, null, null, dbPath)
+    public PrinterApi(string dbPath = null, string sumatraPdfExePath = null, string sumatraTempDir = null)
+        : this(null, null, null, dbPath, sumatraPdfExePath, sumatraTempDir)
     {
     }
 
@@ -40,15 +39,16 @@ public class PrinterApi : IDisposable
     /// </summary>
     public PrinterApi(
         IPrinterService printerService = null,
-        IPdfRenderService pdfRenderService = null,
         IAuditService auditService = null,
         IPrintService printService = null,
-        string dbPath = null)
+        string dbPath = null,
+        string sumatraPdfExePath = null,
+        string sumatraTempDir = null)
     {
         _printerService = printerService ?? new PrinterService();
-        _pdfRenderService = pdfRenderService ?? new PdfRenderService();
         _auditService = auditService ?? new AuditService(dbPath);
-        _printService = printService ?? new PrintService(_printerService, _pdfRenderService, _auditService);
+        _printService = printService
+            ?? new SumatraPrintService(_printerService, _auditService, sumatraPdfExePath, sumatraTempDir);
         _jobQueue = new PrintJobQueue(_printService);
     }
 

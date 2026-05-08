@@ -19,17 +19,14 @@ public class PrinterApiTests
     private static PrinterApi CreateApi(
         Mock<IPrinterService> printerService = null,
         Mock<IPrintService> printService = null,
-        Mock<IAuditService> auditService = null,
-        Mock<IPdfRenderService> pdfRenderService = null)
+        Mock<IAuditService> auditService = null)
     {
         printerService ??= new Mock<IPrinterService>();
         printService ??= new Mock<IPrintService>();
         auditService ??= new Mock<IAuditService>();
-        pdfRenderService ??= new Mock<IPdfRenderService>();
 
         return new PrinterApi(
             printerService.Object,
-            pdfRenderService.Object,
             auditService.Object,
             printService.Object);
     }
@@ -230,11 +227,9 @@ public class PrinterApiTests
         var printerService = new Mock<IPrinterService>();
         var printService = new Mock<IPrintService>();
         var auditService = new Mock<IAuditService>();
-        var pdfRenderService = new Mock<IPdfRenderService>();
 
         var api = new PrinterApi(
             printerService.Object,
-            pdfRenderService.Object,
             auditService.Object,
             printService.Object);
         api.Dispose();

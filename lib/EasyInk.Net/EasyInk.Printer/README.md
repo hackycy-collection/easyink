@@ -2,7 +2,7 @@
 
 ## 概述
 
-EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管理、PDF 渲染打印、任务队列、审计日志等能力。
+EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管理、PDF 直接打印、任务队列、审计日志等能力。通过 SumatraPDF 实现 PDF 矢量直通打印，无光栅化质量损失。
 
 可被以下宿主程序调用：
 - **EasyInk.Printer.Host** — 本地 HTTP/WebSocket 服务 + 桌面管理界面（推荐）
@@ -24,31 +24,29 @@ EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管
 ┌─────────────────────────────────────────────────────────────┐
 │                      PrinterApi                              │
 │                    (公共 API 入口)                            │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│ Printer     │ Print       │ PdfRender   │ Audit             │
-│ Service     │ Service     │ Service     │ Service           │
-│ (WMI)       │ (PrintDoc)  │ (PDFium)    │ (SQLite)          │
-├─────────────┴─────────────┼──────┬──────┴───────────────────┤
-│                     PrintJobQueue │                          │
-│                   (异步任务队列)   │                          │
-└──────────────────────────────────┼──────────────────────────┘
-                                   │
-                                   ▼
-                    ┌──────────────────────────┐
-                    │      IPdfProvider        │
-                    │    (PDF 数据源抽象)       │
-                    ├──────────────────────────┤
-                    │ Base64PdfProvider        │
-                    │ UrlPdfProvider           │
-                    │ BlobPdfProvider          │
-                    └──────────────────────────┘
+├─────────────┬─────────────┬─────────────────────────────────┤
+│ Printer     │ SumatraPrint│ Audit                           │
+│ Service     │ Service     │ Service                         │
+│ (WMI)       │ (SumatraPDF)│ (SQLite)                        │
+├─────────────┴──────┬──────┼─────────────────────────────────┤
+│              PrintJobQueue │                                 │
+│            (异步任务队列)   │                                 │
+└────────────────────────────┼────────────────────────────────┘
+                             │
+                    ┌────────▼────────┐
+                    │   IPdfProvider  │
+                    │ (PDF 数据源抽象) │
+                    ├─────────────────┤
+                    │ Base64PdfProvider│
+                    │ UrlPdfProvider   │
+                    │ BlobPdfProvider  │
+                    └─────────────────┘
 ```
 
 ### 技术栈
 
 - **运行时**：.NET Framework 4.8（兼容 Windows 7 SP1 及以上）
-- **打印 API**：`System.Drawing.Printing` + `PrintDocument`
-- **PDF 渲染**：PDFium（通过 PdfiumViewer）
+- **打印引擎**：SumatraPDF.exe（PDF 矢量直通，无光栅化）
 - **打印机状态**：WMI（`Win32_Printer`）
 - **数据库**：SQLite + Dapper
 - **JSON 序列化**：Newtonsoft.Json（camelCase）
@@ -81,7 +79,6 @@ EasyInk.Printer/
 │       ├── Abstractions/         # 接口定义
 │       │   ├── IPrinterService.cs
 │       │   ├── IPrintService.cs
-│       │   ├── IPdfRenderService.cs
 │       │   ├── IPdfProvider.cs   # PDF 数据源抽象
 │       │   └── IAuditService.cs
 │       ├── Providers/            # PDF 数据源实现
@@ -89,8 +86,7 @@ EasyInk.Printer/
 │       │   ├── UrlPdfProvider.cs
 │       │   └── BlobPdfProvider.cs
 │       ├── PrinterService.cs     # 打印机管理（WMI 查询）
-│       ├── PrintService.cs       # 打印执行
-│       ├── PdfRenderService.cs   # PDF 渲染
+│       ├── SumatraPrintService.cs # 打印执行（SumatraPDF 矢量直通）
 │       ├── AuditService.cs       # 审计日志（SQLite）
 │       └── PrintJobQueue.cs      # 异步任务队列
 └── tests/
@@ -106,7 +102,7 @@ EasyInk.Printer/
 public class PrinterApi : IDisposable
 {
     // 构造函数
-    public PrinterApi(string dbPath = null);
+    public PrinterApi(string dbPath = null, string sumatraPdfExePath = null);
 
     // 获取打印机列表（JSON）
     string GetPrinters();
@@ -215,7 +211,9 @@ CREATE TABLE PrintAuditLog (
 | `PRINTER_ERROR` | 打印机错误 |
 | `INVALID_PDF` | PDF 格式无效 |
 | `INVALID_PDF_SOURCE` | PDF 来源无效（未提供或格式错误） |
+| `SUMATRA_NOT_FOUND` | SumatraPDF.exe 不存在 |
 | `PRINT_FAILED` | 打印失败 |
+| `PRINT_TIMEOUT` | 打印超时 |
 | `INVALID_PARAMS` | 参数无效 |
 | `UNKNOWN_COMMAND` | 未知命令 |
 | `JOB_NOT_FOUND` | 任务不存在 |
@@ -230,5 +228,12 @@ dotnet build EasyInk.Printer/src
 dotnet publish EasyInk.Printer/src -c Release
 
 # 运行测试
-dotnet run --project EasyInk.Printer/tests
+dotnet test EasyInk.Printer/tests
+```
+
+打印功能依赖 SumatraPDF.exe，首次使用前需执行（详见 Host 项目 README）：
+
+```bash
+cd EasyInk.Printer.Host
+powershell -File tools/download-sumatra.ps1
 ```

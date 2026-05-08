@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 
@@ -13,8 +14,60 @@ public class HostConfig
     public bool MinimizeToTray { get; set; } = true;
     public bool StartMinimized { get; set; } = true;
     public string DbPath { get; set; }
+    public string SumatraTempDir { get; set; }
     public bool TrustAllOrigins { get; set; } = false;
     public string ApiKey { get; set; }
+
+    public static string DefaultDbPath => Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
+
+    public static string DefaultSumatraTempDir => Path.GetTempPath();
+
+    public static string ResolveDbPath(string dbPath)
+    {
+        return string.IsNullOrWhiteSpace(dbPath) ? DefaultDbPath : dbPath;
+    }
+
+    public static string ResolveSumatraTempDir(string dir)
+    {
+        return string.IsNullOrWhiteSpace(dir) ? DefaultSumatraTempDir : dir;
+    }
+
+    public static bool IsValidFilePath(string path, out string error)
+    {
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            error = "路径不能为空";
+            return false;
+        }
+
+        path = path.Trim();
+
+        try
+        {
+            var invalidChars = Path.GetInvalidPathChars();
+            if (path.IndexOfAny(invalidChars) >= 0)
+            {
+                error = "路径包含非法字符";
+                return false;
+            }
+        }
+        catch
+        {
+            error = "路径格式无效";
+            return false;
+        }
+
+        var root = Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(root) || !Regex.IsMatch(root, @"^[A-Za-z]:\\"))
+        {
+            error = "路径必须包含盘符（如 C:\\）";
+            return false;
+        }
+
+        return true;
+    }
 
     private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

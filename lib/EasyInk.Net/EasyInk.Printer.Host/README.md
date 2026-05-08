@@ -11,7 +11,8 @@ EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows
 ### 设计目标
 
 - 浏览器通过 HTTP/WebSocket 调用本地打印能力，无需 Electron
-- 兼容 Windows 7 SP1（.NET Framework 4.8）
+- 兼容 Windows 7 SP1 及以上（.NET Framework 4.8）
+- PDF 矢量直通打印，无光栅化质量损失
 - 零配置启动，开箱即用
 
 ## 架构原理
@@ -30,13 +31,19 @@ EasyInk.Printer.Host 是 EasyInk.Printer DLL 插件的宿主程序，以 Windows
 │  └─────┬────┘  └─────┬────┘  └───────────┘               │
 │        └──────┬──────┘                                    │
 │         ┌─────▼─────┐                                     │
-│         │ PrinterApi │ ← DLL 插件入口                      │
+│         │ PrinterApi │                                     │
 │         └─────┬─────┘                                     │
 │        ┌──────┼──────┐                                    │
 │  ┌─────▼──┐┌──▼───┐┌─▼──────┐                            │
-│  │Printer ││Print ││Audit   │                            │
-│  │Service ││Service││Service │                            │
-│  └────────┘└──────┘└────────┘                             │
+│  │Printer ││Sumatra││Audit   │                            │
+│  │Service ││Print  ││Service │                            │
+│  │(WMI)   ││Service││(SQLite)│                            │
+│  └────────┘└──┬───┘└────────┘                             │
+│               │  矢量直通                                   │
+│         ┌─────▼─────┐                                     │
+│         │SumatraPDF │                                     │
+│         │  .exe     │                                     │
+│         └───────────┘                                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -331,9 +338,10 @@ Content-Type: application/pdf
   │                    │  PrinterApi.Print()    │
   │                    │──────────────────────>│
   │                    │                       │
-  │                    │  检查打印机状态          │
-  │                    │  渲染 PDF → Image       │
-  │                    │  调用 PrintDocument     │
+  │                    │  检查打印机状态 (WMI)    │
+  │                    │  PDF 写入临时文件        │
+  │                    │  调用 SumatraPDF.exe    │
+  │                    │  (矢量直通，无光栅化)     │
   │                    │  记录审计日志            │
   │                    │                       │
   │                    │  PrinterResult          │
@@ -383,6 +391,17 @@ Content-Type: application/pdf
 
 ## 构建与部署
 
+### 构建前准备
+
+首次构建前需下载 SumatraPDF（PDF 直接打印引擎，约 15MB）：
+
+```bash
+cd lib/EasyInk.Net/EasyInk.Printer.Host
+powershell -File tools/download-sumatra.ps1
+```
+
+脚本会将 `SumatraPDF.exe` 下载到 `src/bin/SumatraPDF/`，构建时自动复制到输出目录。
+
 ### 构建
 
 ```bash
@@ -395,11 +414,11 @@ dotnet build EasyInk.Printer.Host/src
 ```
 publish/
 ├── EasyInk.Printer.Host.exe    # 主程序
+├── SumatraPDF.exe              # PDF 打印引擎（矢量直通）
 ├── EasyInk.Printer.dll         # DLL 插件
 ├── Newtonsoft.Json.dll
 ├── Dapper.dll
 ├── System.Data.SQLite.dll
-├── NLog.dll
 └── ...
 ```
 

@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -697,36 +698,84 @@ public class MainWindow : Form
         securityPanel.Controls.Add(txtApiKey, 1, 1);
         grpSecurity.Controls.Add(securityPanel);
 
-        // 路径信息组
+        // 路径设置组
         var grpPath = new GroupBox
         {
-            Text = "路径信息",
+            Text = "路径设置",
             Dock = DockStyle.Top,
-            Height = 70,
+            Height = 130,
             Padding = new Padding(12, 8, 12, 12)
         };
 
         var pathPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
+            ColumnCount = 3,
+            RowCount = 2,
             Padding = new Padding(4)
         };
-        pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
+        pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         var lblDbPath = new Label { Text = "数据库路径:", Anchor = AnchorStyles.Left, AutoSize = true };
         var txtDbPath = new TextBox
         {
-            Text = _config.DbPath ?? "(默认)",
-            ReadOnly = true,
+            Text = string.IsNullOrWhiteSpace(_config.DbPath) ? HostConfig.DefaultDbPath : _config.DbPath,
             Dock = DockStyle.Fill,
-            BackColor = SystemColors.Window
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+        var btnBrowseDb = new Button
+        {
+            Text = "浏览",
+            Width = 52,
+            Anchor = AnchorStyles.Left
+        };
+        btnBrowseDb.Click += (s, e) =>
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Title = "选择数据库文件位置",
+                Filter = "SQLite 数据库|*.db|所有文件|*.*",
+                FileName = "audit.db",
+                InitialDirectory = Path.GetDirectoryName(txtDbPath.Text)
+            };
+            if (dlg.ShowDialog() == DialogResult.OK)
+                txtDbPath.Text = dlg.FileName;
+        };
+
+        var lblTempDir = new Label { Text = "PDF 临时目录:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var txtTempDir = new TextBox
+        {
+            Text = string.IsNullOrWhiteSpace(_config.SumatraTempDir) ? HostConfig.DefaultSumatraTempDir : _config.SumatraTempDir,
+            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+        var btnBrowseTemp = new Button
+        {
+            Text = "浏览",
+            Width = 52,
+            Anchor = AnchorStyles.Left
+        };
+        btnBrowseTemp.Click += (s, e) =>
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "选择 PDF 临时文件目录",
+                SelectedPath = txtTempDir.Text
+            };
+            if (dlg.ShowDialog() == DialogResult.OK)
+                txtTempDir.Text = dlg.SelectedPath;
         };
 
         pathPanel.Controls.Add(lblDbPath, 0, 0);
         pathPanel.Controls.Add(txtDbPath, 1, 0);
+        pathPanel.Controls.Add(btnBrowseDb, 2, 0);
+        pathPanel.Controls.Add(lblTempDir, 0, 1);
+        pathPanel.Controls.Add(txtTempDir, 1, 1);
+        pathPanel.Controls.Add(btnBrowseTemp, 2, 1);
         grpPath.Controls.Add(pathPanel);
 
         // 保存按钮
@@ -739,6 +788,23 @@ public class MainWindow : Form
         };
         btnSave.Click += (s, e) =>
         {
+            // 路径校验
+            var dbPathValue = txtDbPath.Text.Trim();
+            if (!HostConfig.IsValidFilePath(dbPathValue, out var dbError))
+            {
+                MessageBox.Show($"数据库路径无效: {dbError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtDbPath.Focus();
+                return;
+            }
+
+            var tempDirValue = txtTempDir.Text.Trim();
+            if (!HostConfig.IsValidFilePath(tempDirValue + Path.DirectorySeparatorChar, out var tempError))
+            {
+                MessageBox.Show($"PDF 临时目录无效: {tempError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtTempDir.Focus();
+                return;
+            }
+
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
@@ -747,6 +813,12 @@ public class MainWindow : Form
             var apiKeyValue = (txtApiKey.ForeColor == SystemColors.GrayText || string.IsNullOrWhiteSpace(txtApiKey.Text))
                 ? null : txtApiKey.Text.Trim();
             _config.ApiKey = apiKeyValue;
+
+            _config.DbPath = string.Equals(dbPathValue, HostConfig.DefaultDbPath, StringComparison.OrdinalIgnoreCase)
+                ? null : dbPathValue;
+            _config.SumatraTempDir = string.Equals(tempDirValue, HostConfig.DefaultSumatraTempDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+                ? null : tempDirValue;
+
             try
             {
                 _config.Save();

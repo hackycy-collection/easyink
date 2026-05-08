@@ -43,12 +43,11 @@ static class Program
 
         var config = HostConfig.Load();
 
-        var logDir = config.DbPath != null
-            ? Path.GetDirectoryName(config.DbPath)
-            : Path.Combine(AppContext.BaseDirectory, "data");
+        var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath);
+        var logDir = Path.GetDirectoryName(resolvedDbPath);
         EasyInk.Printer.SimpleLogger.Configure(logDir);
 
-        var printerApi = new PrinterApi(config.DbPath);
+        var printerApi = new PrinterApi(config.DbPath, sumatraTempDir: config.SumatraTempDir);
         var httpServer = new HttpServer(config.HttpPort);
         var wsHandler = new WebSocketHandler();
         var wsCommandHandler = new WebSocketCommandHandler(printerApi, wsHandler);
