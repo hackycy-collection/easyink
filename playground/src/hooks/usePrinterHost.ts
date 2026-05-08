@@ -21,6 +21,12 @@ export interface PaperSizeParams {
   unit: 'mm' | 'inch'
 }
 
+export interface OffsetParams {
+  x: number
+  y: number
+  unit: 'mm' | 'inch'
+}
+
 export interface PrintJobInfo {
   jobId: string
   status: 'queued' | 'printing' | 'completed' | 'failed'
@@ -331,7 +337,7 @@ async function refreshDevices(): Promise<PrinterHostDevice[]> {
 
 async function printPdf(
   pdfBlob: Blob,
-  opts: { printerName: string, copies: number, paperSize: PaperSizeParams },
+  opts: { printerName: string, copies: number, paperSize: PaperSizeParams, landscape?: boolean, offset?: OffsetParams },
 ): Promise<string> {
   if (pdfBlob.size <= 0)
     throw new Error('PDF 内容为空')
@@ -357,6 +363,8 @@ async function printPdf(
     printerName: opts.printerName,
     copies: opts.copies,
     paperSize: opts.paperSize,
+    landscape: opts.landscape,
+    offset: opts.offset,
   })
   const jobId: string = data?.jobId ?? ''
   if (!jobId)

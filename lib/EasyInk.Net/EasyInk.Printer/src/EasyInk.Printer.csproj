@@ -25,4 +25,8 @@
 
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="EasyInk.Printer.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -51,6 +51,14 @@ function toMillimeters(value: number, unit: string): number {
   return value * factor
 }
 
+function resolvePrinterHostOffset(offset: ReturnType<typeof resolvePrintPolicy>['offset']): { x: number, y: number, unit: 'mm' } | undefined {
+  const x = toMillimeters(offset.horizontal, offset.unit)
+  const y = toMillimeters(offset.vertical, offset.unit)
+  if (x === 0 && y === 0)
+    return undefined
+  return { x, y, unit: 'mm' }
+}
+
 // Auto-connect handled inside usePrinter() singleton based on persisted config.
 
 onMounted(async () => {
@@ -434,6 +442,7 @@ async function handlePrinterHostPrint() {
   }
   const width = toMillimeters(printSize.width, printSize.unit)
   const height = toMillimeters(printSize.height, printSize.unit)
+  const landscape = width > height
 
   isPrinting.value = true
   const progressId = toast.loading('生成 PDF 中...')
@@ -453,6 +462,8 @@ async function handlePrinterHostPrint() {
       printerName,
       copies: printerHost.config.copies || 1,
       paperSize: { width, height, unit: 'mm' },
+      landscape,
+      offset: resolvePrinterHostOffset(printPolicy.offset),
     })
 
     toast.loading(`打印任务已提交 (${jobId.slice(0, 8)})`, { id: progressId })

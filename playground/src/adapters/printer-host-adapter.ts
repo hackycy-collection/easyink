@@ -25,6 +25,14 @@ function resolvePrintSize(
   throw new Error('缺少打印页面尺寸')
 }
 
+function resolvePrintOffset(offset: ViewerPrintContext['printPolicy']['offset']): { x: number, y: number, unit: 'mm' } | undefined {
+  const x = toMillimeters(offset.horizontal, offset.unit)
+  const y = toMillimeters(offset.vertical, offset.unit)
+  if (x === 0 && y === 0)
+    return undefined
+  return { x, y, unit: 'mm' }
+}
+
 /**
  * Printer.Host PrintAdapter.
  * Renders viewer pages to PDF,
@@ -61,6 +69,7 @@ export function createPrinterHostAdapter(): PrintAdapter {
       )
       const widthMm = toMillimeters(printSize.width, printSize.unit)
       const heightMm = toMillimeters(printSize.height, printSize.unit)
+      const landscape = widthMm > heightMm
 
       const pdfBlob = await renderPagesToPdfBlob({ pages, widthMm, heightMm })
 
@@ -69,6 +78,8 @@ export function createPrinterHostAdapter(): PrintAdapter {
         printerName: host.printerName.value,
         copies: host.config.copies || 1,
         paperSize: { width: widthMm, height: heightMm, unit: 'mm' },
+        landscape,
+        offset: resolvePrintOffset(context.printPolicy.offset),
       })
 
       // wait for async job to complete

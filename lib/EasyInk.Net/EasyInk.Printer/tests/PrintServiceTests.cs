@@ -226,6 +226,35 @@ public class PrintServiceTests
     }
 
     [Fact]
+    public void ShouldUseLandscape_WidePaperSize_ReturnsTrue()
+    {
+        var paperSize = new PaperSizeParams { Width = 150, Height = 100, Unit = "mm" };
+
+        Assert.True(PrintService.ShouldUseLandscape(paperSize, false));
+    }
+
+    [Fact]
+    public void CreatePrintPaperSize_LandscapeWidePaper_StoresPortraitDimensions()
+    {
+        var paperSize = new PaperSizeParams { Width = 150, Height = 100, Unit = "mm" };
+
+        var result = PrintService.CreatePrintPaperSize(paperSize, true);
+
+        Assert.Equal(paperSize.HeightInHundredthsOfInch, result.Width);
+        Assert.Equal(paperSize.WidthInHundredthsOfInch, result.Height);
+    }
+
+    [Fact]
+    public void CreateDestinationRectangle_UsesPhysicalPageSizeAndOffset()
+    {
+        var pageBounds = new Rectangle(50, 60, 394, 787);
+
+        var result = PrintService.CreateDestinationRectangle(pageBounds, 10, 20);
+
+        Assert.Equal(new Rectangle(10, 20, 394, 787), result);
+    }
+
+    [Fact]
     public void Print_WithOffset_CompletesCleanup()
     {
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
