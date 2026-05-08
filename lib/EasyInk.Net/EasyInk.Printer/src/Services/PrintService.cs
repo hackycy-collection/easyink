@@ -67,15 +67,12 @@ public class PrintService : IPrintService
                 printDoc.OriginAtMargins = false;
                 printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
 
-                var landscape = request.Landscape;
-
                 if (request.PaperSize != null)
                 {
-                    landscape = ShouldUseLandscape(request.PaperSize, request.Landscape);
-                    printDoc.DefaultPageSettings.PaperSize = CreatePrintPaperSize(request.PaperSize, landscape);
+                    printDoc.DefaultPageSettings.PaperSize = CreatePrintPaperSize(request.PaperSize, request.Landscape);
                 }
 
-                printDoc.DefaultPageSettings.Landscape = landscape;
+                printDoc.DefaultPageSettings.Landscape = request.Landscape;
 
                 renderDpi = ResolveRenderDpi(printDoc, request);
                 try
@@ -152,17 +149,6 @@ public class PrintService : IPrintService
             if (images != null)
                 _pdfRenderService.DisposeImages(images);
         }
-    }
-
-    internal static bool ShouldUseLandscape(PaperSizeParams paperSize, bool requestedLandscape)
-    {
-        if (requestedLandscape)
-            return true;
-
-        if (paperSize == null)
-            return false;
-
-        return paperSize.WidthInHundredthsOfInch > paperSize.HeightInHundredthsOfInch;
     }
 
     internal static PaperSize CreatePrintPaperSize(PaperSizeParams paperSize, bool landscape)

@@ -230,11 +230,14 @@ public class PrintServiceTests
     }
 
     [Fact]
-    public void ShouldUseLandscape_WidePaperSize_ReturnsTrue()
+    public void CreatePrintPaperSize_PortraitWidePaper_PreservesDimensions()
     {
         var paperSize = new PaperSizeParams { Width = 150, Height = 100, Unit = "mm" };
 
-        Assert.True(PrintService.ShouldUseLandscape(paperSize, false));
+        var result = PrintService.CreatePrintPaperSize(paperSize, false);
+
+        Assert.Equal(paperSize.WidthInHundredthsOfInch, result.Width);
+        Assert.Equal(paperSize.HeightInHundredthsOfInch, result.Height);
     }
 
     [Fact]
