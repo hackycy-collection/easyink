@@ -357,9 +357,21 @@ public class PrinterApi : IDisposable
         if (request.Params == null || request.Params.Count == 0)
             return null;
 
+        byte[] pdfBytes = null;
+        if (request.Params.TryGetValue("pdfBytes", out var rawPdfBytes))
+        {
+            if (rawPdfBytes is byte[] bytes)
+                pdfBytes = bytes;
+            else if (rawPdfBytes is JValue jValue && jValue.Type == JTokenType.Bytes)
+                pdfBytes = jValue.ToObject<byte[]>();
+        }
+
         // 直接从 Params 字典构造 JObject 再反序列化
         var jObj = JObject.FromObject(request.Params);
-        return jObj.ToObject<PrintRequestParams>();
+        var printParams = jObj.ToObject<PrintRequestParams>();
+        if (pdfBytes != null && pdfBytes.Length > 0)
+            printParams.PdfBytes = pdfBytes;
+        return printParams;
     }
 
     private PrinterResult HandleQueryLogs(PrinterCommand request)

@@ -6,6 +6,7 @@ const CONNECT_TIMEOUT_MS = 5000
 const RESPONSE_TIMEOUT_MS = 15000
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30000
+const PDF_CHUNK_SIZE_BYTES = 1024 * 1024
 
 export interface PrinterHostDevice {
   name: string
@@ -101,19 +102,7 @@ function wsUrl(): string {
   return url.toString()
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      resolve(dataUrl.substring(dataUrl.indexOf(',') + 1))
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(blob)
-  })
-}
-
-function sendCommand(command: string, params?: Record<string, unknown>): Promise<any> {
+function sendCommand<T = any>(command: string, params?: Record<string, unknown>): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       reject(new Error('WebSocket 未连接'))
@@ -126,6 +115,35 @@ function sendCommand(command: string, params?: Record<string, unknown>): Promise
     }, RESPONSE_TIMEOUT_MS)
     pendingRequests.set(id, { resolve, reject, timer })
     ws.send(JSON.stringify({ command, id, params }))
+  })
+}
+
+function encodeBinaryCommand(command: string, id: string, params: Record<string, unknown>, payload: Uint8Array): ArrayBuffer {
+  const metadata = new TextEncoder().encode(JSON.stringify({ command, id, params }))
+  const buffer = new ArrayBuffer(4 + metadata.length + payload.length)
+  const frame = new Uint8Array(buffer)
+  const view = new DataView(buffer)
+  view.setUint32(0, metadata.length, false)
+  frame.set(metadata, 4)
+  frame.set(payload, 4 + metadata.length)
+  return buffer
+}
+
+function sendBinaryCommand<T = any>(command: string, params: Record<string, unknown>, payload: Uint8Array): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error('WebSocket 未连接'))
+      return
+    }
+
+    const id = crypto.randomUUID()
+    const timer = setTimeout(() => {
+      pendingRequests.delete(id)
+      reject(new Error(`请求超时: ${command}`))
+    }, RESPONSE_TIMEOUT_MS)
+
+    pendingRequests.set(id, { resolve, reject, timer })
+    ws.send(encodeBinaryCommand(command, id, params, payload))
   })
 }
 
@@ -315,14 +333,35 @@ async function printPdf(
   pdfBlob: Blob,
   opts: { printerName: string, copies: number, paperSize: PaperSizeParams },
 ): Promise<string> {
-  const pdfBase64 = await blobToBase64(pdfBlob)
-  const data = await sendCommand('printAsync', {
+  if (pdfBlob.size <= 0)
+    throw new Error('PDF 内容为空')
+
+  const uploadId = crypto.randomUUID()
+  const totalBytes = pdfBlob.size
+  const totalChunks = Math.ceil(totalBytes / PDF_CHUNK_SIZE_BYTES)
+
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * PDF_CHUNK_SIZE_BYTES
+    const end = Math.min(start + PDF_CHUNK_SIZE_BYTES, totalBytes)
+    const payload = new Uint8Array(await pdfBlob.slice(start, end).arrayBuffer())
+    await sendBinaryCommand('uploadPdfChunk', {
+      uploadId,
+      chunkIndex,
+      totalChunks,
+      totalBytes,
+    }, payload)
+  }
+
+  const data = await sendCommand('printUploadedPdfAsync', {
+    uploadId,
     printerName: opts.printerName,
     copies: opts.copies,
     paperSize: opts.paperSize,
-    pdfBase64,
   })
   const jobId: string = data?.jobId ?? ''
+  if (!jobId)
+    throw new Error('Printer.Host 未返回打印任务 ID')
+
   if (jobId) {
     jobs.set(jobId, {
       jobId,
@@ -342,12 +381,31 @@ function waitForJob(jobId: string): Promise<PrintJobInfo> {
   }
 
   return new Promise((resolve, reject) => {
+    let interval: ReturnType<typeof setInterval> | undefined
     const timeout = setTimeout(() => {
       stop()
       reject(new Error('等待打印结果超时'))
     }, 60000)
 
-    function check() {
+    let checking = false
+
+    async function check() {
+      if (checking)
+        return
+      checking = true
+
+      try {
+        const remoteJob = await sendCommand<PrintJobInfo>('getJobStatus', { jobId })
+        if (remoteJob?.jobId)
+          jobs.set(jobId, remoteJob)
+      }
+      catch {
+        // Keep waiting until the overall timeout; transient status polling failures are common around printer startup.
+      }
+      finally {
+        checking = false
+      }
+
       const job = jobs.get(jobId)
       if (!job)
         return
@@ -363,21 +421,13 @@ function waitForJob(jobId: string): Promise<PrintJobInfo> {
 
     function stop() {
       clearTimeout(timeout)
+      if (interval)
+        clearInterval(interval)
       jobs.delete(jobId) // cleanup
     }
 
-    // poll the map since reactive Map triggers are limited
-    const interval = setInterval(check, 200)
-    // also check immediately in case it already completed
-    check()
-    // override stop to also clear interval
-    const origStop = stop
-    const wrappedStop = () => {
-      clearInterval(interval)
-      origStop()
-    }
-    // rewire
-    ;(check as any)._stop = wrappedStop
+    interval = setInterval(check, 200)
+    void check()
   })
 }
 

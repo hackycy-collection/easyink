@@ -1,7 +1,6 @@
 import type { PrintAdapter, ViewerPageMetrics, ViewerPrintContext, ViewerPrintSheetSize } from '@easyink/viewer'
-import html2canvas from 'html2canvas'
-import { jsPDF as JsPDF } from 'jspdf'
 import { usePrinterHost } from '../hooks/usePrinterHost'
+import { renderPagesToPdfBlob } from '../utils/pdf-export'
 
 const UNIT_TO_MM = {
   cm: 10,
@@ -28,7 +27,7 @@ function resolvePrintSize(
 
 /**
  * Printer.Host PrintAdapter.
- * Renders viewer pages to PDF via html2canvas + jsPDF,
+ * Renders viewer pages to PDF,
  * then sends the PDF to Printer.Host over WebSocket (binary frame, async print).
  */
 export function createPrinterHostAdapter(): PrintAdapter {
@@ -63,33 +62,7 @@ export function createPrinterHostAdapter(): PrintAdapter {
       const widthMm = toMillimeters(printSize.width, printSize.unit)
       const heightMm = toMillimeters(printSize.height, printSize.unit)
 
-      // render each page to canvas
-      const canvases: HTMLCanvasElement[] = []
-      for (const page of pages) {
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-        })
-        canvases.push(canvas)
-      }
-
-      // assemble PDF
-      const orientation = widthMm > heightMm ? 'landscape' : 'portrait'
-      const pdf = new JsPDF({
-        orientation,
-        unit: 'mm',
-        format: [widthMm, heightMm],
-      })
-
-      for (let i = 0; i < canvases.length; i++) {
-        if (i > 0)
-          pdf.addPage([widthMm, heightMm], orientation)
-        const imgData = canvases[i]!.toDataURL('image/png')
-        pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm)
-      }
-
-      const pdfBlob = pdf.output('blob')
+      const pdfBlob = await renderPagesToPdfBlob({ pages, widthMm, heightMm })
 
       // send to Printer.Host via WebSocket binary frame
       const jobId = await host.printPdf(pdfBlob, {

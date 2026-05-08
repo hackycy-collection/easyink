@@ -16,6 +16,7 @@ import {
 } from './components/ui/dropdown-menu'
 import { usePrinter } from './hooks/useHiPrint'
 import { usePrinterHost } from './hooks/usePrinterHost'
+import { renderPagesToPdfBlob } from './utils/pdf-export'
 
 const props = defineProps<{
   schema: DocumentSchema
@@ -385,32 +386,14 @@ async function handlePrinterHostPrint() {
   const progressId = toast.loading('生成 PDF 中...')
 
   try {
-    // dynamic import to keep initial load light
-    const [{ default: html2canvas }, { jsPDF: JsPDF }] = await Promise.all([
-      import('html2canvas'),
-      import('jspdf'),
-    ])
-
-    const canvases: HTMLCanvasElement[] = []
-    for (let i = 0; i < pages.length; i++) {
-      toast.loading(`渲染页面 ${i + 1} / ${pages.length}`, { id: progressId })
-      const canvas = await html2canvas(pages[i]!, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      })
-      canvases.push(canvas)
-    }
-
-    toast.loading('生成 PDF...', { id: progressId })
-    const orientation = width > height ? 'landscape' : 'portrait'
-    const pdf = new JsPDF({ orientation, unit: 'mm', format: [width, height] })
-    for (let i = 0; i < canvases.length; i++) {
-      if (i > 0)
-        pdf.addPage([width, height], orientation)
-      pdf.addImage(canvases[i]!.toDataURL('image/png'), 'PNG', 0, 0, width, height)
-    }
-    const pdfBlob = pdf.output('blob')
+    const pdfBlob = await renderPagesToPdfBlob({
+      pages,
+      widthMm: width,
+      heightMm: height,
+      onPageStart: (pageIndex, totalPages) => {
+        toast.loading(`渲染页面 ${pageIndex + 1} / ${totalPages}`, { id: progressId })
+      },
+    })
 
     toast.loading('发送打印任务...', { id: progressId })
     const jobId = await printerHost.printPdf(pdfBlob, {

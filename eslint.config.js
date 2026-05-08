@@ -6,7 +6,7 @@ export default antfu(
     type: 'lib',
     vue: true,
     pnpm: false,
-    ignores: ['.github/**/*.md'],
+    ignores: ['.github/**/*.md', '**/bin/**', '**/obj/**'],
     rules: {
       'ts/explicit-function-return-type': 'off',
     },
