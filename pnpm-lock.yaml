@@ -404,6 +404,18 @@ importers:
         specifier: catalog:framework
         version: 3.5.31(typescript@6.0.2)
 
+  packages/export-runtime:
+    dependencies:
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../shared
+      html2canvas:
+        specifier: ^1.4.1
+        version: 1.4.1
+      jspdf:
+        specifier: ^2.5.2
+        version: 2.5.2
+
   packages/icons:
     dependencies:
       lucide-static:
@@ -748,6 +760,9 @@ importers:
       '@easyink/designer':
         specifier: workspace:*
         version: link:../packages/designer
+      '@easyink/export-runtime':
+        specifier: workspace:*
+        version: link:../packages/export-runtime
       '@easyink/icons':
         specifier: workspace:*
         version: link:../packages/icons
@@ -769,12 +784,6 @@ importers:
       clsx:
         specifier: catalog:framework
         version: 2.1.1
-      html2canvas:
-        specifier: ^1.4.1
-        version: 1.4.1
-      jspdf:
-        specifier: ^2.5.2
-        version: 2.5.2
       lucide-vue-next:
         specifier: catalog:framework
         version: 1.0.0(vue@3.5.31(typescript@6.0.2))

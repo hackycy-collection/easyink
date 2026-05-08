@@ -1,37 +1,7 @@
-import type { PrintAdapter, ViewerPageMetrics, ViewerPrintContext, ViewerPrintSheetSize } from '@easyink/viewer'
+import type { PrintAdapter, ViewerPrintContext } from '@easyink/viewer'
+import { renderPagesToPdfBlob } from '@easyink/export-runtime'
 import { usePrinterHost } from '../hooks/usePrinterHost'
-import { renderPagesToPdfBlob } from '../utils/pdf-export'
-
-const UNIT_TO_MM = {
-  cm: 10,
-  in: 25.4,
-  mm: 1,
-  pt: 0.352778,
-} as const
-
-function toMillimeters(value: number, unit: string): number {
-  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
-  return value * factor
-}
-
-function resolvePrintSize(
-  sheetSize: ViewerPrintSheetSize | undefined,
-  renderedPage: ViewerPageMetrics | undefined,
-): { width: number, height: number, unit: string } {
-  if (sheetSize)
-    return sheetSize
-  if (renderedPage)
-    return renderedPage
-  throw new Error('缺少打印页面尺寸')
-}
-
-function resolvePrintOffset(offset: ViewerPrintContext['printPolicy']['offset']): { x: number, y: number, unit: 'mm' } | undefined {
-  const x = toMillimeters(offset.horizontal, offset.unit)
-  const y = toMillimeters(offset.vertical, offset.unit)
-  if (x === 0 && y === 0)
-    return undefined
-  return { x, y, unit: 'mm' }
-}
+import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
  * Printer.Host PrintAdapter.
@@ -53,15 +23,7 @@ export function createPrinterHostAdapter(): PrintAdapter {
       if (!host.printerName.value)
         throw new Error('未选择打印机')
 
-      const container = context.container
-      if (!container)
-        throw new Error('找不到打印内容')
-
-      const pages = Array.from(
-        container.querySelectorAll<HTMLElement>('.ei-viewer-page'),
-      )
-      if (pages.length === 0)
-        throw new Error('没有可打印的页面')
+      const pages = getViewerPages(context.container)
 
       const printSize = resolvePrintSize(
         context.printPolicy.sheetSize,
@@ -71,9 +33,16 @@ export function createPrinterHostAdapter(): PrintAdapter {
       const heightMm = toMillimeters(printSize.height, printSize.unit)
       const landscape = widthMm > heightMm
 
-      const pdfBlob = await renderPagesToPdfBlob({ pages, widthMm, heightMm })
+      context.onPhase?.({ phase: 'preparing', message: '生成 PDF 中' })
+      const pdfBlob = await renderPagesToPdfBlob({
+        pages,
+        widthMm,
+        heightMm,
+        onProgress: context.onProgress,
+        onDiagnostic: diagnostic => context.onDiagnostic?.(exportDiagnosticToViewerEvent(diagnostic)),
+      })
 
-      // send to Printer.Host via WebSocket binary frame
+      context.onPhase?.({ phase: 'submitting', message: '发送打印任务' })
       const jobId = await host.printPdf(pdfBlob, {
         printerName: host.printerName.value,
         copies: host.config.copies || 1,
@@ -82,7 +51,7 @@ export function createPrinterHostAdapter(): PrintAdapter {
         offset: resolvePrintOffset(context.printPolicy.offset),
       })
 
-      // wait for async job to complete
+      context.onPhase?.({ phase: 'waiting', message: `等待打印结果 (${jobId.slice(0, 8)})` })
       await host.waitForJob(jobId)
     },
   }

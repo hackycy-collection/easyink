@@ -92,6 +92,11 @@ export interface ViewerExportContext {
   data?: Record<string, unknown>
   dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
+  renderedPages?: ViewerPageMetrics[]
+  container?: HTMLElement
+  onPhase?: (event: ViewerTaskPhaseEvent) => void
+  onProgress?: (event: ViewerTaskProgressEvent) => void
+  onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
 
 export interface ExportDispatchState {
@@ -103,8 +108,32 @@ export interface ExportDispatchState {
 
 export type ViewerPrintPageSizeMode = 'driver' | 'fixed'
 
-export interface ViewerPrintOptions {
+export interface ViewerTaskPhaseEvent {
+  phase: string
+  message?: string
+}
+
+export interface ViewerTaskProgressEvent {
+  current?: number
+  total?: number
+  message?: string
+}
+
+export interface ViewerTaskCallbacks {
+  onPhase?: (event: ViewerTaskPhaseEvent) => void
+  onProgress?: (event: ViewerTaskProgressEvent) => void
+  onDiagnostic?: (event: ViewerDiagnosticEvent) => void
+  throwOnError?: boolean
+}
+
+export interface ViewerPrintOptions extends ViewerTaskCallbacks {
   pageSizeMode?: ViewerPrintPageSizeMode
+  adapterId?: string
+}
+
+export interface ViewerExportOptions extends ViewerTaskCallbacks {
+  format?: string
+  entry?: ExportEntry
 }
 
 export interface ViewerPrintSheetSize {

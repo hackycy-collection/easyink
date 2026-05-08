@@ -10,6 +10,7 @@ easyink/
 │   ├── core/                   # @easyink/core — 命令、选择、几何、分页、辅助线、历史
 │   ├── datasource/             # @easyink/datasource — 字段树、数据源引用、绑定规则、格式规则
 │   ├── viewer/                 # @easyink/viewer — iframe Viewer、预览、打印、导出、缩略图
+│   ├── export-runtime/         # @easyink/export-runtime — 导出任务状态机、适配器注册、PDF 运行时依赖装载
 │   ├── builtin/                # @easyink/builtin — 内置物料注册与清单汇总包（内部装配层）
 │   ├── designer/               # @easyink/designer — 设计器工作台 Vue 组件
 │   ├── ui/                     # @easyink/ui — 面板、表单、工作台基础组件
@@ -65,7 +66,16 @@ easyink/
 - 独立 Viewer 运行时
 - 负责预览、缩略图、打印、导出文档入口
 - 负责数据加载、字体加载、页面计划与最终页面渲染
+- 通过 `ExportAdapter` / `PrintAdapter` 承接外部导出和打印运行时；打印适配器由 `adapterId` 显式选择，未指定时回退浏览器打印
 - 默认注册内置物料；宿主后续注册同类型物料时以后注册覆盖默认注册
+
+### `@easyink/export-runtime`
+
+- 框架无关的导出运行时层
+- 提供 `createExportRuntime()`、adapter registry、`ExportDispatchState` 状态机、进度与诊断回调
+- PDF DOM 捕获通过动态 `import('html2canvas')` / `import('jspdf')` 按需装载，不进入 `core` / `schema`
+- 不依赖 `viewer`；宿主或 playground 负责把 Viewer 的页面 DOM、渲染尺寸和诊断桥接进 runtime
+- 资源加载失败默认产生 warning 诊断并继续导出，避免静默吞掉问题
 
 ### `@easyink/designer`
 
@@ -140,12 +150,13 @@ builtin ───── designer + viewer + mcp-server + material-*
 
 designer ─── builtin + core + datasource + schema + shared + ui + icons + material-table-kernel
 viewer ─── builtin + core + datasource + schema + shared
+export-runtime ─── shared + html2canvas + jspdf
   ↑
 ai ──────── designer (仅类型) + datasource + schema + schema-tools + shared + vue + @modelcontextprotocol/sdk
 
 mcp-server ─── builtin + schema-tools + datasource + schema + shared + @modelcontextprotocol/sdk + zod
 
-playground ── designer + ai + viewer + samples + schema
+playground ── designer + ai + viewer + export-runtime + samples + schema
 ```
 
 依赖原则：
@@ -153,6 +164,7 @@ playground ── designer + ai + viewer + samples + schema
 - `designer` 依赖 `builtin`、`core`、`datasource`、`schema`、`shared`、`ui`、`icons` 与 `material-table-kernel`，默认启用内置物料；调用方可通过 `setupStore` 继续扩展或覆盖
 - 已被 designer 内部直接使用且宿主不应手动补齐的第三方运行时依赖（如 `codemirror`）必须声明为 `dependencies`；只有需要与宿主单例对齐的框架依赖（当前为 `vue`）才保留为 `peerDependencies`
 - `viewer` 依赖 `builtin`、`core`、`datasource`、`schema`、`shared`，默认启用内置物料；调用方可通过 `viewer.registerMaterial()` 继续扩展或覆盖
+- `export-runtime` 依赖 `shared` 与按需装载的 PDF 第三方库，不依赖 `viewer`、`designer` 或 Vue；调用方自行决定是否把它接入 Viewer `ExportAdapter`
 - `builtin` 依赖全部内置 `material-*` 包，集中维护 Designer / Viewer / MCP Server 三侧共享的默认物料清单
 - `ui` 依赖 `icons` 和 `shared`，不依赖 `designer`；方向为 designer 依赖 ui
 - `samples` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`
@@ -164,12 +176,14 @@ playground ── designer + ai + viewer + samples + schema
 
 ```typescript
 import { EasyInkDesigner } from '@easyink/designer'
+import { createExportRuntime } from '@easyink/export-runtime'
 import { createViewer } from '@easyink/viewer'
 
 // Vue template
 // <EasyInkDesigner v-model:schema="schema" />
 
 const viewer = createViewer({ mode: 'fixed' })
+const exportRuntime = createExportRuntime()
 await viewer.open({ schema, data })
 ```
 

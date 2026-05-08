@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import type { DataSourceDescriptor, DocumentSchema, ViewerHostAdapter, ViewerRuntime } from '@easyink/viewer'
-import { IconChevronLeft, IconChevronRight, IconClose, IconMinimize, IconPlus } from '@easyink/icons'
+import type { ExportProgress, ExportRuntimeAdapter } from '@easyink/export-runtime'
+import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, ViewerHostAdapter, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
+import { createDomPdfExportAdapter, createExportRuntime } from '@easyink/export-runtime'
+import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
+import { createHiPrintAdapter } from './adapters/hiprint-print-adapter'
+import { createPrinterHostAdapter } from './adapters/printer-host-adapter'
 import PrinterHostSettingsModal from './components/PrinterHostSettingsModal.vue'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
 import { Button } from './components/ui/button'
@@ -11,12 +15,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
 import { usePrinter } from './hooks/useHiPrint'
 import { usePrinterHost } from './hooks/usePrinterHost'
-import { renderPagesToPdfBlob } from './utils/pdf-export'
+import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
 
 const props = defineProps<{
   schema: DocumentSchema
@@ -29,11 +34,15 @@ const emit = defineEmits<{
 }>()
 
 const EXPORT_FORMAT = 'playground-demo-json'
-const UNIT_TO_MM = { mm: 1, cm: 10, in: 25.4, pt: 0.352778 } as const
+const PDF_FORMAT = 'pdf'
+const BROWSER_PRINT_ADAPTER_ID = 'browser'
+const HIPRINT_ADAPTER_ID = 'hiprint-adapter'
+const PRINTER_HOST_ADAPTER_ID = 'printer-host-adapter'
 
 const iframeRef = ref<HTMLIFrameElement>()
 let viewerHost: ViewerHostAdapter | undefined
 let viewer: ViewerRuntime | undefined
+const exportRuntime = createExportRuntime({ entry: 'preview' })
 
 const zoom = ref(100)
 const currentPage = ref(1)
@@ -46,19 +55,6 @@ const showPrinterSettings = ref(false)
 const showPrinterHostSettings = ref(false)
 const isPrinting = ref(false)
 
-function toMillimeters(value: number, unit: string): number {
-  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
-  return value * factor
-}
-
-function resolvePrinterHostOffset(offset: ReturnType<typeof resolvePrintPolicy>['offset']): { x: number, y: number, unit: 'mm' } | undefined {
-  const x = toMillimeters(offset.horizontal, offset.unit)
-  const y = toMillimeters(offset.vertical, offset.unit)
-  if (x === 0 && y === 0)
-    return undefined
-  return { x, y, unit: 'mm' }
-}
-
 // Auto-connect handled inside usePrinter() singleton based on persisted config.
 
 onMounted(async () => {
@@ -70,16 +66,7 @@ onMounted(async () => {
   setupIframeSurface(viewerHost)
 
   viewer = createViewer({ host: viewerHost })
-  viewer.registerExportAdapter({
-    id: 'playground-demo-export',
-    format: EXPORT_FORMAT,
-    async export(context) {
-      return new Blob(
-        [JSON.stringify({ schema: context.schema, data: context.data ?? {} }, null, 2)],
-        { type: 'application/json' },
-      )
-    },
-  })
+  registerOutputAdapters(viewer)
   await viewer.open({
     schema: props.schema,
     data: props.data,
@@ -98,6 +85,72 @@ onBeforeUnmount(() => {
   viewer = undefined
   viewerHost = undefined
 })
+
+function registerOutputAdapters(runtime: ViewerRuntime) {
+  exportRuntime.registerAdapter(createDomPdfExportAdapter())
+  exportRuntime.registerAdapter(createPlaygroundJsonExportAdapter())
+
+  runtime.registerExportAdapter({
+    id: 'playground-pdf-export',
+    format: PDF_FORMAT,
+    async export(context) {
+      const renderedPages = context.renderedPages ?? []
+      const pages = getViewerPages(context.container)
+      const printSize = resolveFixedExportSize(renderedPages)
+      const widthMm = toMillimeters(printSize.width, printSize.unit)
+      const heightMm = toMillimeters(printSize.height, printSize.unit)
+
+      return exportRuntime.exportDocument({
+        format: PDF_FORMAT,
+        entry: context.entry,
+        input: { pages, widthMm, heightMm },
+        throwOnError: true,
+        onProgress: context.onProgress,
+        onDiagnostic: diagnostic => context.onDiagnostic?.(exportDiagnosticToViewerEvent(diagnostic)),
+      })
+    },
+  })
+
+  runtime.registerExportAdapter({
+    id: 'playground-json-export',
+    format: EXPORT_FORMAT,
+    async export(context) {
+      return exportRuntime.exportDocument({
+        format: EXPORT_FORMAT,
+        entry: context.entry,
+        input: { schema: context.schema, data: context.data ?? {} },
+        throwOnError: true,
+        onProgress: context.onProgress,
+        onDiagnostic: diagnostic => context.onDiagnostic?.(exportDiagnosticToViewerEvent(diagnostic)),
+      })
+    },
+  })
+
+  runtime.registerPrintAdapter(createHiPrintAdapter())
+  runtime.registerPrintAdapter(createPrinterHostAdapter())
+}
+
+function createPlaygroundJsonExportAdapter(): ExportRuntimeAdapter<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
+  return {
+    id: 'playground-json-export-runtime',
+    format: EXPORT_FORMAT,
+    async export(context) {
+      return new Blob(
+        [JSON.stringify(context.input, null, 2)],
+        { type: 'application/json' },
+      )
+    },
+  }
+}
+
+function resolveFixedExportSize(renderedPages: ViewerPageMetrics[]): { width: number, height: number, unit: string } {
+  const printPolicy = resolvePrintPolicy({
+    schema: props.schema,
+    options: { pageSizeMode: 'fixed' },
+    renderedPages,
+  })
+  return resolvePrintSize(printPolicy.sheetSize, renderedPages[0])
+}
 
 function waitForIframeDocument(iframe: HTMLIFrameElement): Promise<void> {
   if (iframe.contentDocument)
@@ -244,10 +297,6 @@ function handleScroll() {
   currentPage.value = closest
 }
 
-async function handleBrowserPrint(pageSizeMode: 'driver' | 'fixed' = 'driver') {
-  await viewer?.print({ pageSizeMode })
-}
-
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -257,228 +306,148 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-async function handlePdfExport() {
-  const surface = getViewerSurface()
-  if (!surface)
-    return
+function showWarningDiagnostic(event: ViewerDiagnosticEvent) {
+  if (event.severity === 'warning')
+    toast.warning(event.message)
+}
 
-  const pages = Array.from(surface.querySelectorAll<HTMLElement>('.ei-viewer-page'))
-  if (pages.length === 0) {
-    toast.error('没有可导出的页面')
-    return
-  }
+function updateProgressToast(progressId: string | number, progress: ExportProgress, label: string) {
+  if (progress.current !== undefined && progress.total !== undefined)
+    toast.loading(`${label} ${progress.current} / ${progress.total}`, { id: progressId })
+}
 
-  const renderedPages = viewer?.renderedPages ?? []
-  const printPolicy = resolvePrintPolicy({
-    schema: props.schema,
-    options: { pageSizeMode: 'fixed' },
-    renderedPages,
-  })
-  const printSize = printPolicy.sheetSize ?? renderedPages[0]
-  if (!printSize) {
-    toast.error('缺少 PDF 页面尺寸')
-    return
-  }
+function updatePhaseToast(progressId: string | number, message: string | undefined, fallback: string) {
+  toast.loading(message || fallback, { id: progressId })
+}
 
-  const width = toMillimeters(printSize.width, printSize.unit)
-  const height = toMillimeters(printSize.height, printSize.unit)
-  const progressId = toast.loading('生成 PDF 中...')
-
+async function runViewerExport(format: string, filename: string, label: string) {
+  const progressId = toast.loading(`${label}中...`)
   try {
-    const pdfBlob = await renderPagesToPdfBlob({
-      pages,
-      widthMm: width,
-      heightMm: height,
-      onPageStart: (pageIndex, totalPages) => {
-        toast.loading(`渲染页面 ${pageIndex + 1} / ${totalPages}`, { id: progressId })
-      },
+    const blob = await viewer?.exportDocument({
+      format,
+      entry: 'preview',
+      throwOnError: true,
+      onPhase: event => updatePhaseToast(progressId, event.message, `${label}中...`),
+      onProgress: progress => updateProgressToast(progressId, progress, label),
+      onDiagnostic: showWarningDiagnostic,
     })
+    if (!(blob instanceof Blob))
+      throw new Error('导出结果为空')
 
-    downloadBlob(pdfBlob, 'easyink-preview.pdf')
+    downloadBlob(blob, filename)
     toast.dismiss(progressId)
-    toast.success('PDF 已下载')
+    toast.success(`${label}完成`)
   }
   catch (err) {
     toast.dismiss(progressId)
-    toast.error(`PDF 导出失败: ${err instanceof Error ? err.message : String(err)}`)
+    toast.error(`${label}失败: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
-async function handleHiPrintPrint() {
+async function handlePdfExport() {
+  await runViewerExport(PDF_FORMAT, 'easyink-preview.pdf', '导出 PDF')
+}
+
+async function handleJsonExport() {
+  await runViewerExport(EXPORT_FORMAT, 'easyink-export.json', '导出 JSON')
+}
+
+async function handleBrowserPrint(pageSizeMode: 'driver' | 'fixed' = 'driver') {
+  await runViewerPrint(BROWSER_PRINT_ADAPTER_ID, pageSizeMode, '浏览器打印')
+}
+
+async function ensureHiPrintReady(): Promise<boolean> {
   if (!printer.enabled.value) {
     toast.error('请先在设置中启用打印服务')
     showPrinterSettings.value = true
-    return
+    return false
   }
 
   if (!printer.isConnected.value) {
-    const t = toast.loading('正在连接打印服务…')
+    const progressId = toast.loading('正在连接打印服务...')
     try {
       await printer.connect()
-      toast.dismiss(t)
+      toast.dismiss(progressId)
     }
-    catch (e) {
-      toast.dismiss(t)
-      toast.error(e instanceof Error ? e.message : '连接打印服务失败')
+    catch (err) {
+      toast.dismiss(progressId)
+      toast.error(err instanceof Error ? err.message : '连接打印服务失败')
       showPrinterSettings.value = true
-      return
+      return false
     }
   }
 
   if (!printer.printerDevice.value) {
     toast.error('请在设置中选择打印机')
     showPrinterSettings.value = true
-    return
+    return false
   }
 
-  const surface = getViewerSurface()
-  if (!surface)
-    return
-
-  const pages = Array.from(
-    surface.querySelectorAll<HTMLElement>('.ei-viewer-page'),
-  )
-  if (pages.length === 0) {
-    toast.error('没有可打印的页面')
-    return
-  }
-
-  const printerDevice = printer.printerDevice.value
-  const renderedPages = viewer?.renderedPages ?? []
-  const printPolicy = resolvePrintPolicy({
-    schema: props.schema,
-    options: { pageSizeMode: 'driver' },
-    renderedPages,
-  })
-  const printSize = printPolicy.sheetSize ?? renderedPages[0]
-  if (!printSize) {
-    toast.error('缺少打印页面尺寸')
-    return
-  }
-  const width = toMillimeters(printSize.width, printSize.unit)
-  const height = toMillimeters(printSize.height, printSize.unit)
-
-  isPrinting.value = true
-  const progressId = pages.length > 1 ? toast.loading(`打印中 0 / ${pages.length}`) : undefined
-
-  try {
-    await printer.printPages(
-      pages,
-      {
-        width,
-        height,
-        printer: printerDevice,
-        forcePageSize: printer.isForcePageSize(printerDevice),
-      },
-      ({ current, total }) => {
-        if (progressId !== undefined)
-          toast.loading(`打印中 ${current} / ${total}`, { id: progressId })
-      },
-    )
-    if (progressId !== undefined)
-      toast.dismiss(progressId)
-    toast.success(pages.length > 1 ? `已完成打印 (${pages.length} 页)` : '已发送到打印机')
-  }
-  catch (err) {
-    if (progressId !== undefined)
-      toast.dismiss(progressId)
-    toast.error(`打印失败: ${err instanceof Error ? err.message : String(err)}`)
-  }
-  finally {
-    isPrinting.value = false
-  }
+  return true
 }
 
-async function handlePrinterHostPrint() {
+async function ensurePrinterHostReady(): Promise<boolean> {
   if (!printerHost.enabled.value) {
     toast.error('请先在设置中启用 Printer.Host')
     showPrinterHostSettings.value = true
-    return
+    return false
   }
 
   if (!printerHost.isConnected.value) {
-    const t = toast.loading('正在连接 Printer.Host...')
+    const progressId = toast.loading('正在连接 Printer.Host...')
     try {
       await printerHost.connect()
-      toast.dismiss(t)
+      toast.dismiss(progressId)
     }
-    catch (e) {
-      toast.dismiss(t)
-      toast.error(e instanceof Error ? e.message : '连接 Printer.Host 失败')
+    catch (err) {
+      toast.dismiss(progressId)
+      toast.error(err instanceof Error ? err.message : '连接 Printer.Host 失败')
       showPrinterHostSettings.value = true
-      return
+      return false
     }
   }
 
   if (!printerHost.printerName.value) {
     toast.error('请在 Printer.Host 设置中选择打印机')
     showPrinterHostSettings.value = true
-    return
+    return false
   }
 
-  const surface = getViewerSurface()
-  if (!surface)
-    return
+  return true
+}
 
-  const pages = Array.from(
-    surface.querySelectorAll<HTMLElement>('.ei-viewer-page'),
-  )
-  if (pages.length === 0) {
-    toast.error('没有可打印的页面')
-    return
-  }
-
-  const printerName = printerHost.printerName.value
-  const renderedPages = viewer?.renderedPages ?? []
-  const printPolicy = resolvePrintPolicy({
-    schema: props.schema,
-    options: { pageSizeMode: 'fixed' },
-    renderedPages,
-  })
-  const printSize = printPolicy.sheetSize ?? renderedPages[0]
-  if (!printSize) {
-    toast.error('缺少打印页面尺寸')
-    return
-  }
-  const width = toMillimeters(printSize.width, printSize.unit)
-  const height = toMillimeters(printSize.height, printSize.unit)
-  const landscape = width > height
-
+async function runViewerPrint(adapterId: string, pageSizeMode: 'driver' | 'fixed', label: string) {
   isPrinting.value = true
-  const progressId = toast.loading('生成 PDF 中...')
-
+  const progressId = toast.loading(`${label}中...`)
   try {
-    const pdfBlob = await renderPagesToPdfBlob({
-      pages,
-      widthMm: width,
-      heightMm: height,
-      onPageStart: (pageIndex, totalPages) => {
-        toast.loading(`渲染页面 ${pageIndex + 1} / ${totalPages}`, { id: progressId })
-      },
+    await viewer?.print({
+      adapterId,
+      pageSizeMode,
+      throwOnError: true,
+      onPhase: event => updatePhaseToast(progressId, event.message, `${label}中...`),
+      onProgress: progress => updateProgressToast(progressId, progress, label),
+      onDiagnostic: showWarningDiagnostic,
     })
-
-    toast.loading('发送打印任务...', { id: progressId })
-    const jobId = await printerHost.printPdf(pdfBlob, {
-      printerName,
-      copies: printerHost.config.copies || 1,
-      paperSize: { width, height, unit: 'mm' },
-      landscape,
-      offset: resolvePrinterHostOffset(printPolicy.offset),
-    })
-
-    toast.loading(`打印任务已提交 (${jobId.slice(0, 8)})`, { id: progressId })
-    await printerHost.waitForJob(jobId)
-
     toast.dismiss(progressId)
-    toast.success(pages.length > 1 ? `已完成打印 (${pages.length} 页)` : '已发送到打印机')
+    toast.success(label === '浏览器打印' ? '已打开浏览器打印' : '已发送到打印机')
   }
   catch (err) {
     toast.dismiss(progressId)
-    toast.error(`打印失败: ${err instanceof Error ? err.message : String(err)}`)
+    toast.error(`${label}失败: ${err instanceof Error ? err.message : String(err)}`)
   }
   finally {
     isPrinting.value = false
   }
+}
+
+async function handleHiPrintPrint() {
+  if (await ensureHiPrintReady())
+    await runViewerPrint(HIPRINT_ADAPTER_ID, 'driver', 'HiPrint 打印')
+}
+
+async function handlePrinterHostPrint() {
+  if (await ensurePrinterHostReady())
+    await runViewerPrint(PRINTER_HOST_ADAPTER_ID, 'fixed', 'Printer.Host 打印')
 }
 
 function openPrinterSettings() {
@@ -490,11 +459,7 @@ function openPrinterHostSettings() {
 }
 
 async function handleExport() {
-  const blob = await viewer?.exportDocument(EXPORT_FORMAT)
-  if (!(blob instanceof Blob))
-    return
-
-  downloadBlob(blob, 'easyink-export.json')
+  await handleJsonExport()
 }
 </script>
 
@@ -525,21 +490,34 @@ async function handleExport() {
       </div>
 
       <div class="flex items-center gap-1">
-        <Button variant="outline" size="sm" @click="handleExport">
-          导出
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button size="sm">
-              打印
+            <Button variant="outline" size="sm" class="gap-1">
+              导出
+              <IconDown :size="14" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent class="z-[10002]">
+            <DropdownMenuLabel>文件导出</DropdownMenuLabel>
+            <DropdownMenuItem :disabled="isPrinting" @click="handlePdfExport">
+              PDF（固定纸张）
+            </DropdownMenuItem>
+            <DropdownMenuItem :disabled="isPrinting" @click="handleExport">
+              JSON（模板数据）
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button size="sm" class="gap-1">
+              打印
+              <IconDown :size="14" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="z-[10002]">
+            <DropdownMenuLabel>打印通道</DropdownMenuLabel>
             <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('driver')">
               浏览器打印（按打印机介质）
-            </DropdownMenuItem>
-            <DropdownMenuItem :disabled="isPrinting" @click="handlePdfExport">
-              导出 PDF（固定纸张）
             </DropdownMenuItem>
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印

@@ -26,6 +26,11 @@ packages/viewer/dist/
   │   └── index.global.js
   └── chunks/
 
+packages/export-runtime/dist/
+  ├── index.mjs
+  ├── index.d.mts
+  └── chunks/
+
 packages/designer/dist/
   ├── index.mjs
   ├── index.d.mts
@@ -40,6 +45,7 @@ packages/designer/dist/
 - IIFE 是兼容补充，不改变主入口，也不回退到 CJS/UMD 多格式维护。
 - `@easyink/viewer` 的 IIFE 优先级高于 `@easyink/designer`，因为独立预览、打印和导出是更稳定的浏览器消费面。
 - `@easyink/designer` 的 IIFE 仅服务无需构建链的嵌入式场景，不反向要求 viewer 带上设计器依赖。
+- `@easyink/export-runtime` 只发布 ESM 主入口；PDF 第三方库由运行时动态 import 按格式装载。
 
 ## 18.3 Package.json 导出配置
 
@@ -82,4 +88,4 @@ packages/designer/dist/
 - `@easyink/viewer/print`
 - `@easyink/viewer/image`
 
-这些子路径若未来重新引入，应作为独立扩展包或独立入口，而不是默认核心产物的一部分。
+这些子路径若未来重新引入，应作为独立扩展包或独立入口，而不是默认核心产物的一部分。当前 PDF 导出能力归属 `@easyink/export-runtime`，不作为 `@easyink/viewer/pdf` 子路径暴露。

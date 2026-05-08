@@ -5,6 +5,7 @@ import type {
   MaterialViewerExtension,
   PrintAdapter,
   ViewerDiagnosticEvent,
+  ViewerExportOptions,
   ViewerMeasureContext,
   ViewerOpenInput,
   ViewerOptions,
@@ -218,9 +219,19 @@ export class ViewerRuntime {
     if (!printPolicy)
       return
 
-    if (this._printAdapters.length > 0) {
-      const adapter = this._printAdapters[0]!
+    const shouldUseBrowser = !options.adapterId || options.adapterId === 'browser'
+    if (!shouldUseBrowser) {
+      const adapter = this._printAdapters.find(item => item.id === options.adapterId)
+      if (!adapter) {
+        const err = new Error(`No print adapter found for id: ${options.adapterId}`)
+        this.emitPrintError(err, options.onDiagnostic, 'NO_PRINT_ADAPTER')
+        if (options.throwOnError)
+          throw err
+        return
+      }
+
       try {
+        options.onPhase?.({ phase: 'preparing', message: adapter.id })
         await adapter.print({
           schema: this._schema,
           data: this._data,
@@ -229,10 +240,16 @@ export class ViewerRuntime {
           printPolicy,
           renderedPages: this.renderedPages,
           container: this._host?.mount,
+          onPhase: options.onPhase,
+          onProgress: options.onProgress,
+          onDiagnostic: event => this.emitTaskDiagnostic(event, options.onDiagnostic),
         })
+        options.onPhase?.({ phase: 'completed', message: adapter.id })
       }
       catch (err) {
-        this.emitPrintError(err)
+        this.emitPrintError(err, options.onDiagnostic)
+        if (options.throwOnError)
+          throw err
       }
       return
     }
@@ -248,7 +265,9 @@ export class ViewerRuntime {
           fallbackWindow.print()
         }
         catch (err) {
-          this.emitPrintError(err)
+          this.emitPrintError(err, options.onDiagnostic)
+          if (options.throwOnError)
+            throw err
         }
       }
     }
@@ -263,7 +282,9 @@ export class ViewerRuntime {
       })
     }
     catch (err) {
-      this.emitPrintError(err)
+      this.emitPrintError(err, options.onDiagnostic)
+      if (options.throwOnError)
+        throw err
       return undefined
     }
   }
@@ -302,20 +323,24 @@ export class ViewerRuntime {
     }
   }
 
-  private emitPrintError(err: unknown): void {
+  private emitPrintError(
+    err: unknown,
+    onDiagnostic?: (event: ViewerDiagnosticEvent) => void,
+    code?: string,
+  ): void {
     const cause = err instanceof Error
       ? { name: err.name, message: err.message, stack: err.stack }
       : err
-    this.emitDiagnostic({
+    this.emitTaskDiagnostic({
       category: 'print',
       severity: 'error',
-      code: err instanceof PrintPolicyError ? err.code : 'PRINT_ERROR',
+      code: code ?? (err instanceof PrintPolicyError ? err.code : 'PRINT_ERROR'),
       message: err instanceof PrintPolicyError
         ? err.message
         : `Print failed: ${err instanceof Error ? err.message : String(err)}`,
       scope: 'print',
       cause,
-    })
+    }, onDiagnostic)
   }
 
   private buildPrintStyles(printPolicy: ViewerPrintPolicy): string {
@@ -388,23 +413,32 @@ ${pageSizeCSS}    margin: 0;
 }`
   }
 
-  async exportDocument(format?: string): Promise<Blob | void> {
+  async exportDocument(formatOrOptions?: string | ViewerExportOptions): Promise<Blob | void> {
     this.ensureNotDestroyed()
     if (!this._schema)
       throw new Error('No schema loaded')
+
+    const options = typeof formatOrOptions === 'string'
+      ? { format: formatOrOptions }
+      : (formatOrOptions ?? {})
+    const format = options.format
 
     const adapter = format
       ? this._exportAdapters.find(a => a.format === format)
       : this._exportAdapters[0]
 
     if (!adapter) {
-      this.emitDiagnostic({
+      const err = new Error(`No export adapter found for format: ${format || 'default'}`)
+      this.emitTaskDiagnostic({
         category: 'export-adapter',
         severity: 'error',
         code: 'NO_EXPORT_ADAPTER',
-        message: `No export adapter found for format: ${format || 'default'}`,
+        message: err.message,
         scope: 'export-adapter',
-      })
+        cause: serializeCause(err),
+      }, options.onDiagnostic)
+      if (options.throwOnError)
+        throw err
       return
     }
 
@@ -412,18 +446,29 @@ ${pageSizeCSS}    margin: 0;
       schema: this._schema,
       data: this._data,
       dataSources: this._dataSources,
-      entry: 'api' as const,
+      entry: options.entry ?? 'api' as const,
+      renderedPages: this.renderedPages,
+      container: this._host?.mount,
+      onPhase: options.onPhase,
+      onProgress: options.onProgress,
+      onDiagnostic: (event: ViewerDiagnosticEvent) => this.emitTaskDiagnostic(event, options.onDiagnostic),
     }
 
     try {
       if (adapter.prepare) {
+        options.onPhase?.({ phase: 'preparing', message: adapter.id })
         await adapter.prepare(context)
       }
 
-      return await adapter.export(context)
+      options.onPhase?.({ phase: 'exporting', message: adapter.id })
+      const result = await adapter.export(context)
+      options.onPhase?.({ phase: 'completed', message: adapter.id })
+      return result
     }
     catch (err) {
-      this.emitExportError(adapter.id, format, err)
+      this.emitExportError(adapter.id, format, err, options.onDiagnostic)
+      if (options.throwOnError)
+        throw err
       return undefined
     }
   }
@@ -737,6 +782,14 @@ ${pageSizeCSS}    margin: 0;
     })
   }
 
+  private emitTaskDiagnostic(
+    event: ViewerDiagnosticEvent,
+    onDiagnostic?: (event: ViewerDiagnosticEvent) => void,
+  ): void {
+    onDiagnostic?.(event)
+    this.emitDiagnostic(event)
+  }
+
   private callSchemaNormalizeHook(schema: DocumentSchema): DocumentSchema {
     try {
       return this._hooks.beforeSchemaNormalize.call(schema)
@@ -754,15 +807,20 @@ ${pageSizeCSS}    margin: 0;
     }
   }
 
-  private emitExportError(adapterId: string, format: string | undefined, err: unknown): void {
-    this.emitDiagnostic({
+  private emitExportError(
+    adapterId: string,
+    format: string | undefined,
+    err: unknown,
+    onDiagnostic?: (event: ViewerDiagnosticEvent) => void,
+  ): void {
+    this.emitTaskDiagnostic({
       category: 'export-adapter',
       severity: 'error',
       code: 'EXPORT_ADAPTER_ERROR',
       message: `Export adapter "${adapterId}" failed for format "${format || 'default'}": ${err instanceof Error ? err.message : String(err)}`,
       scope: 'export-adapter',
       cause: serializeCause(err),
-    })
+    }, onDiagnostic)
   }
 
   private emitDiagnosticHookError(): void {

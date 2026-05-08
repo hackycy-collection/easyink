@@ -320,7 +320,7 @@ describe('viewer audit risk regressions', () => {
       onDiagnostic,
     })
     await viewer.exportDocument('pdf')
-    await viewer.print()
+    await viewer.print({ adapterId: 'boom-print' })
     await Promise.resolve()
 
     expect(diagnostics.some(d => d.code === 'FONT_LOAD_ERROR')).toBe(true)

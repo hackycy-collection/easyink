@@ -1,0 +1,29 @@
+{
+  "name": "@easyink/export-runtime",
+  "type": "module",
+  "version": "0.0.3",
+  "description": "Framework-agnostic export runtime for EasyInk",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@easyink/shared": "workspace:*",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2"
+  }
+}

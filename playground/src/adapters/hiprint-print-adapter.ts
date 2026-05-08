@@ -1,30 +1,6 @@
-import type { PrintAdapter, ViewerPageMetrics, ViewerPrintContext, ViewerPrintSheetSize } from '@easyink/viewer'
+import type { PrintAdapter, ViewerPrintContext } from '@easyink/viewer'
 import { usePrinter } from '../hooks/useHiPrint'
-
-const UNIT_TO_MM = {
-  cm: 10,
-  in: 25.4,
-  mm: 1,
-  pt: 0.352778,
-} as const
-
-function toMillimeters(value: number, unit: string): number {
-  const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
-  return value * factor
-}
-
-function resolvePrintSize(
-  sheetSize: ViewerPrintSheetSize | undefined,
-  renderedPage: ViewerPageMetrics | undefined,
-): { width: number, height: number, unit: string } {
-  if (sheetSize)
-    return sheetSize
-
-  if (!renderedPage)
-    throw new Error('缺少打印页面尺寸')
-
-  return renderedPage
-}
+import { getViewerPages, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
  * HiPrint PrintAdapter for EasyInk Viewer.
@@ -45,26 +21,21 @@ export function createHiPrintAdapter(): PrintAdapter {
       if (!printer.printerDevice.value)
         throw new Error('未选择打印机')
 
-      const container = context.container
-      if (!container)
-        throw new Error('找不到打印内容')
-
-      const pages = Array.from(
-        container.querySelectorAll<HTMLElement>('.ei-viewer-page'),
-      )
-      if (pages.length === 0)
-        throw new Error('没有可打印的页面')
+      const pages = getViewerPages(context.container)
 
       const printerDevice = printer.printerDevice.value
       const printSize = resolvePrintSize(context.printPolicy.sheetSize, context.renderedPages[0])
       const width = toMillimeters(printSize.width, printSize.unit)
       const height = toMillimeters(printSize.height, printSize.unit)
 
+      context.onPhase?.({ phase: 'printing', message: 'HiPrint 打印中' })
       await printer.printPages(pages, {
         width,
         height,
         printer: printerDevice,
         forcePageSize: printer.isForcePageSize(printerDevice),
+      }, (progress) => {
+        context.onProgress?.({ ...progress, message: 'HiPrint 打印中' })
       })
     },
   }
