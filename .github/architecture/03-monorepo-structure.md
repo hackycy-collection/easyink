@@ -10,7 +10,10 @@ easyink/
 │   ├── core/                   # @easyink/core — 命令、选择、几何、分页、辅助线、历史
 │   ├── datasource/             # @easyink/datasource — 字段树、数据源引用、绑定规则、格式规则
 │   ├── viewer/                 # @easyink/viewer — iframe Viewer、预览、打印、导出、缩略图
-│   ├── export-runtime/         # @easyink/export-runtime — 导出任务状态机、适配器注册、PDF 运行时依赖装载
+│   ├── export/
+│   │   ├── runtime/            # @easyink/export-runtime — 导出任务状态机、适配器注册（不绑定具体格式实现）
+│   │   └── adapter/
+│   │       └── dom-pdf/        # @easyink/export-adapter-dom-pdf — 浏览器 DOM 截图转 PDF 适配器（html2canvas + jsPDF）
 │   ├── builtin/                # @easyink/builtin — 内置物料注册与清单汇总包（内部装配层）
 │   ├── designer/               # @easyink/designer — 设计器工作台 Vue 组件
 │   ├── ui/                     # @easyink/ui — 面板、表单、工作台基础组件
@@ -71,11 +74,18 @@ easyink/
 
 ### `@easyink/export-runtime`
 
-- 框架无关的导出运行时层
-- 提供 `createExportRuntime()`、adapter registry、`ExportDispatchState` 状态机、进度与诊断回调
-- PDF DOM 捕获通过动态 `import('html2canvas')` / `import('jspdf')` 按需装载，不进入 `core` / `schema`
+- 框架无关的导出运行时内核
+- 只提供 `createExportRuntime()`、adapter registry、`ExportDispatchState` 状态机、进度与诊断回调
+- 不绑定任何具体导出格式；不依赖 `html2canvas` / `jspdf` 等第三方实现
 - 不依赖 `viewer`；宿主或 playground 负责把 Viewer 的页面 DOM、渲染尺寸和诊断桥接进 runtime
+
+### `@easyink/export-adapter-dom-pdf`
+
+- 内置默认 PDF 导出适配器：浏览器 DOM 截图（`html2canvas`） + `jsPDF` 组装
+- 暴露 `createDomPdfExportAdapter()` 与 `renderPagesToPdfBlob()` 两个入口
+- `html2canvas` / `jspdf` 通过动态 `import()` 按需装载，不进入 runtime / core / schema
 - 资源加载失败默认产生 warning 诊断并继续导出，避免静默吞掉问题
+- 后续其他 PDF 链路（服务端渲染、矢量导出等）应作为同级独立 adapter 包发布，不再回灌到 runtime
 
 ### `@easyink/designer`
 
@@ -150,7 +160,8 @@ builtin ───── designer + viewer + mcp-server + material-*
 
 designer ─── builtin + core + datasource + schema + shared + ui + icons + material-table-kernel
 viewer ─── builtin + core + datasource + schema + shared
-export-runtime ─── shared + html2canvas + jspdf
+export-runtime ─── shared
+export-adapter-dom-pdf ─── export-runtime + shared + html2canvas + jspdf
   ↑
 ai ──────── designer (仅类型) + datasource + schema + schema-tools + shared + vue + @modelcontextprotocol/sdk
 
@@ -164,7 +175,8 @@ playground ── designer + ai + viewer + export-runtime + samples + schema
 - `designer` 依赖 `builtin`、`core`、`datasource`、`schema`、`shared`、`ui`、`icons` 与 `material-table-kernel`，默认启用内置物料；调用方可通过 `setupStore` 继续扩展或覆盖
 - 已被 designer 内部直接使用且宿主不应手动补齐的第三方运行时依赖（如 `codemirror`）必须声明为 `dependencies`；只有需要与宿主单例对齐的框架依赖（当前为 `vue`）才保留为 `peerDependencies`
 - `viewer` 依赖 `builtin`、`core`、`datasource`、`schema`、`shared`，默认启用内置物料；调用方可通过 `viewer.registerMaterial()` 继续扩展或覆盖
-- `export-runtime` 依赖 `shared` 与按需装载的 PDF 第三方库，不依赖 `viewer`、`designer` 或 Vue；调用方自行决定是否把它接入 Viewer `ExportAdapter`
+- `export-runtime` 仅依赖 `shared`，不绑定任何导出格式实现，不依赖 `viewer`、`designer` 或 Vue
+- `export-adapter-dom-pdf` 依赖 `export-runtime`、`shared` 与按需装载的 `html2canvas` / `jspdf`；任何具体导出链路一律走独立 adapter 包，不再回灌到 runtime
 - `builtin` 依赖全部内置 `material-*` 包，集中维护 Designer / Viewer / MCP Server 三侧共享的默认物料清单
 - `ui` 依赖 `icons` 和 `shared`，不依赖 `designer`；方向为 designer 依赖 ui
 - `samples` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`
@@ -176,6 +188,7 @@ playground ── designer + ai + viewer + export-runtime + samples + schema
 
 ```typescript
 import { EasyInkDesigner } from '@easyink/designer'
+import { createDomPdfExportAdapter } from '@easyink/export-adapter-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { createViewer } from '@easyink/viewer'
 
@@ -184,6 +197,7 @@ import { createViewer } from '@easyink/viewer'
 
 const viewer = createViewer({ mode: 'fixed' })
 const exportRuntime = createExportRuntime()
+exportRuntime.registerAdapter(createDomPdfExportAdapter())
 await viewer.open({ schema, data })
 ```
 

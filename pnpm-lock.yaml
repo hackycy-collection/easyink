@@ -404,17 +404,26 @@ importers:
         specifier: catalog:framework
         version: 3.5.31(typescript@6.0.2)
 
-  packages/export-runtime:
+  packages/export/adapter/dom-pdf:
     dependencies:
+      '@easyink/export-runtime':
+        specifier: workspace:*
+        version: link:../../runtime
       '@easyink/shared':
         specifier: workspace:*
-        version: link:../shared
+        version: link:../../../shared
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
       jspdf:
         specifier: ^2.5.2
         version: 2.5.2
+
+  packages/export/runtime:
+    dependencies:
+      '@easyink/shared':
+        specifier: workspace:*
+        version: link:../../shared
 
   packages/icons:
     dependencies:
@@ -760,9 +769,12 @@ importers:
       '@easyink/designer':
         specifier: workspace:*
         version: link:../packages/designer
+      '@easyink/export-adapter-dom-pdf':
+        specifier: workspace:*
+        version: link:../packages/export/adapter/dom-pdf
       '@easyink/export-runtime':
         specifier: workspace:*
-        version: link:../packages/export-runtime
+        version: link:../packages/export/runtime
       '@easyink/icons':
         specifier: workspace:*
         version: link:../packages/icons

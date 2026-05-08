@@ -14,6 +14,7 @@
     "@codemirror/view": "catalog:framework",
     "@easyink/ai": "workspace:*",
     "@easyink/designer": "workspace:*",
+    "@easyink/export-adapter-dom-pdf": "workspace:*",
     "@easyink/export-runtime": "workspace:*",
     "@easyink/icons": "workspace:*",
     "@easyink/samples": "workspace:*",

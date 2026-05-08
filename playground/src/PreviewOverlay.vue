@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ExportProgress, ExportRuntimeAdapter } from '@easyink/export-runtime'
 import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, ViewerHostAdapter, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
-import { createDomPdfExportAdapter, createExportRuntime } from '@easyink/export-runtime'
+import { createDomPdfExportAdapter } from '@easyink/export-adapter-dom-pdf'
+import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'

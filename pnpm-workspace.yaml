@@ -3,6 +3,8 @@ packages:
   - docs
   - packages/*
   - packages/materials/*
+  - packages/export/runtime
+  - packages/export/adapter/*
   - examples/*
 catalog:
   '@vueuse/core': ^14.2.1

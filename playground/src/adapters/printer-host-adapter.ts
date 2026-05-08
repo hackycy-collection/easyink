@@ -1,5 +1,5 @@
 import type { PrintAdapter, ViewerPrintContext } from '@easyink/viewer'
-import { renderPagesToPdfBlob } from '@easyink/export-runtime'
+import { renderPagesToPdfBlob } from '@easyink/export-adapter-dom-pdf'
 import { usePrinterHost } from '../hooks/usePrinterHost'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 

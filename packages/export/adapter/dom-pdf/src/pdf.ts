@@ -1,5 +1,5 @@
+import type { ExportDiagnostic, ExportProgress, ExportRuntimeAdapter } from '@easyink/export-runtime'
 import type { jsPDF as JsPDFType } from 'jspdf'
-import type { ExportDiagnostic, ExportProgress, ExportRuntimeAdapter } from './types'
 
 const CSS_DPI = 96
 const DEFAULT_EXPORT_DPI = 300

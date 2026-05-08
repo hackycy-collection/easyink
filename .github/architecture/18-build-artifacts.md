@@ -45,7 +45,8 @@ packages/designer/dist/
 - IIFE 是兼容补充，不改变主入口，也不回退到 CJS/UMD 多格式维护。
 - `@easyink/viewer` 的 IIFE 优先级高于 `@easyink/designer`，因为独立预览、打印和导出是更稳定的浏览器消费面。
 - `@easyink/designer` 的 IIFE 仅服务无需构建链的嵌入式场景，不反向要求 viewer 带上设计器依赖。
-- `@easyink/export-runtime` 只发布 ESM 主入口；PDF 第三方库由运行时动态 import 按格式装载。
+- `@easyink/export-runtime` 只发布 ESM 主入口，仅含运行时内核，不绑定第三方导出库。
+- `@easyink/export-adapter-dom-pdf` 只发布 ESM 主入口；`html2canvas` / `jspdf` 在 adapter 内部动态 import 按需装载。
 
 ## 18.3 Package.json 导出配置
 
