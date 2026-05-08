@@ -33,6 +33,7 @@ export async function renderPagesToPdfBlob(options: RenderPagesToPdfOptions): Pr
 
       const canvas = await html2canvas(page, {
         scale: resolveCanvasScale(page, dpi),
+        foreignObjectRendering: true,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,

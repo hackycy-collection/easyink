@@ -237,10 +237,63 @@ function handleScroll() {
 }
 
 async function handleBrowserPrint(browserTarget: 'printer' | 'pdf' = 'printer') {
-  if (browserTarget === 'pdf')
-    toast.info('系统打印对话框打开后，请选择“另存为 PDF”')
-
   await viewer?.print({ browserTarget })
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+async function handlePdfExport() {
+  const surface = getViewerSurface()
+  if (!surface)
+    return
+
+  const pages = Array.from(surface.querySelectorAll<HTMLElement>('.ei-viewer-page'))
+  if (pages.length === 0) {
+    toast.error('没有可导出的页面')
+    return
+  }
+
+  const renderedPages = viewer?.renderedPages ?? []
+  const printPolicy = resolvePrintPolicy({
+    schema: props.schema,
+    options: { browserTarget: 'pdf' },
+    renderedPages,
+  })
+  const printSize = printPolicy.sheetSize ?? renderedPages[0]
+  if (!printSize) {
+    toast.error('缺少 PDF 页面尺寸')
+    return
+  }
+
+  const width = toMillimeters(printSize.width, printSize.unit)
+  const height = toMillimeters(printSize.height, printSize.unit)
+  const progressId = toast.loading('生成 PDF 中...')
+
+  try {
+    const pdfBlob = await renderPagesToPdfBlob({
+      pages,
+      widthMm: width,
+      heightMm: height,
+      onPageStart: (pageIndex, totalPages) => {
+        toast.loading(`渲染页面 ${pageIndex + 1} / ${totalPages}`, { id: progressId })
+      },
+    })
+
+    downloadBlob(pdfBlob, 'easyink-preview.pdf')
+    toast.dismiss(progressId)
+    toast.success('PDF 已下载')
+  }
+  catch (err) {
+    toast.dismiss(progressId)
+    toast.error(`PDF 导出失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }
 
 async function handleHiPrintPrint() {
@@ -430,12 +483,7 @@ async function handleExport() {
   if (!(blob instanceof Blob))
     return
 
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = 'easyink-export.json'
-  anchor.click()
-  URL.revokeObjectURL(url)
+  downloadBlob(blob, 'easyink-export.json')
 }
 </script>
 
@@ -479,8 +527,8 @@ async function handleExport() {
             <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('printer')">
               浏览器打印（按打印机介质）
             </DropdownMenuItem>
-            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('pdf')">
-              浏览器打印（PDF）
+            <DropdownMenuItem :disabled="isPrinting" @click="handlePdfExport">
+              导出 PDF（固定纸张）
             </DropdownMenuItem>
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印
