@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services;
 using EasyInk.Printer.Services.Abstractions;
@@ -93,7 +95,9 @@ public class PrintServiceTests
         };
         service.Print("req-1", request);
 
-        _pdfRenderService.Verify(s => s.RenderToImages(It.IsAny<IPdfProvider>(), 300), Times.Once);
+        _pdfRenderService.Verify(s => s.RenderToImages(
+            It.IsAny<IPdfProvider>(),
+            It.Is<int>(dpi => dpi > 0 && dpi <= 600)), Times.Once);
     }
 
     [Fact]
@@ -252,6 +256,50 @@ public class PrintServiceTests
         var result = PrintService.CreateDestinationRectangle(pageBounds, 10, 20);
 
         Assert.Equal(new Rectangle(10, 20, 394, 787), result);
+    }
+
+    [Fact]
+    public void ResolveRenderDpi_UsesPrinterResolution()
+    {
+        using var printDoc = new PrintDocument();
+        printDoc.DefaultPageSettings.PrinterResolution = new PrinterResolution
+        {
+            X = 203,
+            Y = 203
+        };
+
+        var result = PrintService.ResolveRenderDpi(printDoc, new PrintRequestParams { Dpi = 300 });
+
+        Assert.Equal(203, result);
+    }
+
+    [Fact]
+    public void ResolveRenderDpi_CapsHighPrinterResolution()
+    {
+        using var printDoc = new PrintDocument();
+        printDoc.DefaultPageSettings.PrinterResolution = new PrinterResolution
+        {
+            X = 1200,
+            Y = 1200
+        };
+
+        var result = PrintService.ResolveRenderDpi(printDoc, new PrintRequestParams { Dpi = 300 });
+
+        Assert.Equal(600, result);
+    }
+
+    [Fact]
+    public void ApplyRasterPrintQuality_DisablesSmoothingInterpolation()
+    {
+        using var bitmap = new Bitmap(10, 10);
+        using var graphics = Graphics.FromImage(bitmap);
+
+        PrintService.ApplyRasterPrintQuality(graphics);
+
+        Assert.Equal(InterpolationMode.NearestNeighbor, graphics.InterpolationMode);
+        Assert.Equal(SmoothingMode.None, graphics.SmoothingMode);
+        Assert.Equal(PixelOffsetMode.Half, graphics.PixelOffsetMode);
+        Assert.Equal(CompositingQuality.HighSpeed, graphics.CompositingQuality);
     }
 
     [Fact]

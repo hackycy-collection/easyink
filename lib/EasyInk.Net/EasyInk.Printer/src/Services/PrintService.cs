@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
@@ -13,6 +14,8 @@ namespace EasyInk.Printer.Services;
 public class PrintService : IPrintService
 {
     private const string CustomPaperName = "EasyInk Custom";
+    private const int DefaultRenderDpi = 300;
+    private const int MaxRenderDpi = 600;
 
     private readonly IPrinterService _printerService;
     private readonly IPdfRenderService _pdfRenderService;
@@ -52,23 +55,11 @@ public class PrintService : IPrintService
             return PrinterResult.Error(requestId, "INVALID_PDF_SOURCE", ex.Message);
         }
 
-        List<Image> images;
-        try
-        {
-            images = _pdfRenderService.RenderToImages(provider, request.Dpi);
-        }
-        catch (Exception ex)
-        {
-            return PrinterResult.Error(requestId, "INVALID_PDF", $"PDF解析失败: {ex.Message}");
-        }
+        List<Image> images = null;
+        var renderDpi = DefaultRenderDpi;
 
         try
         {
-            if (images.Count == 0)
-            {
-                return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
-            }
-
             using (var printDoc = new PrintDocument())
             {
                 printDoc.PrinterSettings.PrinterName = request.PrinterName;
@@ -86,6 +77,21 @@ public class PrintService : IPrintService
 
                 printDoc.DefaultPageSettings.Landscape = landscape;
 
+                renderDpi = ResolveRenderDpi(printDoc, request);
+                try
+                {
+                    images = _pdfRenderService.RenderToImages(provider, renderDpi);
+                }
+                catch (Exception ex)
+                {
+                    return PrinterResult.Error(requestId, "INVALID_PDF", $"PDF解析失败: {ex.Message}");
+                }
+
+                if (images == null || images.Count == 0)
+                {
+                    return PrinterResult.Error(requestId, "INVALID_PDF", "PDF渲染失败或为空");
+                }
+
                 int offsetX = request.Offset?.XInHundredthsOfInch ?? 0;
                 int offsetY = request.Offset?.YInHundredthsOfInch ?? 0;
 
@@ -98,6 +104,7 @@ public class PrintService : IPrintService
                         var image = images[currentPage];
                         e.Graphics.PageUnit = GraphicsUnit.Display;
                         e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
+                        ApplyRasterPrintQuality(e.Graphics);
 
                         var destRect = CreateDestinationRectangle(e.PageBounds, offsetX, offsetY);
                         e.Graphics.DrawImage(image, destRect);
@@ -117,7 +124,7 @@ public class PrintService : IPrintService
                 PaperHeight = request.PaperSize?.Height,
                 PaperUnit = request.PaperSize?.Unit,
                 Copies = request.Copies,
-                Dpi = request.Dpi,
+                Dpi = renderDpi,
                 UserId = request.UserData?.UserId,
                 LabelType = request.UserData?.LabelType,
                 Status = "Success",
@@ -178,5 +185,60 @@ public class PrintService : IPrintService
     internal static Rectangle CreateDestinationRectangle(Rectangle pageBounds, int offsetX, int offsetY)
     {
         return new Rectangle(offsetX, offsetY, pageBounds.Width, pageBounds.Height);
+    }
+
+    internal static int ResolveRenderDpi(PrintDocument printDoc, PrintRequestParams request)
+    {
+        var printerDpi = ResolvePrinterDpi(printDoc);
+        if (printerDpi > 0)
+            return ClampRenderDpi(printerDpi);
+
+        return ClampRenderDpi(request?.Dpi ?? DefaultRenderDpi);
+    }
+
+    internal static void ApplyRasterPrintQuality(Graphics graphics)
+    {
+        if (graphics == null)
+            throw new ArgumentNullException(nameof(graphics));
+
+        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+        graphics.SmoothingMode = SmoothingMode.None;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        graphics.CompositingQuality = CompositingQuality.HighSpeed;
+    }
+
+    private static int ResolvePrinterDpi(PrintDocument printDoc)
+    {
+        if (printDoc == null)
+            return 0;
+
+        try
+        {
+            var pageDpi = ResolvePrinterResolutionDpi(printDoc.DefaultPageSettings?.PrinterResolution);
+            if (pageDpi > 0)
+                return pageDpi;
+
+            return ResolvePrinterResolutionDpi(printDoc.PrinterSettings?.DefaultPageSettings?.PrinterResolution);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static int ResolvePrinterResolutionDpi(PrinterResolution resolution)
+    {
+        if (resolution == null)
+            return 0;
+
+        return Math.Max(resolution.X, resolution.Y);
+    }
+
+    private static int ClampRenderDpi(int dpi)
+    {
+        if (dpi <= 0)
+            return DefaultRenderDpi;
+
+        return Math.Min(dpi, MaxRenderDpi);
     }
 }
