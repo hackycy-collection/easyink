@@ -82,15 +82,11 @@ public class PrintService : IPrintService
                     printDoc.DefaultPageSettings.PaperSize = paperSize;
                 }
 
-                if (request.Offset != null)
-                {
-                    printDoc.DefaultPageSettings.Margins = new Margins(
-                        Math.Max(0, request.Offset.XInHundredthsOfInch),
-                        0,
-                        Math.Max(0, request.Offset.YInHundredthsOfInch),
-                        0
-                    );
-                }
+                if (request.Landscape)
+                    printDoc.DefaultPageSettings.Landscape = true;
+
+                int offsetX = request.Offset?.XInHundredthsOfInch ?? 0;
+                int offsetY = request.Offset?.YInHundredthsOfInch ?? 0;
 
                 var currentPage = 0;
 
@@ -99,7 +95,13 @@ public class PrintService : IPrintService
                     if (currentPage < images.Count)
                     {
                         var image = images[currentPage];
-                        e.Graphics.DrawImage(image, e.MarginBounds);
+                        var destRect = new System.Drawing.Rectangle(
+                            e.PageBounds.X + offsetX,
+                            e.PageBounds.Y + offsetY,
+                            e.PageBounds.Width,
+                            e.PageBounds.Height
+                        );
+                        e.Graphics.DrawImage(image, destRect);
                         currentPage++;
                         e.HasMorePages = currentPage < images.Count;
                     }

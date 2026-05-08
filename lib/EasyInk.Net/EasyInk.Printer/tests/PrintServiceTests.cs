@@ -226,7 +226,7 @@ public class PrintServiceTests
     }
 
     [Fact]
-    public void Print_WithOffset_SetsMargins()
+    public void Print_WithOffset_CompletesCleanup()
     {
         _printerService.Setup(s => s.GetPrinterStatus("TestPrinter"))
             .Returns(ReadyStatus());

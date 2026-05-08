@@ -83,14 +83,14 @@ public class PrinterApi : IDisposable
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null)
+        string userId = null, string labelType = null, bool landscape = false)
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
 
         var response = _printService.Print(Guid.NewGuid().ToString(), request);
         return JsonConvert.SerializeObject(response, _jsonSettings);
@@ -103,14 +103,14 @@ public class PrinterApi : IDisposable
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null)
+        string userId = null, string labelType = null, bool landscape = false)
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType);
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
 
         try
         {
@@ -252,7 +252,8 @@ public class PrinterApi : IDisposable
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64,
         string pdfUrl, byte[] pdfBytes, int copies,
         double? paperWidth, double? paperHeight, string paperUnit, int dpi,
-        double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType)
+        double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType,
+        bool landscape)
     {
         return new PrintRequestParams
         {
@@ -262,6 +263,7 @@ public class PrinterApi : IDisposable
             PdfBytes = pdfBytes,
             Copies = copies,
             Dpi = dpi,
+            Landscape = landscape,
             PaperSize = paperWidth.HasValue && paperHeight.HasValue
                 ? new PaperSizeParams { Width = paperWidth.Value, Height = paperHeight.Value, Unit = paperUnit }
                 : null,

@@ -55,6 +55,11 @@ public class PrintRequestParams
     public UserDataParams UserData { get; set; }
 
     /// <summary>
+    /// 是否横向打印
+    /// </summary>
+    public bool Landscape { get; set; }
+
+    /// <summary>
     /// 根据输入创建对应的 PdfProvider
     /// </summary>
     public IPdfProvider CreatePdfProvider()
