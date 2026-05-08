@@ -226,7 +226,6 @@ export class ViewerRuntime {
           data: this._data,
           dataSources: this._dataSources,
           entry: 'preview',
-          printOptions: { browserTarget: printPolicy.browserTarget },
           printPolicy,
           renderedPages: this.renderedPages,
           container: this._host?.mount,

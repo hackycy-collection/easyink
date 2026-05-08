@@ -101,14 +101,10 @@ export interface ExportDispatchState {
   error?: string
 }
 
-export type BrowserPrintTarget = 'printer' | 'pdf'
+export type ViewerPrintPageSizeMode = 'driver' | 'fixed'
 
 export interface ViewerPrintOptions {
-  browserTarget?: BrowserPrintTarget
-}
-
-export interface ViewerResolvedPrintOptions {
-  browserTarget: BrowserPrintTarget
+  pageSizeMode?: ViewerPrintPageSizeMode
 }
 
 export interface ViewerPrintSheetSize {
@@ -119,9 +115,8 @@ export interface ViewerPrintSheetSize {
 }
 
 export interface ViewerPrintPolicy {
-  browserTarget: BrowserPrintTarget
   pageMode: DocumentSchema['page']['mode']
-  pageSizeMode: 'driver' | 'fixed'
+  pageSizeMode: ViewerPrintPageSizeMode
   sheetSize?: ViewerPrintSheetSize
   pageBreakBehavior: {
     after: 'auto' | 'page'
@@ -135,7 +130,6 @@ export interface ViewerPrintPolicy {
 }
 
 export interface ViewerPrintContext extends ViewerExportContext {
-  printOptions: ViewerResolvedPrintOptions
   printPolicy: ViewerPrintPolicy
   renderedPages: ViewerPageMetrics[]
   container?: HTMLElement

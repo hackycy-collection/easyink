@@ -236,8 +236,8 @@ function handleScroll() {
   currentPage.value = closest
 }
 
-async function handleBrowserPrint(browserTarget: 'printer' | 'pdf' = 'printer') {
-  await viewer?.print({ browserTarget })
+async function handleBrowserPrint(pageSizeMode: 'driver' | 'fixed' = 'driver') {
+  await viewer?.print({ pageSizeMode })
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -263,7 +263,7 @@ async function handlePdfExport() {
   const renderedPages = viewer?.renderedPages ?? []
   const printPolicy = resolvePrintPolicy({
     schema: props.schema,
-    options: { browserTarget: 'pdf' },
+    options: { pageSizeMode: 'fixed' },
     renderedPages,
   })
   const printSize = printPolicy.sheetSize ?? renderedPages[0]
@@ -339,7 +339,7 @@ async function handleHiPrintPrint() {
   const renderedPages = viewer?.renderedPages ?? []
   const printPolicy = resolvePrintPolicy({
     schema: props.schema,
-    options: { browserTarget: 'printer' },
+    options: { pageSizeMode: 'driver' },
     renderedPages,
   })
   const printSize = printPolicy.sheetSize ?? renderedPages[0]
@@ -424,7 +424,7 @@ async function handlePrinterHostPrint() {
   const renderedPages = viewer?.renderedPages ?? []
   const printPolicy = resolvePrintPolicy({
     schema: props.schema,
-    options: { browserTarget: 'pdf' },
+    options: { pageSizeMode: 'fixed' },
     renderedPages,
   })
   const printSize = printPolicy.sheetSize ?? renderedPages[0]
@@ -524,7 +524,7 @@ async function handleExport() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent class="z-[10002]">
-            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('printer')">
+            <DropdownMenuItem :disabled="isPrinting" @click="handleBrowserPrint('driver')">
               浏览器打印（按打印机介质）
             </DropdownMenuItem>
             <DropdownMenuItem :disabled="isPrinting" @click="handlePdfExport">

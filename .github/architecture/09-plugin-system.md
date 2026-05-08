@@ -99,7 +99,6 @@ PrintAdapter 接收的是打印上下文，不是普通导出上下文。ViewerR
 
 ```typescript
 interface ViewerPrintContext extends ViewerExportContext {
-  printOptions: { browserTarget: 'printer' | 'pdf' }
   printPolicy: ViewerPrintPolicy
   renderedPages: ViewerPageMetrics[]
   container?: HTMLElement
@@ -111,7 +110,7 @@ interface PrintAdapter {
 }
 ```
 
-适配器必须消费 `context.printPolicy` 或 `context.renderedPages` 中的尺寸信息，不能重新从 `.ei-viewer-page` 的 inline style 反推打印纸张。这样 `browserTarget`、label 纸张计算、stack 连续纸策略在 adapter 和浏览器 fallback 两条路径上保持同一语义。
+适配器必须消费 `context.printPolicy` 或 `context.renderedPages` 中的尺寸信息，不能重新从 `.ei-viewer-page` 的 inline style 反推打印纸张。这样 label 纸张计算、stack 连续纸策略和固定纸张导出在 adapter 和浏览器 fallback 两条路径上保持同一语义。
 
 ## 9.4 Hook 设计
 

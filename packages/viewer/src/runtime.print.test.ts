@@ -137,10 +137,9 @@ afterEach(() => {
 })
 
 describe('viewer runtime print policy', () => {
-  it('defaults browserTarget to printer for stack-mode browser printing', () => {
+  it('defaults pageSizeMode to driver for stack-mode browser printing', () => {
     const policy = resolvePrintPolicy({ schema: createStackSchema() })
 
-    expect(policy.browserTarget).toBe('printer')
     expect(policy.pageSizeMode).toBe('driver')
     expect(policy.sheetSize).toBeUndefined()
     expect(policy.pageBreakBehavior).toEqual({ after: 'auto', inside: 'auto' })
@@ -167,7 +166,7 @@ describe('viewer runtime print policy', () => {
     expect(printStyles).toContain('break-inside: auto;')
   })
 
-  it('uses cached rendered stack metrics when browser printing targets pdf', async () => {
+  it('uses cached rendered stack metrics when stack printing requests a fixed page size', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     registerTestMaterials(viewer)
@@ -182,7 +181,7 @@ describe('viewer runtime print policy', () => {
     expect(pageEl).not.toBeNull()
     pageEl!.style.height = '1mm'
 
-    const printStyles = getPrintStyles(viewer, { browserTarget: 'pdf' })
+    const printStyles = getPrintStyles(viewer, { pageSizeMode: 'fixed' })
     expect(printStyles).toContain(`size: ${renderedPage.width}${renderedPage.unit} ${renderedPage.height}${renderedPage.unit};`)
     expect(printStyles).not.toContain('size: 80mm 1mm;')
     expect(printStyles).toContain('break-after: auto;')
@@ -216,12 +215,11 @@ describe('viewer runtime print behavior', () => {
     })
 
     await viewer.open({ schema: createFixedSchema() })
-    await viewer.print({ browserTarget: 'pdf' })
+    await viewer.print({ pageSizeMode: 'fixed' })
 
     expect(printSpy).not.toHaveBeenCalled()
     expect(calls).toHaveLength(1)
-    expect(calls[0]!.printOptions.browserTarget).toBe('pdf')
-    expect(calls[0]!.printPolicy.browserTarget).toBe('pdf')
+    expect(calls[0]!.printPolicy.pageSizeMode).toBe('fixed')
     expect(calls[0]!.printPolicy.sheetSize).toMatchObject({ width: 80, height: 60, unit: 'mm' })
     expect(calls[0]!.renderedPages[0]).toMatchObject({ width: 80, height: 60, unit: 'mm' })
     expect(calls[0]!.container).toBe(container)
@@ -270,7 +268,7 @@ describe('viewer runtime print behavior', () => {
     })
     setRenderedPages(viewer, [])
 
-    await viewer.print({ browserTarget: 'pdf' })
+    await viewer.print({ pageSizeMode: 'fixed' })
 
     expect(printSpy).not.toHaveBeenCalled()
     expect(container.hasAttribute('data-ei-printing')).toBe(false)

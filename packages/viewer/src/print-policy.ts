@@ -20,8 +20,8 @@ export class PrintPolicyError extends Error {
 export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintPolicy {
   const { schema, options = {}, renderedPages = [] } = input
   const { page, unit } = schema
-  const browserTarget = options.browserTarget ?? 'printer'
-  const usesDriverPaper = page.mode === 'stack' && browserTarget === 'printer'
+  const requestedPageSizeMode = options.pageSizeMode ?? 'driver'
+  const usesDriverPaper = page.mode === 'stack' && requestedPageSizeMode === 'driver'
 
   const offset = {
     horizontal: page.print?.horizontalOffset ?? 0,
@@ -31,7 +31,6 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
 
   if (usesDriverPaper) {
     return {
-      browserTarget,
       pageMode: page.mode,
       pageSizeMode: 'driver',
       pageBreakBehavior: { after: 'auto', inside: 'auto' },
@@ -39,7 +38,7 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
     }
   }
 
-  if (page.mode === 'stack' && browserTarget === 'pdf') {
+  if (page.mode === 'stack' && requestedPageSizeMode === 'fixed') {
     const firstPage = renderedPages[0]
     if (!firstPage) {
       throw new PrintPolicyError(
@@ -49,7 +48,6 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
     }
 
     return {
-      browserTarget,
       pageMode: page.mode,
       pageSizeMode: 'fixed',
       sheetSize: {
@@ -78,7 +76,6 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
   }
 
   return {
-    browserTarget,
     pageMode: page.mode,
     pageSizeMode: 'fixed',
     sheetSize: { width, height, unit, source },
