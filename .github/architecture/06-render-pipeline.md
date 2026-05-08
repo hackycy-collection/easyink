@@ -196,8 +196,8 @@ interface ViewerPrintPolicy {
 
 策略规则：
 
-- `stack + printer`：`pageSizeMode='driver'`，不输出固定 `@page size`，避免连续纸被浏览器或驱动裁切。
-- `stack + pdf`：`pageSizeMode='fixed'`，`sheetSize.source='rendered'`，尺寸来自 render 后缓存的 `ViewerPageMetrics`。
+- `stack + driver`：`pageSizeMode='driver'`，不输出固定 `@page size`，避免连续纸被浏览器或驱动裁切。
+- `stack + fixed`：`pageSizeMode='fixed'`，`sheetSize.source='rendered'`，尺寸来自 render 后缓存的 `ViewerPageMetrics`。
 - `fixed`：尺寸来自 schema page。
 - `label`：纸张尺寸由 label columns / rows / gaps 计算，不等同于单个标签 cell。
 - `PagePrintConfig` 的 offset 只进入策略对象，CSS 模板不重新读取 schema。
