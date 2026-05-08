@@ -107,6 +107,27 @@ describe('viewer audit risk regressions', () => {
     expect(document.head.querySelector('style')).toBeNull()
   })
 
+  it('injects loaded fonts into an iframe host document', async () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const viewer = createViewer({
+      iframe,
+      fontProvider: {
+        async listFonts() {
+          return []
+        },
+        async loadFont(fontFamily) {
+          return `data:font/woff2;base64,${fontFamily}`
+        },
+      },
+    })
+
+    await viewer.open({ schema: fixedSchema([textNode('fonted', undefined, { content: 'Fonted', fontFamily: 'IframeFont' })]) })
+
+    expect(iframe.contentDocument!.head.querySelector('style')?.textContent).toContain('IframeFont')
+    expect(document.head.textContent).not.toContain('IframeFont')
+  })
+
   it('accepts an explicit iframe host adapter', async () => {
     const iframe = document.createElement('iframe')
     document.body.appendChild(iframe)

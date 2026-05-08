@@ -33,6 +33,7 @@ export interface ExportRuntimeContext<TInput = unknown> {
 export interface ExportRuntimeAdapter<TInput = unknown, TResult extends Blob | void = Blob | void> {
   id: string
   format: ExportFormat
+  validateInput?: (input: unknown) => input is TInput
   prepare?: (context: ExportRuntimeContext<TInput>) => Promise<void>
   export: (context: ExportRuntimeContext<TInput>) => Promise<TResult>
 }

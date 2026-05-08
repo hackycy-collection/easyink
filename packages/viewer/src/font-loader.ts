@@ -77,7 +77,10 @@ function injectFontFace(
   source: FontSource,
   target: Document | ShadowRoot,
 ): void {
-  const doc = target instanceof Document ? target : target.ownerDocument
+  const isDocument = target.nodeType === 9
+  const doc = isDocument ? target as Document : target.ownerDocument
+  if (!doc)
+    throw new Error('Font injection target does not have an owner document')
   const styleEl = doc.createElement('style')
 
   const src = typeof source === 'string'
@@ -86,8 +89,8 @@ function injectFontFace(
 
   styleEl.textContent = `@font-face { font-family: "${family}"; src: ${src}; font-display: swap; }`
 
-  if (target instanceof Document) {
-    target.head.appendChild(styleEl)
+  if (isDocument) {
+    doc.head.appendChild(styleEl)
   }
   else {
     target.appendChild(styleEl)

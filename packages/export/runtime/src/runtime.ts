@@ -43,10 +43,28 @@ export class ExportRuntime {
     const entry = options.entry ?? this.options.entry ?? 'api'
     this.setState({ phase: 'dispatching', entry, format: options.format, error: undefined })
 
-    const adapter = this.resolveAdapter(options)
+    const adapterCandidates = this.resolveAdapterCandidates(options)
+    let adapter: ExportRuntimeAdapter | undefined
+    try {
+      adapter = this.resolveValidAdapter(adapterCandidates, options.input)
+    }
+    catch (err) {
+      this.fail(entry, options.format, err, options, 'EXPORT_INPUT_VALIDATOR_ERROR')
+      if (options.throwOnError)
+        throw err
+      return undefined
+    }
     if (!adapter) {
-      const error = new Error(`No export adapter found for format: ${options.format}`)
-      this.fail(entry, options.format, error, options)
+      const error = adapterCandidates.length === 0
+        ? new Error(`No export adapter found for format: ${options.format}`)
+        : new Error(`Export input does not match any adapter for format: ${options.format}`)
+      this.fail(
+        entry,
+        options.format,
+        error,
+        options,
+        adapterCandidates.length === 0 ? 'NO_EXPORT_ADAPTER' : 'EXPORT_INPUT_INVALID',
+      )
       if (options.throwOnError)
         throw error
       return undefined
@@ -85,10 +103,14 @@ export class ExportRuntime {
     }
   }
 
-  private resolveAdapter<TInput>(options: ExportDocumentOptions<TInput>): ExportRuntimeAdapter | undefined {
+  private resolveAdapterCandidates<TInput>(options: ExportDocumentOptions<TInput>): ExportRuntimeAdapter[] {
     if (options.adapterId)
-      return this.adapters.find(adapter => adapter.id === options.adapterId && adapter.format === options.format)
-    return this.adapters.find(adapter => adapter.format === options.format)
+      return this.adapters.filter(adapter => adapter.id === options.adapterId && adapter.format === options.format)
+    return this.adapters.filter(adapter => adapter.format === options.format)
+  }
+
+  private resolveValidAdapter(adapterCandidates: ExportRuntimeAdapter[], input: unknown): ExportRuntimeAdapter | undefined {
+    return adapterCandidates.find(candidate => !candidate.validateInput || candidate.validateInput(input))
   }
 
   private fail(
@@ -96,11 +118,12 @@ export class ExportRuntime {
     format: string,
     err: unknown,
     options: Pick<ExportDocumentOptions, 'onDiagnostic'>,
+    code = 'EXPORT_RUNTIME_ERROR',
   ): void {
     const message = err instanceof Error ? err.message : String(err)
     const diagnostic: ExportDiagnostic = {
       severity: 'error',
-      code: 'EXPORT_RUNTIME_ERROR',
+      code,
       message,
       scope: 'export-runtime',
       cause: serializeCause(err),

@@ -5,6 +5,7 @@ import { LINE_TYPE, renderLine } from '@easyink/material-line'
 import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createViewer, resolvePrintPolicy } from './index'
+import { buildPrintStyles } from './print-service'
 
 function registerTestMaterials(viewer: ViewerRuntime): void {
   viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
@@ -104,16 +105,16 @@ function createData(): Record<string, unknown> {
 }
 
 function getPrintPolicy(viewer: ViewerRuntime, options?: ViewerPrintOptions): ViewerPrintPolicy {
-  const policy = (viewer as unknown as {
-    createPrintPolicy: (options?: ViewerPrintOptions) => ViewerPrintPolicy | undefined
-  }).createPrintPolicy(options)
+  const schema = viewer.schema
+  expect(schema).toBeDefined()
+  const policy = resolvePrintPolicy({ schema: schema!, options, renderedPages: viewer.renderedPages })
   expect(policy).toBeDefined()
-  return policy!
+  return policy
 }
 
 function getPrintStyles(viewer: ViewerRuntime, options?: ViewerPrintOptions): string {
   const policy = getPrintPolicy(viewer, options)
-  return (viewer as unknown as { buildPrintStyles: (policy: ViewerPrintPolicy) => string }).buildPrintStyles(policy)
+  return buildPrintStyles(policy)
 }
 
 function setRenderedPages(viewer: ViewerRuntime, pages: ViewerPageMetrics[]): void {
@@ -252,6 +253,28 @@ describe('viewer runtime print behavior', () => {
     expect(diagnostics).toContain('PRINT_ERROR')
   })
 
+  it('propagates isolated browser print failures to call diagnostics and throwOnError', async () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const viewer = createViewer({ container })
+    const callbackDiagnostics: string[] = []
+    mockWindowPrint(() => {
+      throw new Error('print boom')
+    })
+
+    await viewer.open({ schema: createFixedSchema() })
+
+    await expect(viewer.print({
+      throwOnError: true,
+      onDiagnostic(event) {
+        callbackDiagnostics.push(event.code)
+      },
+    })).rejects.toThrow('print boom')
+
+    expect(callbackDiagnostics).toContain('PRINT_ERROR')
+    expect(container.hasAttribute('data-ei-printing')).toBe(false)
+  })
+
   it('rejects stack pdf printing when rendered metrics are missing', async () => {
     const container = document.createElement('div')
     const diagnostics: string[] = []
@@ -308,6 +331,30 @@ describe('viewer runtime print behavior', () => {
     await viewer.open({ schema: createFixedSchema() })
 
     await expect(viewer.print({ adapterId: 'bad-print-adapter', throwOnError: true })).rejects.toThrow('print boom')
+  })
+
+  it('replaces print adapters with the same id', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    const calls: string[] = []
+
+    viewer.registerPrintAdapter({
+      id: 'replaceable-print',
+      async print() {
+        calls.push('old')
+      },
+    })
+    viewer.registerPrintAdapter({
+      id: 'replaceable-print',
+      async print() {
+        calls.push('new')
+      },
+    })
+
+    await viewer.open({ schema: createFixedSchema() })
+    await viewer.print({ adapterId: 'replaceable-print' })
+
+    expect(calls).toEqual(['new'])
   })
 })
 
@@ -370,5 +417,31 @@ describe('viewer runtime export behavior', () => {
     await viewer.open({ schema: createFixedSchema() })
 
     await expect(viewer.exportDocument({ format: 'pdf', throwOnError: true })).rejects.toThrow('export boom')
+  })
+
+  it('replaces export adapters with the same id', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    const calls: string[] = []
+
+    viewer.registerExportAdapter({
+      id: 'replaceable-export',
+      format: 'pdf',
+      async export() {
+        calls.push('old')
+      },
+    })
+    viewer.registerExportAdapter({
+      id: 'replaceable-export',
+      format: 'pdf',
+      async export() {
+        calls.push('new')
+      },
+    })
+
+    await viewer.open({ schema: createFixedSchema() })
+    await viewer.exportDocument('pdf')
+
+    expect(calls).toEqual(['new'])
   })
 })

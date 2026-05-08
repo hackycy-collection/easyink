@@ -1,5 +1,39 @@
-import { describe, expect, it } from 'vitest'
-import { resolveCanvasScale } from './pdf'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderPagesToPdfBlob, resolveCanvasScale } from './pdf'
+
+const pdfMocks = vi.hoisted(() => ({
+  html2canvas: vi.fn(async () => ({
+    width: 100,
+    height: 100,
+    toDataURL: () => 'data:image/png;base64,AA==',
+  })),
+  addPage: vi.fn(),
+  addImage: vi.fn(),
+  output: vi.fn(() => new Blob(['pdf'], { type: 'application/pdf' })),
+}))
+
+vi.mock('html2canvas', () => ({
+  default: pdfMocks.html2canvas,
+}))
+
+vi.mock('jspdf', () => {
+  class JsPDF {
+    addPage = pdfMocks.addPage
+    addImage = pdfMocks.addImage
+    output = pdfMocks.output
+  }
+
+  return {
+    jsPDF: JsPDF,
+  }
+})
+
+beforeEach(() => {
+  pdfMocks.html2canvas.mockClear()
+  pdfMocks.addPage.mockClear()
+  pdfMocks.addImage.mockClear()
+  pdfMocks.output.mockClear()
+})
 
 describe('resolveCanvasScale', () => {
   it('uses the requested dpi scale while the page stays under the pixel cap', () => {
@@ -34,5 +68,50 @@ describe('resolveCanvasScale', () => {
     })
 
     expect(resolveCanvasScale(page, 300)).toBe(2)
+  })
+})
+
+describe('renderPagesToPdfBlob asset preflight', () => {
+  it('continues and warns when an image never settles', async () => {
+    const page = document.createElement('div')
+    const image = document.createElement('img')
+    image.src = 'https://example.test/hung.png'
+    Object.defineProperty(image, 'complete', { configurable: true, value: false })
+    page.appendChild(image)
+    const diagnostics: string[] = []
+
+    const result = await renderPagesToPdfBlob({
+      pages: [page],
+      widthMm: 80,
+      heightMm: 60,
+      assetLoadTimeoutMs: 1,
+      onDiagnostic(diagnostic) {
+        diagnostics.push(diagnostic.code)
+      },
+    })
+
+    expect(result).toBeInstanceOf(Blob)
+    expect(diagnostics).toContain('PDF_IMAGE_LOAD_TIMEOUT')
+    expect(pdfMocks.html2canvas).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for CSS background images and continues on timeout', async () => {
+    const page = document.createElement('div')
+    page.style.backgroundImage = 'url("https://example.test/background.png")'
+    const diagnostics: string[] = []
+
+    const result = await renderPagesToPdfBlob({
+      pages: [page],
+      widthMm: 80,
+      heightMm: 60,
+      assetLoadTimeoutMs: 1,
+      onDiagnostic(diagnostic) {
+        diagnostics.push(diagnostic.code)
+      },
+    })
+
+    expect(result).toBeInstanceOf(Blob)
+    expect(diagnostics).toContain('PDF_BACKGROUND_IMAGE_LOAD_TIMEOUT')
+    expect(pdfMocks.html2canvas).toHaveBeenCalledTimes(1)
   })
 })

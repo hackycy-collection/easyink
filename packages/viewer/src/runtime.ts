@@ -24,6 +24,7 @@ import { resolveViewerDataContext } from './data-source-resolver'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
 import { MaterialRendererRegistry } from './material-registry'
 import { PrintPolicyError, resolvePrintPolicy } from './print-policy'
+import { runPrintWithIsolation } from './print-service'
 import { renderPages } from './render-surface'
 import { applyStackFlowLayout } from './stack-flow-layout'
 import { createThumbnails } from './thumbnail-pipeline'
@@ -258,7 +259,14 @@ export class ViewerRuntime {
     const fallbackWindow = this._host?.window ?? getGlobalWindow()
     if (fallbackWindow) {
       if (this._host) {
-        await this.printWithIsolation(printPolicy)
+        try {
+          runPrintWithIsolation(this._host, printPolicy)
+        }
+        catch (err) {
+          this.emitPrintError(err, options.onDiagnostic)
+          if (options.throwOnError)
+            throw err
+        }
       }
       else {
         try {
@@ -289,40 +297,6 @@ export class ViewerRuntime {
     }
   }
 
-  private async printWithIsolation(printPolicy: ViewerPrintPolicy): Promise<void> {
-    const host = this._host!
-    const container = host.mount
-    const doc = container.ownerDocument
-    const ancestors: HTMLElement[] = []
-    let removeStyle: (() => void) | undefined
-
-    try {
-      let el: HTMLElement | null = container.parentElement
-      while (el) {
-        el.setAttribute('data-ei-print-ancestor', '')
-        ancestors.push(el)
-        if (el === doc.body)
-          break
-        el = el.parentElement
-      }
-      container.setAttribute('data-ei-printing', '')
-
-      removeStyle = host.appendStyle(this.buildPrintStyles(printPolicy))
-
-      host.print()
-    }
-    catch (err) {
-      this.emitPrintError(err)
-    }
-    finally {
-      removeStyle?.()
-      container.removeAttribute('data-ei-printing')
-      for (const ancestor of ancestors) {
-        ancestor.removeAttribute('data-ei-print-ancestor')
-      }
-    }
-  }
-
   private emitPrintError(
     err: unknown,
     onDiagnostic?: (event: ViewerDiagnosticEvent) => void,
@@ -341,76 +315,6 @@ export class ViewerRuntime {
       scope: 'print',
       cause,
     }, onDiagnostic)
-  }
-
-  private buildPrintStyles(printPolicy: ViewerPrintPolicy): string {
-    const pageSizeCSS = printPolicy.pageSizeMode === 'driver'
-      ? ''
-      : `    size: ${printPolicy.sheetSize!.width}${printPolicy.sheetSize!.unit} ${printPolicy.sheetSize!.height}${printPolicy.sheetSize!.unit};\n`
-    const offset = printPolicy.offset
-    const offsetCSS = (offset.horizontal !== 0 || offset.vertical !== 0)
-      ? `transform: translate(${offset.horizontal}${offset.unit}, ${offset.vertical}${offset.unit}) !important;`
-      : ''
-
-    return `@media print {
-  @page {
-${pageSizeCSS}    margin: 0;
-  }
-  [data-ei-print-ancestor] {
-    display: block !important;
-    position: static !important;
-    overflow: visible !important;
-    visibility: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    background: none !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    box-shadow: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    z-index: auto !important;
-    inset: auto !important;
-    flex: none !important;
-  }
-  [data-ei-print-ancestor] > *:not([data-ei-print-ancestor]):not([data-ei-printing]) {
-    display: none !important;
-  }
-  [data-ei-printing] {
-    display: block !important;
-    position: static !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .ei-viewer-page-zoom {
-    width: auto !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .ei-viewer-page {
-    box-shadow: none !important;
-    margin: 0 !important;
-    transform: none !important;
-    break-after: ${printPolicy.pageBreakBehavior.after};
-    break-inside: ${printPolicy.pageBreakBehavior.inside};
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    ${offsetCSS}
-  }
-  .ei-viewer-page:last-child {
-    break-after: auto;
-  }
-}`
   }
 
   async exportDocument(formatOrOptions?: string | ViewerExportOptions): Promise<Blob | void> {
@@ -494,11 +398,19 @@ ${pageSizeCSS}    margin: 0;
   }
 
   registerExportAdapter(adapter: ExportAdapter): void {
-    this._exportAdapters.push(adapter)
+    const index = this._exportAdapters.findIndex(item => item.id === adapter.id)
+    if (index >= 0)
+      this._exportAdapters[index] = adapter
+    else
+      this._exportAdapters.push(adapter)
   }
 
   registerPrintAdapter(adapter: PrintAdapter): void {
-    this._printAdapters.push(adapter)
+    const index = this._printAdapters.findIndex(item => item.id === adapter.id)
+    if (index >= 0)
+      this._printAdapters[index] = adapter
+    else
+      this._printAdapters.push(adapter)
   }
 
   // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import type { jsPDF as JsPDFType } from 'jspdf'
 
 const CSS_DPI = 96
 const DEFAULT_EXPORT_DPI = 300
+const DEFAULT_ASSET_LOAD_TIMEOUT_MS = 10000
 const MIN_CANVAS_SCALE = 2
 const MAX_CANVAS_PIXELS = 32000000
 
@@ -11,6 +12,7 @@ export interface RenderPagesToPdfOptions {
   widthMm: number
   heightMm: number
   dpi?: number
+  assetLoadTimeoutMs?: number
   onProgress?: (progress: ExportProgress) => void
   onDiagnostic?: (diagnostic: ExportDiagnostic) => void
 }
@@ -20,6 +22,7 @@ export interface DomPdfExportInput {
   widthMm: number
   heightMm: number
   dpi?: number
+  assetLoadTimeoutMs?: number
 }
 
 export interface DomPdfExportAdapterOptions {
@@ -42,7 +45,15 @@ export function createDomPdfExportAdapter(options: DomPdfExportAdapterOptions = 
 }
 
 export async function renderPagesToPdfBlob(options: RenderPagesToPdfOptions): Promise<Blob> {
-  const { pages, widthMm, heightMm, dpi = DEFAULT_EXPORT_DPI, onProgress, onDiagnostic } = options
+  const {
+    pages,
+    widthMm,
+    heightMm,
+    dpi = DEFAULT_EXPORT_DPI,
+    assetLoadTimeoutMs = DEFAULT_ASSET_LOAD_TIMEOUT_MS,
+    onProgress,
+    onDiagnostic,
+  } = options
   const [{ default: html2canvas }, { jsPDF: JsPDF }] = await Promise.all([
     import('html2canvas'),
     import('jspdf'),
@@ -57,7 +68,7 @@ export async function renderPagesToPdfBlob(options: RenderPagesToPdfOptions): Pr
     page.setAttribute('data-easyink-pdf-capture-id', captureId)
 
     try {
-      await waitForRenderableAssets(page, onDiagnostic)
+      await waitForRenderableAssets(page, onDiagnostic, assetLoadTimeoutMs)
 
       if (pageIndex > 0)
         pdf.addPage([widthMm, heightMm], orientation)
@@ -123,6 +134,7 @@ export function resolveCanvasScale(page: HTMLElement, dpi: number): number {
 async function waitForRenderableAssets(
   root: HTMLElement,
   onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+  timeoutMs = DEFAULT_ASSET_LOAD_TIMEOUT_MS,
 ): Promise<void> {
   const fonts = root.ownerDocument.fonts
   if (fonts) {
@@ -141,12 +153,17 @@ async function waitForRenderableAssets(
   }
 
   const images = Array.from(root.querySelectorAll('img'))
-  await Promise.all(images.map(image => waitForImage(image, onDiagnostic)))
+  const backgroundUrls = collectBackgroundImageUrls(root)
+  await Promise.all([
+    ...images.map(image => waitForImage(image, onDiagnostic, timeoutMs)),
+    ...backgroundUrls.map(url => waitForBackgroundImage(root.ownerDocument, url, onDiagnostic, timeoutMs)),
+  ])
 }
 
 function waitForImage(
   image: HTMLImageElement,
   onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+  timeoutMs: number,
 ): Promise<void> {
   if (image.complete) {
     if (image.currentSrc && image.naturalWidth === 0)
@@ -155,14 +172,104 @@ function waitForImage(
   }
 
   return new Promise((resolve) => {
-    image.addEventListener('load', () => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    function cleanup() {
+      image.removeEventListener('load', onLoad)
+      image.removeEventListener('error', onError)
+      if (timeoutId !== undefined)
+        clearTimeout(timeoutId)
+    }
+    function onLoad() {
+      cleanup()
       resolve()
-    }, { once: true })
-    image.addEventListener('error', () => {
+    }
+    function onError() {
+      cleanup()
       emitImageWarning(image, onDiagnostic)
       resolve()
-    }, { once: true })
+    }
+    function onTimeout() {
+      cleanup()
+      emitImageTimeoutWarning(image.currentSrc || image.src || image.alt || '', onDiagnostic)
+      resolve()
+    }
+
+    image.addEventListener('load', onLoad, { once: true })
+    image.addEventListener('error', onError, { once: true })
+    timeoutId = setTimeout(onTimeout, timeoutMs)
   })
+}
+
+function waitForBackgroundImage(
+  document: Document,
+  src: string,
+  onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+  timeoutMs: number,
+): Promise<void> {
+  const ImageCtor = document.defaultView?.Image ?? Image
+  const image = new ImageCtor()
+  image.src = src
+
+  if (image.complete) {
+    if (image.naturalWidth === 0)
+      emitBackgroundImageWarning(src, onDiagnostic)
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    function cleanup() {
+      image.removeEventListener('load', onLoad)
+      image.removeEventListener('error', onError)
+      if (timeoutId !== undefined)
+        clearTimeout(timeoutId)
+    }
+    function onLoad() {
+      cleanup()
+      resolve()
+    }
+    function onError() {
+      cleanup()
+      emitBackgroundImageWarning(src, onDiagnostic)
+      resolve()
+    }
+    function onTimeout() {
+      cleanup()
+      emitBackgroundImageTimeoutWarning(src, onDiagnostic)
+      resolve()
+    }
+
+    image.addEventListener('load', onLoad, { once: true })
+    image.addEventListener('error', onError, { once: true })
+    timeoutId = setTimeout(onTimeout, timeoutMs)
+  })
+}
+
+function collectBackgroundImageUrls(root: HTMLElement): string[] {
+  const urls = new Set<string>()
+  const view = root.ownerDocument.defaultView
+  const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))]
+
+  for (const element of elements) {
+    for (const value of [element.style.backgroundImage, view?.getComputedStyle(element).backgroundImage]) {
+      if (!value || value === 'none')
+        continue
+      for (const url of parseCssImageUrls(value))
+        urls.add(url)
+    }
+  }
+
+  return [...urls]
+}
+
+function parseCssImageUrls(value: string): string[] {
+  const urls: string[] = []
+  for (const match of value.matchAll(/url\((['"]?)(.*?)\1\)/g)) {
+    const url = match[2]?.trim()
+    if (url)
+      urls.push(url)
+  }
+  return urls
 }
 
 function emitImageWarning(
@@ -175,6 +282,45 @@ function emitImageWarning(
     message: 'Image failed to load before PDF export; export will continue without blocking.',
     scope: 'asset',
     detail: { src: image.currentSrc || image.src || image.alt || '' },
+  })
+}
+
+function emitImageTimeoutWarning(
+  src: string,
+  onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+): void {
+  onDiagnostic?.({
+    severity: 'warning',
+    code: 'PDF_IMAGE_LOAD_TIMEOUT',
+    message: 'Image load timed out before PDF export; export will continue without blocking.',
+    scope: 'asset',
+    detail: { src },
+  })
+}
+
+function emitBackgroundImageWarning(
+  src: string,
+  onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+): void {
+  onDiagnostic?.({
+    severity: 'warning',
+    code: 'PDF_BACKGROUND_IMAGE_LOAD_FAILED',
+    message: 'Background image failed to load before PDF export; export will continue without blocking.',
+    scope: 'asset',
+    detail: { src },
+  })
+}
+
+function emitBackgroundImageTimeoutWarning(
+  src: string,
+  onDiagnostic: ((diagnostic: ExportDiagnostic) => void) | undefined,
+): void {
+  onDiagnostic?.({
+    severity: 'warning',
+    code: 'PDF_BACKGROUND_IMAGE_LOAD_TIMEOUT',
+    message: 'Background image load timed out before PDF export; export will continue without blocking.',
+    scope: 'asset',
+    detail: { src },
   })
 }
 
