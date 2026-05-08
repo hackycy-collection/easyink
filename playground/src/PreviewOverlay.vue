@@ -371,7 +371,7 @@ async function handlePrinterHostPrint() {
   const renderedPages = viewer?.renderedPages ?? []
   const printPolicy = resolvePrintPolicy({
     schema: props.schema,
-    options: { browserTarget: 'printer' },
+    options: { browserTarget: 'pdf' },
     renderedPages,
   })
   const printSize = printPolicy.sheetSize ?? renderedPages[0]

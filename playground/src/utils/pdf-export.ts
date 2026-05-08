@@ -22,24 +22,82 @@ export async function renderPagesToPdfBlob(options: RenderPagesToPdfOptions): Pr
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
     const page = pages[pageIndex]!
     onPageStart?.(pageIndex, pages.length)
-    await waitForRenderableAssets(page)
+    const capture = preparePageCapture(page, widthMm, heightMm)
 
-    if (pageIndex > 0)
-      pdf.addPage([widthMm, heightMm], orientation)
+    try {
+      await waitForRenderableAssets(capture.page)
 
-    const canvas = await html2canvas(page, {
-      scale: resolveCanvasScale(page, dpi),
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    })
+      if (pageIndex > 0)
+        pdf.addPage([widthMm, heightMm], orientation)
 
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, widthMm, heightMm, undefined, 'NONE')
-    canvas.width = 0
-    canvas.height = 0
+      const rect = capture.page.getBoundingClientRect()
+      const canvas = await html2canvas(capture.page, {
+        scale: resolveCanvasScale(capture.page, dpi),
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: Math.ceil(rect.width),
+        height: Math.ceil(rect.height),
+        removeContainer: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: Math.ceil(rect.width),
+        windowHeight: Math.ceil(rect.height),
+      })
+
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, widthMm, heightMm, undefined, 'NONE')
+      canvas.width = 0
+      canvas.height = 0
+    }
+    finally {
+      capture.cleanup()
+    }
   }
 
   return pdf.output('blob')
+}
+
+function preparePageCapture(
+  page: HTMLElement,
+  widthMm: number,
+  heightMm: number,
+): { page: HTMLElement, cleanup: () => void } {
+  const doc = page.ownerDocument
+  const sandbox = doc.createElement('div')
+  sandbox.setAttribute('data-easyink-pdf-capture', '')
+  sandbox.style.position = 'fixed'
+  sandbox.style.left = '-100000px'
+  sandbox.style.top = '0'
+  sandbox.style.width = `${widthMm}mm`
+  sandbox.style.height = `${heightMm}mm`
+  sandbox.style.margin = '0'
+  sandbox.style.padding = '0'
+  sandbox.style.overflow = 'hidden'
+  sandbox.style.background = '#ffffff'
+  sandbox.style.boxSizing = 'border-box'
+  sandbox.style.pointerEvents = 'none'
+  sandbox.style.zIndex = '-1'
+
+  const clone = page.cloneNode(true) as HTMLElement
+  normalizeCapturePage(clone, widthMm, heightMm)
+  sandbox.appendChild(clone)
+  doc.body.appendChild(sandbox)
+
+  return {
+    page: clone,
+    cleanup: () => sandbox.remove(),
+  }
+}
+
+function normalizeCapturePage(page: HTMLElement, widthMm: number, heightMm: number): void {
+  page.style.width = `${widthMm}mm`
+  page.style.height = `${heightMm}mm`
+  page.style.margin = '0'
+  page.style.boxShadow = 'none'
+  page.style.transform = 'none'
+  page.style.transformOrigin = 'top left'
+  page.style.overflow = 'hidden'
+  page.style.backgroundColor = page.style.backgroundColor || '#ffffff'
 }
 
 function resolveCanvasScale(page: HTMLElement, dpi: number): number {
