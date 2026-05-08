@@ -106,7 +106,8 @@ public class PrintService : IPrintService
                         e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
                         ApplyRasterPrintQuality(e.Graphics);
 
-                        var destRect = CreateDestinationRectangle(e.PageBounds, offsetX, offsetY);
+                        var contentSize = ResolveContentSizeInHundredthsOfInch(request.PaperSize, image, renderDpi);
+                        var destRect = CreateDestinationRectangle(e.PageBounds, contentSize, offsetX, offsetY);
                         e.Graphics.DrawImage(image, destRect);
                         currentPage++;
                         e.HasMorePages = currentPage < images.Count;
@@ -182,9 +183,27 @@ public class PrintService : IPrintService
         return new PaperSize(CustomPaperName, width, height);
     }
 
-    internal static Rectangle CreateDestinationRectangle(Rectangle pageBounds, int offsetX, int offsetY)
+    internal static Size ResolveContentSizeInHundredthsOfInch(PaperSizeParams paperSize, Image image, int renderDpi)
     {
-        return new Rectangle(offsetX, offsetY, pageBounds.Width, pageBounds.Height);
+        if (paperSize != null)
+            return new Size(paperSize.WidthInHundredthsOfInch, paperSize.HeightInHundredthsOfInch);
+
+        if (image == null)
+            throw new ArgumentNullException(nameof(image));
+
+        var horizontalDpi = image.HorizontalResolution > 0 ? image.HorizontalResolution : renderDpi;
+        var verticalDpi = image.VerticalResolution > 0 ? image.VerticalResolution : renderDpi;
+        return new Size(
+            PixelsToHundredthsOfInch(image.Width, horizontalDpi),
+            PixelsToHundredthsOfInch(image.Height, verticalDpi)
+        );
+    }
+
+    internal static Rectangle CreateDestinationRectangle(Rectangle pageBounds, Size contentSize, int offsetX, int offsetY)
+    {
+        var x = pageBounds.X + (pageBounds.Width - contentSize.Width) / 2 + offsetX;
+        var y = pageBounds.Y + (pageBounds.Height - contentSize.Height) / 2 + offsetY;
+        return new Rectangle(x, y, contentSize.Width, contentSize.Height);
     }
 
     internal static int ResolveRenderDpi(PrintDocument printDoc, PrintRequestParams request)
@@ -240,5 +259,13 @@ public class PrintService : IPrintService
             return DefaultRenderDpi;
 
         return Math.Min(dpi, MaxRenderDpi);
+    }
+
+    private static int PixelsToHundredthsOfInch(int pixels, float dpi)
+    {
+        if (dpi <= 0)
+            dpi = DefaultRenderDpi;
+
+        return (int)Math.Round(pixels / dpi * 100);
     }
 }

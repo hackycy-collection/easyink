@@ -249,13 +249,36 @@ public class PrintServiceTests
     }
 
     [Fact]
-    public void CreateDestinationRectangle_UsesPhysicalPageSizeAndOffset()
+    public void ResolveContentSizeInHundredthsOfInch_UsesRequestedPaperSize()
     {
-        var pageBounds = new Rectangle(50, 60, 394, 787);
+        var paperSize = new PaperSizeParams { Width = 100, Height = 150, Unit = "mm" };
+        using var image = new Bitmap(1000, 1500);
 
-        var result = PrintService.CreateDestinationRectangle(pageBounds, 10, 20);
+        var result = PrintService.ResolveContentSizeInHundredthsOfInch(paperSize, image, 300);
 
-        Assert.Equal(new Rectangle(10, 20, 394, 787), result);
+        Assert.Equal(new Size(paperSize.WidthInHundredthsOfInch, paperSize.HeightInHundredthsOfInch), result);
+    }
+
+    [Fact]
+    public void CreateDestinationRectangle_CentersContentInPhysicalPage()
+    {
+        var pageBounds = new Rectangle(0, 0, 800, 1000);
+        var contentSize = new Size(400, 600);
+
+        var result = PrintService.CreateDestinationRectangle(pageBounds, contentSize, 0, 0);
+
+        Assert.Equal(new Rectangle(200, 200, 400, 600), result);
+    }
+
+    [Fact]
+    public void CreateDestinationRectangle_AppliesOffsetAfterCentering()
+    {
+        var pageBounds = new Rectangle(0, 0, 800, 1000);
+        var contentSize = new Size(400, 600);
+
+        var result = PrintService.CreateDestinationRectangle(pageBounds, contentSize, 10, 20);
+
+        Assert.Equal(new Rectangle(210, 220, 400, 600), result);
     }
 
     [Fact]
