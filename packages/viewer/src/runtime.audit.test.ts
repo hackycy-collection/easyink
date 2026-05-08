@@ -318,7 +318,7 @@ describe('viewer audit risk regressions', () => {
       throw new Error('font boom')
     }
 
-    viewer.registerExportAdapter({
+    viewer.registerExporter({
       id: 'boom-export',
       format: 'pdf',
       async prepare() {
@@ -326,7 +326,7 @@ describe('viewer audit risk regressions', () => {
       },
       async export() {},
     })
-    viewer.registerPrintAdapter({
+    viewer.registerPrintDriver({
       id: 'boom-print',
       async print() {
         throw new Error('print boom')
@@ -341,11 +341,11 @@ describe('viewer audit risk regressions', () => {
       onDiagnostic,
     })
     await viewer.exportDocument('pdf')
-    await viewer.print({ adapterId: 'boom-print' })
+    await viewer.print({ driverId: 'boom-print' })
     await Promise.resolve()
 
     expect(diagnostics.some(d => d.code === 'FONT_LOAD_ERROR')).toBe(true)
-    expect(diagnostics.some(d => d.code === 'EXPORT_ADAPTER_ERROR')).toBe(true)
+    expect(diagnostics.some(d => d.code === 'EXPORTER_ERROR')).toBe(true)
     expect(diagnostics.some(d => d.code === 'PRINT_ERROR')).toBe(true)
     expect(diagnostics.some(d => d.code === 'DIAGNOSTIC_HOOK_ERROR')).toBe(true)
   })

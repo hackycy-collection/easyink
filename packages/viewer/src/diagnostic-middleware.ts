@@ -35,8 +35,8 @@ function buildDiagnostic(
       ? options.scope
       : options.scope === 'print'
         ? 'print'
-        : options.scope === 'export-adapter'
-          ? 'export-adapter'
+        : options.scope === 'exporter'
+          ? 'exporter'
           : 'viewer',
     severity,
     code: options.code,

@@ -11,7 +11,7 @@ export interface ExportDiagnostic {
   severity: DiagnosticSeverity
   code: string
   message: string
-  scope?: 'export-runtime' | 'export-adapter' | 'asset'
+  scope?: 'export-runtime' | 'export-plugin' | 'asset'
   detail?: unknown
   cause?: unknown
 }
@@ -30,7 +30,7 @@ export interface ExportRuntimeContext<TInput = unknown> {
   emitDiagnostic: (diagnostic: ExportDiagnostic) => void
 }
 
-export interface ExportRuntimeAdapter<TInput = unknown, TResult extends Blob | void = Blob | void> {
+export interface ExportFormatPlugin<TInput = unknown, TResult extends Blob | void = Blob | void> {
   id: string
   format: ExportFormat
   validateInput?: (input: unknown) => input is TInput
@@ -47,7 +47,7 @@ export interface ExportRuntimeOptions {
 export interface ExportDocumentOptions<TInput = unknown> extends ExportRuntimeOptions {
   format: ExportFormat
   input: TInput
-  adapterId?: string
+  pluginId?: string
   throwOnError?: boolean
 }
 

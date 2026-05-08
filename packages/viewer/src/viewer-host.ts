@@ -1,4 +1,4 @@
-export interface ViewerHostAdapter {
+export interface ViewerHost {
   readonly kind: 'browser' | 'iframe' | 'custom'
   readonly document: Document
   readonly window?: Window
@@ -8,7 +8,7 @@ export interface ViewerHostAdapter {
   print: () => void
 }
 
-export function createBrowserViewerHost(container: HTMLElement): ViewerHostAdapter {
+export function createBrowserViewerHost(container: HTMLElement): ViewerHost {
   const doc = container.ownerDocument
   return createElementHost({
     kind: 'browser',
@@ -18,7 +18,7 @@ export function createBrowserViewerHost(container: HTMLElement): ViewerHostAdapt
   })
 }
 
-export function createIframeViewerHost(iframe: HTMLIFrameElement): ViewerHostAdapter {
+export function createIframeViewerHost(iframe: HTMLIFrameElement): ViewerHost {
   const doc = iframe.contentDocument
   if (!doc) {
     throw new Error('Viewer iframe document is not available')
@@ -47,7 +47,7 @@ export function createCustomViewerHost(options: {
   mount: HTMLElement
   kind?: 'custom'
   print?: () => void
-}): ViewerHostAdapter {
+}): ViewerHost {
   const host = createElementHost({
     kind: options.kind ?? 'custom',
     document: options.document,
@@ -63,11 +63,11 @@ export function createCustomViewerHost(options: {
 }
 
 function createElementHost(options: {
-  kind: ViewerHostAdapter['kind']
+  kind: ViewerHost['kind']
   document: Document
   window?: Window
   mount: HTMLElement
-}): ViewerHostAdapter {
+}): ViewerHost {
   return {
     kind: options.kind,
     document: options.document,

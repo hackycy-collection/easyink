@@ -2,7 +2,7 @@ import type { BindingFormatDiagnostic, FontProvider, MaterialViewerExtension, Vi
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
-import type { ViewerHostAdapter } from './viewer-host'
+import type { ViewerHost } from './viewer-host'
 
 export * from '@easyink/datasource'
 export * from '@easyink/schema'
@@ -17,7 +17,7 @@ export type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult
 export interface ViewerOptions {
   mode?: 'fixed' | 'stack' | 'label'
   container?: HTMLElement
-  host?: ViewerHostAdapter
+  host?: ViewerHost
   iframe?: HTMLIFrameElement
   fontProvider?: FontProvider
 }
@@ -41,7 +41,7 @@ export interface ViewerDiagnosticEvent {
   nodeId?: string
   detail?: unknown
   /** 6.10: 诊断来源阶段 */
-  scope?: 'schema' | 'datasource' | 'font' | 'material' | 'print' | 'export-adapter' | 'hook'
+  scope?: 'schema' | 'datasource' | 'font' | 'material' | 'print' | 'exporter' | 'hook'
   /** 6.10: 原始异常对象，用于根因追踪 */
   cause?: unknown
 }
@@ -77,10 +77,10 @@ export interface ThumbnailResult {
 }
 
 // ---------------------------------------------------------------------------
-// Export & print adapters
+// Exporters & print drivers
 // ---------------------------------------------------------------------------
 
-export interface ExportAdapter {
+export interface ViewerExporter {
   id: string
   format: ExportFormat
   prepare?: (context: ViewerExportContext) => Promise<void>
@@ -128,7 +128,7 @@ export interface ViewerTaskCallbacks {
 
 export interface ViewerPrintOptions extends ViewerTaskCallbacks {
   pageSizeMode?: ViewerPrintPageSizeMode
-  adapterId?: string
+  driverId?: string
 }
 
 export interface ViewerExportOptions extends ViewerTaskCallbacks {
@@ -164,7 +164,7 @@ export interface ViewerPrintContext extends ViewerExportContext {
   container?: HTMLElement
 }
 
-export interface PrintAdapter {
+export interface PrintDriver {
   id: string
   print: (context: ViewerPrintContext) => Promise<void>
 }

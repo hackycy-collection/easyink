@@ -2,14 +2,14 @@ import type {
   ExportDiagnostic,
   ExportDispatchState,
   ExportDocumentOptions,
-  ExportRuntimeAdapter,
+  ExportFormatPlugin,
   ExportRuntimeContext,
   ExportRuntimeOptions,
   ExportStateListener,
 } from './types'
 
 export class ExportRuntime {
-  private adapters: ExportRuntimeAdapter[] = []
+  private plugins: ExportFormatPlugin[] = []
   private listeners = new Set<ExportStateListener>()
   private state: ExportDispatchState = {
     phase: 'idle',
@@ -18,13 +18,13 @@ export class ExportRuntime {
 
   constructor(private readonly options: ExportRuntimeOptions = {}) {}
 
-  registerAdapter<TInput = unknown, TResult extends Blob | void = Blob | void>(adapter: ExportRuntimeAdapter<TInput, TResult>): void {
-    const normalizedAdapter = adapter as ExportRuntimeAdapter
-    const index = this.adapters.findIndex(item => item.id === normalizedAdapter.id)
+  registerPlugin<TInput = unknown, TResult extends Blob | void = Blob | void>(plugin: ExportFormatPlugin<TInput, TResult>): void {
+    const normalizedPlugin = plugin as ExportFormatPlugin
+    const index = this.plugins.findIndex(item => item.id === normalizedPlugin.id)
     if (index >= 0)
-      this.adapters[index] = normalizedAdapter
+      this.plugins[index] = normalizedPlugin
     else
-      this.adapters.push(normalizedAdapter)
+      this.plugins.push(normalizedPlugin)
   }
 
   getState(): ExportDispatchState {
@@ -43,10 +43,10 @@ export class ExportRuntime {
     const entry = options.entry ?? this.options.entry ?? 'api'
     this.setState({ phase: 'dispatching', entry, format: options.format, error: undefined })
 
-    const adapterCandidates = this.resolveAdapterCandidates(options)
-    let adapter: ExportRuntimeAdapter | undefined
+    const pluginCandidates = this.resolvePluginCandidates(options)
+    let plugin: ExportFormatPlugin | undefined
     try {
-      adapter = this.resolveValidAdapter(adapterCandidates, options.input)
+      plugin = this.resolveValidPlugin(pluginCandidates, options.input)
     }
     catch (err) {
       this.fail(entry, options.format, err, options, 'EXPORT_INPUT_VALIDATOR_ERROR')
@@ -54,16 +54,16 @@ export class ExportRuntime {
         throw err
       return undefined
     }
-    if (!adapter) {
-      const error = adapterCandidates.length === 0
-        ? new Error(`No export adapter found for format: ${options.format}`)
-        : new Error(`Export input does not match any adapter for format: ${options.format}`)
+    if (!plugin) {
+      const error = pluginCandidates.length === 0
+        ? new Error(`No export plugin found for format: ${options.format}`)
+        : new Error(`Export input does not match any export plugin for format: ${options.format}`)
       this.fail(
         entry,
         options.format,
         error,
         options,
-        adapterCandidates.length === 0 ? 'NO_EXPORT_ADAPTER' : 'EXPORT_INPUT_INVALID',
+        pluginCandidates.length === 0 ? 'NO_EXPORT_PLUGIN' : 'EXPORT_INPUT_INVALID',
       )
       if (options.throwOnError)
         throw error
@@ -85,13 +85,13 @@ export class ExportRuntime {
     }
 
     try {
-      if (adapter.prepare) {
+      if (plugin.prepare) {
         this.setState({ phase: 'preparing', entry, format: options.format, error: undefined })
-        await adapter.prepare(context)
+        await plugin.prepare(context)
       }
 
       this.setState({ phase: 'exporting', entry, format: options.format, error: undefined })
-      const result = await adapter.export(context)
+      const result = await plugin.export(context)
       this.setState({ phase: 'completed', entry, format: options.format, error: undefined })
       return result
     }
@@ -103,14 +103,14 @@ export class ExportRuntime {
     }
   }
 
-  private resolveAdapterCandidates<TInput>(options: ExportDocumentOptions<TInput>): ExportRuntimeAdapter[] {
-    if (options.adapterId)
-      return this.adapters.filter(adapter => adapter.id === options.adapterId && adapter.format === options.format)
-    return this.adapters.filter(adapter => adapter.format === options.format)
+  private resolvePluginCandidates<TInput>(options: ExportDocumentOptions<TInput>): ExportFormatPlugin[] {
+    if (options.pluginId)
+      return this.plugins.filter(plugin => plugin.id === options.pluginId && plugin.format === options.format)
+    return this.plugins.filter(plugin => plugin.format === options.format)
   }
 
-  private resolveValidAdapter(adapterCandidates: ExportRuntimeAdapter[], input: unknown): ExportRuntimeAdapter | undefined {
-    return adapterCandidates.find(candidate => !candidate.validateInput || candidate.validateInput(input))
+  private resolveValidPlugin(pluginCandidates: ExportFormatPlugin[], input: unknown): ExportFormatPlugin | undefined {
+    return pluginCandidates.find(candidate => !candidate.validateInput || candidate.validateInput(input))
   }
 
   private fail(

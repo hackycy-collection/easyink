@@ -155,7 +155,7 @@ export type DiagnosticCategory
     | 'viewer'
     | 'material'
     | 'print'
-    | 'export-adapter'
+    | 'exporter'
 
 /**
  * Export format identifiers.

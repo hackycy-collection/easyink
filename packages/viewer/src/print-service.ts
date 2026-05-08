@@ -1,7 +1,7 @@
 import type { ViewerPrintPolicy } from './types'
-import type { ViewerHostAdapter } from './viewer-host'
+import type { ViewerHost } from './viewer-host'
 
-export function runPrintWithIsolation(host: ViewerHostAdapter, printPolicy: ViewerPrintPolicy): void {
+export function runPrintWithIsolation(host: ViewerHost, printPolicy: ViewerPrintPolicy): void {
   const container = host.mount
   const doc = container.ownerDocument
   const ancestors: HTMLElement[] = []

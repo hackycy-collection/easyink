@@ -45,11 +45,11 @@ export function getViewerPages(container: HTMLElement | undefined): HTMLElement[
 
 export function exportDiagnosticToViewerEvent(diagnostic: ExportDiagnostic): ViewerDiagnosticEvent {
   return {
-    category: 'export-adapter',
+    category: 'exporter',
     severity: diagnostic.severity,
     code: diagnostic.code,
     message: diagnostic.message,
-    scope: 'export-adapter',
+    scope: 'exporter',
     detail: diagnostic.detail,
     cause: diagnostic.cause,
   }

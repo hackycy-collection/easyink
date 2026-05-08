@@ -202,21 +202,21 @@ describe('viewer runtime print policy', () => {
 })
 
 describe('viewer runtime print behavior', () => {
-  it('passes resolved print policy to print adapters', async () => {
+  it('passes resolved print policy to print drivers', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     const printSpy = mockWindowPrint()
     const calls: ViewerPrintContext[] = []
 
-    viewer.registerPrintAdapter({
-      id: 'test-print-adapter',
+    viewer.registerPrintDriver({
+      id: 'test-print-driver',
       async print(context) {
         calls.push(context)
       },
     })
 
     await viewer.open({ schema: createFixedSchema() })
-    await viewer.print({ adapterId: 'test-print-adapter', pageSizeMode: 'fixed' })
+    await viewer.print({ driverId: 'test-print-driver', pageSizeMode: 'fixed' })
 
     expect(printSpy).not.toHaveBeenCalled()
     expect(calls).toHaveLength(1)
@@ -298,14 +298,14 @@ describe('viewer runtime print behavior', () => {
     expect(diagnostics).toContain('PRINT_RENDER_METRICS_MISSING')
   })
 
-  it('uses browser printing by default even when adapters are registered', async () => {
+  it('uses browser printing by default even when print drivers are registered', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     const printSpy = mockWindowPrint()
     const calls: ViewerPrintContext[] = []
 
-    viewer.registerPrintAdapter({
-      id: 'test-print-adapter',
+    viewer.registerPrintDriver({
+      id: 'test-print-driver',
       async print(context) {
         calls.push(context)
       },
@@ -318,11 +318,11 @@ describe('viewer runtime print behavior', () => {
     expect(calls).toHaveLength(0)
   })
 
-  it('throws print adapter failures when throwOnError is enabled', async () => {
+  it('throws print driver failures when throwOnError is enabled', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
-    viewer.registerPrintAdapter({
-      id: 'bad-print-adapter',
+    viewer.registerPrintDriver({
+      id: 'bad-print-driver',
       async print() {
         throw new Error('print boom')
       },
@@ -330,21 +330,21 @@ describe('viewer runtime print behavior', () => {
 
     await viewer.open({ schema: createFixedSchema() })
 
-    await expect(viewer.print({ adapterId: 'bad-print-adapter', throwOnError: true })).rejects.toThrow('print boom')
+    await expect(viewer.print({ driverId: 'bad-print-driver', throwOnError: true })).rejects.toThrow('print boom')
   })
 
-  it('replaces print adapters with the same id', async () => {
+  it('replaces print drivers with the same id', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     const calls: string[] = []
 
-    viewer.registerPrintAdapter({
+    viewer.registerPrintDriver({
       id: 'replaceable-print',
       async print() {
         calls.push('old')
       },
     })
-    viewer.registerPrintAdapter({
+    viewer.registerPrintDriver({
       id: 'replaceable-print',
       async print() {
         calls.push('new')
@@ -352,31 +352,31 @@ describe('viewer runtime print behavior', () => {
     })
 
     await viewer.open({ schema: createFixedSchema() })
-    await viewer.print({ adapterId: 'replaceable-print' })
+    await viewer.print({ driverId: 'replaceable-print' })
 
     expect(calls).toEqual(['new'])
   })
 })
 
 describe('viewer runtime export behavior', () => {
-  it('passes rendered pages, container, and diagnostics callback to export adapters', async () => {
+  it('passes rendered pages, container, and diagnostics callback to exporters', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     let captured: ViewerExportContext | undefined
     const diagnostics: string[] = []
     const callbackDiagnostics: string[] = []
 
-    viewer.registerExportAdapter({
-      id: 'test-export-adapter',
+    viewer.registerExporter({
+      id: 'test-exporter',
       format: 'pdf',
       async export(context) {
         captured = context
         context.onDiagnostic?.({
-          category: 'export-adapter',
+          category: 'exporter',
           severity: 'warning',
           code: 'EXPORT_WARNING',
           message: 'export warning',
-          scope: 'export-adapter',
+          scope: 'exporter',
         })
         return new Blob(['ok'], { type: 'application/pdf' })
       },
@@ -403,11 +403,11 @@ describe('viewer runtime export behavior', () => {
     expect(callbackDiagnostics).toContain('EXPORT_WARNING')
   })
 
-  it('throws export adapter failures when throwOnError is enabled', async () => {
+  it('throws exporter failures when throwOnError is enabled', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
-    viewer.registerExportAdapter({
-      id: 'bad-export-adapter',
+    viewer.registerExporter({
+      id: 'bad-exporter',
       format: 'pdf',
       async export() {
         throw new Error('export boom')
@@ -419,19 +419,19 @@ describe('viewer runtime export behavior', () => {
     await expect(viewer.exportDocument({ format: 'pdf', throwOnError: true })).rejects.toThrow('export boom')
   })
 
-  it('replaces export adapters with the same id', async () => {
+  it('replaces exporters with the same id', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     const calls: string[] = []
 
-    viewer.registerExportAdapter({
+    viewer.registerExporter({
       id: 'replaceable-export',
       format: 'pdf',
       async export() {
         calls.push('old')
       },
     })
-    viewer.registerExportAdapter({
+    viewer.registerExporter({
       id: 'replaceable-export',
       format: 'pdf',
       async export() {

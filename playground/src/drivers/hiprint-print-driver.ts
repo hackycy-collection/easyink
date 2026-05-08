@@ -1,16 +1,16 @@
-import type { PrintAdapter, ViewerPrintContext } from '@easyink/viewer'
+import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import { usePrinter } from '../hooks/useHiPrint'
 import { getViewerPages, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
- * HiPrint PrintAdapter for EasyInk Viewer.
+ * HiPrint print driver for EasyInk Viewer.
  * Uses the singleton printer store (config managed via PrinterSettingsModal).
  */
-export function createHiPrintAdapter(): PrintAdapter {
+export function createHiPrintDriver(): PrintDriver {
   const printer = usePrinter()
 
   return {
-    id: 'hiprint-adapter',
+    id: 'hiprint-driver',
     async print(context: ViewerPrintContext) {
       if (!printer.enabled.value)
         throw new Error('打印服务未启用')

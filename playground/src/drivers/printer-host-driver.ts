@@ -1,18 +1,18 @@
-import type { PrintAdapter, ViewerPrintContext } from '@easyink/viewer'
-import { renderPagesToPdfBlob } from '@easyink/export-adapter-dom-pdf'
+import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
+import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
 import { usePrinterHost } from '../hooks/usePrinterHost'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
- * Printer.Host PrintAdapter.
+ * Printer.Host print driver.
  * Renders viewer pages to PDF,
  * then sends the PDF to Printer.Host over WebSocket (binary frame, async print).
  */
-export function createPrinterHostAdapter(): PrintAdapter {
+export function createPrinterHostDriver(): PrintDriver {
   const host = usePrinterHost()
 
   return {
-    id: 'printer-host-adapter',
+    id: 'printer-host-driver',
     async print(context: ViewerPrintContext) {
       if (!host.enabled.value)
         throw new Error('Printer.Host 未启用')

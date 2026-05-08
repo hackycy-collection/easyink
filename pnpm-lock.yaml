@@ -404,7 +404,7 @@ importers:
         specifier: catalog:framework
         version: 3.5.31(typescript@6.0.2)
 
-  packages/export/adapter/dom-pdf:
+  packages/export/plugin/dom-pdf:
     dependencies:
       '@easyink/export-runtime':
         specifier: workspace:*
@@ -754,9 +754,9 @@ importers:
       '@easyink/designer':
         specifier: workspace:*
         version: link:../packages/designer
-      '@easyink/export-adapter-dom-pdf':
+      '@easyink/export-plugin-dom-pdf':
         specifier: workspace:*
-        version: link:../packages/export/adapter/dom-pdf
+        version: link:../packages/export/plugin/dom-pdf
       '@easyink/export-runtime':
         specifier: workspace:*
         version: link:../packages/export/runtime

@@ -1,10 +1,10 @@
 import type { InternalHooks, PagePlan } from '@easyink/core'
 import type { DocumentSchema } from '@easyink/schema'
 import type {
-  ExportAdapter,
   MaterialViewerExtension,
-  PrintAdapter,
+  PrintDriver,
   ViewerDiagnosticEvent,
+  ViewerExporter,
   ViewerExportOptions,
   ViewerMeasureContext,
   ViewerOpenInput,
@@ -14,7 +14,7 @@ import type {
   ViewerPrintPolicy,
   ViewerRenderResult,
 } from './types'
-import type { ViewerHostAdapter } from './viewer-host'
+import type { ViewerHost } from './viewer-host'
 import { registerBuiltinViewerMaterials } from '@easyink/builtin'
 import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
 import { traverseNodes, validateSchema } from '@easyink/schema'
@@ -36,12 +36,12 @@ export class ViewerRuntime {
   private _data: Record<string, unknown> = {}
   private _dataSources: ViewerOpenInput['dataSources'] = []
   private _diagnosticHandler?: (event: ViewerDiagnosticEvent) => void
-  private _exportAdapters: ExportAdapter[] = []
-  private _printAdapters: PrintAdapter[] = []
+  private _exporters: ViewerExporter[] = []
+  private _printDrivers: PrintDriver[] = []
   private _materialRegistry = new MaterialRendererRegistry()
   private _fontManager: FontManager
   private _hooks: InternalHooks
-  private _host?: ViewerHostAdapter
+  private _host?: ViewerHost
   private _renderedPageMetrics: ViewerPageMetrics[] = []
   private _destroyed = false
   private _emittingHookFailure = false
@@ -220,20 +220,20 @@ export class ViewerRuntime {
     if (!printPolicy)
       return
 
-    const shouldUseBrowser = !options.adapterId || options.adapterId === 'browser'
+    const shouldUseBrowser = !options.driverId || options.driverId === 'browser'
     if (!shouldUseBrowser) {
-      const adapter = this._printAdapters.find(item => item.id === options.adapterId)
-      if (!adapter) {
-        const err = new Error(`No print adapter found for id: ${options.adapterId}`)
-        this.emitPrintError(err, options.onDiagnostic, 'NO_PRINT_ADAPTER')
+      const driver = this._printDrivers.find(item => item.id === options.driverId)
+      if (!driver) {
+        const err = new Error(`No print driver found for id: ${options.driverId}`)
+        this.emitPrintError(err, options.onDiagnostic, 'NO_PRINT_DRIVER')
         if (options.throwOnError)
           throw err
         return
       }
 
       try {
-        options.onPhase?.({ phase: 'preparing', message: adapter.id })
-        await adapter.print({
+        options.onPhase?.({ phase: 'preparing', message: driver.id })
+        await driver.print({
           schema: this._schema,
           data: this._data,
           dataSources: this._dataSources,
@@ -245,7 +245,7 @@ export class ViewerRuntime {
           onProgress: options.onProgress,
           onDiagnostic: event => this.emitTaskDiagnostic(event, options.onDiagnostic),
         })
-        options.onPhase?.({ phase: 'completed', message: adapter.id })
+        options.onPhase?.({ phase: 'completed', message: driver.id })
       }
       catch (err) {
         this.emitPrintError(err, options.onDiagnostic)
@@ -327,18 +327,18 @@ export class ViewerRuntime {
       : (formatOrOptions ?? {})
     const format = options.format
 
-    const adapter = format
-      ? this._exportAdapters.find(a => a.format === format)
-      : this._exportAdapters[0]
+    const exporter = format
+      ? this._exporters.find(item => item.format === format)
+      : this._exporters[0]
 
-    if (!adapter) {
-      const err = new Error(`No export adapter found for format: ${format || 'default'}`)
+    if (!exporter) {
+      const err = new Error(`No exporter found for format: ${format || 'default'}`)
       this.emitTaskDiagnostic({
-        category: 'export-adapter',
+        category: 'exporter',
         severity: 'error',
-        code: 'NO_EXPORT_ADAPTER',
+        code: 'NO_EXPORTER',
         message: err.message,
-        scope: 'export-adapter',
+        scope: 'exporter',
         cause: serializeCause(err),
       }, options.onDiagnostic)
       if (options.throwOnError)
@@ -359,18 +359,18 @@ export class ViewerRuntime {
     }
 
     try {
-      if (adapter.prepare) {
-        options.onPhase?.({ phase: 'preparing', message: adapter.id })
-        await adapter.prepare(context)
+      if (exporter.prepare) {
+        options.onPhase?.({ phase: 'preparing', message: exporter.id })
+        await exporter.prepare(context)
       }
 
-      options.onPhase?.({ phase: 'exporting', message: adapter.id })
-      const result = await adapter.export(context)
-      options.onPhase?.({ phase: 'completed', message: adapter.id })
+      options.onPhase?.({ phase: 'exporting', message: exporter.id })
+      const result = await exporter.export(context)
+      options.onPhase?.({ phase: 'completed', message: exporter.id })
       return result
     }
     catch (err) {
-      this.emitExportError(adapter.id, format, err, options.onDiagnostic)
+      this.emitExportError(exporter.id, format, err, options.onDiagnostic)
       if (options.throwOnError)
         throw err
       return undefined
@@ -382,8 +382,8 @@ export class ViewerRuntime {
     this._schema = undefined
     this._data = {}
     this._materialRegistry.clear()
-    this._exportAdapters = []
-    this._printAdapters = []
+    this._exporters = []
+    this._printDrivers = []
     this._renderedPageMetrics = []
     this._fontManager.clear()
     this._host?.clear()
@@ -397,20 +397,20 @@ export class ViewerRuntime {
     this._materialRegistry.register(type, extension)
   }
 
-  registerExportAdapter(adapter: ExportAdapter): void {
-    const index = this._exportAdapters.findIndex(item => item.id === adapter.id)
+  registerExporter(exporter: ViewerExporter): void {
+    const index = this._exporters.findIndex(item => item.id === exporter.id)
     if (index >= 0)
-      this._exportAdapters[index] = adapter
+      this._exporters[index] = exporter
     else
-      this._exportAdapters.push(adapter)
+      this._exporters.push(exporter)
   }
 
-  registerPrintAdapter(adapter: PrintAdapter): void {
-    const index = this._printAdapters.findIndex(item => item.id === adapter.id)
+  registerPrintDriver(driver: PrintDriver): void {
+    const index = this._printDrivers.findIndex(item => item.id === driver.id)
     if (index >= 0)
-      this._printAdapters[index] = adapter
+      this._printDrivers[index] = driver
     else
-      this._printAdapters.push(adapter)
+      this._printDrivers.push(driver)
   }
 
   // ---------------------------------------------------------------------------
@@ -720,17 +720,17 @@ export class ViewerRuntime {
   }
 
   private emitExportError(
-    adapterId: string,
+    exporterId: string,
     format: string | undefined,
     err: unknown,
     onDiagnostic?: (event: ViewerDiagnosticEvent) => void,
   ): void {
     this.emitTaskDiagnostic({
-      category: 'export-adapter',
+      category: 'exporter',
       severity: 'error',
-      code: 'EXPORT_ADAPTER_ERROR',
-      message: `Export adapter "${adapterId}" failed for format "${format || 'default'}": ${err instanceof Error ? err.message : String(err)}`,
-      scope: 'export-adapter',
+      code: 'EXPORTER_ERROR',
+      message: `Exporter "${exporterId}" failed for format "${format || 'default'}": ${err instanceof Error ? err.message : String(err)}`,
+      scope: 'exporter',
       cause: serializeCause(err),
     }, onDiagnostic)
   }

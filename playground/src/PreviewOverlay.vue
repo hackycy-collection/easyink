@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { ExportProgress, ExportRuntimeAdapter } from '@easyink/export-runtime'
-import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, ViewerHostAdapter, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
-import { createDomPdfExportAdapter } from '@easyink/export-adapter-dom-pdf'
+import type { ExportFormatPlugin, ExportProgress } from '@easyink/export-runtime'
+import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
+import { createDomPdfExportPlugin } from '@easyink/export-plugin-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import { createHiPrintAdapter } from './adapters/hiprint-print-adapter'
-import { createPrinterHostAdapter } from './adapters/printer-host-adapter'
 import PrinterHostSettingsModal from './components/PrinterHostSettingsModal.vue'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
 import { Button } from './components/ui/button'
@@ -20,6 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
+import { createHiPrintDriver } from './drivers/hiprint-print-driver'
+import { createPrinterHostDriver } from './drivers/printer-host-driver'
 import { usePrinter } from './hooks/useHiPrint'
 import { usePrinterHost } from './hooks/usePrinterHost'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
@@ -36,12 +36,11 @@ const emit = defineEmits<{
 
 const EXPORT_FORMAT = 'playground-demo-json'
 const PDF_FORMAT = 'pdf'
-const BROWSER_PRINT_ADAPTER_ID = 'browser'
-const HIPRINT_ADAPTER_ID = 'hiprint-adapter'
-const PRINTER_HOST_ADAPTER_ID = 'printer-host-adapter'
+const HIPRINT_DRIVER_ID = 'hiprint-driver'
+const PRINTER_HOST_DRIVER_ID = 'printer-host-driver'
 
 const iframeRef = ref<HTMLIFrameElement>()
-let viewerHost: ViewerHostAdapter | undefined
+let viewerHost: ViewerHost | undefined
 let viewer: ViewerRuntime | undefined
 const exportRuntime = createExportRuntime({ entry: 'preview' })
 
@@ -67,7 +66,7 @@ onMounted(async () => {
   setupIframeSurface(viewerHost)
 
   viewer = createViewer({ host: viewerHost })
-  registerOutputAdapters(viewer)
+  registerOutputIntegrations(viewer)
   await viewer.open({
     schema: props.schema,
     data: props.data,
@@ -87,11 +86,11 @@ onBeforeUnmount(() => {
   viewerHost = undefined
 })
 
-function registerOutputAdapters(runtime: ViewerRuntime) {
-  exportRuntime.registerAdapter(createDomPdfExportAdapter())
-  exportRuntime.registerAdapter(createPlaygroundJsonExportAdapter())
+function registerOutputIntegrations(runtime: ViewerRuntime) {
+  exportRuntime.registerPlugin(createDomPdfExportPlugin())
+  exportRuntime.registerPlugin(createPlaygroundJsonExportPlugin())
 
-  runtime.registerExportAdapter({
+  runtime.registerExporter({
     id: 'playground-pdf-export',
     format: PDF_FORMAT,
     async export(context) {
@@ -112,7 +111,7 @@ function registerOutputAdapters(runtime: ViewerRuntime) {
     },
   })
 
-  runtime.registerExportAdapter({
+  runtime.registerExporter({
     id: 'playground-json-export',
     format: EXPORT_FORMAT,
     async export(context) {
@@ -127,11 +126,11 @@ function registerOutputAdapters(runtime: ViewerRuntime) {
     },
   })
 
-  runtime.registerPrintAdapter(createHiPrintAdapter())
-  runtime.registerPrintAdapter(createPrinterHostAdapter())
+  runtime.registerPrintDriver(createHiPrintDriver())
+  runtime.registerPrintDriver(createPrinterHostDriver())
 }
 
-function createPlaygroundJsonExportAdapter(): ExportRuntimeAdapter<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
+function createPlaygroundJsonExportPlugin(): ExportFormatPlugin<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
   return {
     id: 'playground-json-export-runtime',
     format: EXPORT_FORMAT,
@@ -173,7 +172,7 @@ function waitForIframeDocument(iframe: HTMLIFrameElement): Promise<void> {
   })
 }
 
-function setupIframeSurface(host: ViewerHostAdapter) {
+function setupIframeSurface(host: ViewerHost) {
   host.document.documentElement.style.height = '100%'
   host.document.body.style.height = '100%'
   host.document.body.style.margin = '0'
@@ -417,12 +416,12 @@ async function ensurePrinterHostReady(): Promise<boolean> {
   return true
 }
 
-async function runViewerPrint(adapterId: string, pageSizeMode: 'driver' | 'fixed', label: string) {
+async function runViewerPrint(driverId: string, pageSizeMode: 'driver' | 'fixed', label: string) {
   isPrinting.value = true
   const progressId = toast.loading(`${label}中...`)
   try {
     await viewer?.print({
-      adapterId,
+      driverId,
       pageSizeMode,
       throwOnError: true,
       onPhase: event => updatePhaseToast(progressId, event.message, `${label}中...`),
@@ -443,12 +442,12 @@ async function runViewerPrint(adapterId: string, pageSizeMode: 'driver' | 'fixed
 
 async function handleHiPrintPrint() {
   if (await ensureHiPrintReady())
-    await runViewerPrint(HIPRINT_ADAPTER_ID, 'driver', 'HiPrint 打印')
+    await runViewerPrint(HIPRINT_DRIVER_ID, 'driver', 'HiPrint 打印')
 }
 
 async function handlePrinterHostPrint() {
   if (await ensurePrinterHostReady())
-    await runViewerPrint(PRINTER_HOST_ADAPTER_ID, 'fixed', 'Printer.Host 打印')
+    await runViewerPrint(PRINTER_HOST_DRIVER_ID, 'fixed', 'Printer.Host 打印')
 }
 
 function openPrinterSettings() {
