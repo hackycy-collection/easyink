@@ -7,8 +7,8 @@ import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, I
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import PrinterHostSettingsModal from './components/PrinterHostSettingsModal.vue'
 import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
+import PrintServiceSettingsModal from './components/PrintServiceSettingsModal.vue'
 import { Button } from './components/ui/button'
 import {
   DropdownMenu,
@@ -19,9 +19,9 @@ import {
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
 import { createHiPrintDriver } from './drivers/hiprint-print-driver'
-import { createPrinterHostDriver } from './drivers/printer-host-driver'
+import { createPrintServiceDriver } from './drivers/print-service-driver'
 import { usePrinter } from './hooks/useHiPrint'
-import { usePrinterHost } from './hooks/usePrinterHost'
+import { usePrintService } from './hooks/usePrintService'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
 
 const props = defineProps<{
@@ -38,7 +38,7 @@ const EXPORT_FORMAT = 'playground-demo-json'
 const PDF_FORMAT = 'pdf'
 const BROWSER_PRINT_DRIVER_ID = 'browser'
 const HIPRINT_DRIVER_ID = 'hiprint-driver'
-const PRINTER_HOST_DRIVER_ID = 'printer-host-driver'
+const PRINT_SERVICE_DRIVER_ID = 'print-service-driver'
 
 const iframeRef = ref<HTMLIFrameElement>()
 let viewerHost: ViewerHost | undefined
@@ -51,9 +51,9 @@ const totalPages = ref(1)
 
 // Printer integration
 const printer = usePrinter()
-const printerHost = usePrinterHost()
+const printService = usePrintService()
 const showPrinterSettings = ref(false)
-const showPrinterHostSettings = ref(false)
+const showPrintServiceSettings = ref(false)
 const isPrinting = ref(false)
 
 // Auto-connect handled inside usePrinter() singleton based on persisted config.
@@ -128,7 +128,7 @@ function registerOutputIntegrations(runtime: ViewerRuntime) {
   })
 
   runtime.registerPrintDriver(createHiPrintDriver())
-  runtime.registerPrintDriver(createPrinterHostDriver())
+  runtime.registerPrintDriver(createPrintServiceDriver())
 }
 
 function createPlaygroundJsonExportPlugin(): ExportFormatPlugin<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
@@ -387,30 +387,30 @@ async function ensureHiPrintReady(): Promise<boolean> {
   return true
 }
 
-async function ensurePrinterHostReady(): Promise<boolean> {
-  if (!printerHost.enabled.value) {
-    toast.error('请先在设置中启用 Printer.Host')
-    showPrinterHostSettings.value = true
+async function ensurePrintServiceReady(): Promise<boolean> {
+  if (!printService.enabled.value) {
+    toast.error('请先在设置中启用打印服务')
+    showPrintServiceSettings.value = true
     return false
   }
 
-  if (!printerHost.isConnected.value) {
-    const progressId = toast.loading('正在连接 Printer.Host...')
+  if (!printService.isConnected.value) {
+    const progressId = toast.loading('正在连接打印服务...')
     try {
-      await printerHost.connect()
+      await printService.connect()
       toast.dismiss(progressId)
     }
     catch (err) {
       toast.dismiss(progressId)
-      toast.error(err instanceof Error ? err.message : '连接 Printer.Host 失败')
-      showPrinterHostSettings.value = true
+      toast.error(err instanceof Error ? err.message : '连接打印服务失败')
+      showPrintServiceSettings.value = true
       return false
     }
   }
 
-  if (!printerHost.printerName.value) {
-    toast.error('请在 Printer.Host 设置中选择打印机')
-    showPrinterHostSettings.value = true
+  if (!printService.printerName.value) {
+    toast.error('请在打印服务设置中选择打印机')
+    showPrintServiceSettings.value = true
     return false
   }
 
@@ -446,17 +446,17 @@ async function handleHiPrintPrint() {
     await runViewerPrint(HIPRINT_DRIVER_ID, 'driver', 'HiPrint 打印')
 }
 
-async function handlePrinterHostPrint() {
-  if (await ensurePrinterHostReady())
-    await runViewerPrint(PRINTER_HOST_DRIVER_ID, 'fixed', 'Printer.Host 打印')
+async function handlePrintServicePrint() {
+  if (await ensurePrintServiceReady())
+    await runViewerPrint(PRINT_SERVICE_DRIVER_ID, 'fixed', '打印服务打印')
 }
 
 function openPrinterSettings() {
   showPrinterSettings.value = true
 }
 
-function openPrinterHostSettings() {
-  showPrinterHostSettings.value = true
+function openPrintServiceSettings() {
+  showPrintServiceSettings.value = true
 }
 
 async function handleExport() {
@@ -523,15 +523,15 @@ async function handleExport() {
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印
             </DropdownMenuItem>
-            <DropdownMenuItem :disabled="isPrinting" @click="handlePrinterHostPrint">
-              Printer.Host 打印
+            <DropdownMenuItem :disabled="isPrinting" @click="handlePrintServicePrint">
+              打印服务打印
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @click="openPrinterSettings">
               打印设置
             </DropdownMenuItem>
-            <DropdownMenuItem @click="openPrinterHostSettings">
-              Printer.Host 设置
+            <DropdownMenuItem @click="openPrintServiceSettings">
+              打印服务设置
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -553,8 +553,8 @@ async function handleExport() {
     @close="showPrinterSettings = false"
   />
 
-  <PrinterHostSettingsModal
-    v-if="showPrinterHostSettings"
-    @close="showPrinterHostSettings = false"
+  <PrintServiceSettingsModal
+    v-if="showPrintServiceSettings"
+    @close="showPrintServiceSettings = false"
   />
 </template>

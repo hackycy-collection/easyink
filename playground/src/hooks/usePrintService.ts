@@ -1,14 +1,14 @@
 import { computed, reactive, ref, watch } from 'vue'
 
-export const DEFAULT_PRINTER_HOST_URL = 'http://localhost:18080'
-const CONFIG_KEY = 'easyink:printerHostConfig'
+export const DEFAULT_PRINT_SERVICE_URL = 'http://localhost:18080'
+const CONFIG_KEY = 'easyink:printServiceConfig'
 const CONNECT_TIMEOUT_MS = 5000
 const RESPONSE_TIMEOUT_MS = 15000
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30000
 const PDF_CHUNK_SIZE_BYTES = 1024 * 1024
 
-export interface PrinterHostDevice {
+export interface PrintServiceDevice {
   name: string
   isDefault: boolean
   status: { isReady: boolean, message: string }
@@ -34,7 +34,7 @@ export interface PrintJobInfo {
   errorMessage?: string
 }
 
-export interface PrinterHostConfig {
+export interface PrintServiceConfig {
   enabled: boolean
   serviceUrl: string
   apiKey?: string
@@ -44,23 +44,23 @@ export interface PrinterHostConfig {
 
 // ---------- config persistence ----------
 
-function defaultConfig(): PrinterHostConfig {
+function defaultConfig(): PrintServiceConfig {
   return {
     enabled: false,
-    serviceUrl: DEFAULT_PRINTER_HOST_URL,
+    serviceUrl: DEFAULT_PRINT_SERVICE_URL,
     copies: 1,
   }
 }
 
-function loadConfig(): PrinterHostConfig {
+function loadConfig(): PrintServiceConfig {
   try {
     const raw = localStorage.getItem(CONFIG_KEY)
     if (!raw)
       return defaultConfig()
-    const parsed = JSON.parse(raw) as Partial<PrinterHostConfig>
+    const parsed = JSON.parse(raw) as Partial<PrintServiceConfig>
     return {
       enabled: parsed.enabled ?? false,
-      serviceUrl: parsed.serviceUrl ?? DEFAULT_PRINTER_HOST_URL,
+      serviceUrl: parsed.serviceUrl ?? DEFAULT_PRINT_SERVICE_URL,
       apiKey: parsed.apiKey,
       printerName: parsed.printerName,
       copies: parsed.copies ?? 1,
@@ -71,7 +71,7 @@ function loadConfig(): PrinterHostConfig {
   }
 }
 
-function persistConfig(cfg: PrinterHostConfig) {
+function persistConfig(cfg: PrintServiceConfig) {
   try {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg))
   }
@@ -80,10 +80,10 @@ function persistConfig(cfg: PrinterHostConfig) {
 
 // ---------- singleton state ----------
 
-const config = reactive<PrinterHostConfig>(loadConfig())
+const config = reactive<PrintServiceConfig>(loadConfig())
 const connectionState = ref<'idle' | 'connecting' | 'connected' | 'error'>('idle')
 const lastError = ref('')
-const devices = ref<PrinterHostDevice[]>([])
+const devices = ref<PrintServiceDevice[]>([])
 const jobs = reactive(new Map<string, PrintJobInfo>())
 
 let ws: WebSocket | null = null
@@ -101,7 +101,7 @@ watch(config, (val) => {
 // ---------- websocket internals ----------
 
 function wsUrl(): string {
-  const base = (config.serviceUrl || DEFAULT_PRINTER_HOST_URL).replace(/^http/, 'ws')
+  const base = (config.serviceUrl || DEFAULT_PRINT_SERVICE_URL).replace(/^http/, 'ws')
   const url = new URL('/ws', base)
   if (config.apiKey)
     url.searchParams.set('apiKey', config.apiKey)
@@ -312,8 +312,8 @@ function disconnect() {
   connectionState.value = 'idle'
 }
 
-async function refreshDevices(): Promise<PrinterHostDevice[]> {
-  const rawUrl = config.serviceUrl || DEFAULT_PRINTER_HOST_URL
+async function refreshDevices(): Promise<PrintServiceDevice[]> {
+  const rawUrl = config.serviceUrl || DEFAULT_PRINT_SERVICE_URL
   const baseUrl = rawUrl.replace(/^ws/, 'http')
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (config.apiKey)
@@ -324,7 +324,7 @@ async function refreshDevices(): Promise<PrinterHostDevice[]> {
     throw new Error(`HTTP ${res.status}`)
 
   const json = await res.json()
-  const list: PrinterHostDevice[] = Array.isArray(json?.data) ? json.data : []
+  const list: PrintServiceDevice[] = Array.isArray(json?.data) ? json.data : []
   devices.value = list
 
   if (list.length > 0 && (!config.printerName || list.every(d => d.name !== config.printerName))) {
@@ -368,7 +368,7 @@ async function printPdf(
   })
   const jobId: string = data?.jobId ?? ''
   if (!jobId)
-    throw new Error('Printer.Host 未返回打印任务 ID')
+    throw new Error('打印服务未返回打印任务 ID')
 
   if (jobId) {
     jobs.set(jobId, {
@@ -449,7 +449,7 @@ function setEnabled(enabled: boolean) {
   }
 }
 
-function updateConfig(patch: Partial<PrinterHostConfig>) {
+function updateConfig(patch: Partial<PrintServiceConfig>) {
   Object.assign(config, patch)
 }
 
@@ -460,7 +460,7 @@ if (config.enabled) {
 
 // ---------- public API ----------
 
-export function usePrinterHost() {
+export function usePrintService() {
   return {
     config,
     connectionState: computed(() => connectionState.value),
@@ -485,4 +485,4 @@ export function usePrinterHost() {
   }
 }
 
-export type PrinterHostStore = ReturnType<typeof usePrinterHost>
+export type PrintServiceStore = ReturnType<typeof usePrintService>

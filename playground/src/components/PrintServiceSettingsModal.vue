@@ -19,13 +19,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { usePrinterHost } from '../hooks/usePrinterHost'
+import { usePrintService } from '../hooks/usePrintService'
 
 const emit = defineEmits<{
   close: []
 }>()
 
-const printer = usePrinterHost()
+const printer = usePrintService()
 
 const statusText = computed(() => {
   if (!printer.enabled.value)
@@ -62,7 +62,7 @@ function handleToggleService(checked: boolean) {
 async function handleConnect() {
   try {
     await printer.connect()
-    toast.success('已连接到 Printer.Host')
+    toast.success('已连接到打印服务')
   }
   catch (e) {
     toast.error(e instanceof Error ? e.message : '连接失败')
@@ -122,16 +122,16 @@ onMounted(() => {
   <Dialog :open="true" @update:open="(val) => { if (!val) emit('close') }">
     <DialogContent
       class="max-w-[560px]"
-      sr-description="配置 Printer.Host 打印服务连接、打印机和份数"
+      sr-description="配置打印服务连接、打印机和份数"
     >
       <DialogHeader>
-        <DialogTitle>Printer.Host 设置</DialogTitle>
+        <DialogTitle>打印服务设置</DialogTitle>
       </DialogHeader>
 
       <div class="space-y-4 py-2">
         <!-- Enable -->
         <div class="flex items-center justify-between">
-          <Label>启用 Printer.Host</Label>
+          <Label>启用打印服务</Label>
           <Switch
             :model-value="printer.enabled.value"
             @update:model-value="handleToggleService"
