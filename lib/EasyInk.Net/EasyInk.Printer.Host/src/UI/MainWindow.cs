@@ -744,7 +744,7 @@ public class MainWindow : Form
         {
             Text = "路径设置",
             Dock = DockStyle.Top,
-            Height = 130,
+            Height = 165,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -752,12 +752,13 @@ public class MainWindow : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
-            RowCount = 2,
+            RowCount = 3,
             Padding = new Padding(4)
         };
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
+        pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
@@ -811,12 +812,39 @@ public class MainWindow : Form
                 txtTempDir.Text = dlg.SelectedPath;
         };
 
+        var lblCrashDir = new Label { Text = "崩溃日志目录:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var txtCrashDir = new TextBox
+        {
+            Text = string.IsNullOrWhiteSpace(_config.CrashLogDir) ? HostConfig.DefaultCrashLogDir : _config.CrashLogDir,
+            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+        var btnBrowseCrash = new Button
+        {
+            Text = "浏览",
+            Width = 52,
+            Anchor = AnchorStyles.Left
+        };
+        btnBrowseCrash.Click += (s, e) =>
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "选择崩溃日志目录",
+                SelectedPath = txtCrashDir.Text
+            };
+            if (dlg.ShowDialog() == DialogResult.OK)
+                txtCrashDir.Text = dlg.SelectedPath;
+        };
+
         pathPanel.Controls.Add(lblDbPath, 0, 0);
         pathPanel.Controls.Add(txtDbPath, 1, 0);
         pathPanel.Controls.Add(btnBrowseDb, 2, 0);
         pathPanel.Controls.Add(lblTempDir, 0, 1);
         pathPanel.Controls.Add(txtTempDir, 1, 1);
         pathPanel.Controls.Add(btnBrowseTemp, 2, 1);
+        pathPanel.Controls.Add(lblCrashDir, 0, 2);
+        pathPanel.Controls.Add(txtCrashDir, 1, 2);
+        pathPanel.Controls.Add(btnBrowseCrash, 2, 2);
         grpPath.Controls.Add(pathPanel);
 
         // 保存按钮
@@ -846,6 +874,14 @@ public class MainWindow : Form
                 return;
             }
 
+            var crashDirValue = txtCrashDir.Text.Trim();
+            if (!HostConfig.IsValidFilePath(crashDirValue + Path.DirectorySeparatorChar, out var crashError))
+            {
+                MessageBox.Show($"崩溃日志目录无效: {crashError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtCrashDir.Focus();
+                return;
+            }
+
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
@@ -859,6 +895,8 @@ public class MainWindow : Form
                 ? null : dbPathValue;
             _config.SumatraTempDir = string.Equals(tempDirValue, HostConfig.DefaultSumatraTempDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
                 ? null : tempDirValue;
+            _config.CrashLogDir = string.Equals(crashDirValue, HostConfig.DefaultCrashLogDir, StringComparison.OrdinalIgnoreCase)
+                ? null : crashDirValue;
 
             try
             {

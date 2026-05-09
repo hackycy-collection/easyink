@@ -15,12 +15,15 @@ public class HostConfig
     public bool StartMinimized { get; set; } = true;
     public string DbPath { get; set; }
     public string SumatraTempDir { get; set; }
+    public string CrashLogDir { get; set; }
     public bool TrustAllOrigins { get; set; } = false;
     public string ApiKey { get; set; }
 
     public static string DefaultDbPath => Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
 
     public static string DefaultSumatraTempDir => Path.GetTempPath();
+
+    public static string DefaultCrashLogDir => Path.Combine(AppContext.BaseDirectory, "data", "crash");
 
     public static string ResolveDbPath(string dbPath)
     {
@@ -30,6 +33,11 @@ public class HostConfig
     public static string ResolveSumatraTempDir(string dir)
     {
         return string.IsNullOrWhiteSpace(dir) ? DefaultSumatraTempDir : dir;
+    }
+
+    public static string ResolveCrashLogDir(string dir)
+    {
+        return string.IsNullOrWhiteSpace(dir) ? DefaultCrashLogDir : dir;
     }
 
     public static bool IsValidFilePath(string path, out string error)

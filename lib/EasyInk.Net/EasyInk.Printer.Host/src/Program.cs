@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Printer.Host.UI;
 using EasyInk.Printer.Host.Server;
@@ -12,6 +14,7 @@ namespace EasyInk.Printer.Host;
 static class Program
 {
     private static Mutex _mutex;
+    private static string _crashLogDir;
 
     [STAThread]
     static void Main(string[] args)
@@ -46,6 +49,17 @@ static class Program
         var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath);
         var logDir = Path.GetDirectoryName(resolvedDbPath);
         EasyInk.Printer.SimpleLogger.Configure(logDir);
+
+        _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir);
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            WriteCrashLog(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
+        Application.ThreadException += (s, e) =>
+            WriteCrashLog(e.Exception, "Application.ThreadException");
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            WriteCrashLog(e.Exception, "TaskScheduler.UnobservedTaskException");
+            e.SetObserved();
+        };
 
         var printerApi = new PrinterApi(config.DbPath, sumatraTempDir: config.SumatraTempDir);
         var httpServer = new HttpServer(config.HttpPort);
@@ -157,5 +171,71 @@ static class Program
             httpServer.Stop();
         wsHandler.Dispose();
         printerApi.Dispose();
+    }
+
+    private static void WriteCrashLog(Exception ex, string source)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_crashLogDir)) return;
+            if (!Directory.Exists(_crashLogDir))
+                Directory.CreateDirectory(_crashLogDir);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("========== 崩溃日志 ==========");
+            sb.AppendLine($"时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"来源: {source}");
+            sb.AppendLine();
+
+            sb.AppendLine("--- 环境信息 ---");
+            sb.AppendLine($"OS: {Environment.OSVersion}");
+            sb.AppendLine($".NET: {Environment.Version}");
+            sb.AppendLine($"64位系统: {Environment.Is64BitOperatingSystem}");
+            sb.AppendLine($"64位进程: {Environment.Is64BitProcess}");
+            sb.AppendLine($"工作集: {Environment.WorkingSet / 1024 / 1024} MB");
+            sb.AppendLine($"进程运行时长: {Process.GetCurrentProcess().TotalProcessorTime}");
+            sb.AppendLine();
+
+            sb.AppendLine("--- 异常信息 ---");
+            AppendException(sb, ex, 0);
+
+            var fileName = $"crash_{DateTime.Now:yyyyMMdd_HHmmss}.log";
+            var filePath = Path.Combine(_crashLogDir, fileName);
+            File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+        }
+        catch
+        {
+            // 崩溃时写日志本身不应再抛异常
+        }
+    }
+
+    private static void AppendException(StringBuilder sb, Exception ex, int depth)
+    {
+        if (ex == null) return;
+
+        var indent = new string(' ', depth * 2);
+        if (depth > 0)
+            sb.AppendLine($"{indent}--- 内部异常 (InnerException) ---");
+
+        sb.AppendLine($"{indent}类型: {ex.GetType().FullName}");
+        sb.AppendLine($"{indent}消息: {ex.Message}");
+        sb.AppendLine($"{indent}堆栈:");
+        sb.AppendLine(ex.StackTrace ?? "(无堆栈信息)");
+
+        if (ex is AggregateException agg)
+        {
+            for (int i = 0; i < agg.InnerExceptions.Count; i++)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"{indent}--- 聚合异常 [{i}] ---");
+                AppendException(sb, agg.InnerExceptions[i], depth + 1);
+            }
+        }
+
+        if (ex.InnerException != null)
+        {
+            sb.AppendLine();
+            AppendException(sb, ex.InnerException, depth + 1);
+        }
     }
 }
