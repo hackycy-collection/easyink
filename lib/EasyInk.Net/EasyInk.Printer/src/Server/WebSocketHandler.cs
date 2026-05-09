@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -20,7 +21,7 @@ public class WebSocketHandler : IDisposable
 
     private readonly ConcurrentDictionary<string, WebSocket> _connections = new();
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
-    private readonly Timer _pingTimer;
+    private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly int _maxConnections;
     private WebSocketCommandHandler _commandHandler;
 
@@ -31,7 +32,7 @@ public class WebSocketHandler : IDisposable
     public WebSocketHandler(int maxConnections = 100)
     {
         _maxConnections = maxConnections < 10 ? 10 : maxConnections;
-        _pingTimer = new Timer(SendPings, null, PingInterval, PingInterval);
+        _ = PingLoop();
     }
 
     public void SetCommandHandler(WebSocketCommandHandler handler)
@@ -39,27 +40,43 @@ public class WebSocketHandler : IDisposable
         _commandHandler = handler;
     }
 
-    private void SendPings(object state)
+    private async Task PingLoop()
     {
         var pingPayload = Array.Empty<byte>();
-        foreach (var kvp in _connections)
+        while (!_cts.IsCancellationRequested)
         {
-            try
-            {
-                if (kvp.Value.State == WebSocketState.Open)
-                    kvp.Value.SendAsync(new ArraySegment<byte>(pingPayload), WebSocketMessageType.Binary, true, CancellationToken.None).Wait(5000);
-                else
-                    _connections.TryRemove(kvp.Key, out _);
-            }
-            catch
-            {
-                _connections.TryRemove(kvp.Key, out _);
-                try { kvp.Value.Dispose(); } catch { }
-            }
-        }
+            try { await Task.Delay(PingInterval, _cts.Token); }
+            catch (OperationCanceledException) { break; }
 
-        if (_connections.Count == 0)
-            ConnectionCountChanged?.Invoke();
+            var tasks = new List<Task>();
+            foreach (var kvp in _connections)
+            {
+                if (kvp.Value.State != WebSocketState.Open)
+                {
+                    _connections.TryRemove(kvp.Key, out _);
+                    continue;
+                }
+                tasks.Add(SendPingAsync(kvp.Key, kvp.Value, pingPayload));
+            }
+            await Task.WhenAll(tasks);
+
+            if (_connections.Count == 0)
+                ConnectionCountChanged?.Invoke();
+        }
+    }
+
+    private async Task SendPingAsync(string connectionId, WebSocket ws, byte[] payload)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await ws.SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Binary, true, cts.Token);
+        }
+        catch
+        {
+            _connections.TryRemove(connectionId, out _);
+            try { ws.Dispose(); } catch { }
+        }
     }
 
     public async Task HandleConnection(HttpListenerContext context)
@@ -209,7 +226,8 @@ public class WebSocketHandler : IDisposable
 
     public void Dispose()
     {
-        _pingTimer.Dispose();
+        _cts.Cancel();
+        _cts.Dispose();
         foreach (var kvp in _connections)
         {
             try { kvp.Value.Dispose(); } catch { }

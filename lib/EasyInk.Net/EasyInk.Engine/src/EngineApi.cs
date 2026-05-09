@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Engine.Models;
@@ -457,11 +459,10 @@ public class EngineApi : IDisposable
 
     private PrinterResult ExecuteBatchJobs(string requestId, List<PrintRequestParams> jobs, bool async)
     {
-        var results = new List<BatchJobResult>();
-
-        foreach (var job in jobs)
+        if (async)
         {
-            if (async)
+            var results = new List<BatchJobResult>(jobs.Count);
+            foreach (var job in jobs)
             {
                 try
                 {
@@ -473,20 +474,24 @@ public class EngineApi : IDisposable
                     results.Add(new BatchJobResult { JobId = null, Status = JobStatus.Failed, ErrorMessage = ex.Message });
                 }
             }
-            else
-            {
-                var jobId = Guid.NewGuid().ToString();
-                var response = _printService.Print(jobId, job);
-                RaisePrintCompleted(jobId, job, response);
-                results.Add(new BatchJobResult
-                {
-                    JobId = jobId,
-                    Status = response.Success ? JobStatus.Completed : JobStatus.Failed,
-                    ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
-                });
-            }
+            return PrinterResult.Ok(requestId, new BatchPrintResult { Jobs = results });
         }
 
-        return PrinterResult.Ok(requestId, new BatchPrintResult { Jobs = results });
+        var syncResults = new BatchJobResult[jobs.Count];
+        Parallel.For(0, jobs.Count, i =>
+        {
+            var job = jobs[i];
+            var jobId = Guid.NewGuid().ToString();
+            var response = _printService.Print(jobId, job);
+            RaisePrintCompleted(jobId, job, response);
+            syncResults[i] = new BatchJobResult
+            {
+                JobId = jobId,
+                Status = response.Success ? JobStatus.Completed : JobStatus.Failed,
+                ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
+            };
+        });
+
+        return PrinterResult.Ok(requestId, new BatchPrintResult { Jobs = new List<BatchJobResult>(syncResults) });
     }
 }

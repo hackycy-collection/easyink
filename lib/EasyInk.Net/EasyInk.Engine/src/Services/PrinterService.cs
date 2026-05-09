@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing.Printing;
 using System.Management;
+using System.Threading.Tasks;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 
@@ -12,6 +13,7 @@ namespace EasyInk.Engine.Services;
 /// </summary>
 public class PrinterService : IPrinterService
 {
+    private const int WmiTimeoutMs = 5_000;
     /// <summary>
     /// 获取所有打印机
     /// </summary>
@@ -43,28 +45,40 @@ public class PrinterService : IPrinterService
         var map = new Dictionary<string, PrinterStatus>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            using (var searcher = new ManagementObjectSearcher("SELECT Name, PrinterStatus, PrinterState, WorkOffline, PrinterPaperOutOfPaper FROM Win32_Printer"))
+            var task = Task.Run(() =>
             {
-                foreach (ManagementObject printer in searcher.Get())
+                using (var searcher = new ManagementObjectSearcher("SELECT Name, PrinterStatus, PrinterState, WorkOffline, PrinterPaperOutOfPaper FROM Win32_Printer"))
                 {
-                    try
+                    foreach (ManagementObject printer in searcher.Get())
                     {
-                        var name = printer["Name"] as string;
-                        if (string.IsNullOrEmpty(name)) continue;
+                        try
+                        {
+                            var name = printer["Name"] as string;
+                            if (string.IsNullOrEmpty(name)) continue;
 
-                        var printerStatus = GetUInt32(printer, "PrinterStatus");
-                        var printerState = GetUInt32(printer, "PrinterState");
-                        var isOffline = GetBool(printer, "WorkOffline");
-                        var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
+                            var printerStatus = GetUInt32(printer, "PrinterStatus");
+                            var printerState = GetUInt32(printer, "PrinterState");
+                            var isOffline = GetBool(printer, "WorkOffline");
+                            var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
 
-                        map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
-                    }
-                    finally
-                    {
-                        printer.Dispose();
+                            map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
+                        }
+                        finally
+                        {
+                            printer.Dispose();
+                        }
                     }
                 }
+            });
+
+            if (!task.Wait(WmiTimeoutMs))
+            {
+                EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"批量查询打印机状态超时({WmiTimeoutMs}ms)");
             }
+        }
+        catch (AggregateException ex) when (ex.InnerException is TimeoutException)
+        {
+            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"批量查询打印机状态超时");
         }
         catch (Exception ex)
         {
@@ -135,21 +149,68 @@ public class PrinterService : IPrinterService
             };
         }
 
-        // 通过对象路径精确获取，避免 WQL 字符串拼接注入风险
-        var wmiEscapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
-        var printerPath = new ManagementPath($"Win32_Printer.Name='{wmiEscapedName}'");
-        ManagementObject printer = null;
-        try
+        PrinterStatus QueryWmi()
         {
-            printer = new ManagementObject(printerPath);
+            // 通过对象路径精确获取，避免 WQL 字符串拼接注入风险
+            var wmiEscapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
+            var printerPath = new ManagementPath($"Win32_Printer.Name='{wmiEscapedName}'");
+            ManagementObject printer = null;
             try
             {
-                printer.Get();
+                printer = new ManagementObject(printerPath);
+                try
+                {
+                    printer.Get();
+                }
+                catch (ManagementException)
+                {
+                    return new PrinterStatus
+                    {
+                        IsReady = true,
+                        StatusCode = PrinterStatusCode.Ready,
+                        Message = "打印机就绪（WMI 状态不可用）",
+                        IsOnline = true,
+                        HasPaper = true,
+                        IsPaperJam = false,
+                        PrinterState = "Unknown"
+                    };
+                }
+
+                var printerStatus = GetUInt32(printer, "PrinterStatus");
+                var printerState = GetUInt32(printer, "PrinterState");
+                var isOffline = GetBool(printer, "WorkOffline");
+                var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
+
+                return MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
             }
-            catch (ManagementException)
+            finally
             {
-                // 虚拟打印机（如 Microsoft Print to PDF、WPS PDF）不支持 WMI 状态查询，
-                // 但 PrinterSettings.IsValid 已确认打印机可用，视为就绪。
+                printer?.Dispose();
+            }
+        }
+
+        try
+        {
+            var task = Task.Run(() => QueryWmi());
+            if (task.Wait(WmiTimeoutMs))
+                return task.Result;
+
+            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
+            return new PrinterStatus
+            {
+                IsReady = false,
+                StatusCode = PrinterStatusCode.PrinterError,
+                Message = $"WMI 查询超时({WmiTimeoutMs}ms)",
+                IsOnline = false,
+                HasPaper = false,
+                IsPaperJam = false
+            };
+        }
+        catch (AggregateException ex)
+        {
+            var inner = ex.InnerException;
+            if (inner is ManagementException)
+            {
                 return new PrinterStatus
                 {
                     IsReady = true,
@@ -161,17 +222,15 @@ public class PrinterService : IPrinterService
                     PrinterState = "Unknown"
                 };
             }
-
-            var printerStatus = GetUInt32(printer, "PrinterStatus");
-            var printerState = GetUInt32(printer, "PrinterState");
-            var isOffline = GetBool(printer, "WorkOffline");
-            var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
-
-            return MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
-        }
-        finally
-        {
-            printer?.Dispose();
+            return new PrinterStatus
+            {
+                IsReady = false,
+                StatusCode = PrinterStatusCode.PrinterError,
+                Message = inner?.Message ?? ex.Message,
+                IsOnline = false,
+                HasPaper = false,
+                IsPaperJam = false
+            };
         }
     }
 

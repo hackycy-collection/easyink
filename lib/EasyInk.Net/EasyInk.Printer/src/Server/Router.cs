@@ -77,7 +77,7 @@ public class Router
         string result;
         try
         {
-            result = RouteRequest(request);
+            result = await RouteRequest(request);
         }
         catch (Exception ex)
         {
@@ -95,7 +95,7 @@ public class Router
         response.Close();
     }
 
-    private string RouteRequest(HttpListenerRequest request)
+    private async Task<string> RouteRequest(HttpListenerRequest request)
     {
         var path = request.Url.AbsolutePath.TrimEnd('/');
         var method = request.HttpMethod;
@@ -123,16 +123,16 @@ public class Router
         }
 
         if (method == "POST" && path == "/api/print")
-            return HandlePrintRequest(request);
+            return await HandlePrintRequest(request);
 
         if (method == "POST" && path == "/api/print/async")
-            return HandlePrintAsyncRequest(request);
+            return await HandlePrintAsyncRequest(request);
 
         if (method == "POST" && path == "/api/print/batch")
-            return _printController.BatchPrint(ReadBodyAsString(request));
+            return _printController.BatchPrint(await ReadBodyAsString(request));
 
         if (method == "POST" && path == "/api/print/batch/async")
-            return _printController.BatchPrintAsync(ReadBodyAsString(request));
+            return _printController.BatchPrintAsync(await ReadBodyAsString(request));
 
         if (method == "GET" && path == "/api/jobs")
             return _jobController.GetAllJobs();
@@ -151,13 +151,13 @@ public class Router
         return ErrorJson(ErrorCode.NotFound, $"路由不存在: {method} {path}");
     }
 
-    private string HandlePrintRequest(HttpListenerRequest request)
+    private async Task<string> HandlePrintRequest(HttpListenerRequest request)
     {
         var contentType = request.ContentType ?? "";
 
         if (contentType.Contains("multipart/form-data"))
         {
-            var body = ReadBodyAsBytes(request);
+            var body = await ReadBodyAsBytes(request);
             var multipart = MultipartParser.Parse(body, contentType);
 
             if (multipart.Params == null)
@@ -168,16 +168,16 @@ public class Router
             return _printController.Print(multipart.Params.ToString(), multipart.PdfBytes);
         }
 
-        return _printController.Print(ReadBodyAsString(request));
+        return _printController.Print(await ReadBodyAsString(request));
     }
 
-    private string HandlePrintAsyncRequest(HttpListenerRequest request)
+    private async Task<string> HandlePrintAsyncRequest(HttpListenerRequest request)
     {
         var contentType = request.ContentType ?? "";
 
         if (contentType.Contains("multipart/form-data"))
         {
-            var body = ReadBodyAsBytes(request);
+            var body = await ReadBodyAsBytes(request);
             var multipart = MultipartParser.Parse(body, contentType);
 
             if (multipart.Params == null)
@@ -188,10 +188,10 @@ public class Router
             return _printController.PrintAsync(multipart.Params.ToString(), multipart.PdfBytes);
         }
 
-        return _printController.PrintAsync(ReadBodyAsString(request));
+        return _printController.PrintAsync(await ReadBodyAsString(request));
     }
 
-    private static string ReadBodyAsString(HttpListenerRequest request)
+    private static async Task<string> ReadBodyAsString(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
@@ -202,7 +202,7 @@ public class Router
         int totalRead = 0;
         int bytesRead;
         while (totalRead < buffer.Length &&
-               (bytesRead = request.InputStream.Read(buffer, totalRead, buffer.Length - totalRead)) > 0)
+               (bytesRead = await request.InputStream.ReadAsync(buffer, totalRead, buffer.Length - totalRead)) > 0)
         {
             totalRead += bytesRead;
         }
@@ -210,7 +210,7 @@ public class Router
         return request.ContentEncoding.GetString(buffer, 0, totalRead);
     }
 
-    private static byte[] ReadBodyAsBytes(HttpListenerRequest request)
+    private static async Task<byte[]> ReadBodyAsBytes(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
@@ -221,7 +221,7 @@ public class Router
         int totalRead = 0;
         int bytesRead;
         while (totalRead < buffer.Length &&
-               (bytesRead = request.InputStream.Read(buffer, totalRead, buffer.Length - totalRead)) > 0)
+               (bytesRead = await request.InputStream.ReadAsync(buffer, totalRead, buffer.Length - totalRead)) > 0)
         {
             totalRead += bytesRead;
         }
