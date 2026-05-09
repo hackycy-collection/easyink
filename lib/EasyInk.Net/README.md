@@ -4,10 +4,10 @@ EasyInk 的 .NET 包集合，基于 .NET Framework 4.8 开发，兼容 Windows 7
 
 ## 包列表
 
-| 包名 | 说明 | 状态 |
+| 包名 | 说明 | 类型 |
 |------|------|------|
-| [EasyInk.Printer](EasyInk.Printer/) | 打印插件（DLL） | 开发中 |
-| [EasyInk.Printer.Host](EasyInk.Printer.Host/) | 打印服务宿主程序 | 开发中 |
+| [EasyInk.Engine](EasyInk.Engine/) | 打印引擎（纯打印链路，无持久化） | DLL |
+| [EasyInk.Printer](EasyInk.Printer/) | 打印服务应用（HTTP/WebSocket + 审计日志 + WinForms UI） | WinExe |
 
 ## 架构
 
@@ -15,31 +15,30 @@ EasyInk 的 .NET 包集合，基于 .NET Framework 4.8 开发，兼容 Windows 7
 浏览器 (Vue)
     │  HTTP / WebSocket
     ▼
-EasyInk.Printer.Host         ← 宿主程序：HTTP 服务 + 系统托盘 + 桌面管理窗口
+EasyInk.Printer              ← 完整应用：HTTP 服务 + 系统托盘 + 桌面管理窗口 + 审计日志
     │
     ▼
-EasyInk.Printer.dll          ← 打印插件：打印机管理、PDF 渲染、打印执行、审计日志
+EasyInk.Engine.dll           ← 打印引擎：打印机管理、PDF 打印执行、队列管理
     │
     ▼
-Windows API                  ← PrintDocument / WMI / PDFium / SQLite
+SumatraPDF.exe               ← 矢量直通打印
 ```
 
 ## 目录结构
 
 ```
 EasyInk.Net/
-├── EasyInk.Printer/              # 打印插件（类库 → DLL）
+├── EasyInk.Engine/              # 打印引擎（类库 → DLL）
 │   ├── src/
-│   ├── tests/
-│   └── docs/
-├── EasyInk.Printer.Host/         # 宿主程序（WinForms → EXE）
+│   └── tests/
+├── EasyInk.Printer/             # 打印服务应用（WinForms → EXE）
 │   ├── src/
-│   │   ├── Server/               # HTTP/WebSocket 服务
-│   │   ├── Api/                  # API 控制器
-│   │   ├── UI/                   # 系统托盘 + 桌面窗口
-│   │   ├── Config/               # 配置管理
-│   │   └── Plugin/               # DLL 插件包装
-│   └── docs/
+│   │   ├── Server/              # HTTP/WebSocket 服务
+│   │   ├── Api/                 # API 控制器
+│   │   ├── UI/                  # 系统托盘 + 桌面窗口
+│   │   ├── Config/              # 配置管理
+│   │   └── Services/            # 审计日志服务
+│   └── tests/
 └── README.md
 ```
 
@@ -59,24 +58,26 @@ EasyInk.Net/
 ```bash
 cd lib/EasyInk.Net
 
-# 构建打印插件
+# 构建打印引擎
+dotnet build EasyInk.Engine/src
+
+# 构建打印服务应用
 dotnet build EasyInk.Printer/src
 
-# 构建宿主程序
-dotnet build EasyInk.Printer.Host/src
-
 # 运行测试
-dotnet run --project EasyInk.Printer/tests
+dotnet test EasyInk.Engine/tests
+dotnet test EasyInk.Printer/tests
 ```
 
 ### 3. 常用命令
 
 | 命令 | 说明 |
 |------|------|
-| `dotnet build EasyInk.Printer/src` | 构建打印插件 |
-| `dotnet build EasyInk.Printer.Host/src` | 构建宿主程序 |
-| `dotnet run --project EasyInk.Printer/tests` | 运行插件测试 |
-| `dotnet publish EasyInk.Printer.Host/src -c Release` | 发布宿主程序 |
+| `dotnet build EasyInk.Engine/src` | 构建打印引擎 |
+| `dotnet build EasyInk.Printer/src` | 构建打印服务应用 |
+| `dotnet test EasyInk.Engine/tests` | 运行引擎测试 |
+| `dotnet test EasyInk.Printer/tests` | 运行应用测试 |
+| `dotnet publish EasyInk.Printer/src -c Release` | 发布应用 |
 
 ## 兼容性
 

@@ -2,158 +2,107 @@
 
 ## 概述
 
-EasyInk.Printer 是 EasyInk.Net 中的打印插件（DLL），提供打印机管理、PDF 直接打印、任务队列、审计日志等能力。通过 SumatraPDF 实现 PDF 矢量直通打印，无光栅化质量损失。
+EasyInk.Printer 是 EasyInk 打印服务的完整应用，以 Windows 桌面应用形式运行，提供以下能力：
 
-可被以下宿主程序调用：
-- **EasyInk.Printer.Host** — 本地 HTTP/WebSocket 服务 + 桌面管理界面（推荐）
-- **Electron** — 通过 edge-js 调用（兼容方案）
+- **HTTP/WebSocket 服务**：供浏览器前端（Vue）调用打印功能
+- **系统托盘**：后台静默运行，不占用任务栏
+- **桌面管理窗口**：查看打印机状态、打印队列、审计日志、服务配置
+
+### 设计目标
+
+- 浏览器通过 HTTP/WebSocket 调用本地打印能力，无需 Electron
+- 兼容 Windows 7 SP1 及以上（.NET Framework 4.8）
+- PDF 矢量直通打印，无光栅化质量损失
+- 零配置启动，开箱即用
 
 ## 架构原理
 
-### 整体架构
+### 项目关系
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   调用方（Host / Electron）                   │
-│                                                             │
-│  EasyInk.Printer.Host           或        edge-js           │
-│  (HTTP/WS 服务)                             (Node.js)       │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      PrinterApi                              │
-│                    (公共 API 入口)                            │
-├─────────────┬─────────────┬─────────────────────────────────┤
-│ Printer     │ SumatraPrint│ Audit                           │
-│ Service     │ Service     │ Service                         │
-│ (WMI)       │ (SumatraPDF)│ (SQLite)                        │
-├─────────────┴──────┬──────┼─────────────────────────────────┤
-│              PrintJobQueue │                                 │
-│            (异步任务队列)   │                                 │
-└────────────────────────────┼────────────────────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   IPdfProvider  │
-                    │ (PDF 数据源抽象) │
-                    ├─────────────────┤
-                    │ Base64PdfProvider│
-                    │ UrlPdfProvider   │
-                    │ BlobPdfProvider  │
-                    └─────────────────┘
+EasyInk.Printer (WinExe, 完整应用)
+├── 引用 EasyInk.Engine (DLL, 打印引擎)
+├── 审计日志 (SQLite + Dapper)
+├── HTTP/WebSocket 服务
+└── WinForms UI
+
+EasyInk.Engine (Library, 纯打印)
+├── 打印机枚举/状态查询 (WMI)
+├── PDF 打印执行 (SumatraPDF)
+├── 打印队列管理
+└── 日志通过事件回传调用方
+```
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    浏览器 (Vue 前端)                       │
+│                     │  HTTP / WebSocket                    │
+├─────────────────────┼────────────────────────────────────┤
+│              EasyInk.Printer                              │
+│  ┌──────────┐  ┌──────────┐  ┌───────────┐               │
+│  │ HttpServer│  │ WebSocket│  │ WinForms  │               │
+│  │ (路由+API)│  │ (实时推送)│  │ (托盘+窗口)│              │
+│  └─────┬────┘  └─────┬────┘  └───────────┘               │
+│        └──────┬──────┘                                    │
+│         ┌─────▼─────┐  ┌─────────────┐                    │
+│         │ EngineApi  │  │ AuditService│                    │
+│         │ (Engine)   │  │ (SQLite)    │                    │
+│         └─────┬─────┘  └─────────────┘                    │
+│        ┌──────┼──────┐                                    │
+│  ┌─────▼──┐┌──▼───┐                                      │
+│  │Printer ││Sumatra│                                      │
+│  │Service ││Print  │                                      │
+│  │(WMI)   ││Service│                                      │
+│  └────────┘└──┬───┘                                       │
+│               │  矢量直通                                   │
+│         ┌─────▼─────┐                                     │
+│         │SumatraPDF │                                     │
+│         │  .exe     │                                     │
+│         └───────────┘                                     │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### 技术栈
 
-- **运行时**：.NET Framework 4.8（兼容 Windows 7 SP1 及以上）
-- **打印引擎**：SumatraPDF.exe（PDF 矢量直通，无光栅化）
-- **打印机状态**：WMI（`Win32_Printer`）
-- **数据库**：SQLite + Dapper
-- **JSON 序列化**：Newtonsoft.Json（camelCase）
+| 层 | 技术 | 说明 |
+|---|------|------|
+| 运行时 | .NET Framework 4.8 | Win7 SP1 兼容 |
+| 打印引擎 | EasyInk.Engine | 轻量 DLL，仅 Newtonsoft.Json 依赖 |
+| HTTP 服务 | HttpListener | 内置，零依赖 |
+| WebSocket | HttpListener + WebSocketContext | .NET 4.8 原生支持 |
+| UI | WinForms | 系统托盘 + 桌面窗口 |
+| 审计存储 | SQLite + Dapper | 仅在 Printer 应用中 |
 
-## 目录结构
+## 项目结构
 
 ```
-EasyInk.Printer/
-├── src/
-│   ├── EasyInk.Printer.csproj
-│   ├── PrinterApi.cs             # 公共 API 入口
-│   ├── Models/                   # 数据模型（一个文件一个类）
-│   │   ├── PrinterCommand.cs     # 命令请求
-│   │   ├── PrinterResult.cs      # 命令响应
-│   │   ├── ErrorInfo.cs          # 错误信息
-│   │   ├── PrinterInfo.cs        # 打印机信息
-│   │   ├── PrinterStatus.cs      # 打印机状态
-│   │   ├── PaperSizeInfo.cs      # 纸张尺寸信息
-│   │   ├── PaperSizeParams.cs    # 纸张尺寸参数
-│   │   ├── OffsetParams.cs       # 偏移参数
-│   │   ├── UserDataParams.cs     # 用户数据参数
-│   │   ├── PrintRequestParams.cs # 打印请求参数
-│   │   ├── PrintResult.cs        # 打印结果
-│   │   ├── PrintJob.cs           # 打印任务信息
-│   │   ├── PrintAuditLog.cs      # 审计日志
-│   │   ├── BatchPrintRequest.cs  # 批量打印请求
-│   │   ├── BatchPrintResult.cs   # 批量打印结果
-│   │   └── BatchJobResult.cs     # 批量任务结果
-│   └── Services/                 # 业务服务
-│       ├── Abstractions/         # 接口定义
-│       │   ├── IPrinterService.cs
-│       │   ├── IPrintService.cs
-│       │   ├── IPdfProvider.cs   # PDF 数据源抽象
-│       │   └── IAuditService.cs
-│       ├── Providers/            # PDF 数据源实现
-│       │   ├── Base64PdfProvider.cs
-│       │   ├── UrlPdfProvider.cs
-│       │   └── BlobPdfProvider.cs
-│       ├── PrinterService.cs     # 打印机管理（WMI 查询）
-│       ├── SumatraPrintService.cs # 打印执行（SumatraPDF 矢量直通）
-│       ├── AuditService.cs       # 审计日志（SQLite）
-│       └── PrintJobQueue.cs      # 异步任务队列
-└── tests/
-    ├── EasyInk.Printer.Tests.csproj
-    └── Program.cs
+EasyInk.Net/
+├── EasyInk.Engine/              # 打印引擎 DLL
+│   ├── src/
+│   │   ├── EasyInk.Engine.csproj
+│   │   ├── EngineApi.cs          # 公共 API，日志通过事件回传
+│   │   ├── Models/               # 数据模型
+│   │   └── Services/             # 打印机/打印/队列服务
+│   └── tests/
+├── EasyInk.Printer/             # 完整应用
+│   ├── src/
+│   │   ├── EasyInk.Printer.csproj
+│   │   ├── Program.cs            # 入口，单实例检查
+│   │   ├── Server/               # HTTP/WebSocket 服务
+│   │   ├── Api/                  # API 控制器
+│   │   ├── UI/                   # WinForms 界面
+│   │   ├── Config/               # 配置管理
+│   │   ├── Services/             # 审计日志服务
+│   │   └── Utils/                # 工具类
+│   └── tests/
 ```
 
-## 公共 API
+## HTTP API 设计
 
-### PrinterApi 类
+### 基础约定
 
-```csharp
-public class PrinterApi : IDisposable
-{
-    // 构造函数
-    public PrinterApi(string dbPath = null, string sumatraPdfExePath = null);
-
-    // 获取打印机列表（JSON）
-    string GetPrinters();
-
-    // 获取打印机状态（JSON）
-    string GetPrinterStatus(string printerName);
-
-    // 同步打印 - 支持三种 PDF 来源（三选一）
-    string Print(string printerName,
-        string pdfBase64 = null,    // Base64 编码
-        string pdfUrl = null,       // URL 地址
-        byte[] pdfBytes = null,     // 二进制数据
-        int copies = 1, ...);
-
-    // 异步打印 - 支持三种 PDF 来源（三选一）
-    string PrintAsync(string printerName,
-        string pdfBase64 = null,
-        string pdfUrl = null,
-        byte[] pdfBytes = null,
-        int copies = 1, ...);
-
-    // 批量打印
-    string BatchPrint(string jobsJson);
-    string BatchPrintAsync(string jobsJson);
-
-    // 任务状态查询
-    string GetJobStatus(string jobId);
-
-    // 审计日志查询
-    string QueryLogs(DateTime? startTime, DateTime? endTime, ...);
-
-    // JSON 命令入口（统一接口）
-    string HandleCommand(string json);
-}
-```
-
-### PDF 数据源
-
-通过 `IPdfProvider` 接口支持多种 PDF 输入方式：
-
-| Provider | 输入 | 说明 |
-|----------|------|------|
-| `Base64PdfProvider` | `string base64` | Base64 编码的 PDF |
-| `UrlPdfProvider` | `string url` | 远程 URL（直接下载，无重试） |
-| `BlobPdfProvider` | `byte[] bytes` | 二进制数据（Uint8Array/Buffer） |
-
-一次调用只能提供一种 PDF 来源，同时传入多种会返回 `INVALID_PARAMS` 错误。
-
-### 命令格式
-
-所有方法返回 JSON，格式统一为 `PrinterResult`：
+- 基地址：`http://localhost:{port}/api/`
+- 响应格式与 Engine 的 `PrinterResult` 一致：
 
 ```json
 {
@@ -164,76 +113,140 @@ public class PrinterApi : IDisposable
 }
 ```
 
-`HandleCommand` 接收 `PrinterCommand`：
+### 接口列表
+
+#### 打印机
+
+| 方法 | 路径 | 说明 | 对应 Engine 命令 |
+|------|------|------|--------------|
+| GET | `/api/printers` | 获取打印机列表 | `getPrinters` |
+| GET | `/api/printers/{name}/status` | 获取打印机状态 | `getPrinterStatus` |
+
+#### 打印
+
+| 方法 | 路径 | 说明 | 对应 Engine 命令 |
+|------|------|------|--------------|
+| POST | `/api/print` | 同步打印 | `print` |
+| POST | `/api/print/async` | 异步打印 | `printAsync` |
+| POST | `/api/print/batch` | 批量同步打印 | `batchPrint` |
+| POST | `/api/print/batch/async` | 批量异步打印 | `batchPrintAsync` |
+
+#### 任务
+
+| 方法 | 路径 | 说明 | 对应 Engine 命令 |
+|------|------|------|--------------|
+| GET | `/api/jobs` | 获取所有任务 | - |
+| GET | `/api/jobs/{id}` | 获取任务状态 | `getJobStatus` |
+
+#### 日志
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/logs` | 查询审计日志（Printer 自行实现） |
+
+#### 服务
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/status` | 服务运行状态 |
+
+### PDF 数据源支持
+
+打印接口支持三种 PDF 输入方式：
+
+| 格式 | HTTP 传输方式 | 说明 |
+|------|--------------|------|
+| `pdfBase64` | JSON body | Base64 编码的 PDF 字符串 |
+| `pdfUrl` | JSON body | 远程 PDF URL 地址 |
+| `pdfBytes` | multipart/form-data | 二进制 PDF 数据 |
+
+### WebSocket
+
+- 地址：`ws://localhost:{port}/ws`
+- 支持双向通信：命令请求 + 状态推送
+
+#### 文本帧（JSON 命令）
 
 ```json
 {
   "command": "print",
   "id": "uuid",
   "params": {
-    // ...
+    "printerName": "HP LaserJet",
+    "pdfBase64": "JVBERi0xLjQK...",
+    "copies": 1
   }
 }
 ```
 
-## 数据库设计
+#### 二进制帧（blob PDF）
 
-### PrintAuditLog 表
-
-```sql
-CREATE TABLE PrintAuditLog (
-    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Timestamp DATETIME NOT NULL,
-    PrinterName TEXT NOT NULL,
-    PaperWidth REAL,
-    PaperHeight REAL,
-    PaperUnit TEXT DEFAULT 'mm',
-    Copies INTEGER DEFAULT 1,
-    Dpi INTEGER,
-    UserId TEXT,
-    LabelType TEXT,
-    Status TEXT NOT NULL,
-    ErrorMessage TEXT,
-    JobId TEXT,
-    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+```
+┌────────────────┬─────────────────┬─────────────────┐
+│ 4 字节 (uint32) │ N 字节 (JSON)    │ 剩余 (PDF 二进制) │
+│ 元数据长度 N     │ 元数据           │ PDF 数据         │
+└────────────────┴─────────────────┴─────────────────┘
 ```
 
-## 错误码
+#### 支持的命令
 
-| 错误码 | 说明 |
-|--------|------|
-| `PRINTER_NOT_FOUND` | 打印机不存在 |
-| `PRINTER_OFFLINE` | 打印机离线 |
-| `PRINTER_STOPPED` | 打印机已停止 |
-| `PAPER_JAM` | 打印机卡纸 |
-| `PAPER_OUT` | 打印机缺纸 |
-| `PRINTER_ERROR` | 打印机错误 |
-| `INVALID_PDF` | PDF 格式无效 |
-| `INVALID_PDF_SOURCE` | PDF 来源无效（未提供或格式错误） |
-| `SUMATRA_NOT_FOUND` | SumatraPDF.exe 不存在 |
-| `PRINT_FAILED` | 打印失败 |
-| `PRINT_TIMEOUT` | 打印超时 |
-| `INVALID_PARAMS` | 参数无效 |
-| `UNKNOWN_COMMAND` | 未知命令 |
-| `JOB_NOT_FOUND` | 任务不存在 |
+| 命令 | 说明 |
+|------|------|
+| `print` | 同步打印 |
+| `printAsync` | 异步打印 |
+| `getPrinters` | 获取打印机列表 |
+| `getPrinterStatus` | 获取打印机状态 |
+| `getJobStatus` | 获取任务状态 |
+| `getAllJobs` | 获取所有任务 |
+| `queryLogs` | 查询审计日志 |
+
+## 配置模型
+
+```json
+{
+  "httpPort": 18080,
+  "autoStart": false,
+  "minimizeToTray": true,
+  "dbPath": null,
+  "corsOrigins": ["http://localhost:*"]
+}
+```
+
+配置文件路径：`%APPDATA%/EasyInk.Printer/config.json`
 
 ## 构建与部署
 
-```bash
-# 构建
-dotnet build EasyInk.Printer/src
+### 构建前准备
 
-# 发布
-dotnet publish EasyInk.Printer/src -c Release
-
-# 运行测试
-dotnet test EasyInk.Printer/tests
-```
-
-打印功能依赖 SumatraPDF.exe，首次使用前需执行（详见 Host 项目 README）：
+首次构建前需下载 SumatraPDF（PDF 直接打印引擎，约 15MB）：
 
 ```bash
-cd EasyInk.Printer.Host
+cd lib/EasyInk.Net/EasyInk.Printer
 powershell -File tools/download-sumatra.ps1
 ```
+
+### 构建
+
+```bash
+cd lib/EasyInk.Net
+dotnet build EasyInk.Printer/src
+```
+
+### 发布产物
+
+```
+publish/
+├── EasyInk.Printer.exe          # 主程序
+├── EasyInk.Engine.dll           # 打印引擎
+├── SumatraPDF.exe               # PDF 打印引擎（矢量直通）
+├── Newtonsoft.Json.dll
+├── Dapper.dll
+├── System.Data.SQLite.dll
+└── ...
+```
+
+### 部署要求
+
+- Windows 7 SP1 及以上
+- .NET Framework 4.8 运行时
+- 无需额外安装，复制即用

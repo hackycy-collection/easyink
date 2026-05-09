@@ -1,14 +1,32 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <RootNamespace>EasyInk.Printer</RootNamespace>
     <AssemblyName>EasyInk.Printer</AssemblyName>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <OutputType>Library</OutputType>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>EasyInk Printer</Product>
+    <Company>EasyInk</Company>
+    <Description>EasyInk 打印服务</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico" />
+  </ItemGroup>
+
+  <!-- SumatraPDF: download via tools/download-sumatra.ps1, placed in src/bin/SumatraPDF/ -->
+  <ItemGroup>
+    <Content Include="bin\SumatraPDF\SumatraPDF.exe" Condition="Exists('bin\SumatraPDF\SumatraPDF.exe')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>SumatraPDF.exe</Link>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
@@ -17,9 +35,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
-    <Reference Include="System.Management" />
+  </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\EasyInk.Engine\src\EasyInk.Engine.csproj" />
   </ItemGroup>
 
   <ItemGroup>
