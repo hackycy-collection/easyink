@@ -21,6 +21,8 @@ public class MainWindow : Form
     private readonly PrinterApi _api;
     private readonly HostConfig _config;
     private TabControl _tabs;
+    private readonly System.Collections.Generic.HashSet<int> _loadedTabs = new();
+    private readonly System.Collections.Generic.HashSet<int> _refreshingTabs = new();
 
     public event Action OnRestart;
 
@@ -56,6 +58,30 @@ public class MainWindow : Form
         _tabs.TabPages.Add(CreateSettingsTab());
 
         Controls.Add(_tabs);
+
+        _tabs.SelectedIndexChanged += OnTabChanged;
+    }
+
+    private void OnTabChanged(object sender, EventArgs e)
+    {
+        var idx = _tabs.SelectedIndex;
+        if (_loadedTabs.Contains(idx)) return;
+
+        switch (idx)
+        {
+            case 1: // 打印机
+                _loadedTabs.Add(idx);
+                var printersTab = _tabs.TabPages[idx];
+                var printersLv = printersTab.Controls.OfType<ListView>().FirstOrDefault();
+                if (printersLv != null) RefreshPrinters(printersLv);
+                break;
+            case 2: // 任务
+                _loadedTabs.Add(idx);
+                var jobsTab = _tabs.TabPages[idx];
+                var jobsLv = jobsTab.Controls.OfType<ListView>().FirstOrDefault();
+                if (jobsLv != null) RefreshJobs(jobsLv);
+                break;
+        }
     }
 
     private TabPage CreateDashboardTab()
@@ -387,8 +413,19 @@ public class MainWindow : Form
         return tab;
     }
 
-    private async Task RefreshListViewAsync(ListView listView, string operationName, Func<string> dataFetcher, Action<ListView, Newtonsoft.Json.Linq.JArray> rowMapper)
+    private bool TryBeginRefresh(int tabIndex)
     {
+        return _refreshingTabs.Add(tabIndex);
+    }
+
+    private void EndRefresh(int tabIndex)
+    {
+        _refreshingTabs.Remove(tabIndex);
+    }
+
+    private async Task RefreshListViewAsync(ListView listView, int tabIndex, string operationName, Func<string> dataFetcher, Action<ListView, Newtonsoft.Json.Linq.JArray> rowMapper)
+    {
+        if (!TryBeginRefresh(tabIndex)) return;
         try
         {
             listView.Items.Clear();
@@ -407,11 +444,15 @@ public class MainWindow : Form
             try { MessageBox.Show($"{operationName}失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             catch (ObjectDisposedException) { }
         }
+        finally
+        {
+            EndRefresh(tabIndex);
+        }
     }
 
     private async void RefreshPrinters(ListView listView)
     {
-        await RefreshListViewAsync(listView, "获取打印机列表", () => _api.GetPrinters(),
+        await RefreshListViewAsync(listView, 1, "获取打印机列表", () => _api.GetPrinters(),
             (listViewCtrl, data) =>
             {
                 foreach (var p in data)
@@ -429,7 +470,7 @@ public class MainWindow : Form
 
     private async void RefreshJobs(ListView listView)
     {
-        await RefreshListViewAsync(listView, "获取任务列表", () => _api.GetAllJobs(),
+        await RefreshListViewAsync(listView, 2, "获取任务列表", () => _api.GetAllJobs(),
             (listViewCtrl, data) =>
             {
                 foreach (var job in data)
@@ -535,7 +576,7 @@ public class MainWindow : Form
 
     private async void RefreshLogs(ListView listView, DateTime from, DateTime to)
     {
-        await RefreshListViewAsync(listView, "查询日志", () => _api.QueryLogs(from, to, limit: 200),
+        await RefreshListViewAsync(listView, 3, "查询日志", () => _api.QueryLogs(from, to, limit: 200),
             (listViewCtrl, data) =>
             {
                 foreach (var log in data)
