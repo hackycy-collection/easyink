@@ -261,11 +261,12 @@ public class EngineApi : IDisposable
     }
 
     /// <summary>
-    /// 释放资源
+    /// 释放资源并清除静态事件订阅，防止内存泄漏
     /// </summary>
     public void Dispose()
     {
         _jobQueue.Dispose();
+        ClearEvents();
     }
 
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64,

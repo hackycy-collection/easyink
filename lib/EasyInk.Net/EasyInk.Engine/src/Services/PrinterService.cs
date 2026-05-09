@@ -147,8 +147,8 @@ public class PrinterService : IPrinterService
                     return new PrinterStatus
                     {
                         IsReady = true,
-                        StatusCode = PrinterStatusCode.Ready,
-                        Message = "打印机就绪（WMI 状态不可用）",
+                        StatusCode = PrinterStatusCode.WmiUnavailable,
+                        Message = "WMI 状态不可用，打印机存在但状态未知",
                         IsOnline = true,
                         HasPaper = true,
                         IsPaperJam = false,
@@ -194,8 +194,8 @@ public class PrinterService : IPrinterService
                 return new PrinterStatus
                 {
                     IsReady = true,
-                    StatusCode = PrinterStatusCode.Ready,
-                    Message = "打印机就绪（WMI 状态不可用）",
+                    StatusCode = PrinterStatusCode.WmiUnavailable,
+                    Message = "WMI 状态不可用，打印机存在但状态未知",
                     IsOnline = true,
                     HasPaper = true,
                     IsPaperJam = false,

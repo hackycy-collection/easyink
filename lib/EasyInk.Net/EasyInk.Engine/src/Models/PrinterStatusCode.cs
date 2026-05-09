@@ -12,4 +12,5 @@ public static class PrinterStatusCode
     public const string PrinterStopped = "PRINTER_STOPPED";
     public const string PrinterError = "PRINTER_ERROR";
     public const string PrinterNotFound = "PRINTER_NOT_FOUND";
+    public const string WmiUnavailable = "WMI_UNAVAILABLE";
 }

@@ -102,9 +102,6 @@ public class UrlPdfProvider : IPdfProvider
             }
         }
         catch (ArgumentException) { throw; }
-        catch (WebException ex)
-        {
-            throw new ArgumentException($"下载 PDF 失败: {ex.Message}", ex);
-        }
+        catch (WebException) { throw; }
     }
 }

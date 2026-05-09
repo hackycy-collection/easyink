@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 
@@ -19,7 +20,7 @@ public class SumatraPrintService : IPrintService
     private readonly string _tempDir;
     private readonly IPrinterService _printerService;
     private readonly int _timeoutMs;
-    private volatile bool _sweepDone;
+    private int _sweepDone;
 
     public SumatraPrintService(
         IPrinterService printerService,
@@ -35,11 +36,8 @@ public class SumatraPrintService : IPrintService
 
     public PrinterResult Print(string requestId, PrintRequestParams request)
     {
-        if (!_sweepDone)
-        {
-            _sweepDone = true;
+        if (Interlocked.CompareExchange(ref _sweepDone, 1, 0) == 0)
             SweepStaleTempFiles();
-        }
 
         var status = _printerService.GetPrinterStatus(request.PrinterName);
         if (!status.IsReady)
@@ -166,7 +164,11 @@ public class SumatraPrintService : IPrintService
                 process.Kill();
                 process.WaitForExit();
             }
-            catch { }
+            catch (InvalidOperationException) { }
+            catch (Exception ex)
+            {
+                EngineApi.RaiseLog(LogLevel.Error, $"终止打印进程后等待失败: {ex.Message}");
+            }
             throw new TimeoutException();
         }
 
@@ -183,7 +185,12 @@ public class SumatraPrintService : IPrintService
 
     private static void TryDelete(string path)
     {
-        try { File.Delete(path); } catch { }
+        try { File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException ex)
+        {
+            EngineApi.RaiseLog(LogLevel.Error, $"删除临时文件失败 {path}: {ex.Message}");
+        }
     }
 
     private void SweepStaleTempFiles()
@@ -197,6 +204,9 @@ public class SumatraPrintService : IPrintService
             foreach (var file in staleFiles)
                 TryDelete(file);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            EngineApi.RaiseLog(LogLevel.Error, $"清理过期临时文件失败: {ex.Message}");
+        }
     }
 }
