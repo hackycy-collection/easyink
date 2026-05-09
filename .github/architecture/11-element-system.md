@@ -575,8 +575,16 @@ CanvasWorkspace 遍历 elements
 interface MaterialViewerExtension {
   render(node: MaterialNode, context: ViewerRenderContext): ViewerRenderOutput
   measure?(node: MaterialNode, context: ViewerMeasureContext): ViewerMeasureResult
+  getRenderSize?(node: MaterialNode, context: ViewerRenderContext): Partial<ViewerRenderSize>
 }
 ```
+
+其中职责边界如下：
+
+- `render()` 只负责生成物料内容 DOM/SVG。
+- `measure()` 负责参与运行时测量和回流，典型场景是 table-data 这类动态高度物料。
+- `getRenderSize()` 负责声明最终渲染容器尺寸，适用于“运行态视觉尺寸不等于 schema 几何尺寸”的物料；例如线条物料可把 legacy `lineWidth` 或最小可见厚度提升为实际渲染高度。
+- `viewer` 的 `RenderSurface` 不允许根据 `node.type` 推断这些差异，必须统一通过 `MaterialRendererRegistry -> MaterialViewerExtension` 获取。
 
 对目录型物料的要求：
 

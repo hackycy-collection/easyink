@@ -1,14 +1,14 @@
 import type { DocumentSchema, TableNode } from '@easyink/schema'
 import type { ViewerRuntime } from './runtime'
 import type { ViewerExportContext, ViewerPageMetrics, ViewerPrintContext, ViewerPrintOptions, ViewerPrintPolicy } from './types'
-import { LINE_TYPE, renderLine } from '@easyink/material-line'
+import { createLineViewerExtension, LINE_TYPE } from '@easyink/material-line'
 import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createViewer, resolvePrintPolicy } from './index'
 import { buildPrintStyles } from './print-service'
 
 function registerTestMaterials(viewer: ViewerRuntime): void {
-  viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
+  viewer.registerMaterial(LINE_TYPE, createLineViewerExtension())
   viewer.registerMaterial(TABLE_DATA_TYPE, {
     render: (node, ctx) => renderTableData(node, ctx),
     measure: (node, ctx) => measureTableData(node, ctx),

@@ -1,9 +1,8 @@
 import type { PagePlanEntry, TrustedViewerHtml } from '@easyink/core'
 import type { MaterialNode, PageBackground, PageSchema } from '@easyink/schema'
 import type { MaterialRendererRegistry } from './material-registry'
-import type { ViewerDiagnosticEvent, ViewerRenderContext } from './types'
+import type { ViewerDiagnosticEvent, ViewerRenderContext, ViewerRenderSize } from './types'
 import { readTrustedViewerHtml, trustedViewerHtml } from '@easyink/core'
-import { getLineThickness, LINE_TYPE } from '@easyink/material-line'
 import { escapeHtml, UNIT_FACTOR } from '@easyink/shared'
 import { isErrorSentinel, safeRender } from './diagnostic-middleware'
 
@@ -92,7 +91,8 @@ export function renderPages(
         output = safeResult
       }
 
-      const elWrapper = createElementWrapper(document, node, page, unit)
+      const renderSize = registry.getRenderSize(nodeForRender, context)
+      const elWrapper = createElementWrapper(document, nodeForRender, page, unit, renderSize)
       if (output.element) {
         elWrapper.appendChild(output.element)
       }
@@ -221,6 +221,7 @@ function createElementWrapper(
   node: MaterialNode,
   page: PagePlanEntry,
   unit: string,
+  renderSize: ViewerRenderSize,
 ): HTMLElement {
   const wrapper = document.createElement('div')
   wrapper.className = 'ei-viewer-element'
@@ -233,9 +234,8 @@ function createElementWrapper(
   wrapper.style.position = 'absolute'
   wrapper.style.left = `${node.x}${unit}`
   wrapper.style.top = `${relativeY}${unit}`
-  wrapper.style.width = `${node.width}${unit}`
-  const renderHeight = node.type === LINE_TYPE ? getLineThickness(node) : node.height
-  wrapper.style.height = `${renderHeight}${unit}`
+  wrapper.style.width = `${renderSize.width}${unit}`
+  wrapper.style.height = `${renderSize.height}${unit}`
   wrapper.style.overflow = 'hidden'
 
   if (node.rotation) {

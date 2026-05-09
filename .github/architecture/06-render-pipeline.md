@@ -43,7 +43,7 @@ MaterialRendererRegistry
 4. `BindingProjector`：处理 `usage / union / bindIndex`。对 table-data 节点执行单元格级预解析（见 6.6.1）。
 5. `MeasureAndFlowResolver`：先测量 table-data 等动态物料的运行态尺寸，再在 `stack` 模式下执行流式回流，把后续 flow 元素按文档顺序重新定位。
 6. `PagePlanner`：基于回流后的几何结果生成固定分页、连续页或标签页计划。对 table-data 元素与 ViewerExtension 协作完成行展开和分页（见 [7.3](./07-layout-engine.md)）。
-7. `RenderSurface`：输出页面 DOM/SVG 和缩略图，并把最终 `ViewerPageMetrics` 缓存在 ViewerRuntime 内。
+7. `RenderSurface`：输出页面 DOM/SVG 和缩略图，并把最终 `ViewerPageMetrics` 缓存在 ViewerRuntime 内。`RenderSurface` 只负责页面容器、定位和通用诊断，不允许按 `materialType` 写分支。若某类物料的运行态渲染尺寸不等于 schema 几何尺寸，必须由 `MaterialViewerExtension.getRenderSize()` 通过注册表回传，`RenderSurface` 只消费 registry 返回值。
 8. `PrintPolicyResolver`：基于 `page.mode / pageSizeMode / renderedPages` 解析打印策略。`stack + driver` 不强制纸张尺寸，交给打印机驱动；`stack + fixed` 必须使用 render 阶段缓存的最终页面尺寸，缺失时发出 `PRINT_RENDER_METRICS_MISSING` 并拒绝打印。
 9. `ExportPluginLoader`：按需装载导出依赖和插件。
 
@@ -78,7 +78,7 @@ EasyInk 存在两套独立的物料渲染能力，不共享实现代码：
 
 | | 设计态渲染 | Viewer 渲染 |
 |---|---|---|
-| 接口 | `MaterialDesignerExtension.renderContent(nodeSignal, container)` | `MaterialViewerExtension.render()` |
+| 接口 | `MaterialDesignerExtension.renderContent(nodeSignal, container)` | `MaterialViewerExtension.render() / getRenderSize() / measure()` |
 | 运行场景 | Designer 画布内 | Viewer 运行时（预览/打印/导出） |
 | 数据 | 无真实数据，绑定显示为字段标签 | 真实数据绑定 + 格式化 |
 | 性能要求 | 主线程同步渲染，必须轻量 | 可异步，可引入重量级第三方库 |

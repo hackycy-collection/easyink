@@ -1,4 +1,4 @@
-import type { ViewerRenderContext } from '@easyink/core'
+import type { MaterialViewerExtension, ViewerRenderContext, ViewerRenderSize } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { LineProps } from './schema'
 import { trustedViewerHtml } from '@easyink/core'
@@ -28,14 +28,31 @@ function buildShapeMarkup(lineType: LineProps['lineType'] | undefined, width: nu
   return `<rect x="0" y="0" width="${width}" height="${height}" fill="${color}" />`
 }
 
+function resolveLineRenderHeight(node: MaterialNode): number {
+  return Math.max(0.1, getLineThickness(node))
+}
+
+export function getLineRenderSize(node: MaterialNode): Partial<ViewerRenderSize> {
+  return {
+    height: resolveLineRenderHeight(node),
+  }
+}
+
 export function renderLine(node: MaterialNode, _context: ViewerRenderContext) {
   const p = getNodeProps<Partial<LineProps>>(node)
   const lineColor = p.lineColor || '#000000'
   const lineType = p.lineType || 'solid'
-  const thickness = Math.max(0.1, getLineThickness(node))
+  const thickness = resolveLineRenderHeight(node)
   const content = buildShapeMarkup(lineType, node.width, thickness, lineColor)
 
   return {
     html: trustedViewerHtml(`<svg style="display:block;width:100%;height:100%;overflow:hidden;shape-rendering:crispEdges;" width="100%" height="100%" viewBox="0 0 ${node.width} ${thickness}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${content}</svg>`),
+  }
+}
+
+export function createLineViewerExtension(): MaterialViewerExtension {
+  return {
+    render: (node, context) => renderLine(node, context),
+    getRenderSize: node => getLineRenderSize(node),
   }
 }

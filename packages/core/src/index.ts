@@ -120,6 +120,7 @@ export type {
   ViewerMeasureResult,
   ViewerRenderContext,
   ViewerRenderOutput,
+  ViewerRenderSize,
 } from './material-viewer'
 
 export { readTrustedViewerHtml, trustedViewerHtml } from './material-viewer'

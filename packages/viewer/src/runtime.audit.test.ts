@@ -1,7 +1,7 @@
 import type { DocumentSchema, MaterialNode, TableNode } from '@easyink/schema'
 import type { ViewerRuntime } from './runtime'
 import type { ViewerDiagnosticEvent } from './types'
-import { LINE_TYPE, renderLine } from '@easyink/material-line'
+import { createLineViewerExtension, LINE_TYPE } from '@easyink/material-line'
 import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
@@ -61,7 +61,7 @@ function tableNode(sourceId = 'invoice'): TableNode {
 }
 
 function registerTableMaterial(viewer: ViewerRuntime): void {
-  viewer.registerMaterial(LINE_TYPE, { render: (node, ctx) => renderLine(node, ctx) })
+  viewer.registerMaterial(LINE_TYPE, createLineViewerExtension())
   viewer.registerMaterial(TABLE_DATA_TYPE, {
     render: (node, ctx) => renderTableData(node, ctx),
     measure: (node, ctx) => measureTableData(node, ctx),

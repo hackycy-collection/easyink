@@ -1,5 +1,5 @@
 import type { MaterialNode } from '@easyink/schema'
-import type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput } from './types'
+import type { MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput, ViewerRenderSize } from './types'
 import { trustedViewerHtml } from '@easyink/core'
 import { escapeHtml } from '@easyink/shared'
 
@@ -40,6 +40,15 @@ export class MaterialRendererRegistry {
     if (!ext?.measure)
       return null
     return ext.measure(node, context)
+  }
+
+  getRenderSize(node: MaterialNode, context: ViewerRenderContext): ViewerRenderSize {
+    const ext = this._renderers.get(node.type)
+    const size = ext?.getRenderSize?.(node, context)
+    return {
+      width: size?.width ?? node.width,
+      height: size?.height ?? node.height,
+    }
   }
 
   isPageAware(type: string): boolean {
