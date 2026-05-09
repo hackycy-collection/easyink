@@ -8,6 +8,7 @@ namespace EasyInk.Engine;
 /// </summary>
 public static class JsonConfig
 {
+    /// <summary>camelCase 命名策略的序列化配置</summary>
     public static readonly JsonSerializerSettings CamelCase = new()
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver(),

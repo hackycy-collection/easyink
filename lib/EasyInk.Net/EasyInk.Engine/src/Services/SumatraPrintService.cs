@@ -22,6 +22,9 @@ public class SumatraPrintService : IPrintService
     private readonly int _timeoutMs;
     private int _sweepDone;
 
+    /// <summary>
+    /// 初始化 SumatraPDF 打印服务
+    /// </summary>
     public SumatraPrintService(
         IPrinterService printerService,
         string sumatraExePath = null,
@@ -34,6 +37,9 @@ public class SumatraPrintService : IPrintService
         _timeoutMs = timeoutMs ?? DefaultTimeoutMs;
     }
 
+    /// <summary>
+    /// 执行同步打印
+    /// </summary>
     public PrinterResult Print(string requestId, PrintRequestParams request)
     {
         if (Interlocked.CompareExchange(ref _sweepDone, 1, 0) == 0)

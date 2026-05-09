@@ -10,9 +10,14 @@ using EasyInk.Engine.Services.Abstractions;
 
 namespace EasyInk.Engine;
 
+/// <summary>
+/// 日志级别
+/// </summary>
 public enum LogLevel
 {
+    /// <summary>信息</summary>
     Info,
+    /// <summary>错误</summary>
     Error
 }
 
