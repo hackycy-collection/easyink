@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 
@@ -48,11 +47,11 @@ public class SumatraPrintService : IPrintService
         }
         catch (Exception ex)
         {
-            return PrinterResult.Error(requestId, "INVALID_PDF_SOURCE", ex.Message);
+            return PrinterResult.Error(requestId, ErrorCode.InvalidPdfSource, ex.Message);
         }
 
         if (!File.Exists(_sumatraExePath))
-            return PrinterResult.Error(requestId, "SUMATRA_NOT_FOUND", $"SumatraPDF.exe 不存在: {_sumatraExePath}");
+            return PrinterResult.Error(requestId, ErrorCode.SumatraNotFound, $"SumatraPDF.exe 不存在: {_sumatraExePath}");
 
         var tempFile = Path.Combine(_tempDir, $"easyink_{requestId}.pdf");
         try
@@ -74,17 +73,17 @@ public class SumatraPrintService : IPrintService
                 : stderr.Trim();
 
             EngineApi.RaiseLog(LogLevel.Error, $"打印失败: {request.PrinterName}, jobId={requestId}, {errorDetail}");
-            return PrinterResult.Error(requestId, "PRINT_FAILED", errorDetail);
+            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, errorDetail);
         }
         catch (TimeoutException)
         {
             EngineApi.RaiseLog(LogLevel.Error, $"打印超时: {request.PrinterName}, jobId={requestId}, {_timeoutMs}ms");
-            return PrinterResult.Error(requestId, "PRINT_TIMEOUT", $"打印超时({_timeoutMs}ms)");
+            return PrinterResult.Error(requestId, ErrorCode.PrintTimeout, $"打印超时({_timeoutMs}ms)");
         }
         catch (Exception ex)
         {
             EngineApi.RaiseLog(LogLevel.Error, $"打印异常: {request.PrinterName}, jobId={requestId}, {ex.Message}");
-            return PrinterResult.Error(requestId, "PRINT_FAILED", ex.Message);
+            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, ex.Message);
         }
         finally
         {
@@ -174,8 +173,6 @@ public class SumatraPrintService : IPrintService
 
     private static void TryDelete(string path)
     {
-        try { File.Delete(path); } catch { }
-        Thread.Sleep(100);
         try { File.Delete(path); } catch { }
     }
 

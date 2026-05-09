@@ -11,10 +11,6 @@ namespace EasyInk.Engine.Tests;
 
 public class PrinterApiTests
 {
-    private static readonly JsonSerializerSettings JsonSettings = new()
-    {
-        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-    };
 
     private static EngineApi CreateApi(
         Mock<IPrinterService> printerService = null,
@@ -35,7 +31,7 @@ public class PrinterApiTests
             Command = command,
             Id = id,
             Params = parms
-        }, JsonSettings);
+        }, JsonConfig.CamelCase);
     }
 
     [Fact]
@@ -53,7 +49,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = JsonConvert.DeserializeObject<JObject>(api.HandleCommand(MakeCommand("noSuchCommand")));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("UNKNOWN_COMMAND", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.UnknownCommand, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -80,7 +76,7 @@ public class PrinterApiTests
         var result = JsonConvert.DeserializeObject<JObject>(
             api.HandleCommand(MakeCommand("getPrinterStatus")));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -90,7 +86,7 @@ public class PrinterApiTests
         var result = JsonConvert.DeserializeObject<JObject>(
             api.HandleCommand(MakeCommand("print")));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -111,7 +107,7 @@ public class PrinterApiTests
             api.HandleCommand(MakeCommand("printAsync", parms: parms)));
         Assert.True(result["success"].ToObject<bool>());
         Assert.NotNull(result["data"]["jobId"]);
-        Assert.Equal("queued", result["data"]["status"].ToString());
+        Assert.Equal(JobStatus.Queued, result["data"]["status"].ToString());
     }
 
     [Fact]
@@ -122,7 +118,7 @@ public class PrinterApiTests
         var result = JsonConvert.DeserializeObject<JObject>(
             api.HandleCommand(MakeCommand("getJobStatus", parms: parms)));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("JOB_NOT_FOUND", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.JobNotFound, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -132,7 +128,7 @@ public class PrinterApiTests
         var result = JsonConvert.DeserializeObject<JObject>(
             api.HandleCommand(MakeCommand("queryLogs")));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("UNKNOWN_COMMAND", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.UnknownCommand, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -146,7 +142,7 @@ public class PrinterApiTests
         var result = JsonConvert.DeserializeObject<JObject>(
             api.HandleCommand(MakeCommand("batchPrint", parms: parms)));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -156,7 +152,7 @@ public class PrinterApiTests
         var json = api.Print(null, "base64data");
         var result = JsonConvert.DeserializeObject<JObject>(json);
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -166,7 +162,7 @@ public class PrinterApiTests
         var json = api.Print("TestPrinter");
         var result = JsonConvert.DeserializeObject<JObject>(json);
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
@@ -176,7 +172,7 @@ public class PrinterApiTests
         var json = api.Print("TestPrinter", pdfBase64: "base64data", pdfUrl: "http://example.com/test.pdf");
         var result = JsonConvert.DeserializeObject<JObject>(json);
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_PARAMS", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidParams, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]

@@ -17,6 +17,7 @@ static class Program
 {
     private static Mutex _mutex;
     private static string _crashLogDir;
+    private static bool _disposed;
 
     [STAThread]
     static void Main(string[] args)
@@ -97,10 +98,7 @@ static class Program
 
         mainWindow.OnRestart += () =>
         {
-            httpServer.Stop();
-            wsHandler.Dispose();
-            engineApi.Dispose();
-            trayIcon.Dispose();
+            Cleanup(httpServer, wsHandler, engineApi, trayIcon);
 
             _mutex.ReleaseMutex();
             _mutex.Dispose();
@@ -138,10 +136,7 @@ static class Program
 
         trayIcon.OnExit += () =>
         {
-            httpServer.Stop();
-            wsHandler.Dispose();
-            engineApi.Dispose();
-            trayIcon.Dispose();
+            Cleanup(httpServer, wsHandler, engineApi, trayIcon);
             Application.Exit();
         };
 
@@ -179,10 +174,18 @@ static class Program
 
         Application.Run(mainWindow);
 
-        if (httpServer.IsRunning)
-            httpServer.Stop();
-        wsHandler.Dispose();
-        engineApi.Dispose();
+        Cleanup(httpServer, wsHandler, engineApi, trayIcon);
+    }
+
+    private static void Cleanup(HttpServer httpServer, WebSocketHandler wsHandler, EngineApi engineApi, TrayIcon trayIcon)
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        try { httpServer.Stop(); } catch { }
+        try { wsHandler.Dispose(); } catch { }
+        try { engineApi.Dispose(); } catch { }
+        try { trayIcon.Dispose(); } catch { }
     }
 
     private static void WriteCrashLog(Exception ex, string source)

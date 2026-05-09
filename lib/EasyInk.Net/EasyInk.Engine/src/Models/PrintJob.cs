@@ -20,7 +20,7 @@ public class PrintJob
     /// <summary>
     /// 任务状态
     /// </summary>
-    public string Status { get; set; } = "queued";
+    public string Status { get; set; } = JobStatus.Queued;
 
     /// <summary>
     /// 创建时间

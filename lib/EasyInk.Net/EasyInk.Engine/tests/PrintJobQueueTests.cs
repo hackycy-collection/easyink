@@ -51,7 +51,7 @@ public class PrintJobQueueTests
         var jobId = queue.Enqueue(null, MakeRequest());
         var job = queue.GetJobStatus(jobId);
         Assert.NotNull(job);
-        Assert.Equal("queued", job.Status);
+        Assert.Equal(JobStatus.Queued, job.Status);
     }
 
     [Fact]
@@ -72,13 +72,13 @@ public class PrintJobQueueTests
         while (DateTime.UtcNow < deadline)
         {
             var job = queue.GetJobStatus(jobId);
-            if (job.Status == "completed" || job.Status == "failed")
+            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Failed)
                 break;
             Thread.Sleep(50);
         }
 
         var final = queue.GetJobStatus(jobId);
-        Assert.Equal("completed", final.Status);
+        Assert.Equal(JobStatus.Completed, final.Status);
         Assert.NotNull(final.CompletedAt);
         Assert.NotNull(final.StartedAt);
     }
@@ -97,13 +97,13 @@ public class PrintJobQueueTests
         while (DateTime.UtcNow < deadline)
         {
             var job = queue.GetJobStatus(jobId);
-            if (job.Status == "failed")
+            if (job.Status == JobStatus.Failed)
                 break;
             Thread.Sleep(50);
         }
 
         var final = queue.GetJobStatus(jobId);
-        Assert.Equal("failed", final.Status);
+        Assert.Equal(JobStatus.Failed, final.Status);
         Assert.Equal("boom", final.ErrorMessage);
     }
 

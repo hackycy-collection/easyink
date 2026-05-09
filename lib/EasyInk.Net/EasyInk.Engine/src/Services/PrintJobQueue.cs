@@ -52,7 +52,7 @@ public class PrintJobQueue : IDisposable
         {
             JobId = jobId,
             PrinterName = request.PrinterName,
-            Status = "queued"
+            Status = JobStatus.Queued
         };
         lock (_jobLock)
         {
@@ -124,7 +124,7 @@ public class PrintJobQueue : IDisposable
             {
                 if (!_jobs.TryGetValue(requestId, out jobInfo))
                     continue;
-                jobInfo.Status = "printing";
+                jobInfo.Status = JobStatus.Printing;
                 jobInfo.StartedAt = DateTime.UtcNow;
             }
 
@@ -134,7 +134,7 @@ public class PrintJobQueue : IDisposable
                 lock (_jobLock)
                 {
                     jobInfo.Result = response;
-                    jobInfo.Status = response.Success ? "completed" : "failed";
+                    jobInfo.Status = response.Success ? JobStatus.Completed : JobStatus.Failed;
                     if (!response.Success)
                         jobInfo.ErrorMessage = response.ErrorInfo?.Message;
                 }
@@ -143,7 +143,7 @@ public class PrintJobQueue : IDisposable
             {
                 lock (_jobLock)
                 {
-                    jobInfo.Status = "failed";
+                    jobInfo.Status = JobStatus.Failed;
                     jobInfo.ErrorMessage = ex.Message;
                 }
                 EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"打印任务 {requestId} 失败: {ex.Message}");

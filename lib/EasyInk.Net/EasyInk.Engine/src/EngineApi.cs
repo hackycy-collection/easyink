@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services;
 using EasyInk.Engine.Services.Abstractions;
@@ -23,12 +22,6 @@ public class EngineApi : IDisposable
     private readonly IPrinterService _printerService;
     private readonly IPrintService _printService;
     private readonly PrintJobQueue _jobQueue;
-
-    private static readonly JsonSerializerSettings _jsonSettings = new()
-    {
-        ContractResolver = new CamelCasePropertyNamesContractResolver(),
-        Formatting = Formatting.None
-    };
 
     /// <summary>
     /// 日志回调事件，订阅方自行决定如何处理日志（写文件、存数据库等）
@@ -69,7 +62,7 @@ public class EngineApi : IDisposable
     public string GetPrinters()
     {
         var printers = _printerService.GetPrinters();
-        return JsonConvert.SerializeObject(PrinterResult.Ok("printers", printers), _jsonSettings);
+        return JsonConvert.SerializeObject(PrinterResult.Ok("printers", printers), JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -80,11 +73,11 @@ public class EngineApi : IDisposable
         if (string.IsNullOrEmpty(printerName))
         {
             return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", "INVALID_PARAMS", "缺少printerName参数"), _jsonSettings);
+                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "缺少printerName参数"), JsonConfig.CamelCase);
         }
 
         var status = _printerService.GetPrinterStatus(printerName);
-        return JsonConvert.SerializeObject(status, _jsonSettings);
+        return JsonConvert.SerializeObject(status, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -98,13 +91,13 @@ public class EngineApi : IDisposable
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
 
         var response = _printService.Print(Guid.NewGuid().ToString(), request);
-        return JsonConvert.SerializeObject(response, _jsonSettings);
+        return JsonConvert.SerializeObject(response, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -118,7 +111,7 @@ public class EngineApi : IDisposable
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "INVALID_PARAMS", error), _jsonSettings);
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
@@ -126,11 +119,11 @@ public class EngineApi : IDisposable
         try
         {
             var jobId = _jobQueue.Enqueue(null, request);
-            return JsonConvert.SerializeObject(new { jobId, status = "queued" }, _jsonSettings);
+            return JsonConvert.SerializeObject(new { jobId, status = JobStatus.Queued }, JsonConfig.CamelCase);
         }
         catch (InvalidOperationException ex)
         {
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", "QUEUE_FULL", ex.Message), _jsonSettings);
+            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.QueueFull, ex.Message), JsonConfig.CamelCase);
         }
     }
 
@@ -142,10 +135,10 @@ public class EngineApi : IDisposable
         var jobs = DeserializeJobs(jobsJson);
         if (jobs == null)
             return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", "INVALID_PARAMS", "jobs参数无效"), _jsonSettings);
+                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
 
         var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: false);
-        return JsonConvert.SerializeObject(result, _jsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -156,10 +149,10 @@ public class EngineApi : IDisposable
         var jobs = DeserializeJobs(jobsJson);
         if (jobs == null)
             return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", "INVALID_PARAMS", "jobs参数无效"), _jsonSettings);
+                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
 
         var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: true);
-        return JsonConvert.SerializeObject(result, _jsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -171,9 +164,9 @@ public class EngineApi : IDisposable
         if (info == null)
         {
             return JsonConvert.SerializeObject(
-                PrinterResult.Error(jobId, "JOB_NOT_FOUND", $"任务不存在: {jobId}"), _jsonSettings);
+                PrinterResult.Error(jobId, ErrorCode.JobNotFound, $"任务不存在: {jobId}"), JsonConfig.CamelCase);
         }
-        return JsonConvert.SerializeObject(info, _jsonSettings);
+        return JsonConvert.SerializeObject(info, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -182,7 +175,7 @@ public class EngineApi : IDisposable
     public string GetAllJobs()
     {
         var jobs = _jobQueue.GetAllJobs();
-        return JsonConvert.SerializeObject(PrinterResult.Ok("all", jobs), _jsonSettings);
+        return JsonConvert.SerializeObject(PrinterResult.Ok("all", jobs), JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -193,22 +186,22 @@ public class EngineApi : IDisposable
         PrinterCommand request;
         try
         {
-            request = JsonConvert.DeserializeObject<PrinterCommand>(json, _jsonSettings);
+            request = JsonConvert.DeserializeObject<PrinterCommand>(json, JsonConfig.CamelCase);
         }
         catch (JsonException)
         {
             return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
+                PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON"), JsonConfig.CamelCase);
         }
 
         if (request == null)
         {
             return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", "INVALID_JSON", "无效的JSON"), _jsonSettings);
+                PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON"), JsonConfig.CamelCase);
         }
 
         var response = HandleCommand(request);
-        return JsonConvert.SerializeObject(response, _jsonSettings);
+        return JsonConvert.SerializeObject(response, JsonConfig.CamelCase);
     }
 
     /// <summary>
@@ -235,7 +228,7 @@ public class EngineApi : IDisposable
             case "batchPrintAsync":
                 return HandleBatchPrint(request, async: true);
             default:
-                return PrinterResult.Error(request.Id, "UNKNOWN_COMMAND", $"未知命令: {request.Command}");
+                return PrinterResult.Error(request.Id, ErrorCode.UnknownCommand, $"未知命令: {request.Command}");
         }
     }
 
@@ -279,7 +272,7 @@ public class EngineApi : IDisposable
         var printerName = GetParam<string>(request, "printerName");
         if (string.IsNullOrEmpty(printerName))
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少printerName参数");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少printerName参数");
         }
 
         var status = _printerService.GetPrinterStatus(printerName);
@@ -291,7 +284,7 @@ public class EngineApi : IDisposable
         var printParams = ExtractPrintParams(request);
         if (printParams == null)
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
         return _printService.Print(request.Id, printParams);
@@ -302,17 +295,17 @@ public class EngineApi : IDisposable
         var printParams = ExtractPrintParams(request);
         if (printParams == null)
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少打印参数或格式错误");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
         try
         {
             var jobId = _jobQueue.Enqueue(request.Id, printParams);
-            return PrinterResult.Ok(request.Id, new { jobId, status = "queued" });
+            return PrinterResult.Ok(request.Id, new { jobId, status = JobStatus.Queued });
         }
         catch (InvalidOperationException ex)
         {
-            return PrinterResult.Error(request.Id, "QUEUE_FULL", ex.Message);
+            return PrinterResult.Error(request.Id, ErrorCode.QueueFull, ex.Message);
         }
     }
 
@@ -321,13 +314,13 @@ public class EngineApi : IDisposable
         var jobId = GetParam<string>(request, "jobId");
         if (string.IsNullOrEmpty(jobId))
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少jobId参数");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少jobId参数");
         }
 
         var info = _jobQueue.GetJobStatus(jobId);
         if (info == null)
         {
-            return PrinterResult.Error(request.Id, "JOB_NOT_FOUND", $"任务不存在: {jobId}");
+            return PrinterResult.Error(request.Id, ErrorCode.JobNotFound, $"任务不存在: {jobId}");
         }
         return PrinterResult.Ok(request.Id, info);
     }
@@ -340,13 +333,13 @@ public class EngineApi : IDisposable
 
         if (jobsToken == null || !(jobsToken is JArray jArr))
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "缺少jobs数组参数");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少jobs数组参数");
         }
 
         var jobs = jArr.ToObject<List<PrintRequestParams>>();
         if (jobs.Count == 0)
         {
-            return PrinterResult.Error(request.Id, "INVALID_PARAMS", "jobs不能为空");
+            return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "jobs不能为空");
         }
 
         return ExecuteBatchJobs(request.Id, jobs, async);
@@ -428,7 +421,7 @@ public class EngineApi : IDisposable
 
         try
         {
-            var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, _jsonSettings);
+            var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, JsonConfig.CamelCase);
             return (jobs != null && jobs.Count > 0) ? jobs : null;
         }
         catch (JsonException)
@@ -448,11 +441,11 @@ public class EngineApi : IDisposable
                 try
                 {
                     var jobId = _jobQueue.Enqueue(null, job);
-                    results.Add(new BatchJobResult { JobId = jobId, Status = "queued" });
+                    results.Add(new BatchJobResult { JobId = jobId, Status = JobStatus.Queued });
                 }
                 catch (InvalidOperationException ex)
                 {
-                    results.Add(new BatchJobResult { JobId = null, Status = "failed", ErrorMessage = ex.Message });
+                    results.Add(new BatchJobResult { JobId = null, Status = JobStatus.Failed, ErrorMessage = ex.Message });
                 }
             }
             else
@@ -462,7 +455,7 @@ public class EngineApi : IDisposable
                 results.Add(new BatchJobResult
                 {
                     JobId = jobId,
-                    Status = response.Success ? "completed" : "failed",
+                    Status = response.Success ? JobStatus.Completed : JobStatus.Failed,
                     ErrorMessage = response.Success ? null : response.ErrorInfo?.Message
                 });
             }

@@ -7,6 +7,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EasyInk.Engine.Models;
 using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Server;
@@ -120,7 +121,7 @@ public class WebSocketHandler : IDisposable
 
                 if (messageBuffer.Length > MaxBinaryMessageSize)
                 {
-                    await SendError(ws, "MESSAGE_TOO_LARGE", "消息体过大");
+                    await SendError(ws, ErrorCode.MessageTooLarge, "消息体过大");
                     return;
                 }
             }
@@ -145,7 +146,7 @@ public class WebSocketHandler : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    await SendError(ws, "INVALID_MESSAGE", ex.Message);
+                    await SendError(ws, ErrorCode.InvalidMessage, ex.Message);
                 }
             }
         }

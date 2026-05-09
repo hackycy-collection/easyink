@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
-using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Server;
 
@@ -21,15 +21,10 @@ public class WebSocketCommandHandler
 
     private readonly EngineApi _api;
     private readonly WebSocketHandler _wsHandler;
-    private readonly AuditService _auditService;
+    private readonly IAuditService _auditService;
     private readonly ConcurrentDictionary<string, PdfUploadSession> _uploads = new();
 
-    private static readonly JsonSerializerSettings JsonSettings = new()
-    {
-        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-    };
-
-    public WebSocketCommandHandler(EngineApi api, WebSocketHandler wsHandler, AuditService auditService)
+    public WebSocketCommandHandler(EngineApi api, WebSocketHandler wsHandler, IAuditService auditService)
     {
         _api = api;
         _wsHandler = wsHandler;
@@ -54,12 +49,12 @@ public class WebSocketCommandHandler
                 "getJobStatus" => HandleGetJobStatus(message),
                 "getAllJobs" => _api.GetAllJobs(),
                 "queryLogs" => HandleQueryLogs(message),
-                _ => ErrorJson(message.Id, "UNKNOWN_COMMAND", $"未知命令: {message.Command}")
+                _ => ErrorJson(message.Id, ErrorCode.UnknownCommand, $"未知命令: {message.Command}")
             };
         }
         catch (Exception ex)
         {
-            result = ErrorJson(message.Id, "INTERNAL_ERROR", ex.Message);
+            result = ErrorJson(message.Id, ErrorCode.InternalError, ex.Message);
         }
 
         await SendResponse(ws, result);
@@ -80,11 +75,11 @@ public class WebSocketCommandHandler
         CleanupExpiredUploads();
 
         if (message.Params == null)
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少切片参数");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少切片参数");
         if (message.PdfBytes == null || message.PdfBytes.Length == 0)
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少 PDF 切片数据");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少 PDF 切片数据");
         if (message.PdfBytes.Length > MaxChunkBytes)
-            return ErrorJson(message.Id, "CHUNK_TOO_LARGE", $"PDF 切片过大，上限 {MaxChunkBytes / 1024 / 1024}MB");
+            return ErrorJson(message.Id, ErrorCode.ChunkTooLarge, $"PDF 切片过大，上限 {MaxChunkBytes / 1024 / 1024}MB");
 
         var uploadId = message.Params["uploadId"]?.ToString();
         var chunkIndex = message.Params["chunkIndex"]?.ToObject<int?>();
@@ -92,11 +87,11 @@ public class WebSocketCommandHandler
         var totalBytes = message.Params["totalBytes"]?.ToObject<long?>();
 
         if (string.IsNullOrEmpty(uploadId) || chunkIndex == null || totalChunks == null || totalBytes == null)
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少 uploadId、chunkIndex、totalChunks 或 totalBytes");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少 uploadId、chunkIndex、totalChunks 或 totalBytes");
         if (totalBytes <= 0 || totalBytes > MaxPdfBytes)
-            return ErrorJson(message.Id, "PDF_TOO_LARGE", $"PDF 文件过大，上限 {MaxPdfBytes / 1024 / 1024}MB");
+            return ErrorJson(message.Id, ErrorCode.PdfTooLarge, $"PDF 文件过大，上限 {MaxPdfBytes / 1024 / 1024}MB");
         if (totalChunks <= 0 || chunkIndex < 0 || chunkIndex >= totalChunks)
-            return ErrorJson(message.Id, "INVALID_PARAMS", "无效的切片序号");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "无效的切片序号");
 
         try
         {
@@ -111,25 +106,25 @@ public class WebSocketCommandHandler
                 receivedBytes = upload.ReceivedBytes,
                 totalBytes = upload.TotalBytes,
                 completed = upload.IsComplete
-            }), JsonSettings);
+            }), JsonConfig.CamelCase);
         }
         catch (Exception ex)
         {
-            return ErrorJson(message.Id, "INVALID_CHUNK", ex.Message);
+            return ErrorJson(message.Id, ErrorCode.InvalidChunk, ex.Message);
         }
     }
 
     private string HandlePrintUploadedPdf(WebSocketMessage message, string command)
     {
         if (message.Params == null)
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少打印参数");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少打印参数");
 
         var uploadId = message.Params["uploadId"]?.ToString();
         if (string.IsNullOrEmpty(uploadId))
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少 uploadId 参数");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少 uploadId 参数");
 
         if (!_uploads.TryGetValue(uploadId, out var upload))
-            return ErrorJson(message.Id, "UPLOAD_NOT_FOUND", $"PDF 上传不存在或已过期: {uploadId}");
+            return ErrorJson(message.Id, ErrorCode.UploadNotFound, $"PDF 上传不存在或已过期: {uploadId}");
 
         byte[] pdfBytes;
         try
@@ -138,7 +133,7 @@ public class WebSocketCommandHandler
         }
         catch (Exception ex)
         {
-            return ErrorJson(message.Id, "UPLOAD_INCOMPLETE", ex.Message);
+            return ErrorJson(message.Id, ErrorCode.UploadIncomplete, ex.Message);
         }
 
         _uploads.TryRemove(uploadId, out _);
@@ -163,7 +158,7 @@ public class WebSocketCommandHandler
         }
 
         if (printParams.Count == 0)
-            return ErrorJson(id, "INVALID_PARAMS", "缺少打印参数");
+            return ErrorJson(id, ErrorCode.InvalidParams, "缺少打印参数");
 
         var result = _api.HandleCommand(new PrinterCommand
         {
@@ -171,14 +166,14 @@ public class WebSocketCommandHandler
             Id = id,
             Params = printParams
         });
-        return JsonConvert.SerializeObject(result, JsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private string HandleGetPrinterStatus(WebSocketMessage message)
     {
         var printerName = message.Params?["printerName"]?.ToString();
         if (string.IsNullOrEmpty(printerName))
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少printerName参数");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少printerName参数");
 
         return _api.GetPrinterStatus(printerName);
     }
@@ -187,7 +182,7 @@ public class WebSocketCommandHandler
     {
         var jobId = message.Params?["jobId"]?.ToString();
         if (string.IsNullOrEmpty(jobId))
-            return ErrorJson(message.Id, "INVALID_PARAMS", "缺少jobId参数");
+            return ErrorJson(message.Id, ErrorCode.InvalidParams, "缺少jobId参数");
 
         var result = _api.HandleCommand(new PrinterCommand
         {
@@ -195,7 +190,7 @@ public class WebSocketCommandHandler
             Id = message.Id,
             Params = ConvertToDictionary(message.Params)
         });
-        return JsonConvert.SerializeObject(result, JsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private string HandleQueryLogs(WebSocketMessage message)
@@ -210,7 +205,7 @@ public class WebSocketCommandHandler
         var offset = p?["offset"]?.ToObject<int?>() ?? 0;
 
         var logs = _auditService.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
-        return JsonConvert.SerializeObject(PrinterResult.Ok(message.Id, new { logs }), JsonSettings);
+        return JsonConvert.SerializeObject(PrinterResult.Ok(message.Id, new { logs }), JsonConfig.CamelCase);
     }
 
     private static Dictionary<string, object> ConvertToDictionary(JObject obj)
@@ -253,7 +248,7 @@ public class WebSocketCommandHandler
             id,
             success = false,
             errorInfo = new { code, message }
-        }, JsonSettings);
+        }, JsonConfig.CamelCase);
     }
 
     private sealed class PdfUploadSession

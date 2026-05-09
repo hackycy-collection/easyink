@@ -145,6 +145,9 @@ public class HostConfig
             Directory.CreateDirectory(ConfigDir);
 
         var json = JsonConvert.SerializeObject(this, Formatting.Indented);
-        File.WriteAllText(ConfigPath, json);
+        var tmpPath = ConfigPath + ".tmp";
+        File.WriteAllText(tmpPath, json);
+        File.Copy(tmpPath, ConfigPath, overwrite: true);
+        File.Delete(tmpPath);
     }
 }

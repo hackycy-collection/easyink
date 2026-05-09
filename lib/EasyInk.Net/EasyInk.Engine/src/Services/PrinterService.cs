@@ -87,7 +87,7 @@ public class PrinterService : IPrinterService
                 return new PrinterStatus
                 {
                     IsReady = false,
-                    StatusCode = "PRINTER_NOT_FOUND",
+                    StatusCode = PrinterStatusCode.PrinterNotFound,
                     Message = "打印机不存在或无法访问",
                     IsOnline = false,
                     HasPaper = false,
@@ -102,7 +102,7 @@ public class PrinterService : IPrinterService
             return new PrinterStatus
             {
                 IsReady = false,
-                StatusCode = "PRINTER_ERROR",
+                StatusCode = PrinterStatusCode.PrinterError,
                 Message = ex.Message,
                 IsOnline = false,
                 HasPaper = false,
@@ -127,7 +127,7 @@ public class PrinterService : IPrinterService
             return new PrinterStatus
             {
                 IsReady = false,
-                StatusCode = "PRINTER_NOT_FOUND",
+                StatusCode = PrinterStatusCode.PrinterNotFound,
                 Message = "打印机不存在或无法访问",
                 IsOnline = false,
                 HasPaper = false,
@@ -153,7 +153,7 @@ public class PrinterService : IPrinterService
                 return new PrinterStatus
                 {
                     IsReady = true,
-                    StatusCode = "READY",
+                    StatusCode = PrinterStatusCode.Ready,
                     Message = "打印机就绪（WMI 状态不可用）",
                     IsOnline = true,
                     HasPaper = true,
@@ -190,37 +190,37 @@ public class PrinterService : IPrinterService
 
         if (isOffline)
         {
-            statusCode = "PRINTER_OFFLINE";
+            statusCode = PrinterStatusCode.PrinterOffline;
             message = "打印机离线";
             stateDesc = "Offline";
         }
         else if (paperJam)
         {
-            statusCode = "PAPER_JAM";
+            statusCode = PrinterStatusCode.PaperJam;
             message = "打印机卡纸";
             stateDesc = "PaperJam";
         }
         else if (paperOut)
         {
-            statusCode = "PAPER_OUT";
+            statusCode = PrinterStatusCode.PaperOut;
             message = "打印机缺纸";
             stateDesc = "PaperOut";
         }
         else if (printerStatus == 6)
         {
-            statusCode = "PRINTER_STOPPED";
+            statusCode = PrinterStatusCode.PrinterStopped;
             message = "打印机已停止";
             stateDesc = "Stopped";
         }
         else if (printerStatus == 3 || printerStatus == 4)
         {
-            statusCode = "READY";
+            statusCode = PrinterStatusCode.Ready;
             message = printerStatus == 4 ? "打印中" : "打印机就绪";
             stateDesc = printerStatus == 4 ? "Printing" : "Idle";
         }
         else
         {
-            statusCode = "PRINTER_ERROR";
+            statusCode = PrinterStatusCode.PrinterError;
             message = $"打印机异常状态 (PrinterStatus={printerStatus}, PrinterState={printerState})";
             stateDesc = $"Unknown({printerStatus})";
         }

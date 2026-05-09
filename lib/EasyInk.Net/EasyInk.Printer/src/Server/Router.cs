@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Engine;
+using EasyInk.Engine.Models;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
 using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Server;
 
@@ -22,16 +24,10 @@ public class Router
     private readonly LogController _logController;
     private readonly StatusController _statusController;
     private readonly WebSocketHandler _wsHandler;
-    private readonly WebSocketCommandHandler _wsCommandHandler;
     private readonly bool _trustAllOrigins;
     private readonly string _apiKey;
 
-    private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
-    {
-        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-    };
-
-    public Router(EngineApi engineApi, WebSocketHandler wsHandler, HostConfig config, AuditService auditService)
+    public Router(EngineApi engineApi, WebSocketHandler wsHandler, HostConfig config, IAuditService auditService)
     {
         _printerController = new PrinterController(engineApi);
         _printController = new PrintController(engineApi);
@@ -39,7 +35,6 @@ public class Router
         _logController = new LogController(auditService);
         _statusController = new StatusController();
         _wsHandler = wsHandler;
-        _wsCommandHandler = new WebSocketCommandHandler(engineApi, wsHandler, auditService);
         _trustAllOrigins = config.TrustAllOrigins;
         _apiKey = config.ApiKey;
     }
@@ -56,7 +51,7 @@ public class Router
         else
         {
             var origin = request.Headers["Origin"];
-            if (!string.IsNullOrEmpty(origin))
+            if (!string.IsNullOrEmpty(origin) && IsLocalOrigin(origin))
                 response.Headers.Add("Access-Control-Allow-Origin", origin);
         }
         response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -71,7 +66,7 @@ public class Router
 
         if (!ValidateApiKey(request))
         {
-            var unauthorized = Encoding.UTF8.GetBytes(ErrorJson("UNAUTHORIZED", "无效的 API Key"));
+            var unauthorized = Encoding.UTF8.GetBytes(ErrorJson(ErrorCode.Unauthorized, "无效的 API Key"));
             response.StatusCode = 401;
             response.ContentType = "application/json; charset=utf-8";
             response.ContentLength64 = unauthorized.Length;
@@ -90,8 +85,8 @@ public class Router
             result = JsonConvert.SerializeObject(new
             {
                 success = false,
-                errorInfo = new { code = "INTERNAL_ERROR", message = ex.Message }
-            }, JsonSettings);
+                errorInfo = new { code = ErrorCode.InternalError, message = ex.Message }
+            }, JsonConfig.CamelCase);
         }
 
         var buffer = Encoding.UTF8.GetBytes(result);
@@ -110,7 +105,7 @@ public class Router
             return _statusController.GetStatus();
 
         if (method == "GET" && path == "/api/status/connections")
-            return JsonConvert.SerializeObject(new { success = true, data = new { count = _wsHandler.ConnectionCount } }, JsonSettings);
+            return JsonConvert.SerializeObject(new { success = true, data = new { count = _wsHandler.ConnectionCount } }, JsonConfig.CamelCase);
 
         if (method == "GET" && path == "/api/printers")
             return _printerController.GetPrinters();
@@ -125,7 +120,7 @@ public class Router
                 var name = Uri.UnescapeDataString(segments[3]);
                 return _printerController.GetPrinterStatus(name);
             }
-            return ErrorJson("INVALID_PARAMS", "缺少打印机名称");
+            return ErrorJson(ErrorCode.InvalidParams, "缺少打印机名称");
         }
 
         if (method == "POST" && path == "/api/print")
@@ -147,14 +142,14 @@ public class Router
         {
             var id = path.Substring(10);
             if (string.IsNullOrEmpty(id))
-                return ErrorJson("INVALID_PARAMS", "缺少任务ID");
+                return ErrorJson(ErrorCode.InvalidParams, "缺少任务ID");
             return _jobController.GetJobStatus(id);
         }
 
         if (method == "GET" && path == "/api/logs")
             return _logController.QueryLogs(request.QueryString);
 
-        return ErrorJson("NOT_FOUND", $"路由不存在: {method} {path}");
+        return ErrorJson(ErrorCode.NotFound, $"路由不存在: {method} {path}");
     }
 
     private string HandlePrintRequest(HttpListenerRequest request)
@@ -167,9 +162,9 @@ public class Router
             var multipart = MultipartParser.Parse(body, contentType);
 
             if (multipart.Params == null)
-                return ErrorJson("INVALID_PARAMS", "缺少 params 字段");
+                return ErrorJson(ErrorCode.InvalidParams, "缺少 params 字段");
             if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
-                return ErrorJson("INVALID_PARAMS", "缺少 pdf 字段");
+                return ErrorJson(ErrorCode.InvalidParams, "缺少 pdf 字段");
 
             return _printController.Print(multipart.Params.ToString(), multipart.PdfBytes);
         }
@@ -187,9 +182,9 @@ public class Router
             var multipart = MultipartParser.Parse(body, contentType);
 
             if (multipart.Params == null)
-                return ErrorJson("INVALID_PARAMS", "缺少 params 字段");
+                return ErrorJson(ErrorCode.InvalidParams, "缺少 params 字段");
             if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
-                return ErrorJson("INVALID_PARAMS", "缺少 pdf 字段");
+                return ErrorJson(ErrorCode.InvalidParams, "缺少 pdf 字段");
 
             return _printController.PrintAsync(multipart.Params.ToString(), multipart.PdfBytes);
         }
@@ -246,7 +241,7 @@ public class Router
         {
             success = false,
             errorInfo = new { code, message }
-        }, JsonSettings);
+        }, JsonConfig.CamelCase);
     }
 
     private bool ValidateApiKey(HttpListenerRequest request)
@@ -268,5 +263,17 @@ public class Router
         for (int i = 0; i < configuredKey.Length; i++)
             diff |= configuredKey[i] ^ providedKey[i];
         return diff == 0;
+    }
+
+    internal static bool IsLocalOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            return false;
+
+        var host = uri.Host;
+        return host == "localhost"
+            || host == "127.0.0.1"
+            || host == "[::1]"
+            || host == "0.0.0.0";
     }
 }

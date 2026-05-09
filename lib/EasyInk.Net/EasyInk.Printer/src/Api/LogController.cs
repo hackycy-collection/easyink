@@ -1,21 +1,16 @@
 using System;
 using System.Collections.Specialized;
-using EasyInk.Printer.Services;
+using EasyInk.Engine;
+using EasyInk.Printer.Services.Abstractions;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 namespace EasyInk.Printer.Api;
 
 public class LogController
 {
-    private readonly AuditService _auditService;
+    private readonly IAuditService _auditService;
 
-    private static readonly JsonSerializerSettings JsonSettings = new()
-    {
-        ContractResolver = new CamelCasePropertyNamesContractResolver()
-    };
-
-    public LogController(AuditService auditService)
+    public LogController(IAuditService auditService)
     {
         _auditService = auditService;
     }
@@ -31,7 +26,7 @@ public class LogController
         int offset = int.TryParse(query["offset"], out var o) ? o : 0;
 
         var logs = _auditService.QueryLogs(startTime, endTime, printerName, userId, status, limit, offset);
-        return JsonConvert.SerializeObject(new { success = true, data = new { logs } }, JsonSettings);
+        return JsonConvert.SerializeObject(new { success = true, data = new { logs } }, JsonConfig.CamelCase);
     }
 
     private static DateTime? ParseDateTime(string value)

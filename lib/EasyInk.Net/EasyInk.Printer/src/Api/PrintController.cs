@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
 
@@ -11,11 +10,6 @@ namespace EasyInk.Printer.Api;
 public class PrintController
 {
     private readonly EngineApi _api;
-
-    private static readonly JsonSerializerSettings JsonSettings = new()
-    {
-        ContractResolver = new CamelCasePropertyNamesContractResolver()
-    };
 
     public PrintController(EngineApi api)
     {
@@ -61,14 +55,14 @@ public class PrintController
             Params = ParseBodyToDictionary(body)
         };
         var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private string ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
     {
         var parms = ParseBodyToDictionary(body) ?? new Dictionary<string, object>();
         if (pdfBytes != null)
-            parms["pdfBytes"] = Convert.ToBase64String(pdfBytes);
+            parms["pdfBytes"] = pdfBytes;
 
         var cmd = new PrinterCommand
         {
@@ -77,7 +71,7 @@ public class PrintController
             Params = parms
         };
         var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private string ExecuteBatchCommand(string command, string body)
@@ -85,7 +79,7 @@ public class PrintController
         if (string.IsNullOrEmpty(body))
         {
             return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), "INVALID_PARAMS", "缺少请求体"), JsonSettings);
+                Guid.NewGuid().ToString(), "INVALID_PARAMS", "缺少请求体"), JsonConfig.CamelCase);
         }
 
         var token = JToken.Parse(body);
@@ -97,7 +91,7 @@ public class PrintController
         else
         {
             return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), "INVALID_PARAMS", "jobs 必须是数组"), JsonSettings);
+                Guid.NewGuid().ToString(), "INVALID_PARAMS", "jobs 必须是数组"), JsonConfig.CamelCase);
         }
 
         var cmd = new PrinterCommand
@@ -107,7 +101,7 @@ public class PrintController
             Params = new Dictionary<string, object> { ["jobs"] = jobs }
         };
         var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonSettings);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private static Dictionary<string, object> ParseBodyToDictionary(string body)

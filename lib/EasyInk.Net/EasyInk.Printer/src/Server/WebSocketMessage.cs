@@ -1,5 +1,4 @@
 ﻿using System;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace EasyInk.Printer.Server;
@@ -10,11 +9,6 @@ public class WebSocketMessage
     public string Id { get; set; }
     public JObject Params { get; set; }
     public byte[] PdfBytes { get; set; }
-
-    private static readonly JsonSerializerSettings JsonSettings = new()
-    {
-        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-    };
 
     public static WebSocketMessage FromText(string json)
     {

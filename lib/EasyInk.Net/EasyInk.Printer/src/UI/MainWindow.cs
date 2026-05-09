@@ -5,10 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Engine;
+using EasyInk.Engine.Models;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
 using EasyInk.Printer.Server;
 using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
 using EasyInk.Printer.Utils;
 
 namespace EasyInk.Printer.UI;
@@ -21,7 +23,7 @@ public class MainWindow : Form
     private readonly HttpServer _server;
     private readonly WebSocketHandler _wsHandler;
     private readonly EngineApi _api;
-    private readonly AuditService _auditService;
+    private readonly IAuditService _auditService;
     private readonly HostConfig _config;
     private TabControl _tabs;
     private readonly System.Collections.Generic.HashSet<int> _loadedTabs = new();
@@ -29,7 +31,7 @@ public class MainWindow : Form
 
     public event Action OnRestart;
 
-    public MainWindow(HttpServer server, WebSocketHandler wsHandler, EngineApi api, HostConfig config, AuditService auditService)
+    public MainWindow(HttpServer server, WebSocketHandler wsHandler, EngineApi api, HostConfig config, IAuditService auditService)
     {
         _server = server;
         _wsHandler = wsHandler;
@@ -309,7 +311,7 @@ public class MainWindow : Form
             var hasActive = data != null && data.Any(j =>
             {
                 var st = j["status"]?.ToString();
-                return st == "printing" || st == "queued";
+                return st == JobStatus.Printing || st == JobStatus.Queued;
             });
 
             var isBusy = hasActive;
