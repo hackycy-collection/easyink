@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Engine;
+using EasyInk.Engine.Models;
+using EasyInk.Printer.Models;
 using EasyInk.Printer.UI;
 using EasyInk.Printer.Server;
 using EasyInk.Printer.Config;
@@ -75,6 +77,33 @@ static class Program
 
         var auditService = new AuditService(config.DbPath);
         var engineApi = new EngineApi(sumatraPdfExePath: null, sumatraTempDir: config.SumatraTempDir);
+
+        // 订阅打印完成事件，写入审计日志
+        EngineApi.PrintCompleted += (requestId, request, result) =>
+        {
+            try
+            {
+                auditService.LogPrint(new Models.PrintAuditLog
+                {
+                    Timestamp = DateTime.Now,
+                    PrinterName = request.PrinterName ?? "",
+                    PaperWidth = request.PaperSize?.Width,
+                    PaperHeight = request.PaperSize?.Height,
+                    PaperUnit = request.PaperSize?.Unit ?? "mm",
+                    Copies = request.Copies,
+                    Dpi = request.Dpi,
+                    UserId = request.UserData?.UserId,
+                    LabelType = request.UserData?.LabelType,
+                    Status = result.Success ? JobStatus.Completed : JobStatus.Failed,
+                    ErrorMessage = result.ErrorInfo?.Message,
+                    JobId = requestId
+                });
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Error("审计日志写入失败", ex);
+            }
+        };
         var httpServer = new HttpServer(config.HttpPort);
         var wsHandler = new WebSocketHandler();
         var wsCommandHandler = new WebSocketCommandHandler(engineApi, wsHandler, auditService);

@@ -36,7 +36,7 @@ public static class SimpleLogger
     /// </summary>
     public static void Error(string message, Exception ex = null)
     {
-        var text = ex != null ? $"{message}: {ex.Message}" : message;
+        var text = ex != null ? $"{message}: {ex}" : message;
         Write("ERROR", text);
     }
 

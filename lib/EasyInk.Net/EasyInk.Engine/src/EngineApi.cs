@@ -28,9 +28,19 @@ public class EngineApi : IDisposable
     /// </summary>
     public static event Action<LogLevel, string> Log;
 
+    /// <summary>
+    /// 打印完成回调（requestId, 请求参数, 打印结果），用于审计等宿主层需求
+    /// </summary>
+    public static event Action<string, PrintRequestParams, PrinterResult> PrintCompleted;
+
     internal static void RaiseLog(LogLevel level, string message)
     {
         Log?.Invoke(level, message);
+    }
+
+    internal static void RaisePrintCompleted(string requestId, PrintRequestParams request, PrinterResult result)
+    {
+        PrintCompleted?.Invoke(requestId, request, result);
     }
 
     /// <summary>
@@ -96,7 +106,9 @@ public class EngineApi : IDisposable
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
 
-        var response = _printService.Print(Guid.NewGuid().ToString(), request);
+        var requestId = Guid.NewGuid().ToString();
+        var response = _printService.Print(requestId, request);
+        RaisePrintCompleted(requestId, request, response);
         return JsonConvert.SerializeObject(response, JsonConfig.CamelCase);
     }
 
@@ -287,7 +299,9 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
-        return _printService.Print(request.Id, printParams);
+        var result = _printService.Print(request.Id, printParams);
+        RaisePrintCompleted(request.Id, printParams, result);
+        return result;
     }
 
     private PrinterResult HandlePrintAsync(PrinterCommand request)
@@ -452,6 +466,7 @@ public class EngineApi : IDisposable
             {
                 var jobId = Guid.NewGuid().ToString();
                 var response = _printService.Print(jobId, job);
+                RaisePrintCompleted(jobId, job, response);
                 results.Add(new BatchJobResult
                 {
                     JobId = jobId,

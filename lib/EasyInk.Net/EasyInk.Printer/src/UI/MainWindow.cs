@@ -86,6 +86,12 @@ public class MainWindow : Form
                 var jobsLv = jobsTab.Controls.OfType<ListView>().FirstOrDefault();
                 if (jobsLv != null) RefreshJobs(jobsLv);
                 break;
+            case 3: // 日志
+                _loadedTabs.Add(idx);
+                var logsTab = _tabs.TabPages[idx];
+                var logsLv = logsTab.Controls.OfType<ListView>().FirstOrDefault();
+                if (logsLv != null) RefreshLogs(logsLv, DateTime.Today.AddDays(-7), DateTime.Now);
+                break;
         }
     }
 
@@ -550,9 +556,9 @@ public class MainWindow : Form
         };
 
         var lblFrom = new Label { Text = "从:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
-        var dtpFrom = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0) };
+        var dtpFrom = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0), Value = DateTime.Today.AddDays(-7) };
         var lblTo = new Label { Text = "到:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
-        var dtpTo = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0) };
+        var dtpTo = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0), Value = DateTime.Now };
         var btnQuery = new Button { Text = "查询", Width = 70, Margin = new Padding(0) };
 
         flowLayout.Controls.AddRange(new Control[] { lblFrom, dtpFrom, lblTo, dtpTo, btnQuery });
@@ -584,7 +590,7 @@ public class MainWindow : Form
         await RefreshListViewAsync(listView, 3, "查询日志", () =>
         {
             var logs = _auditService.QueryLogs(from, to, limit: 200);
-            return Newtonsoft.Json.JsonConvert.SerializeObject(new { success = true, data = new { logs } });
+            return Newtonsoft.Json.JsonConvert.SerializeObject(new { success = true, data = logs }, JsonConfig.CamelCase);
         },
             (listViewCtrl, data) =>
             {

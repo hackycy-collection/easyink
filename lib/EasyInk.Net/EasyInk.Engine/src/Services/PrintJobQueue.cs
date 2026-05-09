@@ -17,7 +17,7 @@ public class PrintJobQueue : IDisposable
     private const int DefaultMaxQueueSize = 100;
 
     private readonly IPrintService _printService;
-    private readonly Dictionary<string, PrintJob> _jobs = new Dictionary<string, PrintJob>();
+    private readonly Dictionary<string, (PrintJob Job, PrintRequestParams Request)> _jobs = new();
     private readonly BlockingCollection<(string requestId, PrintRequestParams request)> _queue;
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly Task _worker;
@@ -56,7 +56,7 @@ public class PrintJobQueue : IDisposable
         };
         lock (_jobLock)
         {
-            _jobs[jobId] = job;
+            _jobs[jobId] = (job, request);
         }
         if (!_queue.TryAdd((jobId, request), TimeSpan.FromSeconds(5)))
         {
@@ -75,9 +75,10 @@ public class PrintJobQueue : IDisposable
     {
         lock (_jobLock)
         {
-            if (!_jobs.TryGetValue(jobId, out var info))
+            if (!_jobs.TryGetValue(jobId, out var entry))
                 return null;
 
+            var info = entry.Job;
             return new PrintJob
             {
                 JobId = info.JobId,
@@ -100,16 +101,16 @@ public class PrintJobQueue : IDisposable
     {
         lock (_jobLock)
         {
-            return _jobs.Values.Select(j => new PrintJob
+            return _jobs.Values.Select(e => new PrintJob
             {
-                JobId = j.JobId,
-                PrinterName = j.PrinterName,
-                Status = j.Status,
-                CreatedAt = j.CreatedAt,
-                StartedAt = j.StartedAt,
-                CompletedAt = j.CompletedAt,
-                ErrorMessage = j.ErrorMessage,
-                Result = j.Result
+                JobId = e.Job.JobId,
+                PrinterName = e.Job.PrinterName,
+                Status = e.Job.Status,
+                CreatedAt = e.Job.CreatedAt,
+                StartedAt = e.Job.StartedAt,
+                CompletedAt = e.Job.CompletedAt,
+                ErrorMessage = e.Job.ErrorMessage,
+                Result = e.Job.Result
             }).OrderByDescending(j => j.CreatedAt).ToList();
         }
     }
@@ -122,15 +123,17 @@ public class PrintJobQueue : IDisposable
             PrintJob jobInfo;
             lock (_jobLock)
             {
-                if (!_jobs.TryGetValue(requestId, out jobInfo))
+                if (!_jobs.TryGetValue(requestId, out var entry))
                     continue;
+                jobInfo = entry.Job;
                 jobInfo.Status = JobStatus.Printing;
                 jobInfo.StartedAt = DateTime.UtcNow;
             }
 
+            PrinterResult response = null;
             try
             {
-                var response = _printService.Print(requestId, request);
+                response = _printService.Print(requestId, request);
                 lock (_jobLock)
                 {
                     jobInfo.Result = response;
@@ -146,12 +149,16 @@ public class PrintJobQueue : IDisposable
                     jobInfo.Status = JobStatus.Failed;
                     jobInfo.ErrorMessage = ex.Message;
                 }
+                response = PrinterResult.Error(requestId, ErrorCode.InternalError, ex.Message);
                 EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"打印任务 {requestId} 失败: {ex.Message}");
             }
             finally
             {
                 lock (_jobLock) { jobInfo.CompletedAt = DateTime.UtcNow; }
             }
+
+            if (response != null)
+                EngineApi.RaisePrintCompleted(requestId, request, response);
 
             if (++processedCount % 100 == 0)
                 PurgeExpiredJobs();
@@ -164,7 +171,7 @@ public class PrintJobQueue : IDisposable
         lock (_jobLock)
         {
             var expiredKeys = _jobs
-                .Where(kvp => kvp.Value.CompletedAt.HasValue && kvp.Value.CompletedAt.Value < cutoff)
+                .Where(kvp => kvp.Value.Job.CompletedAt.HasValue && kvp.Value.Job.CompletedAt.Value < cutoff)
                 .Select(kvp => kvp.Key)
                 .ToList();
             foreach (var key in expiredKeys)
