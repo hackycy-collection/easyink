@@ -21,14 +21,16 @@ public class WebSocketHandler : IDisposable
     private readonly ConcurrentDictionary<string, WebSocket> _connections = new();
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
     private readonly Timer _pingTimer;
+    private readonly int _maxConnections;
     private WebSocketCommandHandler _commandHandler;
 
     public int ConnectionCount => _connections.Count;
 
     public event Action ConnectionCountChanged;
 
-    public WebSocketHandler()
+    public WebSocketHandler(int maxConnections = 100)
     {
+        _maxConnections = maxConnections < 10 ? 10 : maxConnections;
         _pingTimer = new Timer(SendPings, null, PingInterval, PingInterval);
     }
 
@@ -65,6 +67,17 @@ public class WebSocketHandler : IDisposable
         if (!context.Request.IsWebSocketRequest)
         {
             context.Response.StatusCode = 400;
+            context.Response.Close();
+            return;
+        }
+
+        if (_connections.Count >= _maxConnections)
+        {
+            context.Response.StatusCode = 429;
+            var bytes = Encoding.UTF8.GetBytes("{\"success\":false,\"errorInfo\":{\"code\":\"TooManyConnections\",\"message\":\"WebSocket 连接数已达上限\"}}");
+            context.Response.ContentType = "application/json";
+            context.Response.ContentLength64 = bytes.Length;
+            await context.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
             context.Response.Close();
             return;
         }

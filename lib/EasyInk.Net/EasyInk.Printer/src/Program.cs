@@ -56,13 +56,7 @@ static class Program
         SimpleLogger.Configure(logDir);
 
         // 订阅 Engine 日志事件，转发到本地日志
-        EngineApi.Log += (level, message) =>
-        {
-            if (level == LogLevel.Error)
-                SimpleLogger.Error(message);
-            else
-                SimpleLogger.Info(message);
-        };
+        EngineApi.Log += OnEngineLog;
 
         _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir);
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -105,7 +99,7 @@ static class Program
             }
         };
         var httpServer = new HttpServer(config.HttpPort);
-        var wsHandler = new WebSocketHandler();
+        var wsHandler = new WebSocketHandler(config.MaxWebSocketConnections);
         var wsCommandHandler = new WebSocketCommandHandler(engineApi, wsHandler, auditService);
         wsHandler.SetCommandHandler(wsCommandHandler);
         var router = new Router(engineApi, wsHandler, config, auditService);
@@ -206,6 +200,14 @@ static class Program
         Cleanup(httpServer, wsHandler, engineApi, trayIcon);
     }
 
+    private static void OnEngineLog(LogLevel level, string message)
+    {
+        if (level == LogLevel.Error)
+            SimpleLogger.Error(message);
+        else
+            SimpleLogger.Info(message);
+    }
+
     private static void Cleanup(HttpServer httpServer, WebSocketHandler wsHandler, EngineApi engineApi, TrayIcon trayIcon)
     {
         if (_disposed) return;
@@ -215,6 +217,7 @@ static class Program
         try { wsHandler.Dispose(); } catch { }
         try { engineApi.Dispose(); } catch { }
         try { trayIcon.Dispose(); } catch { }
+        EngineApi.ClearEvents();
     }
 
     private static void WriteCrashLog(Exception ex, string source)

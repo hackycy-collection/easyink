@@ -35,12 +35,23 @@ public class EngineApi : IDisposable
 
     internal static void RaiseLog(LogLevel level, string message)
     {
-        Log?.Invoke(level, message);
+        var handler = Log;
+        handler?.Invoke(level, message);
     }
 
     internal static void RaisePrintCompleted(string requestId, PrintRequestParams request, PrinterResult result)
     {
-        PrintCompleted?.Invoke(requestId, request, result);
+        var handler = PrintCompleted;
+        handler?.Invoke(requestId, request, result);
+    }
+
+    /// <summary>
+    /// 清除所有静态事件订阅，防止进程退出后仍触发回调
+    /// </summary>
+    public static void ClearEvents()
+    {
+        Log = null;
+        PrintCompleted = null;
     }
 
     /// <summary>

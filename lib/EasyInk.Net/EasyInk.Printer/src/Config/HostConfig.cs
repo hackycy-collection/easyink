@@ -9,6 +9,11 @@ namespace EasyInk.Printer.Config;
 
 public class HostConfig
 {
+    private const int MinWebSocketConnections = 10;
+    private const int DefaultWebSocketConnections = 100;
+
+    private int _maxWebSocketConnections = DefaultWebSocketConnections;
+
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
@@ -18,6 +23,12 @@ public class HostConfig
     public string CrashLogDir { get; set; }
     public bool TrustAllOrigins { get; set; } = false;
     public string ApiKey { get; set; }
+
+    public int MaxWebSocketConnections
+    {
+        get => _maxWebSocketConnections;
+        set => _maxWebSocketConnections = value < MinWebSocketConnections ? MinWebSocketConnections : value;
+    }
 
     public static string DefaultDbPath => Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
 

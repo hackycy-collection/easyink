@@ -156,7 +156,12 @@ public class SumatraPrintService : IPrintService
 
         if (!process.WaitForExit(timeoutMs))
         {
-            try { process.Kill(); } catch { }
+            try
+            {
+                process.Kill();
+                process.WaitForExit();
+            }
+            catch { }
             throw new TimeoutException();
         }
 
