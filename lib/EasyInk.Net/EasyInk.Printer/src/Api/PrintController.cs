@@ -26,12 +26,12 @@ public class PrintController
         return ExecuteCommandWithBlob("print", body, pdfBytes);
     }
 
-    public string PrintAsync(string body)
+    public string EnqueuePrint(string body)
     {
         return ExecuteCommand("printAsync", body);
     }
 
-    public string PrintAsync(string body, byte[] pdfBytes)
+    public string EnqueuePrint(string body, byte[] pdfBytes)
     {
         return ExecuteCommandWithBlob("printAsync", body, pdfBytes);
     }
@@ -41,7 +41,7 @@ public class PrintController
         return ExecuteBatchCommand("batchPrint", body);
     }
 
-    public string BatchPrintAsync(string body)
+    public string EnqueueBatchPrint(string body)
     {
         return ExecuteBatchCommand("batchPrintAsync", body);
     }

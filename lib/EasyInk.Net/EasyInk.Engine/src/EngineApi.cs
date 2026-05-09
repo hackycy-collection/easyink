@@ -129,9 +129,9 @@ public class EngineApi : IDisposable
     }
 
     /// <summary>
-    /// 异步打印（支持 Base64、URL、二进制三种 PDF 来源）
+    /// 入队打印（支持 Base64、URL、二进制三种 PDF 来源，立即返回 jobId）
     /// </summary>
-    public string PrintAsync(string printerName, string pdfBase64 = null, string pdfUrl = null,
+    public string EnqueuePrint(string printerName, string pdfBase64 = null, string pdfUrl = null,
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
@@ -165,21 +165,21 @@ public class EngineApi : IDisposable
             return JsonConvert.SerializeObject(
                 PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
 
-        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: false);
+        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: false);
         return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     /// <summary>
-    /// 批量异步打印
+    /// 批量入队打印
     /// </summary>
-    public string BatchPrintAsync(string jobsJson)
+    public string EnqueueBatchPrint(string jobsJson)
     {
         var jobs = DeserializeJobs(jobsJson);
         if (jobs == null)
             return JsonConvert.SerializeObject(
                 PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
 
-        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, async: true);
+        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: true);
         return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
@@ -246,15 +246,15 @@ public class EngineApi : IDisposable
             case "print":
                 return HandlePrint(request);
             case "printAsync":
-                return HandlePrintAsync(request);
+                return HandleEnqueuePrint(request);
             case "getJobStatus":
                 return HandleGetJobStatus(request);
             case "getAllJobs":
                 return PrinterResult.Ok(request.Id, _jobQueue.GetAllJobs());
             case "batchPrint":
-                return HandleBatchPrint(request, async: false);
+                return HandleBatchPrint(request, enqueue: false);
             case "batchPrintAsync":
-                return HandleBatchPrint(request, async: true);
+                return HandleBatchPrint(request, enqueue: true);
             default:
                 return PrinterResult.Error(request.Id, ErrorCode.UnknownCommand, $"未知命令: {request.Command}");
         }
@@ -321,7 +321,7 @@ public class EngineApi : IDisposable
         return result;
     }
 
-    private PrinterResult HandlePrintAsync(PrinterCommand request)
+    private PrinterResult HandleEnqueuePrint(PrinterCommand request)
     {
         var printParams = ExtractPrintParams(request);
         if (printParams == null)
@@ -356,7 +356,7 @@ public class EngineApi : IDisposable
         return PrinterResult.Ok(request.Id, info);
     }
 
-    private PrinterResult HandleBatchPrint(PrinterCommand request, bool async)
+    private PrinterResult HandleBatchPrint(PrinterCommand request, bool enqueue)
     {
         var jobsToken = request.Params != null && request.Params.ContainsKey("jobs")
             ? request.Params["jobs"]
@@ -373,7 +373,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "jobs不能为空");
         }
 
-        return ExecuteBatchJobs(request.Id, jobs, async);
+        return ExecuteBatchJobs(request.Id, jobs, enqueue);
     }
 
     private PrintRequestParams ExtractPrintParams(PrinterCommand request)
@@ -461,9 +461,9 @@ public class EngineApi : IDisposable
         }
     }
 
-    private PrinterResult ExecuteBatchJobs(string requestId, List<PrintRequestParams> jobs, bool async)
+    private PrinterResult ExecuteBatchJobs(string requestId, List<PrintRequestParams> jobs, bool enqueue)
     {
-        if (async)
+        if (enqueue)
         {
             var results = new List<BatchJobResult>(jobs.Count);
             foreach (var job in jobs)

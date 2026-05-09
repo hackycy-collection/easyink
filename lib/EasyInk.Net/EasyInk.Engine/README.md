@@ -46,9 +46,9 @@ using var api = new EngineApi(sumatraPdfExePath: @"C:\tools\SumatraPDF.exe");
 | `GetPrinters()` | 获取打印机列表 |
 | `GetPrinterStatus(printerName)` | 获取打印机状态 |
 | `Print(printerName, pdfBase64?, pdfUrl?, pdfBytes?, ...)` | 同步打印 |
-| `PrintAsync(printerName, pdfBase64?, pdfUrl?, pdfBytes?, ...)` | 异步打印（入队） |
+| `EnqueuePrint(printerName, pdfBase64?, pdfUrl?, pdfBytes?, ...)` | 入队打印（立即返回 jobId） |
 | `BatchPrint(jobsJson)` | 批量同步打印 |
-| `BatchPrintAsync(jobsJson)` | 批量异步打印 |
+| `EnqueueBatchPrint(jobsJson)` | 批量入队打印 |
 | `GetJobStatus(jobId)` | 查询任务状态 |
 | `GetAllJobs()` | 获取所有任务 |
 | `HandleCommand(json)` | JSON 命令入口（字符串） |

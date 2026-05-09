@@ -126,13 +126,13 @@ public class Router
             return await HandlePrintRequest(request);
 
         if (method == "POST" && path == "/api/print/async")
-            return await HandlePrintAsyncRequest(request);
+            return await HandleEnqueuePrintRequest(request);
 
         if (method == "POST" && path == "/api/print/batch")
             return _printController.BatchPrint(await ReadBodyAsString(request));
 
         if (method == "POST" && path == "/api/print/batch/async")
-            return _printController.BatchPrintAsync(await ReadBodyAsString(request));
+            return _printController.EnqueueBatchPrint(await ReadBodyAsString(request));
 
         if (method == "GET" && path == "/api/jobs")
             return _jobController.GetAllJobs();
@@ -153,25 +153,25 @@ public class Router
 
     private async Task<string> HandlePrintRequest(HttpListenerRequest request)
     {
-        var contentType = request.ContentType ?? "";
-
-        if (contentType.Contains("multipart/form-data"))
-        {
-            var body = await ReadBodyAsBytes(request);
-            var multipart = MultipartParser.Parse(body, contentType);
-
-            if (multipart.Params == null)
-                return ErrorJson(ErrorCode.InvalidParams, "缺少 params 字段");
-            if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
-                return ErrorJson(ErrorCode.InvalidParams, "缺少 pdf 字段");
-
-            return _printController.Print(multipart.Params.ToString(), multipart.PdfBytes);
-        }
-
-        return _printController.Print(await ReadBodyAsString(request));
+        var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
+        if (paramsJson == null)
+            return ErrorJson(ErrorCode.InvalidParams, "缺少请求参数");
+        if (pdfBytes != null)
+            return _printController.Print(paramsJson, pdfBytes);
+        return _printController.Print(paramsJson);
     }
 
-    private async Task<string> HandlePrintAsyncRequest(HttpListenerRequest request)
+    private async Task<string> HandleEnqueuePrintRequest(HttpListenerRequest request)
+    {
+        var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
+        if (paramsJson == null)
+            return ErrorJson(ErrorCode.InvalidParams, "缺少请求参数");
+        if (pdfBytes != null)
+            return _printController.EnqueuePrint(paramsJson, pdfBytes);
+        return _printController.EnqueuePrint(paramsJson);
+    }
+
+    private async Task<(string paramsJson, byte[] pdfBytes)> ReadMultipartOrJson(HttpListenerRequest request)
     {
         var contentType = request.ContentType ?? "";
 
@@ -180,15 +180,13 @@ public class Router
             var body = await ReadBodyAsBytes(request);
             var multipart = MultipartParser.Parse(body, contentType);
 
-            if (multipart.Params == null)
-                return ErrorJson(ErrorCode.InvalidParams, "缺少 params 字段");
-            if (multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
-                return ErrorJson(ErrorCode.InvalidParams, "缺少 pdf 字段");
+            if (multipart.Params == null || multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
+                return (null, null);
 
-            return _printController.PrintAsync(multipart.Params.ToString(), multipart.PdfBytes);
+            return (multipart.Params.ToString(), multipart.PdfBytes);
         }
 
-        return _printController.PrintAsync(await ReadBodyAsString(request));
+        return (await ReadBodyAsString(request), null);
     }
 
     private static async Task<string> ReadBodyAsString(HttpListenerRequest request)

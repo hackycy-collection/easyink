@@ -61,7 +61,7 @@ public class PrintControllerTests
     }
 
     [Fact]
-    public void PrintAsync_EnqueuesJob()
+    public void EnqueuePrint_EnqueuesJob()
     {
         var printService = new Mock<IPrintService>();
         printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
@@ -69,7 +69,7 @@ public class PrintControllerTests
 
         var controller = CreateController(printService: printService);
         var body = @"{""printerName"":""TestPrinter"",""pdfBase64"":""AQID""}";
-        var result = JObject.Parse(controller.PrintAsync(body));
+        var result = JObject.Parse(controller.EnqueuePrint(body));
 
         Assert.True(result["success"].ToObject<bool>());
         Assert.Equal(JobStatus.Queued, result["data"]["status"].ToString());
