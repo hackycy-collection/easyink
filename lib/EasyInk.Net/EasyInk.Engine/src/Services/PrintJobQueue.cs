@@ -94,7 +94,7 @@ public class PrintJobQueue : IDisposable
     }
 
     /// <summary>
-    /// 获取所有任务列表
+    /// 获取所有任务列表（不含 Result，减少响应体积；需要完整结果请用 GetJobStatus）
     /// </summary>
     /// <returns>按创建时间倒序排列的任务列表</returns>
     public List<PrintJob> GetAllJobs()
@@ -109,8 +109,7 @@ public class PrintJobQueue : IDisposable
                 CreatedAt = e.Job.CreatedAt,
                 StartedAt = e.Job.StartedAt,
                 CompletedAt = e.Job.CompletedAt,
-                ErrorMessage = e.Job.ErrorMessage,
-                Result = e.Job.Result
+                ErrorMessage = e.Job.ErrorMessage
             }).OrderByDescending(j => j.CreatedAt).ToList();
         }
     }

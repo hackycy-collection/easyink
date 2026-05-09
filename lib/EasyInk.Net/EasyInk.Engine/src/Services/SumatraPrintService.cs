@@ -19,6 +19,7 @@ public class SumatraPrintService : IPrintService
     private readonly string _tempDir;
     private readonly IPrinterService _printerService;
     private readonly int _timeoutMs;
+    private volatile bool _sweepDone;
 
     public SumatraPrintService(
         IPrinterService printerService,
@@ -30,12 +31,16 @@ public class SumatraPrintService : IPrintService
         _sumatraExePath = sumatraExePath ?? ResolveDefaultExePath();
         _tempDir = tempDir ?? Path.GetTempPath();
         _timeoutMs = timeoutMs ?? DefaultTimeoutMs;
-
-        SweepStaleTempFiles();
     }
 
     public PrinterResult Print(string requestId, PrintRequestParams request)
     {
+        if (!_sweepDone)
+        {
+            _sweepDone = true;
+            SweepStaleTempFiles();
+        }
+
         var status = _printerService.GetPrinterStatus(request.PrinterName);
         if (!status.IsReady)
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);

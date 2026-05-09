@@ -70,7 +70,11 @@ static class Program
         };
 
         var auditService = new AuditService(config.DbPath);
-        var engineApi = new EngineApi(sumatraPdfExePath: null, sumatraTempDir: config.SumatraTempDir);
+        var engineApi = new EngineApi(
+            sumatraPdfExePath: null,
+            sumatraTempDir: config.SumatraTempDir,
+            printTimeoutMs: config.PrintTimeoutSeconds * 1000,
+            maxQueueSize: config.MaxQueueSize);
 
         // 订阅打印完成事件，写入审计日志
         EngineApi.PrintCompleted += (requestId, request, result) =>
@@ -98,7 +102,7 @@ static class Program
                 SimpleLogger.Error("审计日志写入失败", ex);
             }
         };
-        var httpServer = new HttpServer(config.HttpPort);
+        var httpServer = new HttpServer(config.HttpPort, config.MaxConcurrentRequests);
         var wsHandler = new WebSocketHandler(config.MaxWebSocketConnections);
         var wsCommandHandler = new WebSocketCommandHandler(engineApi, wsHandler, auditService);
         wsHandler.SetCommandHandler(wsCommandHandler);

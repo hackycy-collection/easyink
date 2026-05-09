@@ -11,8 +11,17 @@ public class HostConfig
 {
     private const int MinWebSocketConnections = 10;
     private const int DefaultWebSocketConnections = 100;
+    private const int MinQueueSize = 10;
+    private const int DefaultQueueSize = 100;
+    private const int MinPrintTimeoutSeconds = 5;
+    private const int DefaultPrintTimeoutSeconds = 30;
+    private const int MinConcurrentRequests = 5;
+    private const int DefaultConcurrentRequests = 50;
 
     private int _maxWebSocketConnections = DefaultWebSocketConnections;
+    private int _maxQueueSize = DefaultQueueSize;
+    private int _printTimeoutSeconds = DefaultPrintTimeoutSeconds;
+    private int _maxConcurrentRequests = DefaultConcurrentRequests;
 
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
@@ -28,6 +37,24 @@ public class HostConfig
     {
         get => _maxWebSocketConnections;
         set => _maxWebSocketConnections = value < MinWebSocketConnections ? MinWebSocketConnections : value;
+    }
+
+    public int MaxQueueSize
+    {
+        get => _maxQueueSize;
+        set => _maxQueueSize = value < MinQueueSize ? MinQueueSize : value;
+    }
+
+    public int PrintTimeoutSeconds
+    {
+        get => _printTimeoutSeconds;
+        set => _printTimeoutSeconds = value < MinPrintTimeoutSeconds ? MinPrintTimeoutSeconds : value;
+    }
+
+    public int MaxConcurrentRequests
+    {
+        get => _maxConcurrentRequests;
+        set => _maxConcurrentRequests = value < MinConcurrentRequests ? MinConcurrentRequests : value;
     }
 
     public static string DefaultDbPath => Path.Combine(AppContext.BaseDirectory, "data", "audit.db");

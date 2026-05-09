@@ -59,8 +59,9 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 初始化打印引擎（使用默认服务实现）
     /// </summary>
-    public EngineApi(string sumatraPdfExePath = null, string sumatraTempDir = null)
-        : this(null, null, sumatraPdfExePath, sumatraTempDir)
+    public EngineApi(string sumatraPdfExePath = null, string sumatraTempDir = null,
+        int? printTimeoutMs = null, int? maxQueueSize = null)
+        : this(null, null, sumatraPdfExePath, sumatraTempDir, printTimeoutMs, maxQueueSize)
     {
     }
 
@@ -71,12 +72,14 @@ public class EngineApi : IDisposable
         IPrinterService printerService = null,
         IPrintService printService = null,
         string sumatraPdfExePath = null,
-        string sumatraTempDir = null)
+        string sumatraTempDir = null,
+        int? printTimeoutMs = null,
+        int? maxQueueSize = null)
     {
         _printerService = printerService ?? new PrinterService();
         _printService = printService
-            ?? new SumatraPrintService(_printerService, sumatraPdfExePath, sumatraTempDir);
-        _jobQueue = new PrintJobQueue(_printService);
+            ?? new SumatraPrintService(_printerService, sumatraPdfExePath, sumatraTempDir, printTimeoutMs);
+        _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100);
     }
 
     /// <summary>
