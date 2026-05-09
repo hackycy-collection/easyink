@@ -20,7 +20,7 @@
     "prepublishOnly": "pnpm build",
     "release": "bumpp -r",
     "test": "vitest run --dom",
-    "typecheck": "tsc",
+    "typecheck": "tsc && turbo run typecheck",
     "prepare": "simple-git-hooks",
     "open:packages": "npx open-packages-on-npm",
     "catalog": "pnpx codemod pnpm/catalog",

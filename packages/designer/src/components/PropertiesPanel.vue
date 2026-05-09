@@ -192,13 +192,22 @@ type DocumentPageSnapshot = Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'exte
 const pageSnapshots = new Map<string, { page?: Partial<PageSchema>, document?: DocumentPageSnapshot }>()
 
 type GeometryKey = 'x' | 'y' | 'width' | 'height' | 'rotation' | 'alpha'
+type DocumentPageSnapshotKey = keyof DocumentPageSnapshot
 
-function readPageSnapshotValue(page: PageSchema, key: string): unknown {
-  return page[key as keyof PageSchema]
+function readPageSnapshotValue<K extends keyof PageSchema>(page: PageSchema, key: K): PageSchema[K] {
+  return page[key]
 }
 
-function readDocumentSnapshotValue(schema: DocumentSchema, key: string): unknown {
-  return schema[key as keyof Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>]
+function readDocumentSnapshotValue<K extends DocumentPageSnapshotKey>(schema: DocumentSchema, key: K): DocumentPageSnapshot[K] {
+  return schema[key] as DocumentPageSnapshot[K]
+}
+
+function setPageSnapshotValue<K extends keyof PageSchema>(snapshot: Partial<PageSchema>, key: K, value: PageSchema[K]) {
+  snapshot[key] = value
+}
+
+function setDocumentSnapshotValue<K extends DocumentPageSnapshotKey>(snapshot: DocumentPageSnapshot, key: K, value: DocumentPageSnapshot[K]) {
+  snapshot[key] = value
 }
 
 function isGeometryKey(key: string): key is GeometryKey {
@@ -231,14 +240,14 @@ function previewPageProperty(descriptor: PagePropertyDescriptor, value: unknown)
     const snapshot: { page?: Partial<PageSchema>, document?: DocumentPageSnapshot } = {}
     if (pageUpdates && Object.keys(pageUpdates).length > 0) {
       snapshot.page = {}
-      for (const key of Object.keys(pageUpdates)) {
-        snapshot.page[key] = deepClone(readPageSnapshotValue(store.schema.page, key))
+      for (const key of Object.keys(pageUpdates) as Array<keyof PageSchema>) {
+        setPageSnapshotValue(snapshot.page, key, deepClone(readPageSnapshotValue(store.schema.page, key)))
       }
     }
     if (documentUpdates && Object.keys(documentUpdates).length > 0) {
       snapshot.document = {}
-      for (const key of Object.keys(documentUpdates)) {
-        snapshot.document[key] = deepClone(readDocumentSnapshotValue(store.schema, key))
+      for (const key of Object.keys(documentUpdates) as DocumentPageSnapshotKey[]) {
+        setDocumentSnapshotValue(snapshot.document, key, deepClone(readDocumentSnapshotValue(store.schema, key)))
       }
     }
     pageSnapshots.set(descriptor.id, snapshot)

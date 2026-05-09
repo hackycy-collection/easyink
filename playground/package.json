@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@easyink/ai": "workspace:*",

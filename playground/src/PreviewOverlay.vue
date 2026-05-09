@@ -36,6 +36,7 @@ const emit = defineEmits<{
 
 const EXPORT_FORMAT = 'playground-demo-json'
 const PDF_FORMAT = 'pdf'
+const BROWSER_PRINT_DRIVER_ID = 'browser'
 const HIPRINT_DRIVER_ID = 'hiprint-driver'
 const PRINTER_HOST_DRIVER_ID = 'printer-host-driver'
 
@@ -353,7 +354,7 @@ async function handleJsonExport() {
 }
 
 async function handleBrowserPrint(pageSizeMode: 'driver' | 'fixed' = 'driver') {
-  await runViewerPrint(BROWSER_PRINT_ADAPTER_ID, pageSizeMode, '浏览器打印')
+  await runViewerPrint(BROWSER_PRINT_DRIVER_ID, pageSizeMode, '浏览器打印')
 }
 
 async function ensureHiPrintReady(): Promise<boolean> {
