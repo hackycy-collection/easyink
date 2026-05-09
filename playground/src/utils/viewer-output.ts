@@ -34,6 +34,24 @@ export function resolvePrintOffset(offset: ViewerPrintContext['printPolicy']['of
   return { x, y, unit: 'mm' }
 }
 
+export function resolveExplicitPrintLandscape(
+  orientation: ViewerPrintContext['printPolicy']['orientation'],
+): boolean | undefined {
+  if (orientation === 'landscape')
+    return true
+  if (orientation === 'portrait')
+    return false
+  return undefined
+}
+
+export function resolvePrintLandscape(
+  orientation: ViewerPrintContext['printPolicy']['orientation'],
+  width: number,
+  height: number,
+): boolean {
+  return resolveExplicitPrintLandscape(orientation) ?? width > height
+}
+
 export function getViewerPages(container: HTMLElement | undefined): HTMLElement[] {
   if (!container)
     throw new Error('找不到打印内容')

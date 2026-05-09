@@ -84,6 +84,18 @@ function createStackSchema(pageHeight = 100): DocumentSchema {
   }
 }
 
+function createStackSchemaWithPrint(orientation: 'auto' | 'portrait' | 'landscape'): DocumentSchema {
+  return {
+    ...createStackSchema(),
+    page: {
+      ...createStackSchema().page,
+      print: {
+        orientation,
+      },
+    },
+  }
+}
+
 function createFixedSchema(): DocumentSchema {
   return {
     version: '1.0.0',
@@ -142,8 +154,17 @@ describe('viewer runtime print policy', () => {
     const policy = resolvePrintPolicy({ schema: createStackSchema() })
 
     expect(policy.pageSizeMode).toBe('driver')
+    expect(policy.orientation).toBe('auto')
     expect(policy.sheetSize).toBeUndefined()
     expect(policy.pageBreakBehavior).toEqual({ after: 'auto', inside: 'auto' })
+  })
+
+  it('uses configured orientation for stack-mode driver printing', () => {
+    const policy = resolvePrintPolicy({ schema: createStackSchemaWithPrint('landscape') })
+
+    expect(policy.pageSizeMode).toBe('driver')
+    expect(policy.orientation).toBe('landscape')
+    expect(policy.sheetSize).toBeUndefined()
   })
 
   it('does not force a fixed page size for stack-mode browser printing', async () => {
@@ -165,6 +186,12 @@ describe('viewer runtime print policy', () => {
     expect(printStyles).not.toContain('size: 80mm')
     expect(printStyles).toContain('break-after: auto;')
     expect(printStyles).toContain('break-inside: auto;')
+  })
+
+  it('writes driver orientation into @page only when configured', () => {
+    const printStyles = buildPrintStyles(resolvePrintPolicy({ schema: createStackSchemaWithPrint('landscape') }))
+
+    expect(printStyles).toContain('size: landscape;')
   })
 
   it('uses cached rendered stack metrics when stack printing requests a fixed page size', async () => {
@@ -196,8 +223,23 @@ describe('viewer runtime print policy', () => {
 
     const printStyles = getPrintStyles(viewer)
     expect(printStyles).toContain('size: 80mm 60mm;')
+    expect(printStyles).not.toContain('size: landscape;')
     expect(printStyles).toContain('break-after: page;')
     expect(printStyles).toContain('break-inside: avoid;')
+  })
+
+  it('keeps configured orientation in fixed-size print policy without changing sheet sizing', () => {
+    const policy = resolvePrintPolicy({ schema: {
+      ...createFixedSchema(),
+      page: {
+        ...createFixedSchema().page,
+        print: { orientation: 'landscape' },
+      },
+    } })
+
+    expect(policy.pageSizeMode).toBe('fixed')
+    expect(policy.orientation).toBe('landscape')
+    expect(policy.sheetSize).toMatchObject({ width: 80, height: 60, unit: 'mm' })
   })
 })
 

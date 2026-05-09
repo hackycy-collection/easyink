@@ -12,6 +12,8 @@ import type {
   UnitType,
 } from '@easyink/shared'
 
+export type PagePrintOrientation = 'auto' | 'portrait' | 'landscape'
+
 // ─── Document Schema ───────────────────────────────────────────────
 
 export interface DocumentSchema {
@@ -233,6 +235,7 @@ export interface PageBackground {
 }
 
 export interface PagePrintConfig {
+  orientation?: PagePrintOrientation
   horizontalOffset?: number
   verticalOffset?: number
 }

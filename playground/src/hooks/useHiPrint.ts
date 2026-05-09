@@ -21,6 +21,7 @@ export interface PrinterDevice {
 export interface PrintHTMLOptions {
   height: number
   html: string
+  orientation?: 'auto' | 'portrait' | 'landscape'
   printer: string
   width: number
   paperFooter?: number
@@ -280,14 +281,22 @@ async function printHtml(opts: PrintHTMLOptions): Promise<void> {
       printer: opts.printer,
       margins: { marginType: 'none' },
     }
+    const explicitLandscape = opts.orientation === 'landscape'
+      ? true
+      : opts.orientation === 'portrait'
+        ? false
+        : undefined
+    const landscape = explicitLandscape ?? opts.width > opts.height
+    if (explicitLandscape !== undefined)
+      printOptions.landscape = explicitLandscape
     if (opts.forcePageSize) {
       const widthMicrons = Math.round(opts.width * 1000) // 1mm = 1000μm
       const heightMicrons = Math.round(opts.height * 1000)
-      const landscape = opts.width > opts.height
-      // 物理纸张方向始终以短边为宽。landscape=true 时 Electron 会自动旋转。
-      printOptions.pageSize = landscape
-        ? { width: heightMicrons, height: widthMicrons }
-        : { width: widthMicrons, height: heightMicrons }
+      // Electron 的自定义 pageSize 需要始终传短边在前，布局方向交给 landscape 控制。
+      printOptions.pageSize = {
+        width: Math.min(widthMicrons, heightMicrons),
+        height: Math.max(widthMicrons, heightMicrons),
+      }
       printOptions.landscape = landscape
       printOptions.scaleFactor = 100
     }
@@ -303,7 +312,7 @@ export interface PrintPagesProgress {
 
 async function printPages(
   pages: HTMLElement[],
-  opts: { width: number, height: number, printer: string, forcePageSize?: boolean },
+  opts: { width: number, height: number, orientation?: 'auto' | 'portrait' | 'landscape', printer: string, forcePageSize?: boolean },
   onProgress?: (p: PrintPagesProgress) => void,
 ): Promise<void> {
   for (let i = 0; i < pages.length; i++) {
@@ -312,6 +321,7 @@ async function printPages(
       width: opts.width,
       height: opts.height,
       html: pages[i]!.innerHTML,
+      orientation: opts.orientation,
       printer: opts.printer,
       forcePageSize: opts.forcePageSize,
     })

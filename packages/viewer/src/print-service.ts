@@ -33,7 +33,7 @@ export function runPrintWithIsolation(host: ViewerHost, printPolicy: ViewerPrint
 
 export function buildPrintStyles(printPolicy: ViewerPrintPolicy): string {
   const pageSizeCSS = printPolicy.pageSizeMode === 'driver'
-    ? ''
+    ? (printPolicy.orientation === 'auto' ? '' : `    size: ${printPolicy.orientation};\n`)
     : `    size: ${printPolicy.sheetSize!.width}${printPolicy.sheetSize!.unit} ${printPolicy.sheetSize!.height}${printPolicy.sheetSize!.unit};\n`
   const offset = printPolicy.offset
   const offsetCSS = (offset.horizontal !== 0 || offset.vertical !== 0)

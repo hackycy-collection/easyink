@@ -230,6 +230,25 @@ const PRINT_VERTICAL_OFFSET_DESCRIPTOR: PagePropertyDescriptor = {
   },
 }
 
+const PRINT_ORIENTATION_DESCRIPTOR: PagePropertyDescriptor = {
+  id: 'printOrientation',
+  group: 'print',
+  source: 'page',
+  path: 'print.orientation',
+  label: 'designer.page.printOrientation',
+  persisted: 'schema',
+  editor: 'select',
+  enum: [
+    { label: 'designer.page.printOrientationAuto', value: 'auto' },
+    { label: 'designer.page.printOrientationPortrait', value: 'portrait' },
+    { label: 'designer.page.printOrientationLandscape', value: 'landscape' },
+  ],
+  normalize(value, ctx) {
+    const existing = ctx.document.page.print ?? {}
+    return { page: { print: { ...existing, orientation: value as 'auto' | 'portrait' | 'landscape' } } }
+  },
+}
+
 const COPIES_DESCRIPTOR: PagePropertyDescriptor = {
   id: 'copies',
   group: 'print',
@@ -473,6 +492,7 @@ export const PAGE_PROPERTY_DESCRIPTORS: PagePropertyDescriptor[] = [
   OFFSET_Y_DESCRIPTOR,
   PRINT_HORIZONTAL_OFFSET_DESCRIPTOR,
   PRINT_VERTICAL_OFFSET_DESCRIPTOR,
+  PRINT_ORIENTATION_DESCRIPTOR,
   COPIES_DESCRIPTOR,
   BLANK_POLICY_DESCRIPTOR,
   SCALE_DESCRIPTOR,

@@ -1,7 +1,7 @@
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
 import { usePrinterHost } from '../hooks/usePrinterHost'
-import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
+import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintLandscape, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
  * Printer.Host print driver.
@@ -31,7 +31,8 @@ export function createPrinterHostDriver(): PrintDriver {
       )
       const widthMm = toMillimeters(printSize.width, printSize.unit)
       const heightMm = toMillimeters(printSize.height, printSize.unit)
-      const landscape = widthMm > heightMm
+      // Printer.Host 当前只有 boolean landscape；当方向为“系统”时回退到按纸张尺寸推导。
+      const landscape = resolvePrintLandscape(context.printPolicy.orientation, widthMm, heightMm)
 
       context.onPhase?.({ phase: 'preparing', message: '生成 PDF 中' })
       const pdfBlob = await renderPagesToPdfBlob({

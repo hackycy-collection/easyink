@@ -147,6 +147,7 @@ export interface ViewerPrintPolicy {
   pageMode: DocumentSchema['page']['mode']
   pageSizeMode: ViewerPrintPageSizeMode
   sheetSize?: ViewerPrintSheetSize
+  orientation: 'portrait' | 'landscape' | 'auto'
   pageBreakBehavior: {
     after: 'auto' | 'page'
     inside: 'auto' | 'avoid'

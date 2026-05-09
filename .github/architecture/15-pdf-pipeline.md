@@ -137,7 +137,7 @@ await exportRuntime.exportDocument({ schema, data, dataSources, entry: 'preview'
 Playground 预览页使用同一套调度语义：
 
 - 文件导出：PDF 与 demo JSON 都通过 `@easyink/export-runtime` 执行；PDF 使用已渲染 Viewer DOM，强制 fixed 页面尺寸，第一页尺寸作为整份 PDF 的页面尺寸基准。
-- 浏览器打印：`viewer.print({ driverId: 'browser' })`，未指定 `driverId` 时也回退浏览器打印。
-- HiPrint 打印：`viewer.print({ driverId: 'hiprint-driver', pageSizeMode: 'driver' })`，保留 HTML 逐页打印，继续服务连续纸/驱动介质场景。
-- Printer.Host 打印：`viewer.print({ driverId: 'printer-host-driver', pageSizeMode: 'fixed' })`，通过 export runtime 生成 PDF 后发送给 Printer.Host。
+- 浏览器打印：`viewer.print({ driverId: 'browser' })`，未指定 `driverId` 时也回退浏览器打印；`page.print.orientation` 作为打印布局偏好，不改变模板尺寸。
+- HiPrint 打印：`viewer.print({ driverId: 'hiprint-driver', pageSizeMode: 'driver' })`，保留 HTML 逐页打印，继续服务连续纸/驱动介质场景；显式方向会透传到 Electron 打印选项。
+- Printer.Host 打印：`viewer.print({ driverId: 'printer-host-driver', pageSizeMode: 'fixed' })`，通过 export runtime 生成 PDF 后发送给 Printer.Host；当前 Host 只有 `landscape` 布尔值，所以“系统”会回退到按纸张宽高推导。
 - 诊断：导出 runtime 的 warning/error 会桥接成 Viewer diagnostic，同时 playground 用 toast 展示进度与结果。

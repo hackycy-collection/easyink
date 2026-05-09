@@ -32,6 +32,7 @@ export function createHiPrintDriver(): PrintDriver {
       await printer.printPages(pages, {
         width,
         height,
+        orientation: context.printPolicy.orientation,
         printer: printerDevice,
         forcePageSize: printer.isForcePageSize(printerDevice),
       }, (progress) => {

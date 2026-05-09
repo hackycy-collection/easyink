@@ -22,6 +22,7 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
   const { page, unit } = schema
   const requestedPageSizeMode = options.pageSizeMode ?? 'driver'
   const usesDriverPaper = page.mode === 'stack' && requestedPageSizeMode === 'driver'
+  const orientation = page.print?.orientation ?? 'auto'
 
   const offset = {
     horizontal: page.print?.horizontalOffset ?? 0,
@@ -33,6 +34,7 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
     return {
       pageMode: page.mode,
       pageSizeMode: 'driver',
+      orientation,
       pageBreakBehavior: { after: 'auto', inside: 'auto' },
       offset,
     }
@@ -50,6 +52,7 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
     return {
       pageMode: page.mode,
       pageSizeMode: 'fixed',
+      orientation,
       sheetSize: {
         width: firstPage.width,
         height: firstPage.height,
@@ -78,6 +81,7 @@ export function resolvePrintPolicy(input: ResolvePrintPolicyInput): ViewerPrintP
   return {
     pageMode: page.mode,
     pageSizeMode: 'fixed',
+    orientation,
     sheetSize: { width, height, unit, source },
     pageBreakBehavior: {
       after: page.mode === 'stack' ? 'auto' : 'page',
