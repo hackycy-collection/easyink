@@ -416,7 +416,7 @@ public class EngineApi : IDisposable
             var converted = Convert.ChangeType(value, underlyingType);
             return (T)converted;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is OverflowException)
         {
             RaiseLog(LogLevel.Error, $"参数 '{key}' 转换失败: {ex.Message}");
             return default;

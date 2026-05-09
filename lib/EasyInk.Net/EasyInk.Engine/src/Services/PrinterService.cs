@@ -127,27 +127,7 @@ public class PrinterService : IPrinterService
 
     private PrinterStatus QueryWmiStatus(string printerName)
     {
-        var isValidPrinter = false;
-        foreach (string installed in PrinterSettings.InstalledPrinters)
-        {
-            if (string.Equals(installed, printerName, StringComparison.OrdinalIgnoreCase))
-            {
-                isValidPrinter = true;
-                break;
-            }
-        }
-        if (!isValidPrinter)
-        {
-            return new PrinterStatus
-            {
-                IsReady = false,
-                StatusCode = PrinterStatusCode.PrinterNotFound,
-                Message = "打印机不存在或无法访问",
-                IsOnline = false,
-                HasPaper = false,
-                IsPaperJam = false
-            };
-        }
+        // 调用方 GetPrinterStatus 已通过 PrinterSettings.IsValid 验证打印机存在性，无需重复检查
 
         PrinterStatus QueryWmi()
         {
