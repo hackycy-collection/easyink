@@ -40,7 +40,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = JsonConvert.DeserializeObject<JObject>(api.HandleCommand("not json"));
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("INVALID_JSON", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.InvalidJson, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]

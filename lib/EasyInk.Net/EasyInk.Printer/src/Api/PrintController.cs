@@ -79,7 +79,7 @@ public class PrintController
         if (string.IsNullOrEmpty(body))
         {
             return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), "INVALID_PARAMS", "缺少请求体"), JsonConfig.CamelCase);
+                Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "缺少请求体"), JsonConfig.CamelCase);
         }
 
         var token = JToken.Parse(body);
@@ -91,7 +91,7 @@ public class PrintController
         else
         {
             return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), "INVALID_PARAMS", "jobs 必须是数组"), JsonConfig.CamelCase);
+                Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "jobs 必须是数组"), JsonConfig.CamelCase);
         }
 
         var cmd = new PrinterCommand

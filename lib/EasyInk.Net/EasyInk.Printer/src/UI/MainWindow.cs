@@ -9,7 +9,6 @@ using EasyInk.Engine.Models;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
 using EasyInk.Printer.Server;
-using EasyInk.Printer.Services;
 using EasyInk.Printer.Services.Abstractions;
 using EasyInk.Printer.Utils;
 

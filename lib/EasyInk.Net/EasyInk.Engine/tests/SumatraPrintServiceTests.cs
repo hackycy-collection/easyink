@@ -38,7 +38,7 @@ public class SumatraPrintServiceTests
         return new PrinterStatus
         {
             IsReady = true,
-            StatusCode = "READY",
+            StatusCode = PrinterStatusCode.Ready,
             IsOnline = true,
             HasPaper = true
         };
@@ -79,7 +79,7 @@ public class SumatraPrintServiceTests
         var result = service.Print("req-1", CreateRequest());
 
         Assert.False(result.Success);
-        Assert.Equal("SUMATRA_NOT_FOUND", result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.SumatraNotFound, result.ErrorInfo.Code);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class SumatraPrintServiceTests
 
 
         Assert.False(result.Success);
-        Assert.Equal("INVALID_PDF_SOURCE", result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidPdfSource, result.ErrorInfo.Code);
     }
 
     [Fact]

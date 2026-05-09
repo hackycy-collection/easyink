@@ -88,7 +88,7 @@ public class PrintJobQueueTests
     {
         var printService = new Mock<IPrintService>();
         printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
-            .Returns(PrinterResult.Error("test", "PRINT_FAILED", "boom"));
+            .Returns(PrinterResult.Error("test", ErrorCode.PrintFailed, "boom"));
 
         using var queue = new PrintJobQueue(printService.Object);
         var jobId = queue.Enqueue(null, MakeRequest());

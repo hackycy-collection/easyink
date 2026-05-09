@@ -1,4 +1,5 @@
 using EasyInk.Engine;
+using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 using EasyInk.Printer.Api;
 using Moq;
@@ -27,7 +28,7 @@ public class JobControllerTests
         var result = JObject.Parse(controller.GetJobStatus("nonexistent"));
 
         Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal("JOB_NOT_FOUND", result["errorInfo"]["code"].ToString());
+        Assert.Equal(ErrorCode.JobNotFound, result["errorInfo"]["code"].ToString());
     }
 
     [Fact]
