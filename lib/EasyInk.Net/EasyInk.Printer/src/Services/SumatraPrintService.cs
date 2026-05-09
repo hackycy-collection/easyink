@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
 
@@ -40,6 +42,8 @@ public class SumatraPrintService : IPrintService
         _sumatraExePath = sumatraExePath ?? ResolveDefaultExePath();
         _tempDir = tempDir ?? Path.GetTempPath();
         _timeoutMs = timeoutMs ?? DefaultTimeoutMs;
+
+        SweepStaleTempFiles();
     }
 
     /// <inheritdoc />
@@ -216,5 +220,21 @@ public class SumatraPrintService : IPrintService
     private static void TryDelete(string path)
     {
         try { File.Delete(path); } catch { }
+        Thread.Sleep(100);
+        try { File.Delete(path); } catch { }
+    }
+
+    private void SweepStaleTempFiles()
+    {
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddHours(-1);
+            var staleFiles = Directory.GetFiles(_tempDir, "easyink_*.pdf")
+                .Where(f => File.GetLastWriteTimeUtc(f) < cutoff);
+
+            foreach (var file in staleFiles)
+                TryDelete(file);
+        }
+        catch { }
     }
 }
