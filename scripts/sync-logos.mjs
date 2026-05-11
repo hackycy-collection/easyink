@@ -20,6 +20,7 @@ const syncTasks = [
         targets: [
           { dir: 'docs/public' },
           { dir: 'lib/EasyInk.Net/EasyInk.Printer/src', name: 'app.ico' },
+          { dir: 'playground/public', name: 'favicon.ico' },
         ],
       },
     ],
