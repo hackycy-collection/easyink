@@ -28,7 +28,10 @@
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:status": "changeset status",
-    "changeset:publish": "changeset publish"
+    "changeset:publish": "changeset publish",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
@@ -50,6 +53,7 @@
     "typescript": "catalog:cli",
     "unplugin-vue": "catalog:cli",
     "vite": "catalog:cli",
+    "vitepress": "catalog:cli",
     "vitest": "catalog:testing",
     "vitest-package-exports": "catalog:testing",
     "vue-tsc": "catalog:cli",
