@@ -9,8 +9,13 @@
 | Package | Version |
 | --- | --- |
 | [@easyink/designer](packages/designer) | [![npm][designer-npm-version-src]][designer-npm-version-href] |
-| [@easyink/mcp-server](packages/mcp-server) | [![npm][mcp-server-npm-version-src]][mcp-server-npm-version-href] |
 | [@easyink/viewer](packages/viewer) | [![npm][viewer-npm-version-src]][viewer-npm-version-href] |
+| [@easyink/mcp-server](packages/mcp-server) | [![npm][mcp-server-npm-version-src]][mcp-server-npm-version-href] |
+
+## Documentation
+
+- [Document](https://hackycy.github.io/easyink/docs/)
+- [Preview](https://hackycy.github.io/easyink)
 
 ## Development
 
