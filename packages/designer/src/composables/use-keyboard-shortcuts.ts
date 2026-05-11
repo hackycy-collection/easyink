@@ -49,6 +49,20 @@ export function useKeyboardShortcuts(ctx: KeyboardShortcutsContext) {
     return container.contains(target) || target === container
   }
 
+  function shortcutsAllowed(target: EventTarget | null): boolean {
+    const focus = store.workbench.status.focus
+
+    // Canvas intent is tracked independently from fragile DOM focus on div-
+    // based surfaces. Panel/dialog focus must win even though those nodes may
+    // still live under the workspace container.
+    if (focus === 'panel' || focus === 'dialog')
+      return false
+    if (focus === 'canvas')
+      return true
+
+    return withinContainer(target)
+  }
+
   function selectedNodes(): MaterialNode[] {
     return store.selection.ids
       .map(id => store.getElementById(id))
@@ -94,7 +108,7 @@ export function useKeyboardShortcuts(ctx: KeyboardShortcutsContext) {
       return
     if (isEditableTarget(e.target))
       return
-    if (!withinContainer(e.target))
+    if (!shortcutsAllowed(e.target))
       return
 
     const mod = e.metaKey || e.ctrlKey
