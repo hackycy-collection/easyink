@@ -117,8 +117,17 @@ jobs:
         run: |
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DAppVersion=${{ steps.version.outputs.printer_version }}" 'lib/EasyInk.Net/EasyInk.Printer/installer.iss'
 
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup compilation failed with exit code $LASTEXITCODE"
+          }
+
           $source = 'lib/EasyInk.Net/EasyInk.Printer/output/EasyInkPrinter-Setup.exe'
           $target = "lib/EasyInk.Net/.artifacts/EasyInkPrinter-Setup-${{ steps.version.outputs.artifact_suffix }}.exe"
+
+          if (!(Test-Path $source)) {
+            throw "Installer output not found: $source"
+          }
+
           Copy-Item $source $target -Force
 
       - name: Upload raw publish artifact
