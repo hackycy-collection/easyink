@@ -161,7 +161,7 @@ function createDefaultStatus(): StatusBarState {
     focus: 'none',
     network: 'idle',
     draft: 'clean',
-    autoSave: 'idle',
+    savePhase: 'idle',
   }
 }
 

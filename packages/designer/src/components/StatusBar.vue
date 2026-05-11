@@ -39,7 +39,9 @@ const draftIconMap: Record<string, Component> = {
   modified: IconFilePen,
 }
 
-const autoSaveIconMap: Record<string, Component> = {
+const savePhaseIconMap: Record<string, Component> = {
+  idle: IconSave,
+  queued: IconSave,
   saving: IconSave,
   success: IconCheck,
   failed: IconCircleAlert,
@@ -56,8 +58,31 @@ function statusTitle(prefix: string, value: string): string {
 
 <template>
   <div class="ei-status-bar">
-    <span class="ei-status-bar__item" :title="statusTitle('focus', status.focus)">
-      <component :is="focusIconMap[status.focus]" :size="12" />
+    <span
+      class="ei-status-bar__item ei-status-bar__save"
+      :class="{
+        'ei-status-bar__save--queued': status.savePhase === 'queued',
+        'ei-status-bar__save--saving': status.savePhase === 'saving',
+        'ei-status-bar__save--success': status.savePhase === 'success',
+        'ei-status-bar__save--failed': status.savePhase === 'failed',
+      }"
+      :title="status.saveMessage || statusTitle('savePhase', status.savePhase)"
+    >
+      <component
+        :is="savePhaseIconMap[status.savePhase]"
+        :size="12"
+        :class="{
+          'ei-status-bar__spin': status.savePhase === 'saving',
+          'ei-status-bar__pulse': status.savePhase === 'success',
+        }"
+      />
+    </span>
+    <span
+      class="ei-status-bar__item"
+      :class="{ 'ei-status-bar__item--warning': status.draft === 'modified' }"
+      :title="statusTitle('draft', status.draft)"
+    >
+      <component :is="draftIconMap[status.draft]" :size="12" />
     </span>
     <span
       class="ei-status-bar__item"
@@ -70,27 +95,8 @@ function statusTitle(prefix: string, value: string): string {
         :class="{ 'ei-status-bar__spin': status.network === 'loading' }"
       />
     </span>
-    <span
-      class="ei-status-bar__item"
-      :class="{ 'ei-status-bar__item--warning': status.draft === 'modified' }"
-      :title="statusTitle('draft', status.draft)"
-    >
-      <component :is="draftIconMap[status.draft]" :size="12" />
-    </span>
-    <span
-      v-if="status.autoSave !== 'idle'"
-      class="ei-status-bar__item"
-      :class="{
-        'ei-status-bar__item--success': status.autoSave === 'success',
-        'ei-status-bar__item--error': status.autoSave === 'failed',
-      }"
-      :title="status.autoSaveMessage || statusTitle('autoSave', status.autoSave)"
-    >
-      <component
-        :is="autoSaveIconMap[status.autoSave]"
-        :size="12"
-        :class="{ 'ei-status-bar__spin': status.autoSave === 'saving' }"
-      />
+    <span class="ei-status-bar__item" :title="statusTitle('focus', status.focus)">
+      <component :is="focusIconMap[status.focus]" :size="12" />
     </span>
     <span class="ei-status-bar__spacer" />
     <span class="ei-status-bar__item">
@@ -140,8 +146,59 @@ function statusTitle(prefix: string, value: string): string {
     }
   }
 
+  &__save {
+    width: 16px;
+    justify-content: center;
+    color: var(--ei-text-tertiary, #b0b0b0);
+
+    &--queued {
+      color: var(--ei-primary-soft, #4d8dff);
+      animation: ei-status-save-queued 160ms ease-out;
+    }
+
+    &--saving {
+      color: var(--ei-primary, #1677ff);
+    }
+
+    &--success {
+      color: var(--ei-success, #52c41a);
+    }
+
+    &--failed {
+      color: var(--ei-error, #ff4d4f);
+    }
+  }
+
   &__spin {
     animation: ei-spin 1s linear infinite;
+  }
+
+  &__pulse {
+    animation: ei-status-save-pulse 240ms ease-out;
+  }
+}
+
+@keyframes ei-status-save-queued {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ei-status-save-pulse {
+  0% {
+    opacity: 0.72;
+    transform: scale(0.86);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

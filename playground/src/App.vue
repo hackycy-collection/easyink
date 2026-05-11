@@ -6,7 +6,7 @@ import { createAIContribution } from '@easyink/ai'
 import { createLocalStoragePreferenceProvider, EasyInkDesigner } from '@easyink/designer'
 import zhCN from '@easyink/designer/locale/zh-CN'
 import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSources } from '@easyink/samples'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import DataEditorModal from './components/DataEditor.vue'
 import TemplateGallery from './components/TemplateGallery.vue'
@@ -44,26 +44,34 @@ const topbarLabel = computed(() => {
   return currentTemplate.value?.name ?? '选择模板'
 })
 
-// Auto-save (only when editing a stored template — never for sample preview)
-let saveTimer: ReturnType<typeof setTimeout> | undefined
+const autoSaveOptions = computed(() => ({
+  enabled: Boolean(currentTemplate.value),
+  delay: 1000,
+  save: saveCurrentTemplate,
+}))
 
-function scheduleSave() {
-  if (!currentTemplate.value)
-    return
-  if (saveTimer)
-    clearTimeout(saveTimer)
-  saveTimer = setTimeout(async () => {
-    if (!currentTemplate.value)
-      return
-    currentTemplate.value.schema = JSON.parse(JSON.stringify(schema.value))
-    currentTemplate.value.data = JSON.parse(JSON.stringify(customData.value))
-    currentTemplate.value.updatedAt = Date.now()
-    await saveTemplate(currentTemplate.value)
-  }, 1000)
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
-watch(schema, scheduleSave, { deep: true })
-watch(customData, scheduleSave, { deep: true })
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function saveCurrentTemplate(schemaSnapshot: DocumentSchema): Promise<void> {
+  const template = currentTemplate.value
+  if (!template)
+    return
+
+  const savedTemplate: StoredTemplate = {
+    ...template,
+    schema: cloneJson(schemaSnapshot),
+    data: cloneJson(customData.value),
+    updatedAt: Date.now(),
+  }
+  currentTemplate.value = savedTemplate
+  await Promise.all([saveTemplate(savedTemplate), wait(260)])
+}
 
 // Bridge AI panel sample data to preview
 watch(() => {
@@ -75,11 +83,6 @@ watch(() => {
   const ai = (schema.value.extensions as { ai?: { latestSampleData?: Record<string, unknown> } } | undefined)?.ai
   if (ai?.latestSampleData)
     applyDemoData(ai.latestSampleData)
-})
-
-onBeforeUnmount(() => {
-  if (saveTimer)
-    clearTimeout(saveTimer)
 })
 
 function applyDemoData(data: Record<string, unknown>) {
@@ -229,6 +232,7 @@ const contributions = [createAIContribution()]
     :data-sources="mergedDataSources"
     :locale="zhCN"
     :preference-provider="preferenceProvider"
+    :auto-save="autoSaveOptions"
     :contributions="contributions"
   >
     <template #topbar>

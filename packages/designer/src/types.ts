@@ -1,6 +1,6 @@
 import type { PropSchema } from '@easyink/core'
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { MaterialNode } from '@easyink/schema'
+import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { MaterialCategory } from '@easyink/shared'
 
 export type {
@@ -136,8 +136,9 @@ export interface StatusBarState {
   focus: 'canvas' | 'panel' | 'dialog' | 'none'
   network: 'idle' | 'loading' | 'error'
   draft: 'clean' | 'modified'
-  autoSave: 'idle' | 'saving' | 'success' | 'failed'
-  autoSaveMessage?: string
+  savePhase: 'idle' | 'queued' | 'saving' | 'success' | 'failed'
+  saveMessage?: string
+  saveUpdatedAt?: number
 }
 
 // ─── Panel Section Filter ─────────────────────────────────────────
@@ -237,11 +238,18 @@ export interface SaveBranchMenuState {
 // ─── Designer Props ────────────────────────────────────────────────
 
 export interface EasyInkDesignerProps {
-  schema: import('@easyink/schema').DocumentSchema
+  schema: DocumentSchema
   dataSources?: DataSourceDescriptor[]
   preferenceProvider?: PreferenceProvider
+  autoSave?: TemplateAutoSaveOptions
   locale?: LocaleMessages
   setupStore?: StoreSetup
+}
+
+export interface TemplateAutoSaveOptions {
+  enabled: boolean
+  delay?: number
+  save: (schema: DocumentSchema) => Promise<void>
 }
 
 export type StoreSetup = (store: import('./store/designer-store').DesignerStore) => void

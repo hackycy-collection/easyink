@@ -2,10 +2,11 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type { Contribution } from '../contributions'
-import type { LocaleMessages, PreferenceProvider, StoreSetup } from '../types'
+import type { LocaleMessages, PreferenceProvider, StoreSetup, TemplateAutoSaveOptions } from '../types'
 import { builtinDesignerMaterialBundle } from '@easyink/builtin'
 import { onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue'
 import { provideDesignerStore } from '../composables'
+import { useTemplateAutoSave } from '../composables/use-template-autosave'
 import { useWorkbenchPersistence } from '../composables/use-workbench-persistence'
 import { ContributionRegistry } from '../contributions/contribution-registry'
 import { CONTRIBUTION_REGISTRY_KEY } from '../contributions/injection'
@@ -19,6 +20,7 @@ const props = defineProps<{
   schema: DocumentSchema
   dataSources?: DataSourceDescriptor[]
   preferenceProvider?: PreferenceProvider
+  autoSave?: TemplateAutoSaveOptions
   locale?: LocaleMessages
   setupStore?: StoreSetup
   contributions?: Contribution[]
@@ -41,6 +43,8 @@ provideDesignerStore(store)
 if (props.preferenceProvider) {
   useWorkbenchPersistence(store.workbench, props.preferenceProvider)
 }
+
+const templateAutoSave = useTemplateAutoSave(store, () => props.autoSave)
 
 if (props.locale) {
   store.setLocale(props.locale)
@@ -69,6 +73,7 @@ provide(CONTRIBUTION_REGISTRY_KEY, {
 watch(() => props.schema, (newSchema) => {
   if (newSchema !== store.schema) {
     store.setSchema(newSchema)
+    templateAutoSave.markSchemaLoaded()
   }
 })
 

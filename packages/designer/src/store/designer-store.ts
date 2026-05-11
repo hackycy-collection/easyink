@@ -101,6 +101,49 @@ export class DesignerStore {
     this.editingSession.exit()
   }
 
+  // ─── Template Save Status ─────────────────────────────────────
+
+  markDraftModified(): void {
+    this.workbench.status.draft = 'modified'
+  }
+
+  queueSave(): void {
+    this.workbench.status.draft = 'modified'
+    this.workbench.status.savePhase = 'queued'
+    this.workbench.status.saveMessage = undefined
+  }
+
+  startSave(): void {
+    this.workbench.status.savePhase = 'saving'
+    this.workbench.status.saveMessage = undefined
+  }
+
+  completeSave(): void {
+    this.workbench.status.draft = 'clean'
+    this.workbench.status.savePhase = 'success'
+    this.workbench.status.saveMessage = undefined
+    this.workbench.status.saveUpdatedAt = Date.now()
+  }
+
+  failSave(message?: string): void {
+    this.workbench.status.draft = 'modified'
+    this.workbench.status.savePhase = 'failed'
+    this.workbench.status.saveMessage = message
+    this.workbench.status.saveUpdatedAt = Date.now()
+  }
+
+  resetSaveIndicator(): void {
+    this.workbench.status.savePhase = 'idle'
+    this.workbench.status.saveMessage = undefined
+  }
+
+  resetTemplateSaveState(): void {
+    this.workbench.status.draft = 'clean'
+    this.workbench.status.savePhase = 'idle'
+    this.workbench.status.saveMessage = undefined
+    this.workbench.status.saveUpdatedAt = undefined
+  }
+
   // ─── Generic extensions API ───────────────────────────────────
   // Read/write `schema.extensions[key]` without designer needing to
   // know about specific extension namespaces (e.g. ai, comments).
