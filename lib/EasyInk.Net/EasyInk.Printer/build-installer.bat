@@ -1,11 +1,19 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
 set PROJECT_DIR=%~dp0src
 set ISS_FILE=%~dp0installer.iss
+set VERSION=%~1
+set DOTNET_VERSION_ARGS=
+set ISCC_VERSION_ARG=
+
+if defined VERSION (
+    call :prepare_version_args "%VERSION%"
+    if errorlevel 1 exit /b 1
+)
 
 echo [1/2] Publishing...
-dotnet publish "%PROJECT_DIR%\EasyInk.Printer.csproj" -c Release --nologo
+dotnet publish "%PROJECT_DIR%\EasyInk.Printer.csproj" -c Release --nologo %DOTNET_VERSION_ARGS%
 if errorlevel 1 (
     echo Publish failed
     exit /b 1
@@ -23,7 +31,7 @@ if not defined ISCC (
     exit /b 1
 )
 
-"%ISCC%" "%ISS_FILE%"
+"%ISCC%" %ISCC_VERSION_ARG% "%ISS_FILE%"
 if errorlevel 1 (
     echo Build failed
     exit /b 1
@@ -31,3 +39,30 @@ if errorlevel 1 (
 
 echo.
 echo Done: output\EasyInkPrinter-Setup.exe
+exit /b 0
+
+:prepare_version_args
+set INPUT_VERSION=%~1
+for /f "tokens=1 delims=-+" %%A in ("%INPUT_VERSION%") do set BASE_VERSION=%%A
+for /f "tokens=1-4 delims=." %%A in ("%BASE_VERSION%") do (
+    set V1=%%A
+    set V2=%%B
+    set V3=%%C
+    set V4=%%D
+)
+
+if not defined V1 goto :invalid_version
+if not defined V2 goto :invalid_version
+if not defined V3 goto :invalid_version
+if not defined V4 set V4=0
+
+set ASSEMBLY_VERSION=%V1%.%V2%.%V3%.%V4%
+set DOTNET_VERSION_ARGS=/p:Version=%INPUT_VERSION% /p:AssemblyVersion=%ASSEMBLY_VERSION% /p:FileVersion=%ASSEMBLY_VERSION% /p:InformationalVersion=%INPUT_VERSION%
+set ISCC_VERSION_ARG=/DAppVersion=%INPUT_VERSION%
+echo Using version %INPUT_VERSION% ^(assembly/file %ASSEMBLY_VERSION%^)
+exit /b 0
+
+:invalid_version
+echo Invalid version: %INPUT_VERSION%
+echo Expected format: major.minor.patch or major.minor.patch.suffix
+exit /b 1

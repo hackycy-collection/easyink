@@ -178,7 +178,7 @@ public class MainWindow : Form
             : $"http://localhost:{_server.Port}";
 
         var deviceNumber = NetworkHelper.GenerateDeviceNumber();
-        var appVersion = typeof(StatusController).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+        var appVersion = VersionHelper.GetDisplayVersion(typeof(StatusController).Assembly);
         var macs = NetworkHelper.GetActivePhysicalMacs();
         var macText = macs.Count > 0 ? string.Join("  /  ", macs) : "未检测到";
 

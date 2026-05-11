@@ -232,6 +232,42 @@ cd lib/EasyInk.Net
 dotnet build EasyInk.Printer/src
 ```
 
+### 本地打包
+
+本地打包脚本位于 `EasyInk.Printer/` 根目录：
+
+- `build-portable.bat`：生成便携包 zip
+- `build-installer.bat`：生成 Inno Setup 安装包 exe
+
+默认情况下，脚本使用 `EasyInk.Printer.csproj` 和 `EasyInk.Engine.csproj` 中的默认版本。传入第一个参数时，会把同一个版本注入到：
+
+- `Version`
+- `AssemblyVersion`
+- `FileVersion`
+- `InformationalVersion`
+- installer 的 `AppVersion`
+
+示例：
+
+```bat
+cd lib\EasyInk.Net\EasyInk.Printer
+
+build-portable.bat 1.2.3
+build-installer.bat 1.2.3-beta.1
+```
+
+版本规则：
+
+- 传入 `1.2.3` 时，程序集和文件版本为 `1.2.3.0`。
+- 传入 `1.2.3-beta.1` 时，展示版本保留完整值，程序集和文件版本会归一到 `1.2.3.0`。
+
+打包输出位置：
+
+- `output/EasyInkPrinter-Portable.zip`
+- `output/EasyInkPrinter-Setup.exe`
+
+注意：应用界面和 `/api/status` 显示的版本优先读取 `InformationalVersion`，因此本地手动打包时传入的版本字符串会直接显示给用户。
+
 ### 发布产物
 
 ```

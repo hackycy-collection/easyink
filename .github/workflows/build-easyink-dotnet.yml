@@ -15,8 +15,8 @@ on:
         description: Build the Inno Setup installer
         type: boolean
         default: true
-      upload_publish:
-        description: Upload the raw dotnet publish directory as an artifact
+      upload_engine_sdk:
+        description: Upload a standalone EasyInk.Engine SDK package for external consumers
         type: boolean
         default: true
 
@@ -37,9 +37,9 @@ jobs:
         env:
           BUILD_PORTABLE: ${{ inputs.build_portable }}
           BUILD_INSTALLER: ${{ inputs.build_installer }}
-          UPLOAD_PUBLISH: ${{ inputs.upload_publish }}
+          UPLOAD_ENGINE_SDK: ${{ inputs.upload_engine_sdk }}
         run: |
-          if ($env:BUILD_PORTABLE -ne 'true' -and $env:BUILD_INSTALLER -ne 'true' -and $env:UPLOAD_PUBLISH -ne 'true') {
+          if ($env:BUILD_PORTABLE -ne 'true' -and $env:BUILD_INSTALLER -ne 'true' -and $env:UPLOAD_ENGINE_SDK -ne 'true') {
             throw 'At least one artifact output must be enabled.'
           }
 
@@ -62,10 +62,19 @@ jobs:
             throw 'Version not found in EasyInk.Printer.csproj'
           }
 
+          $normalizedVersion = $version.Split('-', 2)[0].Split('+', 2)[0]
+          if ($normalizedVersion -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Unsupported version format for assembly metadata: $version"
+          }
+
+          $assemblyVersion = "$normalizedVersion.0"
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
           $suffix = "v$version-$shortSha"
+          $informationalVersion = "$version+$shortSha"
 
           "printer_version=$version" >> $env:GITHUB_OUTPUT
+          "assembly_version=$assemblyVersion" >> $env:GITHUB_OUTPUT
+          "informational_version=$informationalVersion" >> $env:GITHUB_OUTPUT
           "artifact_suffix=$suffix" >> $env:GITHUB_OUTPUT
 
       - name: Restore solution
@@ -76,7 +85,7 @@ jobs:
         run: ./lib/EasyInk.Net/EasyInk.Printer/tools/download-sumatra.ps1
 
       - name: Build solution
-        run: dotnet build lib/EasyInk.Net/EasyInk.Net.sln -c Release --no-restore --nologo
+        run: dotnet build lib/EasyInk.Net/EasyInk.Net.sln -c Release --no-restore --nologo /p:Version=${{ steps.version.outputs.printer_version }} /p:AssemblyVersion=${{ steps.version.outputs.assembly_version }} /p:FileVersion=${{ steps.version.outputs.assembly_version }} /p:InformationalVersion=${{ steps.version.outputs.informational_version }}
 
       - name: Test EasyInk.Engine
         if: ${{ inputs.run_tests }}
@@ -87,11 +96,38 @@ jobs:
         run: dotnet test lib/EasyInk.Net/EasyInk.Printer/tests/EasyInk.Printer.Tests.csproj -c Release --no-build --nologo
 
       - name: Publish EasyInk.Printer
-        run: dotnet publish lib/EasyInk.Net/EasyInk.Printer/src/EasyInk.Printer.csproj -c Release --no-build --nologo
+        run: dotnet publish lib/EasyInk.Net/EasyInk.Printer/src/EasyInk.Printer.csproj -c Release --no-build --nologo /p:Version=${{ steps.version.outputs.printer_version }} /p:AssemblyVersion=${{ steps.version.outputs.assembly_version }} /p:FileVersion=${{ steps.version.outputs.assembly_version }} /p:InformationalVersion=${{ steps.version.outputs.informational_version }}
 
       - name: Prepare artifact directory
         shell: pwsh
         run: New-Item -ItemType Directory -Force -Path 'lib/EasyInk.Net/.artifacts' | Out-Null
+
+      - name: Build EasyInk.Engine SDK package
+        if: ${{ inputs.upload_engine_sdk }}
+        shell: pwsh
+        run: |
+          $engineOutputDir = 'lib/EasyInk.Net/EasyInk.Engine/src/bin/Release/net48'
+          $stagingDir = "lib/EasyInk.Net/.artifacts/EasyInkEngine-SDK-${{ steps.version.outputs.artifact_suffix }}"
+          $zipPath = "$stagingDir.zip"
+
+          if (!(Test-Path $engineOutputDir)) {
+            throw "Engine output not found: $engineOutputDir"
+          }
+
+          if (Test-Path $stagingDir) {
+            Remove-Item $stagingDir -Recurse -Force
+          }
+
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
+          Copy-Item "$engineOutputDir/*" $stagingDir -Recurse -Force
+          Copy-Item 'lib/EasyInk.Net/EasyInk.Engine/README.md' "$stagingDir/README.md" -Force
+          Copy-Item 'LICENSE' "$stagingDir/LICENSE" -Force
+
+          Compress-Archive -Path "$stagingDir/*" -DestinationPath $zipPath -Force
 
       - name: Build portable package
         if: ${{ inputs.build_portable }}
@@ -130,12 +166,12 @@ jobs:
 
           Copy-Item $source $target -Force
 
-      - name: Upload raw publish artifact
-        if: ${{ inputs.upload_publish }}
+      - name: Upload EasyInk.Engine SDK artifact
+        if: ${{ inputs.upload_engine_sdk }}
         uses: actions/upload-artifact@v4
         with:
-          name: easyink-printer-publish-${{ steps.version.outputs.artifact_suffix }}
-          path: lib/EasyInk.Net/EasyInk.Printer/src/bin/Release/net48/publish
+          name: easyink-engine-sdk-${{ steps.version.outputs.artifact_suffix }}
+          path: lib/EasyInk.Net/.artifacts/EasyInkEngine-SDK-${{ steps.version.outputs.artifact_suffix }}.zip
           if-no-files-found: error
 
       - name: Upload portable artifact
@@ -160,7 +196,8 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Built EasyInk.Net on Windows."
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Version: ${{ steps.version.outputs.printer_version }}"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Assembly/File version: ${{ steps.version.outputs.assembly_version }}"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Artifact suffix: ${{ steps.version.outputs.artifact_suffix }}"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Raw publish uploaded: ${{ inputs.upload_publish }}"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Engine SDK uploaded: ${{ inputs.upload_engine_sdk }}"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Portable zip uploaded: ${{ inputs.build_portable }}"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Installer uploaded: ${{ inputs.build_installer }}"
