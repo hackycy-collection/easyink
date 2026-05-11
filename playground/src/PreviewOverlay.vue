@@ -4,7 +4,7 @@ import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, Viewe
 import { createDomPdfExportPlugin } from '@easyink/export-plugin-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
-import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
+import { createCustomViewerHost, createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import EasyInkPrinterSettingsDialog from './components/EasyInkPrinterSettingsDialog.vue'
@@ -42,6 +42,7 @@ const PRINT_SERVICE_DRIVER_ID = 'print-service-driver'
 
 const iframeRef = ref<HTMLIFrameElement>()
 let viewerHost: ViewerHost | undefined
+let viewerViewport: HTMLElement | undefined
 let viewer: ViewerRuntime | undefined
 const exportRuntime = createExportRuntime({ entry: 'preview' })
 
@@ -63,8 +64,15 @@ onMounted(async () => {
     return
 
   await waitForIframeDocument(iframeRef.value)
-  viewerHost = createIframeViewerHost(iframeRef.value)
-  setupIframeSurface(viewerHost)
+  const iframeHost = createIframeViewerHost(iframeRef.value)
+  const viewerMount = setupIframeSurface(iframeHost)
+  viewerViewport = iframeHost.mount
+  viewerHost = createCustomViewerHost({
+    document: iframeHost.document,
+    window: iframeHost.window,
+    mount: viewerMount,
+    print: iframeHost.print,
+  })
 
   viewer = createViewer({ host: viewerHost })
   registerOutputIntegrations(viewer)
@@ -80,11 +88,12 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeyDown)
-  viewerHost?.mount.removeEventListener('wheel', handleWheel)
-  viewerHost?.mount.removeEventListener('scroll', handleScroll)
+  viewerViewport?.removeEventListener('wheel', handleWheel)
+  viewerViewport?.removeEventListener('scroll', handleScroll)
   viewer?.destroy()
   viewer = undefined
   viewerHost = undefined
+  viewerViewport = undefined
 })
 
 function registerOutputIntegrations(runtime: ViewerRuntime) {
@@ -173,22 +182,38 @@ function waitForIframeDocument(iframe: HTMLIFrameElement): Promise<void> {
   })
 }
 
-function setupIframeSurface(host: ViewerHost) {
+function setupIframeSurface(host: ViewerHost): HTMLElement {
   host.document.documentElement.style.height = '100%'
   host.document.body.style.height = '100%'
   host.document.body.style.margin = '0'
   host.document.body.style.background = '#525659'
+  host.document.body.style.overflow = 'hidden'
+  host.mount.style.width = '100%'
   host.mount.style.height = '100%'
+  host.mount.style.minHeight = '100%'
   host.mount.style.overflow = 'auto'
   host.mount.style.boxSizing = 'border-box'
-  host.mount.style.padding = '24px 32px'
+  host.mount.style.padding = '32px 48px 48px'
   host.mount.style.background = '#525659'
   host.mount.addEventListener('wheel', handleWheel, { passive: false })
   host.mount.addEventListener('scroll', handleScroll)
+
+  const content = host.document.createElement('div')
+  content.style.width = '100%'
+  content.style.minHeight = '100%'
+  content.style.boxSizing = 'border-box'
+  content.style.background = '#525659'
+  host.mount.replaceChildren(content)
+
+  return content
 }
 
 function getViewerSurface(): HTMLElement | undefined {
   return viewerHost?.mount
+}
+
+function getViewerViewport(): HTMLElement | undefined {
+  return viewerViewport
 }
 
 function updatePageCount() {
@@ -238,14 +263,15 @@ function zoomOut() {
 }
 
 function zoomFit() {
+  const viewport = getViewerViewport()
   const surface = getViewerSurface()
-  if (!surface)
+  if (!viewport || !surface)
     return
   const firstPage = surface.querySelector<HTMLElement>('.ei-viewer-page')
   if (!firstPage)
     return
 
-  const containerWidth = surface.clientWidth - 64
+  const containerWidth = viewport.clientWidth - 96
   const pageWidth = Number.parseFloat(firstPage.style.width) || firstPage.offsetWidth
   if (pageWidth <= 0)
     return
@@ -277,11 +303,12 @@ function scrollToPage(pageNum: number) {
 }
 
 function handleScroll() {
+  const viewport = getViewerViewport()
   const surface = getViewerSurface()
-  if (!surface)
+  if (!viewport || !surface)
     return
   const pages = surface.querySelectorAll('.ei-viewer-page')
-  const containerRect = surface.getBoundingClientRect()
+  const containerRect = viewport.getBoundingClientRect()
   const containerCenter = containerRect.top + containerRect.height / 2
 
   let closest = 1
