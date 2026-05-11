@@ -25,23 +25,23 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const printer = usePrintService()
+const printService = usePrintService()
 
 const statusText = computed(() => {
-  if (!printer.enabled.value)
+  if (!printService.enabled.value)
     return '未启用'
-  switch (printer.connectionState.value) {
+  switch (printService.connectionState.value) {
     case 'connected': return '已连接'
     case 'connecting': return '连接中...'
-    case 'error': return printer.lastError.value || '连接失败'
+    case 'error': return printService.lastError.value || '连接失败'
     default: return '未连接'
   }
 })
 
 const statusColor = computed(() => {
-  if (!printer.enabled.value)
+  if (!printService.enabled.value)
     return 'text-muted-foreground'
-  switch (printer.connectionState.value) {
+  switch (printService.connectionState.value) {
     case 'connected': return 'text-green-600'
     case 'connecting': return 'text-amber-500'
     case 'error': return 'text-red-500'
@@ -50,66 +50,66 @@ const statusColor = computed(() => {
 })
 
 const activeJobs = computed(() => {
-  return Array.from(printer.jobs.values()).filter(
+  return Array.from(printService.jobs.values()).filter(
     j => j.status === 'queued' || j.status === 'printing',
   )
 })
 
 function handleToggleService(checked: boolean) {
-  printer.setEnabled(checked)
+  printService.setEnabled(checked)
 }
 
 async function handleConnect() {
   try {
-    await printer.connect()
-    toast.success('已连接到打印服务')
+    await printService.connect()
+    toast.success('已连接到 EasyInk Printer 服务')
   }
   catch (e) {
-    toast.error(e instanceof Error ? e.message : '连接失败')
+    toast.error(e instanceof Error ? e.message : '连接 EasyInk Printer 服务失败')
   }
 }
 
 async function handleRefreshDevices() {
   try {
-    const list = await printer.refreshDevices()
+    const list = await printService.refreshDevices()
     if (list.length === 0)
-      toast.info('未发现可用打印机')
+      toast.info('服务未返回可用打印机')
     else
-      toast.success(`发现 ${list.length} 台打印机`)
+      toast.success(`服务返回 ${list.length} 台打印机`)
   }
   catch (e) {
-    toast.error(e instanceof Error ? e.message : '刷新失败')
+    toast.error(e instanceof Error ? e.message : '刷新 EasyInk Printer 打印机失败')
   }
 }
 
 function handleUrlChange(value: string | number) {
-  printer.updateConfig({ serviceUrl: String(value) })
+  printService.updateConfig({ serviceUrl: String(value) })
 }
 
 function handleApiKeyChange(value: string | number) {
-  printer.updateConfig({ apiKey: String(value) || undefined })
+  printService.updateConfig({ apiKey: String(value) || undefined })
 }
 
 function handleCopiesChange(value: string | number) {
   const v = Number(value)
-  printer.updateConfig({ copies: Number.isFinite(v) && v >= 1 ? Math.min(99, Math.trunc(v)) : 1 })
+  printService.updateConfig({ copies: Number.isFinite(v) && v >= 1 ? Math.min(99, Math.trunc(v)) : 1 })
 }
 
 function handleDeviceChange(value: AcceptableValue) {
   const printerName = typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint'
     ? String(value)
     : undefined
-  printer.updateConfig({ printerName })
+  printService.updateConfig({ printerName })
 }
 
 async function syncPrinterForm() {
-  if (!printer.enabled.value)
+  if (!printService.enabled.value)
     return
   try {
-    await printer.refreshDevices()
+    await printService.refreshDevices()
   }
   catch (e) {
-    toast.error(e instanceof Error ? e.message : '连接打印服务失败')
+    toast.error(e instanceof Error ? e.message : '连接 EasyInk Printer 服务失败')
   }
 }
 
@@ -122,45 +122,45 @@ onMounted(() => {
   <Dialog :open="true" @update:open="(val) => { if (!val) emit('close') }">
     <DialogContent
       class="max-w-[560px]"
-      sr-description="配置打印服务连接、打印机和份数"
+      sr-description="配置 EasyInk Printer 服务地址、目标打印机和默认打印份数"
     >
       <DialogHeader>
-        <DialogTitle>打印服务设置</DialogTitle>
+        <DialogTitle>EasyInk Printer 设置</DialogTitle>
       </DialogHeader>
 
       <div class="space-y-4 py-2">
         <!-- Enable -->
         <div class="flex items-center justify-between">
-          <Label>启用打印服务</Label>
+          <Label>启用 EasyInk Printer</Label>
           <Switch
-            :model-value="printer.enabled.value"
+            :model-value="printService.enabled.value"
             @update:model-value="handleToggleService"
           />
         </div>
 
         <!-- Status -->
         <div class="space-y-1.5">
-          <Label>连接状态</Label>
+          <Label>服务状态</Label>
           <div class="flex items-center gap-2">
             <span class="text-sm" :class="statusColor">{{ statusText }}</span>
             <Button
-              v-if="printer.enabled.value && printer.connectionState.value !== 'connected'"
+              v-if="printService.enabled.value && printService.connectionState.value !== 'connected'"
               variant="outline"
               size="xs"
-              :disabled="printer.isConnecting.value"
+              :disabled="printService.isConnecting.value"
               @click="handleConnect"
             >
-              {{ printer.isConnecting.value ? '连接中...' : '连接' }}
+              {{ printService.isConnecting.value ? '连接中...' : '连接服务' }}
             </Button>
           </div>
         </div>
 
         <!-- Service URL -->
         <div class="space-y-1.5">
-          <Label>服务地址</Label>
+          <Label>EasyInk Printer 地址</Label>
           <Input
-            :model-value="printer.serviceUrl.value"
-            :disabled="!printer.enabled.value"
+            :model-value="printService.serviceUrl.value"
+            :disabled="!printService.enabled.value"
             placeholder="http://localhost:18080"
             @update:model-value="handleUrlChange"
           />
@@ -168,10 +168,10 @@ onMounted(() => {
 
         <!-- API Key -->
         <div class="space-y-1.5">
-          <Label>API Key（可选）</Label>
+          <Label>服务 API Key（可选）</Label>
           <Input
-            :model-value="printer.config.apiKey ?? ''"
-            :disabled="!printer.enabled.value"
+            :model-value="printService.config.apiKey ?? ''"
+            :disabled="!printService.enabled.value"
             placeholder="留空则不验证"
             @update:model-value="handleApiKeyChange"
           />
@@ -180,9 +180,9 @@ onMounted(() => {
         <!-- Device -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <Label>打印机</Label>
+            <Label>目标打印机</Label>
             <Button
-              v-if="printer.enabled.value"
+              v-if="printService.enabled.value"
               variant="outline"
               size="xs"
               @click="handleRefreshDevices"
@@ -191,8 +191,8 @@ onMounted(() => {
             </Button>
           </div>
           <Select
-            :model-value="printer.printerName.value"
-            :disabled="!printer.enabled.value || printer.devices.value.length === 0"
+            :model-value="printService.printerName.value"
+            :disabled="!printService.enabled.value || printService.devices.value.length === 0"
             @update:model-value="handleDeviceChange"
           >
             <SelectTrigger>
@@ -200,7 +200,7 @@ onMounted(() => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem
-                v-for="d in printer.devices.value"
+                v-for="d in printService.devices.value"
                 :key="d.name"
                 :value="d.name"
               >
@@ -209,29 +209,29 @@ onMounted(() => {
             </SelectContent>
           </Select>
           <p
-            v-if="printer.enabled.value && printer.isConnected.value && printer.devices.value.length === 0"
+            v-if="printService.enabled.value && printService.isConnected.value && printService.devices.value.length === 0"
             class="text-xs text-muted-foreground"
           >
-            未发现打印机，请检查打印机是否在线后点击刷新
+            服务已连接，但未返回打印机，请检查服务端可见的打印机后点击刷新
           </p>
         </div>
 
         <!-- Copies -->
         <div class="space-y-1.5">
-          <Label>打印份数</Label>
+          <Label>默认打印份数</Label>
           <Input
             type="number"
-            :model-value="printer.copies.value"
+            :model-value="printService.copies.value"
             :min="1"
             :max="99"
-            :disabled="!printer.enabled.value"
+            :disabled="!printService.enabled.value"
             @update:model-value="handleCopiesChange"
           />
         </div>
 
         <!-- Active jobs -->
         <div v-if="activeJobs.length > 0" class="space-y-1.5">
-          <Label>进行中的任务</Label>
+          <Label>EasyInk Printer 任务</Label>
           <div class="space-y-1 text-xs">
             <div
               v-for="job in activeJobs"

@@ -74,7 +74,7 @@
 |---|---|
 | `playground/src/hooks/usePrinter.ts` | 新增按设备持久化的 `forcePageSizeByDevice`；`printHtml` / `printPages` 仅在 `forcePageSize` 为真时传入 `pageSize`、`landscape`、`scaleFactor` |
 | `playground/src/PreviewOverlay.vue` | 发起打印时按当前设备读取 `forcePageSize` |
-| `playground/src/components/PrinterSettingsModal.vue` | 新增“强制使用模板纸张尺寸”开关 |
+| `playground/src/components/HiPrintSettingsDialog.vue` | 新增“强制使用模板纸张尺寸”开关 |
 
 ## 判断准则
 

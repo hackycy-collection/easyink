@@ -7,8 +7,8 @@ import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, I
 import { createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import PrinterSettingsModal from './components/PrinterSettingsModal.vue'
-import PrintServiceSettingsModal from './components/PrintServiceSettingsModal.vue'
+import EasyInkPrinterSettingsDialog from './components/EasyInkPrinterSettingsDialog.vue'
+import HiPrintSettingsDialog from './components/HiPrintSettingsDialog.vue'
 import { Button } from './components/ui/button'
 import {
   DropdownMenu,
@@ -49,14 +49,14 @@ const zoom = ref(100)
 const currentPage = ref(1)
 const totalPages = ref(1)
 
-// Printer integration
-const printer = usePrinter()
+// Print channel integration
+const hiPrint = usePrinter()
 const printService = usePrintService()
-const showPrinterSettings = ref(false)
-const showPrintServiceSettings = ref(false)
+const showHiPrintSettings = ref(false)
+const showEasyInkPrinterSettings = ref(false)
 const isPrinting = ref(false)
 
-// Auto-connect handled inside usePrinter() singleton based on persisted config.
+// Auto-connect is handled inside each persisted singleton hook.
 
 onMounted(async () => {
   if (!iframeRef.value)
@@ -358,29 +358,29 @@ async function handleBrowserPrint(pageSizeMode: 'driver' | 'fixed' = 'driver') {
 }
 
 async function ensureHiPrintReady(): Promise<boolean> {
-  if (!printer.enabled.value) {
-    toast.error('请先在设置中启用打印服务')
-    showPrinterSettings.value = true
+  if (!hiPrint.enabled.value) {
+    toast.error('请先在设置中启用 HiPrint')
+    showHiPrintSettings.value = true
     return false
   }
 
-  if (!printer.isConnected.value) {
-    const progressId = toast.loading('正在连接打印服务...')
+  if (!hiPrint.isConnected.value) {
+    const progressId = toast.loading('正在连接 HiPrint...')
     try {
-      await printer.connect()
+      await hiPrint.connect()
       toast.dismiss(progressId)
     }
     catch (err) {
       toast.dismiss(progressId)
-      toast.error(err instanceof Error ? err.message : '连接打印服务失败')
-      showPrinterSettings.value = true
+      toast.error(err instanceof Error ? err.message : '连接 HiPrint 失败')
+      showHiPrintSettings.value = true
       return false
     }
   }
 
-  if (!printer.printerDevice.value) {
-    toast.error('请在设置中选择打印机')
-    showPrinterSettings.value = true
+  if (!hiPrint.printerDevice.value) {
+    toast.error('请先在 HiPrint 设置中选择本机打印机')
+    showHiPrintSettings.value = true
     return false
   }
 
@@ -389,28 +389,28 @@ async function ensureHiPrintReady(): Promise<boolean> {
 
 async function ensurePrintServiceReady(): Promise<boolean> {
   if (!printService.enabled.value) {
-    toast.error('请先在设置中启用打印服务')
-    showPrintServiceSettings.value = true
+    toast.error('请先在设置中启用 EasyInk Printer')
+    showEasyInkPrinterSettings.value = true
     return false
   }
 
   if (!printService.isConnected.value) {
-    const progressId = toast.loading('正在连接打印服务...')
+    const progressId = toast.loading('正在连接 EasyInk Printer 服务...')
     try {
       await printService.connect()
       toast.dismiss(progressId)
     }
     catch (err) {
       toast.dismiss(progressId)
-      toast.error(err instanceof Error ? err.message : '连接打印服务失败')
-      showPrintServiceSettings.value = true
+      toast.error(err instanceof Error ? err.message : '连接 EasyInk Printer 服务失败')
+      showEasyInkPrinterSettings.value = true
       return false
     }
   }
 
   if (!printService.printerName.value) {
-    toast.error('请在打印服务设置中选择打印机')
-    showPrintServiceSettings.value = true
+    toast.error('请先在 EasyInk Printer 设置中选择目标打印机')
+    showEasyInkPrinterSettings.value = true
     return false
   }
 
@@ -448,15 +448,15 @@ async function handleHiPrintPrint() {
 
 async function handlePrintServicePrint() {
   if (await ensurePrintServiceReady())
-    await runViewerPrint(PRINT_SERVICE_DRIVER_ID, 'fixed', '打印服务打印')
+    await runViewerPrint(PRINT_SERVICE_DRIVER_ID, 'fixed', 'EasyInk Printer 打印')
 }
 
-function openPrinterSettings() {
-  showPrinterSettings.value = true
+function openHiPrintSettings() {
+  showHiPrintSettings.value = true
 }
 
-function openPrintServiceSettings() {
-  showPrintServiceSettings.value = true
+function openEasyInkPrinterSettings() {
+  showEasyInkPrinterSettings.value = true
 }
 
 async function handleExport() {
@@ -524,14 +524,14 @@ async function handleExport() {
               HiPrint 打印
             </DropdownMenuItem>
             <DropdownMenuItem :disabled="isPrinting" @click="handlePrintServicePrint">
-              打印服务打印
+              EasyInk Printer 打印
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem @click="openPrinterSettings">
-              打印设置
+            <DropdownMenuItem @click="openHiPrintSettings">
+              HiPrint 客户端设置
             </DropdownMenuItem>
-            <DropdownMenuItem @click="openPrintServiceSettings">
-              打印服务设置
+            <DropdownMenuItem @click="openEasyInkPrinterSettings">
+              EasyInk Printer 服务设置
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -548,13 +548,13 @@ async function handleExport() {
     />
   </div>
 
-  <PrinterSettingsModal
-    v-if="showPrinterSettings"
-    @close="showPrinterSettings = false"
+  <HiPrintSettingsDialog
+    v-if="showHiPrintSettings"
+    @close="showHiPrintSettings = false"
   />
 
-  <PrintServiceSettingsModal
-    v-if="showPrintServiceSettings"
-    @close="showPrintServiceSettings = false"
+  <EasyInkPrinterSettingsDialog
+    v-if="showEasyInkPrinterSettings"
+    @close="showEasyInkPrinterSettings = false"
   />
 </template>

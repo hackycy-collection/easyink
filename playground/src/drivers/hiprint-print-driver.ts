@@ -4,7 +4,7 @@ import { getViewerPages, resolvePrintSize, toMillimeters } from '../utils/viewer
 
 /**
  * HiPrint print driver for EasyInk Viewer.
- * Uses the singleton printer store (config managed via PrinterSettingsModal).
+ * Uses the singleton printer store (config managed via HiPrintSettingsDialog).
  */
 export function createHiPrintDriver(): PrintDriver {
   const printer = usePrinter()
