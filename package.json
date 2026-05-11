@@ -17,6 +17,7 @@
     "dev": "turbo dev --filter='./packages/**' --concurrency 30",
     "play": "pnpm -F ./playground dev",
     "lint": "eslint --cache .",
+    "sync:logos": "node ./scripts/sync-logos.mjs",
     "prepublishOnly": "pnpm build",
     "release": "bumpp -r",
     "test": "vitest run --dom",
@@ -29,8 +30,8 @@
     "changeset:version": "changeset version",
     "changeset:status": "changeset status",
     "changeset:publish": "changeset publish",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:dev": "pnpm sync:logos && vitepress dev docs",
+    "docs:build": "pnpm sync:logos && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
