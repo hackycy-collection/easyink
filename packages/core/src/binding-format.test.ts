@@ -32,6 +32,34 @@ describe('formatBindingDisplayValue', () => {
     expect(result.value).toBe('2026/05/03 02:04:05')
   })
 
+  it('formats canonical local datetime strings without relying on host parsing', () => {
+    const result = formatBindingDisplayValue('2026-05-03 02:04:05', {
+      sourceId: 's1',
+      fieldPath: 'createdAt',
+      format: {
+        mode: 'preset',
+        preset: { type: 'datetime', pattern: 'yyyy/MM/dd HH:mm:ss' },
+      },
+    })
+
+    expect(result.value).toBe('2026/05/03 02:04:05')
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('rejects locale-dependent date strings', () => {
+    const result = formatBindingDisplayValue('05/03/2026', {
+      sourceId: 's1',
+      fieldPath: 'createdAt',
+      format: {
+        mode: 'preset',
+        preset: { type: 'datetime', pattern: 'yyyy/MM/dd HH:mm:ss' },
+      },
+    })
+
+    expect(result.value).toBe('05/03/2026')
+    expect(result.diagnostics[0]?.code).toBe('BINDING_FORMAT_PRESET_FAILED')
+  })
+
   it('formats chinese uppercase money', () => {
     const result = formatBindingDisplayValue('1,234.50', {
       sourceId: 's1',

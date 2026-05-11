@@ -59,14 +59,41 @@ function transform(value) {
 }`,
   `/**
  * 将日期值格式化为 YYYY-MM-DD 格式
- * 支持时间戳、ISO 字符串等 Date 构造函数可识别的格式
+ * 支持时间戳，以及 YYYY-MM-DD / YYYY-MM-DDTHH:mm:ss / YYYY-MM-DD HH:mm:ss 这类明确格式
  * 无效日期返回空字符串
  * @param {*} value - 字段原始值（日期字符串或时间戳）
  * @returns {string}
  */
+function parseDateValue(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return value
+  if (typeof value === 'number' && isFinite(value)) {
+    var fromTimestamp = new Date(value)
+    return isNaN(fromTimestamp.getTime()) ? null : fromTimestamp
+  }
+  if (typeof value !== 'string') return null
+  var match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/)
+  if (!match) return null
+  var year = Number(match[1])
+  var month = Number(match[2]) - 1
+  var day = Number(match[3])
+  var hour = Number(match[4] || 0)
+  var minute = Number(match[5] || 0)
+  var second = Number(match[6] || 0)
+  var date = new Date(year, month, day, hour, minute, second)
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month
+    || date.getDate() !== day
+    || date.getHours() !== hour
+    || date.getMinutes() !== minute
+    || date.getSeconds() !== second
+  ) return null
+  return date
+}
+
 function transform(value) {
-  var d = new Date(value)
-  if (isNaN(d.getTime())) return ''
+  var d = parseDateValue(value)
+  if (!d) return ''
   var y = d.getFullYear()
   var m = String(d.getMonth() + 1).padStart(2, '0')
   var day = String(d.getDate()).padStart(2, '0')

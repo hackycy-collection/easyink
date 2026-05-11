@@ -1,5 +1,6 @@
 import type { BindingRef } from '@easyink/schema'
 import type { BindingDisplayFormat, BindingFormatPresetType, BindingPresetFormat } from '@easyink/shared'
+import { parseDateInput } from '@easyink/shared'
 
 export interface BindingFormatContext {
   binding: BindingRef
@@ -192,17 +193,7 @@ function valueToString(value: unknown): string {
 }
 
 function toDate(value: unknown): Date | undefined {
-  if (value instanceof Date && Number.isFinite(value.getTime()))
-    return value
-  if (typeof value === 'number') {
-    const date = new Date(value)
-    return Number.isFinite(date.getTime()) ? date : undefined
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const date = new Date(value)
-    return Number.isFinite(date.getTime()) ? date : undefined
-  }
-  return undefined
+  return parseDateInput(value)
 }
 
 function formatDatePattern(date: Date, pattern: string, timeZone?: string): string {
