@@ -1,7 +1,11 @@
+[ifndef AppVersion]
+#define AppVersion "1.0.0"
+#endif
+
 [Setup]
 AppId={{E7A3B2C1-D4F5-4E6A-9B8C-1A2B3C4D5E6F}
 AppName=EasyInk Printer
-AppVersion=1.0.0
+AppVersion={#AppVersion}
 AppPublisher=EasyInk
 DefaultDirName={autopf}\EasyInk Printer
 DefaultGroupName=EasyInk Printer
