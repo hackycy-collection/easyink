@@ -95,7 +95,11 @@ function statusTitle(prefix: string, value: string): string {
         :class="{ 'ei-status-bar__spin': status.network === 'loading' }"
       />
     </span>
-    <span class="ei-status-bar__item" :title="statusTitle('focus', status.focus)">
+    <span
+      class="ei-status-bar__item"
+      :class="{ 'ei-status-bar__item--active': status.focus !== 'none' }"
+      :title="statusTitle('focus', status.focus)"
+    >
       <component :is="focusIconMap[status.focus]" :size="12" />
     </span>
     <span class="ei-status-bar__spacer" />
@@ -143,6 +147,10 @@ function statusTitle(prefix: string, value: string): string {
 
     &--success {
       color: var(--ei-success, #52c41a);
+    }
+
+    &--active {
+      color: var(--ei-primary, #1677ff);
     }
   }
 

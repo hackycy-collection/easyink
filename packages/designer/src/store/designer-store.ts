@@ -1,6 +1,6 @@
 import type { EphemeralPanelDef, PropertyPanelOverlay } from '@easyink/core'
 import type { DocumentSchema, ElementGroupSchema, MaterialNode } from '@easyink/schema'
-import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, SnapLine } from '../types'
+import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, SnapLine, StatusBarState } from '../types'
 import { CommandManager, FontManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
 import { createDefaultSchema } from '@easyink/schema'
@@ -142,6 +142,10 @@ export class DesignerStore {
     this.workbench.status.savePhase = 'idle'
     this.workbench.status.saveMessage = undefined
     this.workbench.status.saveUpdatedAt = undefined
+  }
+
+  setFocusState(focus: StatusBarState['focus']): void {
+    this.workbench.status.focus = focus
   }
 
   // ─── Generic extensions API ───────────────────────────────────

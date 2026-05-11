@@ -748,6 +748,8 @@ interface StatusBarState {
 
 工作台偏好持久化只保存窗口、面板、缩放、吸附等偏好，不得驱动 `draft` 或 `savePhase`。模板自动保存由 `EasyInkDesigner.autoSave` 接入：designer 只监听 `store.schema`，宿主负责实现 `save(schema)` 并返回真实 Promise。
 
+`focus` 由设计器根组件统一从 pointer/focus 事件推导：teleport 弹窗为 `dialog`，浮动窗口和内置工具栏为 `panel`，画布滚动区、页面和标尺为 `canvas`，离开设计器或窗口失焦回到 `none`。组件不得绕过 store 直接写 `workbench.status.focus`。
+
 ## 10.12 工作台状态边界
 
 以下状态属于工作台状态，不进入模板历史：

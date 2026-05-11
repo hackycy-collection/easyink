@@ -2,9 +2,9 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type { Contribution } from '../contributions'
-import type { LocaleMessages, PreferenceProvider, StoreSetup, TemplateAutoSaveOptions } from '../types'
+import type { LocaleMessages, PreferenceProvider, StatusBarState, StoreSetup, TemplateAutoSaveOptions } from '../types'
 import { builtinDesignerMaterialBundle } from '@easyink/builtin'
-import { onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue'
+import { onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
 import { provideDesignerStore } from '../composables'
 import { useTemplateAutoSave } from '../composables/use-template-autosave'
 import { useWorkbenchPersistence } from '../composables/use-workbench-persistence'
@@ -30,6 +30,7 @@ const emit = defineEmits<{
   'update:schema': [schema: DocumentSchema]
 }>()
 
+const designerRootRef = ref<HTMLElement | null>(null)
 const store = reactive(new DesignerStore(props.schema, props.preferenceProvider)) as DesignerStore
 // EditingSessionManager was constructed before the reactive proxy existed;
 // re-target it at the proxy so mutations made through tx.run trigger Vue
@@ -93,14 +94,61 @@ watch(() => props.locale, (newLocale) => {
     store.setLocale(newLocale)
 })
 
+function getFocusStateFromTarget(target: EventTarget | null): StatusBarState['focus'] {
+  if (!(target instanceof Element))
+    return 'none'
+
+  if (target.closest('.ei-dialog, .ei-dialog-overlay'))
+    return 'dialog'
+
+  const root = designerRootRef.value
+  if (!root || !root.contains(target))
+    return 'none'
+
+  if (target.closest('.ei-workspace-window, .ei-topbar-b'))
+    return 'panel'
+
+  if (target.closest('.ei-canvas-scroll, .ei-canvas-page, .ei-canvas-rulers'))
+    return 'canvas'
+
+  return 'none'
+}
+
+function syncFocusState(target: EventTarget | null): void {
+  store.setFocusState(getFocusStateFromTarget(target))
+}
+
+function handleGlobalPointerDown(event: PointerEvent): void {
+  syncFocusState(event.target)
+}
+
+function handleGlobalFocusIn(event: FocusEvent): void {
+  const focusState = getFocusStateFromTarget(event.target)
+  if (focusState !== 'none')
+    store.setFocusState(focusState)
+}
+
+function handleWindowBlur(): void {
+  store.setFocusState('none')
+}
+
+onMounted(() => {
+  window.addEventListener('pointerdown', handleGlobalPointerDown, true)
+  window.addEventListener('focusin', handleGlobalFocusIn, true)
+  window.addEventListener('blur', handleWindowBlur)
+})
+
 onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', handleGlobalPointerDown, true)
+  window.removeEventListener('focusin', handleGlobalFocusIn, true)
+  window.removeEventListener('blur', handleWindowBlur)
   contributionRegistry.value.dispose()
   store.destroy()
 })
 </script>
 
 <template>
-  <div class="ei-designer">
+  <div ref="designerRootRef" class="ei-designer">
     <slot name="topbar" />
     <TopBarB />
     <CanvasWorkspace />
