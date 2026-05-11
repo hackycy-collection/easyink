@@ -53,12 +53,74 @@ describe('commandManager', () => {
     expect(mgr.canRedo).toBe(true)
   })
 
+  it('restores applied state and keeps history when undo throws', () => {
+    const mgr = new CommandManager()
+    let applied = false
+    const command: Command = {
+      id: 'broken-undo',
+      type: 'test',
+      description: 'broken undo',
+      execute: () => {
+        applied = true
+      },
+      undo: () => {
+        applied = false
+        throw new Error('undo failed')
+      },
+    }
+
+    mgr.execute(command)
+
+    expect(() => mgr.undo()).toThrowError('undo failed')
+    expect(applied).toBe(true)
+    expect(mgr.canUndo).toBe(true)
+    expect(mgr.canRedo).toBe(false)
+    expect(mgr.cursor).toBe(1)
+  })
+
   it('clears redo stack after new execute', () => {
     const mgr = new CommandManager()
     mgr.execute(makeCommand('a', []))
     mgr.undo()
     mgr.execute(makeCommand('b', []))
     expect(mgr.canRedo).toBe(false)
+  })
+
+  it('rolls back partial state and skips history when execute throws', () => {
+    const mgr = new CommandManager()
+    const state: string[] = []
+    const command: Command = {
+      id: 'broken-execute',
+      type: 'test',
+      description: 'broken execute',
+      execute: () => {
+        state.push('mutated')
+        throw new Error('execute failed')
+      },
+      undo: () => {
+        state.pop()
+      },
+    }
+
+    expect(() => mgr.execute(command)).toThrowError('execute failed')
+    expect(state).toEqual([])
+    expect(mgr.canUndo).toBe(false)
+    expect(mgr.historyEntries).toEqual([])
+  })
+
+  it('removes the history entry when execute fails after push', () => {
+    const mgr = new CommandManager()
+    const log: string[] = []
+
+    mgr.onChange(() => {
+      throw new Error('listener failed')
+    })
+
+    expect(() => mgr.execute(makeCommand('a', log))).toThrowError('listener failed')
+    expect(log).toEqual(['exec:a', 'undo:a'])
+    expect(mgr.canUndo).toBe(false)
+    expect(mgr.canRedo).toBe(false)
+    expect(mgr.historyEntries).toEqual([])
   })
 
   it('merges commands when merge returns non-null', () => {

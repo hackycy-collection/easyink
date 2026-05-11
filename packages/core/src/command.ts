@@ -20,6 +20,8 @@ export interface HistoryEntry {
   description: string
 }
 
+type CommandOperation = 'execute' | 'undo'
+
 /**
  * CommandManager manages the undo/redo stack and transactions.
  */
@@ -74,66 +76,92 @@ export class CommandManager {
     if (index < 0 || index > this.totalCount || index === this.undoStack.length)
       return
 
+    let moved = false
+
     if (index < this.undoStack.length) {
       const steps = this.undoStack.length - index
       for (let i = 0; i < steps; i++) {
-        const command = this.undoStack.pop()!
-        command.undo()
+        const command = this.undoStack[this.undoStack.length - 1]!
+        this.runCommand(command, 'undo', 'execute')
+        this.undoStack.pop()
         this.redoStack.push(command)
+        moved = true
       }
     }
     else {
       const steps = index - this.undoStack.length
       for (let i = 0; i < steps; i++) {
-        const command = this.redoStack.pop()!
-        command.execute()
+        const command = this.redoStack[this.redoStack.length - 1]!
+        this.runCommand(command, 'execute', 'undo')
+        this.redoStack.pop()
         this.undoStack.push(command)
+        moved = true
       }
     }
+
+    if (!moved)
+      return
+
     this.notify()
   }
 
   execute(command: Command): void {
-    command.execute()
+    this.runCommand(command, 'execute', 'undo')
+
+    const previousRedoStack = [...this.redoStack]
 
     if (this.transactionStack.length > 0) {
       this.transactionStack[this.transactionStack.length - 1]!.push(command)
       return
     }
 
-    // Try merge with last command
-    if (this.undoStack.length > 0) {
-      const last = this.undoStack[this.undoStack.length - 1]!
-      if (last.merge) {
-        const merged = last.merge(command)
-        if (merged) {
-          this.undoStack[this.undoStack.length - 1] = merged
-          this.redoStack = []
-          this.notify()
-          return
+    try {
+      // Try merge with last command
+      if (this.undoStack.length > 0) {
+        const lastIndex = this.undoStack.length - 1
+        const last = this.undoStack[lastIndex]!
+        if (last.merge) {
+          const merged = last.merge(command)
+          if (merged) {
+            this.undoStack[lastIndex] = merged
+            this.redoStack = []
+            this.notify()
+            return
+          }
         }
       }
-    }
 
-    this.undoStack.push(command)
-    this.redoStack = []
-    this.notify()
+      this.undoStack.push(command)
+      this.redoStack = []
+      this.notify()
+    }
+    catch (error) {
+      const lastCommand = this.undoStack[this.undoStack.length - 1]
+      if (lastCommand === command)
+        this.undoStack.pop()
+      this.redoStack = previousRedoStack
+      this.restoreCommandState(command, 'undo', 'execute', error)
+    }
   }
 
   undo(): void {
-    const command = this.undoStack.pop()
+    const command = this.undoStack[this.undoStack.length - 1]
     if (!command)
       return
-    command.undo()
+
+    this.runCommand(command, 'undo', 'execute')
+    this.undoStack.pop()
     this.redoStack.push(command)
     this.notify()
   }
 
   redo(): void {
-    const command = this.redoStack.pop()
+    const command = this.redoStack[this.redoStack.length - 1]
     if (!command)
       return
-    command.execute()
+
+    this.runCommand(command, 'execute', 'undo')
+    this.redoStack.pop()
     this.undoStack.push(command)
     this.notify()
   }
@@ -193,6 +221,34 @@ export class CommandManager {
     for (const listener of this._listeners) {
       listener()
     }
+  }
+
+  private runCommand(command: Command, operation: CommandOperation, compensation: CommandOperation): void {
+    try {
+      command[operation]()
+    }
+    catch (error) {
+      this.restoreCommandState(command, compensation, operation, error)
+    }
+  }
+
+  private restoreCommandState(
+    command: Command,
+    operation: CommandOperation,
+    failedOperation: CommandOperation,
+    cause: unknown,
+  ): never {
+    try {
+      command[operation]()
+    }
+    catch (restoreError) {
+      throw new AggregateError(
+        [cause, restoreError],
+        `Command ${failedOperation} failed and ${operation} could not restore state for "${command.description}"`,
+      )
+    }
+
+    throw cause
   }
 }
 
