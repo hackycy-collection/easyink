@@ -5,6 +5,9 @@ hero:
   name: EasyInk
   text: Print is Easy
   tagline: 面向开发者的文档/报表设计器框架。基于 Vue 3 + TypeScript，提供可嵌入的设计器与预览器。
+  image:
+    src: /logo.png
+    alt: EasyInk Logo
   actions:
     - theme: brand
       text: 快速上手

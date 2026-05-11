@@ -1,4 +1,4 @@
-name: Deploy Playground to GitHub Pages
+name: Deploy GitHub Pages
 
 on:
   schedule:
@@ -58,16 +58,32 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
+      - name: Build packages
         run: pnpm build
+
+      - name: Build playground
+        run: pnpm --filter @easyink/playground build
+
+      - name: Build docs
+        env:
+          EASYINK_DOCS_BASE: /easyink/docs/
+        run: pnpm docs:build
 
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Assemble Pages artifact
+        shell: bash
+        run: |
+          rm -rf .pages
+          mkdir -p .pages/docs
+          cp -R playground/dist/. .pages/
+          cp -R docs/.vitepress/dist/. .pages/docs/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: playground/dist
+          path: .pages
 
       - name: Deploy to GitHub Pages
         id: deployment

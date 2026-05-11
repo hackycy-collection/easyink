@@ -1,9 +1,20 @@
+import process from 'node:process'
 import { defineConfig } from 'vitepress'
 
+const base = process.env.EASYINK_DOCS_BASE ?? '/'
+
 export default defineConfig({
+  base,
   title: 'EasyInk',
   description: 'EasyInk - Print is Easy',
-  devServer: { port: 8533 },
+  head: [
+    ['link', { rel: 'icon', href: `${base}logo.ico` }],
+  ],
+  vite: {
+    server: {
+      port: 8533,
+    },
+  },
 
   themeConfig: {
     nav: [
