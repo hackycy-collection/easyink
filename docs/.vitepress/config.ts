@@ -1,33 +1,76 @@
 import { defineConfig } from 'vitepress'
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'EasyInk',
-  description: 'EasyInk - Print is Easy!',
-  vite: {
-    server: {
-      port: 8533,
-    },
-  },
+  description: 'EasyInk - Print is Easy',
+  devServer: { port: 8533 },
+
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' },
+      { text: '指南', link: '/guide/getting-started' },
+      { text: 'Designer', link: '/designer/' },
+      { text: 'Viewer', link: '/viewer/' },
+      { text: '进阶', link: '/advanced/print-drivers' },
+      { text: 'API', link: '/api/' },
     ],
 
-    sidebar: [
-      {
-        text: 'Examples',
-        items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' },
-        ],
-      },
-    ],
+    sidebar: {
+      '/guide/': [
+        {
+          text: '指南',
+          items: [
+            { text: '快速上手', link: '/guide/getting-started' },
+            { text: '核心概念', link: '/guide/concepts' },
+          ],
+        },
+      ],
+      '/designer/': [
+        {
+          text: 'Designer',
+          items: [
+            { text: '概述', link: '/designer/' },
+            { text: '键盘快捷键', link: '/designer/keyboard-shortcuts' },
+            { text: '数据绑定', link: '/designer/data-binding' },
+            { text: '自动保存', link: '/designer/auto-save' },
+            { text: '自定义物料', link: '/designer/materials' },
+            { text: '贡献扩展', link: '/designer/contributions' },
+          ],
+        },
+      ],
+      '/viewer/': [
+        {
+          text: 'Viewer',
+          items: [
+            { text: '概述', link: '/viewer/' },
+            { text: 'Host 模式', link: '/viewer/viewer-hosts' },
+            { text: '打印与导出', link: '/viewer/print-export' },
+            { text: '自定义物料', link: '/viewer/custom-materials' },
+            { text: '诊断', link: '/viewer/diagnostics' },
+          ],
+        },
+      ],
+      '/advanced/': [
+        {
+          text: '进阶',
+          items: [
+            { text: '自定义打印驱动', link: '/advanced/print-drivers' },
+            { text: '自定义导出插件', link: '/advanced/exporters' },
+            { text: 'Schema 参考', link: '/advanced/schema' },
+          ],
+        },
+      ],
+      '/api/': [
+        {
+          text: 'API',
+          items: [
+            { text: '索引', link: '/api/' },
+          ],
+        },
+      ],
+    },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' },
+      { icon: 'github', link: 'https://github.com/hackycy/easyink' },
     ],
   },
 })
