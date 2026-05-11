@@ -1,51 +1,108 @@
 import type { DocumentSchema } from './types'
 import { isObject, SCHEMA_VERSION } from '@easyink/shared'
 
+export interface SchemaValidationIssue {
+  path: string
+  message: string
+  code: string
+}
+
+export type SchemaDeserializeErrorCode = 'invalid-json' | 'invalid-schema' | 'incompatible-version'
+
+interface SchemaErrorOptions {
+  cause?: unknown
+  issues?: SchemaValidationIssue[]
+  schemaVersion?: string
+}
+
+export class SchemaDeserializeError extends Error {
+  readonly code: SchemaDeserializeErrorCode
+  readonly cause?: unknown
+  readonly issues?: SchemaValidationIssue[]
+  readonly schemaVersion?: string
+  readonly currentVersion = SCHEMA_VERSION
+
+  constructor(code: SchemaDeserializeErrorCode, message: string, options: SchemaErrorOptions = {}) {
+    super(message)
+    this.name = 'SchemaDeserializeError'
+    this.code = code
+    this.cause = options.cause
+    this.issues = options.issues
+    this.schemaVersion = options.schemaVersion
+  }
+}
+
+export class SchemaMigrationError extends Error {
+  readonly cause?: unknown
+  readonly issues: SchemaValidationIssue[]
+  readonly schemaVersion?: string
+
+  constructor(message: string, options: Omit<SchemaErrorOptions, 'issues'> & { issues: SchemaValidationIssue[] }) {
+    super(message)
+    this.name = 'SchemaMigrationError'
+    this.cause = options.cause
+    this.issues = options.issues
+    this.schemaVersion = options.schemaVersion
+  }
+}
+
+function createIssue(path: string, message: string, code: string): SchemaValidationIssue {
+  return { path, message, code }
+}
+
+export function formatSchemaValidationIssue(issue: SchemaValidationIssue): string {
+  return issue.path === '$' ? issue.message : `${issue.path}: ${issue.message}`
+}
+
 /**
  * Validate a schema has the minimum required fields.
  * Returns an array of error messages (empty if valid).
  */
 export function validateSchema(schema: unknown): string[] {
-  const errors: string[] = []
+  return validateSchemaIssues(schema).map(formatSchemaValidationIssue)
+}
+
+export function validateSchemaIssues(schema: unknown): SchemaValidationIssue[] {
+  const issues: SchemaValidationIssue[] = []
 
   if (!isObject(schema)) {
-    errors.push('Schema must be an object')
-    return errors
+    issues.push(createIssue('$', 'Schema must be an object', 'schema.type'))
+    return issues
   }
 
   if (!schema.version || typeof schema.version !== 'string') {
-    errors.push('Schema must have a "version" string field')
+    issues.push(createIssue('version', 'must be a string', 'schema.version.required'))
   }
 
   if (!schema.unit || typeof schema.unit !== 'string') {
-    errors.push('Schema must have a "unit" string field')
+    issues.push(createIssue('unit', 'must be a string', 'schema.unit.required'))
   }
 
   if (!isObject(schema.page)) {
-    errors.push('Schema must have a "page" object field')
+    issues.push(createIssue('page', 'must be an object', 'schema.page.required'))
   }
   else {
     const page = schema.page
     if (!page.mode || typeof page.mode !== 'string') {
-      errors.push('page.mode is required')
+      issues.push(createIssue('page.mode', 'must be a string', 'schema.page.mode.required'))
     }
     if (typeof page.width !== 'number' || page.width <= 0) {
-      errors.push('page.width must be a positive number')
+      issues.push(createIssue('page.width', 'must be a positive number', 'schema.page.width.invalid'))
     }
     if (typeof page.height !== 'number' || page.height <= 0) {
-      errors.push('page.height must be a positive number')
+      issues.push(createIssue('page.height', 'must be a positive number', 'schema.page.height.invalid'))
     }
   }
 
   if (!isObject(schema.guides)) {
-    errors.push('Schema must have a "guides" object field')
+    issues.push(createIssue('guides', 'must be an object', 'schema.guides.required'))
   }
 
   if (!Array.isArray(schema.elements)) {
-    errors.push('Schema must have an "elements" array field')
+    issues.push(createIssue('elements', 'must be an array', 'schema.elements.required'))
   }
 
-  return errors
+  return issues
 }
 
 /**
@@ -60,11 +117,33 @@ export function serializeSchema(schema: DocumentSchema): string {
  * Throws if schema is invalid.
  */
 export function deserializeSchema(json: string): DocumentSchema {
-  const parsed = JSON.parse(json) as unknown
-  const errors = validateSchema(parsed)
-  if (errors.length > 0) {
-    throw new Error(`Invalid schema: ${errors.join('; ')}`)
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(json) as unknown
   }
+  catch (error) {
+    throw new SchemaDeserializeError('invalid-json', 'Failed to parse schema JSON.', { cause: error })
+  }
+
+  const issues = validateSchemaIssues(parsed)
+  if (issues.length > 0) {
+    throw new SchemaDeserializeError(
+      'invalid-schema',
+      `Invalid schema: ${issues.map(formatSchemaValidationIssue).join('; ')}`,
+      { issues },
+    )
+  }
+
+  const schemaVersion = (parsed as DocumentSchema).version
+  if (!isCompatibleVersion(schemaVersion)) {
+    throw new SchemaDeserializeError(
+      'incompatible-version',
+      `Incompatible schema version "${schemaVersion}". Current supported version is "${SCHEMA_VERSION}".`,
+      { schemaVersion },
+    )
+  }
+
   return parsed as DocumentSchema
 }
 

@@ -24,7 +24,7 @@ export interface ResolvedDataSourceEntry {
 /**
  * Callback type for data source change notifications.
  */
-export type DataSourceChangeCallback = (sources: DataSourceDescriptor[]) => void
+export type DataSourceChangeCallback = (sources: DataSourceDescriptor[]) => void | Promise<void>
 
 /**
  * DataSourceRegistry manages data source descriptors for the designer.
@@ -249,7 +249,12 @@ export class DataSourceRegistry {
     const sources = this.getAllSources()
     for (const callback of this._changeCallbacks) {
       try {
-        callback(sources)
+        const result = callback(sources)
+        if (result && typeof result.then === 'function') {
+          void result.catch((error) => {
+            console.error('Error in data source change callback:', error)
+          })
+        }
       }
       catch (error) {
         console.error('Error in data source change callback:', error)

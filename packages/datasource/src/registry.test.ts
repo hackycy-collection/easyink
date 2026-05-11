@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DataSourceRegistry } from './registry'
 
 describe('dataSourceRegistry', () => {
@@ -59,5 +59,27 @@ describe('dataSourceRegistry', () => {
 
     await expect(reg.getSource('remote')).resolves.toBe(source)
     expect(reg.getSourceSync('remote')).toBe(source)
+  })
+
+  it('continues notifying later listeners when an async callback rejects', async () => {
+    const reg = new DataSourceRegistry()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const notified: string[] = []
+
+    reg.onSourcesChange(async () => {
+      notified.push('first')
+      throw new Error('boom')
+    })
+    reg.onSourcesChange(() => {
+      notified.push('second')
+    })
+
+    reg.registerSource({ id: 's1', name: 'A', fields: [] })
+    await Promise.resolve()
+
+    expect(notified).toEqual(['first', 'second'])
+    expect(errorSpy).toHaveBeenCalledWith('Error in data source change callback:', expect.any(Error))
+
+    errorSpy.mockRestore()
   })
 })

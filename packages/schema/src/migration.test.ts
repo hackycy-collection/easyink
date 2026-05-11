@@ -1,6 +1,7 @@
 import type { DocumentSchema } from './types'
 import { describe, expect, it } from 'vitest'
 import { MigrationRegistry } from './migration'
+import { SchemaMigrationError } from './validation'
 
 function toUnit(value: unknown): DocumentSchema['unit'] {
   return value === 'mm' || value === 'pt' || value === 'px' ? value : 'mm'
@@ -76,5 +77,28 @@ describe('migrationRegistry', () => {
     }
     const result = reg.migrate(schema)
     expect(result).toBe(schema)
+  })
+
+  it('migrate throws structured issues when migration output is invalid', () => {
+    const reg = new MigrationRegistry()
+    reg.register(0, '1.0.0', schema => createMigratedSchema(schema, {
+      page: { mode: 'fixed', width: 0, height: 297 },
+    }))
+
+    let error: unknown
+
+    try {
+      reg.migrate({ version: '0.1.0', unit: 'mm' })
+    }
+    catch (caught) {
+      error = caught
+    }
+
+    expect(error).toBeInstanceOf(SchemaMigrationError)
+    expect((error as SchemaMigrationError).issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'page.width' }),
+      ]),
+    )
   })
 })
