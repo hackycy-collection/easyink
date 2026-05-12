@@ -1,13 +1,25 @@
 # 快速上手
 
-本指南帮助你在 5 分钟内构建并运行 EasyInk.Printer 打印服务。
+本指南帮助你在 5 分钟内运行 EasyInk.Printer 打印服务。
 
-## 环境准备
+## 方式一：下载预构建产物（推荐）
+
+每次发版都会将 .NET 产物发布到 GitHub Release，无需本地构建：
+
+1. 前往 [GitHub Releases](https://github.com/hackycy/easyink/releases)
+2. 下载最新版本的 `EasyInk.Printer` 压缩包
+3. 解压后直接运行 `EasyInk.Printer.exe`
+
+跳转到 [验证](#验证) 确认服务是否正常。
+
+## 方式二：从源码构建
+
+### 环境准备
 
 - Windows 7 SP1 及以上
 - [.NET SDK](https://dotnet.microsoft.com/download)（推荐 10.0+，支持 net48 构建）
 
-## 构建
+### 构建
 
 ```bash
 cd lib/EasyInk.Net
@@ -26,7 +38,9 @@ cd lib/EasyInk.Net/EasyInk.Printer
 powershell -File tools/download-sumatra.ps1
 ```
 
-## 运行
+> 下载预构建产物时，SumatraPDF 已包含在内，无需额外操作。
+
+### 运行
 
 启动 EasyInk.Printer，它会在 `http://localhost:18080` 提供 HTTP 服务：
 
