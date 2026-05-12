@@ -1,6 +1,6 @@
 # Designer
 
-`@easyink/designer` 是一个基于 Vue 3 的文档/报表设计器组件。通过 `<EasyInkDesigner>` 组件嵌入你的应用，提供完整的画布编辑、物料拖放、数据绑定、对齐吸附、撤销重做等能力。
+`@easyink/designer` 是面向开发者的文档/报表设计器框架。基于 Vue 3 + TypeScript，设计器与预览器分离，以组件形式嵌入宿主应用。内置画布编辑、物料拖放、数据绑定、撤销重做、自动保存等能力，开箱即用。
 
 ## 基本用法
 
@@ -42,6 +42,19 @@ const preferenceProvider = createLocalStoragePreferenceProvider()
 |------|------|
 | `#topbar` | 自定义顶栏内容，通过 Teleport 挂载到顶栏区域 |
 
+## 数据持久化
+
+Designer 有两种独立的持久化机制，各管一件事：
+
+| | 自动保存 (`autoSave`) | 偏好持久化 (`preferenceProvider`) |
+|---|---|---|
+| **存什么** | 模板内容（DocumentSchema） | 工作台偏好（窗口布局、缩放、吸附设置等） |
+| **存到哪** | 宿主提供的 `save` 回调（通常是后端 API） | 默认 localStorage，也可自定义 |
+| **用户感知** | 状态栏显示保存状态 | 无感，静默保存 |
+| **是否进入 undo/redo** | 是 | 否 |
+
+两者互补：自动保存保证模板内容不丢失，偏好持久化保证用户的编辑环境设置不丢失。
+
 ## 自动保存
 
 ```ts
@@ -60,9 +73,13 @@ const autoSaveOptions = {
 2. 经过 `delay` 毫秒防抖后调用 `save` 回调
 3. 保存期间状态栏显示保存状态（保存中/已保存/保存失败）
 
+详细配置（并发保护、动态启用、模板切换配合等）见 [自动保存](./auto-save.md)。
+
 ## 偏好持久化
 
-通过 `PreferenceProvider` 接口保存和恢复用户的面板布局、缩放等偏好设置。
+通过 `PreferenceProvider` 接口保存和恢复用户的工作台偏好。这些偏好不进入 Schema，不影响 undo/redo。
+
+**持久化范围**：窗口显隐/位置/尺寸、工具栏排列、面板开关、画布缩放、吸附设置。
 
 ```ts
 // 使用 localStorage 持久化

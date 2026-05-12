@@ -4,7 +4,7 @@ layout: home
 hero:
   name: EasyInk
   text: Print is Easy
-  tagline: 面向开发者的文档/报表设计器框架。基于 Vue 3 + TypeScript，提供可嵌入的设计器与预览器。
+  tagline: 面向开发者的文档/报表设计器框架。基于 Vue 3 + TypeScript，设计器与预览器分离，以组件形式嵌入宿主应用。
   image:
     src: /logo.png
     alt: EasyInk Logo
@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: 设计器开箱即用
-    details: 完整的文档设计器工作台，支持拖拽编辑、物料系统、数据绑定、对齐吸附、撤销重做。通过一个 Vue 组件即可嵌入你的应用。
+    details: 内置画布编辑、物料拖放、数据绑定、撤销重做、自动保存等能力，通过一个 Vue 组件即可嵌入你的应用。
   - title: 预览器独立运行
     details: 接收 Schema + 数据即可渲染、分页、打印、导出 PDF。支持 iframe 隔离、自定义打印驱动、插件化导出。
   - title: 可扩展的物料体系
