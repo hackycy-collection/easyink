@@ -1,5 +1,5 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
 export const verticalMixedTextDataSource: DataSourceDescriptor = {
@@ -26,7 +26,7 @@ export const verticalMixedTextDemoData: Record<string, unknown> = {
   footer: '出品 EasyInk Lab 2026',
 }
 
-export const verticalMixedTextTemplate: NormalizedDocumentSchema = {
+export const verticalMixedTextTemplate: DocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {

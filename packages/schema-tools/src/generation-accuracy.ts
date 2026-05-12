@@ -1,4 +1,4 @@
-import type { BindingRef, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
+import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { AIGenerationPlan } from '@easyink/shared'
 import { deepClone, FIELD_PATH_SEPARATOR, isObject } from '@easyink/shared'
 
@@ -23,9 +23,9 @@ export interface GenerationAccuracyOptions {
 }
 
 export function repairGeneratedSchema(
-  schema: NormalizedDocumentSchema,
+  schema: DocumentSchema,
   options: GenerationAccuracyOptions,
-): { schema: NormalizedDocumentSchema, issues: GenerationRepairIssue[] } {
+): { schema: DocumentSchema, issues: GenerationRepairIssue[] } {
   const fixed = deepClone(schema)
   const issues: GenerationRepairIssue[] = []
 
@@ -36,7 +36,7 @@ export function repairGeneratedSchema(
 }
 
 export function validateGeneratedSchemaAccuracy(
-  schema: NormalizedDocumentSchema,
+  schema: DocumentSchema,
   options: GenerationAccuracyOptions,
 ): GenerationAccuracyIssue[] {
   const issues: GenerationAccuracyIssue[] = []
@@ -45,7 +45,7 @@ export function validateGeneratedSchemaAccuracy(
 }
 
 function applyPagePlan(
-  schema: NormalizedDocumentSchema,
+  schema: DocumentSchema,
   plan: AIGenerationPlan | undefined,
   issues: GenerationRepairIssue[],
 ): void {

@@ -1,5 +1,5 @@
 import type { EphemeralPanelDef, PropertyPanelOverlay } from '@easyink/core'
-import type { DocumentSchemaInput, ElementGroupSchema, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema, DocumentSchemaInput, ElementGroupSchema, MaterialNode } from '@easyink/schema'
 import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, SnapLine, StatusBarState } from '../types'
 import { CommandManager, FontManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
@@ -17,7 +17,7 @@ import { createDefaultSaveBranchMenu, createDefaultWorkbenchState } from './work
  */
 export class DesignerStore {
   // ─── Template state (enters Schema + command history) ─────────
-  private _schema: NormalizedDocumentSchema
+  private _schema: DocumentSchema
 
   // ─── Core services ────────────────────────────────────────────
   readonly commands = new CommandManager()
@@ -90,7 +90,7 @@ export class DesignerStore {
 
   // ─── Schema access ────────────────────────────────────────────
 
-  get schema(): NormalizedDocumentSchema {
+  get schema(): DocumentSchema {
     return this._schema
   }
 

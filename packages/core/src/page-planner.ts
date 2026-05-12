@@ -1,4 +1,4 @@
-import type { MaterialNode, NormalizedDocumentSchema, PageSchema } from '@easyink/schema'
+import type { DocumentSchema, MaterialNode, PageSchema } from '@easyink/schema'
 import type { PageMode } from '@easyink/shared'
 import { deepClone } from '@easyink/shared'
 
@@ -29,14 +29,14 @@ export interface PagePlanDiagnostic {
 }
 
 export interface PagePlanOptions {
-  originalSchema?: NormalizedDocumentSchema
+  originalSchema?: DocumentSchema
 }
 
 /**
  * Create a page plan for fixed-page mode.
  * Elements are assigned to pages based on their y coordinate.
  */
-export function createPagePlan(schema: NormalizedDocumentSchema, options: PagePlanOptions = {}): PagePlan {
+export function createPagePlan(schema: DocumentSchema, options: PagePlanOptions = {}): PagePlan {
   const { page, elements } = schema
   const diagnostics: PagePlanDiagnostic[] = []
 
@@ -124,7 +124,7 @@ function createStackPagePlan(
   page: PageSchema,
   elements: MaterialNode[],
   diagnostics: PagePlanDiagnostic[],
-  originalSchema: NormalizedDocumentSchema | undefined,
+  originalSchema: DocumentSchema | undefined,
 ): PagePlan {
   // Stack mode: single continuous page
   const contentBottom = getContentBottom(elements)
@@ -144,7 +144,7 @@ function createStackPagePlan(
   }
 }
 
-function getStackTrailingGap(originalSchema: NormalizedDocumentSchema | undefined): number {
+function getStackTrailingGap(originalSchema: DocumentSchema | undefined): number {
   if (!originalSchema || originalSchema.page.mode !== 'stack')
     return 0
   const originalContentBottom = getContentBottom(originalSchema.elements)

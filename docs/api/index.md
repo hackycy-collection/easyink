@@ -18,7 +18,7 @@ EasyInk 的公共 API 按包组织。以下是各包的主要导出。
 | `createLocalStoragePreferenceProvider` | Function | localStorage 偏好持久化 |
 | `tableSectionFilter` | Function | 表格属性面板过滤器 |
 
-类型导出：`DocumentSchema`, `NormalizedDocumentSchema`, `DocumentSchemaInput`, `MaterialNode`, `DataSourceDescriptor`, `Contribution`, `ContributionContext`, `DesignerMaterialBundle`, `MaterialCapabilities`, `TemplateAutoSaveOptions`, `PreferenceProvider`
+类型导出：`DocumentSchema`, `DocumentSchemaInput`, `MaterialNode`, `DataSourceDescriptor`, `Contribution`, `ContributionContext`, `DesignerMaterialBundle`, `MaterialCapabilities`, `TemplateAutoSaveOptions`, `PreferenceProvider`
 
 ## @easyink/viewer
 
@@ -52,11 +52,11 @@ EasyInk 的公共 API 按包组织。以下是各包的主要导出。
 | `isTableNode` | Function | 表格节点类型守卫 |
 | `isTableDataNode` | Function | 数据表格节点类型守卫 |
 | `createDefaultSchema` | Function | 创建完整默认 Schema |
-| `normalizeDocumentSchema` | Function | 将空对象或部分 `DocumentSchema` 输入补齐为完整 `NormalizedDocumentSchema` |
+| `normalizeDocumentSchema` | Function | 将空对象或部分 Schema 输入补齐为完整 Schema |
 | `validateSchemaIssues` | Function | 返回结构化 Schema 校验问题 |
 | `isValidSchema` | Function | 判断对象是否为完整合法 Schema |
 
-类型导出：`DocumentSchema`, `NormalizedDocumentSchema`, `DocumentSchemaInput`, `PageSchema`, `MaterialNode`, `TableNode`, `TableSchema`, `BindingRef`, `AnimationSchema`
+类型导出：`DocumentSchema`, `DocumentSchemaInput`, `PageSchema`, `MaterialNode`, `TableNode`, `TableSchema`, `BindingRef`, `AnimationSchema`
 
 ## @easyink/export-runtime
 

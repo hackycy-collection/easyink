@@ -1,4 +1,4 @@
-import type { NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema } from '@easyink/schema'
 import { describe, expect, it } from 'vitest'
 import { inferAIGenerationPlan } from './domain-profile'
 import { repairGeneratedSchema, validateGeneratedSchemaAccuracy } from './generation-accuracy'
@@ -6,7 +6,7 @@ import { repairGeneratedSchema, validateGeneratedSchemaAccuracy } from './genera
 const allowedMaterialTypes = new Set(['text', 'line', 'table-data', 'table-static'])
 const materialAliases = { table: 'table-data' }
 
-function makeSchema(overrides: Partial<NormalizedDocumentSchema> = {}): NormalizedDocumentSchema {
+function makeSchema(overrides: Partial<DocumentSchema> = {}): DocumentSchema {
   return {
     version: '1.0.0',
     unit: 'mm',

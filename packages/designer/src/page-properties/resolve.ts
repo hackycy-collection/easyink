@@ -1,4 +1,4 @@
-import type { NormalizedDocumentSchema, PageSchema } from '@easyink/schema'
+import type { DocumentSchema, PageSchema } from '@easyink/schema'
 import type { PagePropertyContext, PagePropertyDescriptor, PagePropertyGroup, PagePropertyPatch } from './types'
 
 /**
@@ -19,12 +19,12 @@ export function readPageProperty(descriptor: PagePropertyDescriptor, ctx: PagePr
 }
 
 /**
- * Apply a PagePropertyPatch to a normalized document schema (mutates in place).
+ * Apply a PagePropertyPatch to a DocumentSchema (mutates in place).
  * Returns separate partial objects for use with commands.
  */
 export function splitPatch(patch: PagePropertyPatch): {
   pageUpdates: Partial<PageSchema> | undefined
-  documentUpdates: Partial<Pick<NormalizedDocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>> | undefined
+  documentUpdates: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>> | undefined
 } {
   return {
     pageUpdates: patch.page,

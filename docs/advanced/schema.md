@@ -2,7 +2,7 @@
 
 Schema 是 EasyInk 的核心数据结构，描述文档的完整结构。它是设计器和预览器之间的唯一桥梁。
 
-对宿主应用而言，`DocumentSchema` 是宽松输入类型：所有顶层字段都可以省略，`page` 和 `guides` 的必填子字段也可以省略。框架会通过 `normalizeDocumentSchema()` 补齐默认值，进入 `DesignerStore`、Viewer、自动保存和导出链路后的内部模型始终是完整 `NormalizedDocumentSchema`。
+对宿主应用而言，传入设计器的是 `DocumentSchemaInput`：所有顶层字段都可以省略，`page` 和 `guides` 的必填子字段也可以省略。框架会通过 `normalizeDocumentSchema()` 补齐默认值，进入 `DesignerStore`、Viewer、自动保存和导出链路后的内部模型始终是完整 `DocumentSchema`。
 
 ```ts
 import { normalizeDocumentSchema } from '@easyink/schema'
@@ -20,37 +20,30 @@ const schema = normalizeDocumentSchema({
 
 ## DocumentSchema
 
-宿主输入模型。适合表单、服务端存储、导入 JSON、`v-model:schema` 初始值等场景。
-
 ```ts
 interface DocumentSchema {
-  version?: string                   // Schema 版本号
+  version: string                    // Schema 版本号
   meta?: DocumentMeta                // 文档元信息
-  unit?: UnitType                    // 全局单位：'mm' | 'pt' | 'px' | 'inch'
-  page?: Partial<PageSchema>         // 页面配置
-  guides?: Partial<GuideSchema>      // 辅助线
-  elements?: MaterialNode[]          // 元素列表
+  unit: UnitType                     // 全局单位：'mm' | 'pt' | 'px' | 'inch'
+  page: PageSchema                   // 页面配置
+  guides: GuideSchema                // 辅助线
+  elements: MaterialNode[]           // 元素列表
   groups?: ElementGroupSchema[]      // 元素分组
   extensions?: Record<string, unknown> // 扩展数据（如 AI、自定义插件）
   compat?: BenchmarkCompatState      // 兼容层数据
 }
 ```
 
-## NormalizedDocumentSchema
+## DocumentSchemaInput
 
-归一化后的内部模型。设计器 Store、Viewer、自动保存、导出、物料扩展上下文使用这个类型；这些链路可以安全读取 `schema.page.width`、`schema.unit` 和 `schema.elements`。
+`DocumentSchemaInput` 是给宿主传入设计器或调用归一化函数时使用的宽松输入类型：
 
 ```ts
-interface NormalizedDocumentSchema {
-  version: string
-  meta?: DocumentMeta
-  unit: UnitType
-  page: PageSchema
-  guides: GuideSchema
-  elements: MaterialNode[]
+type DocumentSchemaInput = Partial<Omit<DocumentSchema, 'page' | 'guides' | 'elements' | 'groups'>> & {
+  page?: Partial<PageSchema>
+  guides?: Partial<GuideSchema>
+  elements?: MaterialNode[]
   groups?: ElementGroupSchema[]
-  extensions?: Record<string, unknown>
-  compat?: BenchmarkCompatState
 }
 ```
 

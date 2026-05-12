@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ExportFormatPlugin, ExportProgress } from '@easyink/export-runtime'
-import type { NormalizedDocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
+import type { DocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
 import { createDomPdfExportPlugin } from '@easyink/export-plugin-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
@@ -25,7 +25,7 @@ import { usePrintService } from './hooks/usePrintService'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
 
 const props = defineProps<{
-  schema: NormalizedDocumentSchema
+  schema: DocumentSchema
   data: Record<string, unknown>
 }>()
 
@@ -138,7 +138,7 @@ function registerOutputIntegrations(runtime: ViewerRuntime) {
   runtime.registerPrintDriver(createPrintServiceDriver())
 }
 
-function createPlaygroundJsonExportPlugin(): ExportFormatPlugin<{ schema: NormalizedDocumentSchema, data: Record<string, unknown> }, Blob> {
+function createPlaygroundJsonExportPlugin(): ExportFormatPlugin<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
   return {
     id: 'playground-json-export-runtime',
     format: EXPORT_FORMAT,

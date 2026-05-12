@@ -1,4 +1,3 @@
-import type { DocumentSchema } from './types'
 import { describe, expect, it } from 'vitest'
 import { createDefaultSchema, normalizeDocumentSchema } from './defaults'
 
@@ -36,13 +35,6 @@ describe('createDefaultSchema', () => {
 })
 
 describe('normalizeDocumentSchema', () => {
-  it('accepts DocumentSchema with no required fields', () => {
-    const input: DocumentSchema = { page: { width: 80 } }
-    const schema = normalizeDocumentSchema(input)
-
-    expect(schema.page).toMatchObject({ mode: 'fixed', width: 80, height: 297 })
-  })
-
   it('returns a default schema for an empty input object', () => {
     const schema = normalizeDocumentSchema({})
 

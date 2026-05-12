@@ -1,6 +1,5 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { NormalizedDocumentSchema, TableDataSchema, TableNode } from '@easyink/schema'
-import type { PageMode } from '@easyink/shared'
+import type { DocumentSchema, TableDataSchema, TableNode } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 import { badgeDataSource } from './templates/badge'
 import { certificateDataSource } from './templates/certificate'
@@ -252,7 +251,7 @@ function createInvoiceTableNode(): TableNode {
   }
 }
 
-function createInvoiceElements(): NormalizedDocumentSchema['elements'] {
+function createInvoiceElements(): DocumentSchema['elements'] {
   return [
     // 公司名称（绑定）
     {
@@ -434,7 +433,7 @@ function createInvoiceElements(): NormalizedDocumentSchema['elements'] {
   ]
 }
 
-function createInvoiceTemplate(mode: PageMode): NormalizedDocumentSchema {
+function createInvoiceTemplate(mode: DocumentSchema['page']['mode']): DocumentSchema {
   return {
     version: SCHEMA_VERSION,
     unit: 'mm',
@@ -448,6 +447,6 @@ function createInvoiceTemplate(mode: PageMode): NormalizedDocumentSchema {
   }
 }
 
-export const invoiceWithTableTemplate: NormalizedDocumentSchema = createInvoiceTemplate('fixed')
+export const invoiceWithTableTemplate: DocumentSchema = createInvoiceTemplate('fixed')
 
-export const flowInvoiceTemplate: NormalizedDocumentSchema = createInvoiceTemplate('stack')
+export const flowInvoiceTemplate: DocumentSchema = createInvoiceTemplate('stack')

@@ -45,7 +45,6 @@ easyink/
 
 - 定义文档 Schema
 - 提供默认值工厂、输入归一化、迁移器、兼容层
-- `DocumentSchema` 是宿主输入类型，`NormalizedDocumentSchema` 是归一化后的内部完整模型
 - 只关心模板模型，不关心运行时加载和 UI
 
 ### `@easyink/core`

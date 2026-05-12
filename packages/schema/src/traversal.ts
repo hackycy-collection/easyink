@@ -9,7 +9,7 @@ export function traverseNodes(
   schema: DocumentSchema,
   callback: (node: MaterialNode, parent?: MaterialNode) => void | false,
 ): void {
-  for (const node of schema.elements ?? []) {
+  for (const node of schema.elements) {
     if (walkNode(node, undefined, callback) === false)
       return
   }

@@ -1,6 +1,6 @@
 import type { PropSchema } from '@easyink/core'
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { DocumentSchema, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { MaterialCategory } from '@easyink/shared'
 
 export type {
@@ -238,7 +238,7 @@ export interface SaveBranchMenuState {
 // ─── Designer Props ────────────────────────────────────────────────
 
 export interface EasyInkDesignerProps {
-  schema?: DocumentSchema
+  schema: DocumentSchema
   dataSources?: DataSourceDescriptor[]
   preferenceProvider?: PreferenceProvider
   autoSave?: TemplateAutoSaveOptions
@@ -249,7 +249,7 @@ export interface EasyInkDesignerProps {
 export interface TemplateAutoSaveOptions {
   enabled: boolean
   delay?: number
-  save: (schema: NormalizedDocumentSchema) => Promise<void>
+  save: (schema: DocumentSchema) => Promise<void>
 }
 
 export type StoreSetup = (store: import('./store/designer-store').DesignerStore) => void

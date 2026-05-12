@@ -1,8 +1,8 @@
-import type { NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema } from '@easyink/schema'
 import type { ViewerPageMetrics, ViewerPrintOptions, ViewerPrintPolicy } from './types'
 
 export interface ResolvePrintPolicyInput {
-  schema: NormalizedDocumentSchema
+  schema: DocumentSchema
   options?: ViewerPrintOptions
   renderedPages?: ViewerPageMetrics[]
 }

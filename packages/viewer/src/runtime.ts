@@ -1,5 +1,5 @@
 import type { InternalHooks, PagePlan } from '@easyink/core'
-import type { NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema } from '@easyink/schema'
 import type {
   MaterialViewerExtension,
   PrintDriver,
@@ -17,7 +17,7 @@ import type {
 import type { ViewerHost } from './viewer-host'
 import { registerBuiltinViewerMaterials } from '@easyink/builtin'
 import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
-import { normalizeDocumentSchema, traverseNodes, validateSchema } from '@easyink/schema'
+import { traverseNodes, validateSchema } from '@easyink/schema'
 import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
@@ -31,7 +31,7 @@ import { createBrowserViewerHost, createIframeViewerHost } from './viewer-host'
 
 export class ViewerRuntime {
   private _options: ViewerOptions
-  private _schema?: NormalizedDocumentSchema
+  private _schema?: DocumentSchema
   private _data: Record<string, unknown> = {}
   private _diagnosticHandler?: (event: ViewerDiagnosticEvent) => void
   private _exporters: ViewerExporter[] = []
@@ -67,14 +67,8 @@ export class ViewerRuntime {
     this.ensureNotDestroyed()
     this._diagnosticHandler = input.onDiagnostic
 
-    // 1. Normalize host input before any runtime code reads required fields.
-    const schemaInput = normalizeDocumentSchema(input.schema)
-
-    // 2. Hook: beforeSchemaNormalize
-    const normalizedSchema = this.callSchemaNormalizeHook(schemaInput)
-
-    // 3. Validate normalized schema and hook output.
-    const errors = validateSchema(normalizedSchema)
+    // 1. Validate schema
+    const errors = validateSchema(input.schema)
     if (errors.length > 0) {
       const event: ViewerDiagnosticEvent = {
         category: 'schema',
@@ -86,6 +80,9 @@ export class ViewerRuntime {
       this.emitDiagnostic(event)
       throw new Error(`Invalid schema: ${errors.join('; ')}`)
     }
+
+    // 2. Hook: beforeSchemaNormalize
+    const normalizedSchema = this.callSchemaNormalizeHook(input.schema)
     this._schema = normalizedSchema
 
     this._data = input.data ?? {}
@@ -409,7 +406,7 @@ export class ViewerRuntime {
   // Accessors
   // ---------------------------------------------------------------------------
 
-  get schema(): NormalizedDocumentSchema | undefined {
+  get schema(): DocumentSchema | undefined {
     return this._schema
   }
 
@@ -489,7 +486,7 @@ export class ViewerRuntime {
     }
   }
 
-  private applyMeasureAndLayout(): { schema: NormalizedDocumentSchema, diagnostics: ViewerDiagnosticEvent[] } {
+  private applyMeasureAndLayout(): { schema: DocumentSchema, diagnostics: ViewerDiagnosticEvent[] } {
     if (!this._schema)
       return { schema: this._schema!, diagnostics: [] }
 
@@ -694,7 +691,7 @@ export class ViewerRuntime {
     this.emitDiagnostic(event)
   }
 
-  private callSchemaNormalizeHook(schema: NormalizedDocumentSchema): NormalizedDocumentSchema {
+  private callSchemaNormalizeHook(schema: DocumentSchema): DocumentSchema {
     try {
       return this._hooks.beforeSchemaNormalize.call(schema)
     }

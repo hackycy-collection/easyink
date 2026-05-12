@@ -1,4 +1,4 @@
-import type { NormalizedDocumentSchema, PageSchema } from '@easyink/schema'
+import type { DocumentSchema, PageSchema } from '@easyink/schema'
 
 /**
  * Descriptor group for page properties.
@@ -52,7 +52,7 @@ export interface PagePropertyDescriptor {
  * Context available when evaluating page property descriptors.
  */
 export interface PagePropertyContext {
-  document: NormalizedDocumentSchema
+  document: DocumentSchema
   rawPage?: Record<string, unknown>
   selectedElementId?: string
 }
@@ -63,6 +63,6 @@ export interface PagePropertyContext {
  */
 export interface PagePropertyPatch {
   page?: Partial<PageSchema>
-  document?: Partial<Pick<NormalizedDocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>
+  document?: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>
   compat?: Record<string, unknown>
 }

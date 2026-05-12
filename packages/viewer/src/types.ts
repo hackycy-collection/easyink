@@ -1,5 +1,5 @@
 import type { BindingFormatDiagnostic, FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput, ViewerRenderSize } from '@easyink/core'
-import type { DocumentSchema, NormalizedDocumentSchema } from '@easyink/schema'
+import type { DocumentSchema } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
 import type { ViewerHost } from './viewer-host'
 
@@ -21,7 +21,7 @@ export interface ViewerOptions {
 }
 
 export interface ViewerOpenInput {
-  schema?: DocumentSchema
+  schema: DocumentSchema
   data?: Record<string, unknown>
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
@@ -85,7 +85,7 @@ export interface ViewerExporter {
 }
 
 export interface ViewerExportContext {
-  schema: NormalizedDocumentSchema
+  schema: DocumentSchema
   data?: Record<string, unknown>
   entry: ExportEntry
   renderedPages?: ViewerPageMetrics[]
@@ -140,7 +140,7 @@ export interface ViewerPrintSheetSize {
 }
 
 export interface ViewerPrintPolicy {
-  pageMode: NormalizedDocumentSchema['page']['mode']
+  pageMode: DocumentSchema['page']['mode']
   pageSizeMode: ViewerPrintPageSizeMode
   sheetSize?: ViewerPrintSheetSize
   orientation: 'portrait' | 'landscape' | 'auto'

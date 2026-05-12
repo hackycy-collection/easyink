@@ -1,5 +1,5 @@
 import type { PageMode, UnitType } from '@easyink/shared'
-import type { DocumentSchemaInput, GuideSchema, NormalizedDocumentSchema, PageSchema } from './types'
+import type { DocumentSchema, DocumentSchemaInput, GuideSchema, PageSchema } from './types'
 import { DEFAULT_PAGE_HEIGHT_MM, DEFAULT_PAGE_WIDTH_MM, isObject, SCHEMA_VERSION } from '@easyink/shared'
 import { isValidSchema } from './validation'
 
@@ -21,7 +21,7 @@ export function createDefaultGuides(): GuideSchema {
   }
 }
 
-export function createDefaultSchema(): NormalizedDocumentSchema {
+export function createDefaultSchema(): DocumentSchema {
   return {
     version: SCHEMA_VERSION,
     unit: 'mm',
@@ -64,7 +64,7 @@ function normalizeGuides(input: unknown, fallback: GuideSchema): GuideSchema {
   }
 }
 
-export function normalizeDocumentSchema(input?: DocumentSchemaInput | null): NormalizedDocumentSchema {
+export function normalizeDocumentSchema(input?: DocumentSchemaInput | null): DocumentSchema {
   if (isValidSchema(input))
     return input
 

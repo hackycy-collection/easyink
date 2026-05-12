@@ -1,4 +1,4 @@
-import type { NormalizedDocumentSchema, TableNode } from '@easyink/schema'
+import type { DocumentSchema, TableNode } from '@easyink/schema'
 import type { ViewerRuntime } from './runtime'
 import type { ViewerExportContext, ViewerPageMetrics, ViewerPrintContext, ViewerPrintOptions, ViewerPrintPolicy } from './types'
 import { createLineViewerExtension, LINE_TYPE } from '@easyink/material-line'
@@ -56,7 +56,7 @@ function createItemsTable(): TableNode {
   }
 }
 
-function createStackSchema(pageHeight = 100): NormalizedDocumentSchema {
+function createStackSchema(pageHeight = 100): DocumentSchema {
   return {
     version: '1.0.0',
     unit: 'mm',
@@ -84,7 +84,7 @@ function createStackSchema(pageHeight = 100): NormalizedDocumentSchema {
   }
 }
 
-function createStackSchemaWithPrint(orientation: 'auto' | 'portrait' | 'landscape'): NormalizedDocumentSchema {
+function createStackSchemaWithPrint(orientation: 'auto' | 'portrait' | 'landscape'): DocumentSchema {
   return {
     ...createStackSchema(),
     page: {
@@ -96,7 +96,7 @@ function createStackSchemaWithPrint(orientation: 'auto' | 'portrait' | 'landscap
   }
 }
 
-function createFixedSchema(): NormalizedDocumentSchema {
+function createFixedSchema(): DocumentSchema {
   return {
     version: '1.0.0',
     unit: 'mm',
