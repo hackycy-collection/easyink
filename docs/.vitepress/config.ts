@@ -21,6 +21,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/getting-started' },
       { text: 'Designer', link: '/designer/' },
       { text: 'Viewer', link: '/viewer/' },
+      { text: '.NET', link: '/dotnet/' },
       { text: '进阶', link: '/advanced/print-drivers' },
       { text: 'API', link: '/api/' },
     ],
@@ -57,6 +58,18 @@ export default defineConfig({
             { text: '打印与导出', link: '/viewer/print-export' },
             { text: '自定义物料', link: '/viewer/custom-materials' },
             { text: '诊断', link: '/viewer/diagnostics' },
+          ],
+        },
+      ],
+      '/dotnet/': [
+        {
+          text: '.NET 打印服务',
+          items: [
+            { text: '概述', link: '/dotnet/' },
+            { text: '快速上手', link: '/dotnet/getting-started' },
+            { text: 'Engine DLL', link: '/dotnet/engine' },
+            { text: 'Printer 应用', link: '/dotnet/printer' },
+            { text: 'API 参考', link: '/dotnet/api-reference' },
           ],
         },
       ],
