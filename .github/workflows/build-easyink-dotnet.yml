@@ -1,6 +1,43 @@
 name: Build EasyInk.Net
 
 on:
+  workflow_call:
+    inputs:
+      run_tests:
+        description: Run EasyInk.Net test projects before packaging
+        type: boolean
+        default: true
+      build_portable:
+        description: Build the portable zip package
+        type: boolean
+        default: true
+      build_installer:
+        description: Build the Inno Setup installer
+        type: boolean
+        default: true
+      upload_engine_sdk:
+        description: Upload a standalone EasyInk.Engine SDK package for external consumers
+        type: boolean
+        default: true
+    outputs:
+      printer_version:
+        description: EasyInk.Printer package version
+        value: ${{ jobs.build.outputs.printer_version }}
+      assembly_version:
+        description: EasyInk.Printer assembly version
+        value: ${{ jobs.build.outputs.assembly_version }}
+      artifact_suffix:
+        description: Artifact suffix shared by all EasyInk.Net packages
+        value: ${{ jobs.build.outputs.artifact_suffix }}
+      engine_artifact_name:
+        description: Uploaded EasyInk.Engine SDK artifact name
+        value: ${{ jobs.build.outputs.engine_artifact_name }}
+      portable_artifact_name:
+        description: Uploaded portable package artifact name
+        value: ${{ jobs.build.outputs.portable_artifact_name }}
+      installer_artifact_name:
+        description: Uploaded installer package artifact name
+        value: ${{ jobs.build.outputs.installer_artifact_name }}
   workflow_dispatch:
     inputs:
       run_tests:
@@ -30,6 +67,13 @@ concurrency:
 jobs:
   build:
     runs-on: windows-2022
+    outputs:
+      printer_version: ${{ steps.version.outputs.printer_version }}
+      assembly_version: ${{ steps.version.outputs.assembly_version }}
+      artifact_suffix: ${{ steps.version.outputs.artifact_suffix }}
+      engine_artifact_name: ${{ steps.artifact_names.outputs.engine_artifact_name }}
+      portable_artifact_name: ${{ steps.artifact_names.outputs.portable_artifact_name }}
+      installer_artifact_name: ${{ steps.artifact_names.outputs.installer_artifact_name }}
 
     steps:
       - name: Validate inputs
@@ -76,6 +120,36 @@ jobs:
           "assembly_version=$assemblyVersion" >> $env:GITHUB_OUTPUT
           "informational_version=$informationalVersion" >> $env:GITHUB_OUTPUT
           "artifact_suffix=$suffix" >> $env:GITHUB_OUTPUT
+
+      - name: Resolve artifact names
+        id: artifact_names
+        shell: pwsh
+        env:
+          BUILD_PORTABLE: ${{ inputs.build_portable }}
+          BUILD_INSTALLER: ${{ inputs.build_installer }}
+          UPLOAD_ENGINE_SDK: ${{ inputs.upload_engine_sdk }}
+          ARTIFACT_SUFFIX: ${{ steps.version.outputs.artifact_suffix }}
+        run: |
+          if ($env:UPLOAD_ENGINE_SDK -eq 'true') {
+            "engine_artifact_name=easyink-engine-sdk-$env:ARTIFACT_SUFFIX" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "engine_artifact_name=" >> $env:GITHUB_OUTPUT
+          }
+
+          if ($env:BUILD_PORTABLE -eq 'true') {
+            "portable_artifact_name=easyink-printer-portable-$env:ARTIFACT_SUFFIX" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "portable_artifact_name=" >> $env:GITHUB_OUTPUT
+          }
+
+          if ($env:BUILD_INSTALLER -eq 'true') {
+            "installer_artifact_name=easyink-printer-installer-$env:ARTIFACT_SUFFIX" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "installer_artifact_name=" >> $env:GITHUB_OUTPUT
+          }
 
       - name: Restore solution
         run: dotnet restore lib/EasyInk.Net/EasyInk.Net.sln
