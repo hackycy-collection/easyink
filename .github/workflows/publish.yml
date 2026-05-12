@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      - '**'
+      - 'v*'
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           current_version='${{ steps.mcp_server_version.outputs.version }}'
-          previous_tag=$(git for-each-ref --sort=-creatordate --format='%(refname:strip=2)' refs/tags | grep -Fvx "$CURRENT_TAG" | head -n 1 || true)
+          previous_tag=$(git for-each-ref --sort=-creatordate --format='%(refname:strip=2)' refs/tags/v* | grep -Fvx "$CURRENT_TAG" | head -n 1 || true)
           previous_version=''
           should_publish=true
 
@@ -114,6 +114,7 @@ jobs:
         uses: changesets/action@v1
         with:
           publish: pnpm changeset:publish
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_ACCESS: public
