@@ -4,7 +4,7 @@ import type { SampleTemplateEntry } from '@easyink/samples'
 import type { StoredTemplate } from './storage/template-store'
 import { createAIContribution } from '@easyink/ai'
 import { createLocalStoragePreferenceProvider, EasyInkDesigner } from '@easyink/designer'
-import zhCN from '@easyink/designer/locale/zh-CN'
+import { enUS, zhCN } from '@easyink/designer/locale'
 import { blankA4Template, flowInvoiceTemplate, invoiceDemoData, sampleDataSources } from '@easyink/samples'
 import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -31,12 +31,15 @@ const showDataEditor = ref(false)
 
 const customData = ref<Record<string, unknown>>({})
 const customDataSources = ref<DataSourceDescriptor[]>([])
+const localeCode = ref<'zh-CN' | 'en-US'>('zh-CN')
 
 const mergedDataSources = computed(() => [
   ...sampleDataSources,
   ...customDataSources.value,
 ])
 const previewData = computed(() => customData.value)
+const designerLocale = computed(() => localeCode.value === 'en-US' ? enUS : zhCN)
+const localeToggleLabel = computed(() => localeCode.value === 'zh-CN' ? 'English' : '中文')
 
 const topbarLabel = computed(() => {
   if (previewingSample.value)
@@ -230,7 +233,7 @@ const contributions = [createAIContribution()]
   <EasyInkDesigner
     v-model:schema="schema"
     :data-sources="mergedDataSources"
-    :locale="zhCN"
+    :locale="designerLocale"
     :preference-provider="preferenceProvider"
     :auto-save="autoSaveOptions"
     :contributions="contributions"
@@ -250,6 +253,9 @@ const contributions = [createAIContribution()]
           另存为我的模板
         </Button>
         <div class="flex-1" />
+        <Button variant="outline" size="sm" @click="localeCode = localeCode === 'zh-CN' ? 'en-US' : 'zh-CN'">
+          {{ localeToggleLabel }}
+        </Button>
         <Button variant="outline" size="sm" @click="openDataEditor">
           数据
         </Button>

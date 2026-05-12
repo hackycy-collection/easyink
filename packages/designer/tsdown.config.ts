@@ -4,7 +4,7 @@ import Vue from 'unplugin-vue/rolldown'
 export default defineConfig({
   entry: [
     'src/index.ts',
-    'src/locale/zh-CN.ts',
+    'src/locale/index.ts',
   ],
   deps: {
     skipNodeModulesBundle: true,

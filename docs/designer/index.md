@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { EasyInkDesigner, createLocalStoragePreferenceProvider } from '@easyink/designer'
-import zhCN from '@easyink/designer/locale/zh-CN'
+import { zhCN } from '@easyink/designer/locale'
 import '@easyink/designer/index.css'
 
 const schema = ref({ /* DocumentSchema */ })
@@ -30,7 +30,7 @@ const preferenceProvider = createLocalStoragePreferenceProvider()
 |------|------|------|------|
 | `schema` | `DocumentSchema` | 是 | 文档模板，支持 `v-model:schema` 双向绑定 |
 | `dataSources` | `DataSourceDescriptor[]` | 否 | 数据源描述符列表，定义可绑定的字段树 |
-| `locale` | `LocaleMessages` | 否 | 国际化消息，如 `zhCN` |
+| `locale` | `LocaleMessages` | 否 | 国际化消息，如 `zhCN` / `enUS` |
 | `preferenceProvider` | `PreferenceProvider` | 否 | 用户偏好持久化 provider |
 | `autoSave` | `TemplateAutoSaveOptions` | 否 | 自动保存配置 |
 | `contributions` | `Contribution[]` | 否 | 贡献扩展列表（如 AI 面板） |
@@ -195,13 +195,16 @@ store.t('common.save')
 
 ## 国际化
 
-内置中文语言包，也支持自定义。
+内置中英文语言包，也支持自定义。
 
 ```ts
-import zhCN from '@easyink/designer/locale/zh-CN'
+import { enUS, zhCN } from '@easyink/designer/locale'
 
 // 使用内置中文
 <EasyInkDesigner :locale="zhCN" />
+
+// 使用内置英文
+<EasyInkDesigner :locale="enUS" />
 
 // 自定义语言包（结构参考 zhCN）
 const myLocale = { /* ... */ }

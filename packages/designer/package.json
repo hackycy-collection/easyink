@@ -11,7 +11,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
-    "./locale/zh-CN": "./dist/locale/zh-CN.mjs",
+    "./locale": "./dist/locale/index.mjs",
     "./package.json": "./package.json",
     "./index.css": "./dist/index.css"
   },
