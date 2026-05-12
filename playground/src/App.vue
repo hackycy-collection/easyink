@@ -222,6 +222,10 @@ function openDataEditor() {
   showDataEditor.value = true
 }
 
+function openDocumentation() {
+  window.open('https://hackycy.github.io/easyink/docs/', '_blank')
+}
+
 function handleDataUpdate(data: Record<string, unknown>) {
   applyDemoData(data)
 }
@@ -253,6 +257,9 @@ const contributions = [createAIContribution()]
           另存为我的模板
         </Button>
         <div class="flex-1" />
+        <Button variant="outline" size="sm" @click="openDocumentation">
+          文档
+        </Button>
         <Button variant="outline" size="sm" @click="localeCode = localeCode === 'zh-CN' ? 'en-US' : 'zh-CN'">
           {{ localeToggleLabel }}
         </Button>
