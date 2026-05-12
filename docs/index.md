@@ -57,7 +57,7 @@ features:
     <div class="ei-arch-layer ei-arch-layer--l0">
       <span class="ei-arch-layer-name">宿主应用</span>
       <div class="ei-arch-layer-pkgs">
-        <code>your-app</code>
+        <code>host-app</code>
       </div>
     </div>
     <div class="ei-arch-arrow">▼</div>
