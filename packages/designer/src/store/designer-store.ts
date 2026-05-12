@@ -1,9 +1,9 @@
 import type { EphemeralPanelDef, PropertyPanelOverlay } from '@easyink/core'
-import type { DocumentSchema, ElementGroupSchema, MaterialNode } from '@easyink/schema'
+import type { DocumentSchema, DocumentSchemaInput, ElementGroupSchema, MaterialNode } from '@easyink/schema'
 import type { LocaleMessages, MaterialCatalogEntry, MaterialDefinition, MaterialDesignerExtension, MaterialExtensionFactory, PreferenceProvider, SnapLine, StatusBarState } from '../types'
 import { CommandManager, FontManager, SelectionModel } from '@easyink/core'
 import { DataSourceRegistry } from '@easyink/datasource'
-import { createDefaultSchema } from '@easyink/schema'
+import { normalizeDocumentSchema } from '@easyink/schema'
 import { markRaw } from 'vue'
 import { EditingSessionManager } from '../editing/editing-session-manager'
 import { createMaterialExtensionContext } from '../materials/extension-context'
@@ -68,8 +68,8 @@ export class DesignerStore {
   // ─── Locale ───────────────────────────────────────────────────
   private _locale?: LocaleMessages
 
-  constructor(schema?: DocumentSchema, preferenceProvider?: PreferenceProvider) {
-    this._schema = schema || createDefaultSchema()
+  constructor(schema?: DocumentSchemaInput, preferenceProvider?: PreferenceProvider) {
+    this._schema = normalizeDocumentSchema(schema)
     // Mark editing session manager as raw: it owns Vue refs internally and
     // must not be auto-unwrapped by the surrounding reactive(store) proxy.
     this.editingSession = markRaw(new EditingSessionManager(this))
@@ -94,8 +94,8 @@ export class DesignerStore {
     return this._schema
   }
 
-  setSchema(schema: DocumentSchema): void {
-    this._schema = schema
+  setSchema(schema?: DocumentSchemaInput): void {
+    this._schema = normalizeDocumentSchema(schema)
     this.selection.clear()
     this.commands.clear()
     this.editingSession.exit()

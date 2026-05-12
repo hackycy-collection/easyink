@@ -1,6 +1,9 @@
 import type { DocumentSchema } from './types'
 import { isObject, SCHEMA_VERSION } from '@easyink/shared'
 
+const UNIT_TYPES = new Set(['mm', 'pt', 'px', 'inch'])
+const PAGE_MODES = new Set(['fixed', 'stack', 'label'])
+
 export interface SchemaValidationIssue {
   path: string
   message: string
@@ -77,6 +80,9 @@ export function validateSchemaIssues(schema: unknown): SchemaValidationIssue[] {
   if (!schema.unit || typeof schema.unit !== 'string') {
     issues.push(createIssue('unit', 'must be a string', 'schema.unit.required'))
   }
+  else if (!UNIT_TYPES.has(schema.unit)) {
+    issues.push(createIssue('unit', 'must be a supported unit', 'schema.unit.invalid'))
+  }
 
   if (!isObject(schema.page)) {
     issues.push(createIssue('page', 'must be an object', 'schema.page.required'))
@@ -85,6 +91,9 @@ export function validateSchemaIssues(schema: unknown): SchemaValidationIssue[] {
     const page = schema.page
     if (!page.mode || typeof page.mode !== 'string') {
       issues.push(createIssue('page.mode', 'must be a string', 'schema.page.mode.required'))
+    }
+    else if (!PAGE_MODES.has(page.mode)) {
+      issues.push(createIssue('page.mode', 'must be a supported page mode', 'schema.page.mode.invalid'))
     }
     if (typeof page.width !== 'number' || page.width <= 0) {
       issues.push(createIssue('page.width', 'must be a positive number', 'schema.page.width.invalid'))
@@ -97,12 +106,25 @@ export function validateSchemaIssues(schema: unknown): SchemaValidationIssue[] {
   if (!isObject(schema.guides)) {
     issues.push(createIssue('guides', 'must be an object', 'schema.guides.required'))
   }
+  else {
+    const guides = schema.guides
+    if (!Array.isArray(guides.x)) {
+      issues.push(createIssue('guides.x', 'must be an array', 'schema.guides.x.required'))
+    }
+    if (!Array.isArray(guides.y)) {
+      issues.push(createIssue('guides.y', 'must be an array', 'schema.guides.y.required'))
+    }
+  }
 
   if (!Array.isArray(schema.elements)) {
     issues.push(createIssue('elements', 'must be an array', 'schema.elements.required'))
   }
 
   return issues
+}
+
+export function isValidSchema(schema: unknown): schema is DocumentSchema {
+  return validateSchemaIssues(schema).length === 0
 }
 
 /**

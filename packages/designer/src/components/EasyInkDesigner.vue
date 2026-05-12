@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { DocumentSchema } from '@easyink/schema'
+import type { DocumentSchema, DocumentSchemaInput } from '@easyink/schema'
 import type { Contribution } from '../contributions'
 import type { LocaleMessages, PreferenceProvider, StatusBarState, StoreSetup, TemplateAutoSaveOptions } from '../types'
 import { builtinDesignerMaterialBundle } from '@easyink/builtin'
@@ -17,7 +17,7 @@ import StatusBar from './StatusBar.vue'
 import TopBarB from './TopBarB.vue'
 
 const props = defineProps<{
-  schema: DocumentSchema
+  schema?: DocumentSchemaInput
   dataSources?: DataSourceDescriptor[]
   preferenceProvider?: PreferenceProvider
   autoSave?: TemplateAutoSaveOptions
@@ -32,6 +32,9 @@ const emit = defineEmits<{
 
 const designerRootRef = ref<HTMLElement | null>(null)
 const store = reactive(new DesignerStore(props.schema, props.preferenceProvider)) as DesignerStore
+if (store.schema !== props.schema) {
+  emit('update:schema', store.schema)
+}
 // EditingSessionManager was constructed before the reactive proxy existed;
 // re-target it at the proxy so mutations made through tx.run trigger Vue
 // reactivity (otherwise patches mutate the raw store and templates stay stale).

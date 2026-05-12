@@ -13,7 +13,7 @@ import { EasyInkDesigner, createLocalStoragePreferenceProvider } from '@easyink/
 import { zhCN } from '@easyink/designer/locale'
 import '@easyink/designer/index.css'
 
-const schema = ref({ /* DocumentSchema */ })
+const schema = ref({})
 const preferenceProvider = createLocalStoragePreferenceProvider()
 </script>
 
@@ -30,13 +30,15 @@ const preferenceProvider = createLocalStoragePreferenceProvider()
 
 | Prop | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `schema` | `DocumentSchema` | 是 | 文档模板，支持 `v-model:schema` 双向绑定 |
+| `schema` | `DocumentSchemaInput` | 否 | 文档模板输入，支持 `v-model:schema` 双向绑定；缺失字段会自动补默认值 |
 | `dataSources` | `DataSourceDescriptor[]` | 否 | 数据源描述符列表，定义可绑定的字段树 |
 | `locale` | `LocaleMessages` | 否 | 国际化消息，如 `zhCN` / `enUS` |
 | `preferenceProvider` | `PreferenceProvider` | 否 | 用户偏好持久化 provider |
 | `autoSave` | `TemplateAutoSaveOptions` | 否 | 自动保存配置 |
 | `contributions` | `Contribution[]` | 否 | 贡献扩展列表（如 AI 面板） |
 | `setupStore` | `(store: DesignerStore) => void` | 否 | Store 初始化回调，用于注册自定义物料 |
+
+`schema` 是宿主输入，不要求传完整对象。传 `undefined`、`{}` 或只传部分字段时，设计器会在进入 `DesignerStore` 前归一化为完整 `DocumentSchema`，例如自动补齐 `version`、`unit`、`page`、`guides` 和 `elements`。`update:schema`、自动保存和 store 内部读到的始终是完整 Schema。
 
 ## Slots
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDefaultSchema } from './defaults'
+import { createDefaultSchema, normalizeDocumentSchema } from './defaults'
 
 describe('createDefaultSchema', () => {
   it('returns a schema with the current version', () => {
@@ -30,6 +30,47 @@ describe('createDefaultSchema', () => {
 
   it('has empty elements array', () => {
     const schema = createDefaultSchema()
+    expect(schema.elements).toEqual([])
+  })
+})
+
+describe('normalizeDocumentSchema', () => {
+  it('returns a default schema for an empty input object', () => {
+    const schema = normalizeDocumentSchema({})
+
+    expect(schema).toMatchObject(createDefaultSchema())
+  })
+
+  it('preserves valid schema identity', () => {
+    const schema = createDefaultSchema()
+
+    expect(normalizeDocumentSchema(schema)).toBe(schema)
+  })
+
+  it('fills missing document, page, and guide fields without discarding valid input', () => {
+    const schema = normalizeDocumentSchema({
+      unit: 'px',
+      page: { width: 80 },
+      guides: { x: [10] },
+    })
+
+    expect(schema.unit).toBe('px')
+    expect(schema.page).toMatchObject({ mode: 'fixed', width: 80, height: 297 })
+    expect(schema.guides).toEqual({ x: [10], y: [] })
+    expect(schema.elements).toEqual([])
+  })
+
+  it('falls back required fields with invalid values', () => {
+    const schema = normalizeDocumentSchema({
+      unit: 'cm' as never,
+      page: { mode: 'book' as never, width: 0, height: -1 },
+      guides: { x: 'bad' as never, y: [20] },
+      elements: 'bad' as never,
+    })
+
+    expect(schema.unit).toBe('mm')
+    expect(schema.page).toMatchObject({ mode: 'fixed', width: 210, height: 297 })
+    expect(schema.guides).toEqual({ x: [], y: [20] })
     expect(schema.elements).toEqual([])
   })
 })

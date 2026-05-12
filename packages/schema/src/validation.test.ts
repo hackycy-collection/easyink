@@ -1,6 +1,6 @@
 import { SCHEMA_VERSION } from '@easyink/shared'
 import { describe, expect, it } from 'vitest'
-import { deserializeSchema, SchemaDeserializeError, validateSchema, validateSchemaIssues } from './validation'
+import { deserializeSchema, isValidSchema, SchemaDeserializeError, validateSchema, validateSchemaIssues } from './validation'
 
 describe('validateSchema', () => {
   const validSchema = {
@@ -64,6 +64,25 @@ describe('validateSchema', () => {
         }),
       ]),
     )
+  })
+
+  it('rejects incomplete guide axes', () => {
+    const issues = validateSchemaIssues({
+      ...validSchema,
+      guides: {},
+    })
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'guides.x' }),
+        expect.objectContaining({ path: 'guides.y' }),
+      ]),
+    )
+  })
+
+  it('exposes a schema type guard', () => {
+    expect(isValidSchema(validSchema)).toBe(true)
+    expect(isValidSchema({})).toBe(false)
   })
 
   it('deserializeSchema distinguishes invalid json', () => {

@@ -2,13 +2,29 @@
 
 Schema 是 EasyInk 的核心数据结构，描述文档的完整结构。它是设计器和预览器之间的唯一桥梁。
 
+对宿主应用而言，传入设计器的是 `DocumentSchemaInput`：所有顶层字段都可以省略，`page` 和 `guides` 的必填子字段也可以省略。框架会通过 `normalizeDocumentSchema()` 补齐默认值，进入 `DesignerStore`、Viewer、自动保存和导出链路后的内部模型始终是完整 `DocumentSchema`。
+
+```ts
+import { normalizeDocumentSchema } from '@easyink/schema'
+
+const schema = normalizeDocumentSchema({
+  page: { width: 80 },
+})
+
+// schema.page => { mode: 'fixed', width: 80, height: 297 }
+// schema.guides => { x: [], y: [] }
+// schema.elements => []
+```
+
+`validateSchemaIssues()` 仍用于判断一个对象是否已经是完整合法的内部 Schema；缺字段的输入不应直接交给画布或预览器消费，应先归一化。
+
 ## DocumentSchema
 
 ```ts
 interface DocumentSchema {
   version: string                    // Schema 版本号
   meta?: DocumentMeta                // 文档元信息
-  unit: UnitType                     // 全局单位：'mm' | 'cm' | 'in' | 'pt' | 'px'
+  unit: UnitType                     // 全局单位：'mm' | 'pt' | 'px' | 'inch'
   page: PageSchema                   // 页面配置
   guides: GuideSchema                // 辅助线
   elements: MaterialNode[]           // 元素列表
@@ -17,6 +33,21 @@ interface DocumentSchema {
   compat?: BenchmarkCompatState      // 兼容层数据
 }
 ```
+
+## DocumentSchemaInput
+
+`DocumentSchemaInput` 是给宿主传入设计器或调用归一化函数时使用的宽松输入类型：
+
+```ts
+type DocumentSchemaInput = Partial<Omit<DocumentSchema, 'page' | 'guides' | 'elements' | 'groups'>> & {
+  page?: Partial<PageSchema>
+  guides?: Partial<GuideSchema>
+  elements?: MaterialNode[]
+  groups?: ElementGroupSchema[]
+}
+```
+
+默认值来自 `createDefaultSchema()`：A4、`mm`、`fixed`、空辅助线、空元素列表。已有合法字段会保留，缺失或非法的必需字段会回退到默认值。
 
 ## DocumentMeta
 
