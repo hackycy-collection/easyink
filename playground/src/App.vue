@@ -296,7 +296,6 @@ const contributions = [createAIContribution()]
     v-if="showPreview && previewSchema"
     :schema="previewSchema"
     :data="previewData"
-    :data-sources="mergedDataSources"
     @close="showPreview = false"
   />
 

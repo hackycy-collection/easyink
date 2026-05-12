@@ -163,10 +163,10 @@ interface MaterialNode<TProps = Record<string, unknown>> {
 
 ```ts
 interface BindingRef {
-  sourceId: string           // 数据源 ID
-  sourceName?: string        // 数据源名称
-  sourceTag?: string         // 数据源标签
-  fieldPath: string          // 字段路径，如 'customer.name' 或 'items[].price'
+  sourceId: string           // 设计时数据源 ID，Viewer 不用它选择数据根
+  sourceName?: string        // 设计时数据源名称
+  sourceTag?: string         // 设计时数据源标签
+  fieldPath: string          // 运行时 data 根路径，如 'customer/name' 或 'items/price'
   fieldKey?: string          // 字段 key
   fieldLabel?: string        // 字段标签
   format?: BindingDisplayFormat  // 格式化规则

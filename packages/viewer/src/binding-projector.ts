@@ -1,8 +1,6 @@
-import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { MaterialNode } from '@easyink/schema'
 import type { ProjectedBinding } from './types'
-import { formatBindingDisplayValue, hasBindingFormat } from '@easyink/core'
-import { resolveBindingWithDiagnostics } from './data-source-resolver'
+import { formatBindingDisplayValue, hasBindingFormat, resolveBindingValue } from '@easyink/core'
 
 /**
  * Resolve all bindings for a material node against the provided data.
@@ -10,7 +8,6 @@ import { resolveBindingWithDiagnostics } from './data-source-resolver'
 export function projectBindings(
   node: MaterialNode,
   data: Record<string, unknown>,
-  dataSources: DataSourceDescriptor[] = [],
 ): ProjectedBinding[] {
   if (!node.binding)
     return []
@@ -19,22 +16,14 @@ export function projectBindings(
   const results: ProjectedBinding[] = []
 
   for (const ref of refs) {
-    const resolved = resolveBindingWithDiagnostics({ binding: ref, data, dataSources })
+    const value = resolveBindingValue(ref, data)
     const formatted = hasBindingFormat(ref.format)
-      ? formatBindingDisplayValue(resolved.value, ref)
-      : { value: resolved.value, diagnostics: [] }
+      ? formatBindingDisplayValue(value, ref)
+      : { value, diagnostics: [] }
     results.push({
       bindIndex: ref.bindIndex ?? 0,
       value: formatted.value,
-      diagnostics: [
-        ...resolved.diagnostics.map(diagnostic => ({
-          code: diagnostic.code,
-          message: diagnostic.message,
-          severity: 'warning' as const,
-          cause: diagnostic.cause,
-        })),
-        ...formatted.diagnostics,
-      ],
+      diagnostics: formatted.diagnostics,
     })
   }
 

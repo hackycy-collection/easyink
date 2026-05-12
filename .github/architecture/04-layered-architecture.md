@@ -136,7 +136,6 @@ const viewer = createViewer({ mode: 'fixed' })
 await viewer.open({
   schema,
   data,
-  dataSources,
 })
 
 await viewer.print()
@@ -146,6 +145,7 @@ await viewer.exportDocument()
 API 设计要点：
 
 - `viewer` 是独立消费面
+- `viewer` 只消费 `schema + data`，不接收 `dataSources`
 - `designer` 不内置 `viewer`，由宿主决定何时引入预览、打印和导出能力
 - `designer` / `viewer` / `mcp-server` 默认共享同一份 builtin 物料装配
 - 数据源协议由 `datasource` 层统一，不再只通过 Designer 私有 props 传递

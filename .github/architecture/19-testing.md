@@ -8,7 +8,8 @@
 |------|----------|
 | SchemaStore | DocumentSchema CRUD、校验、遍历、序列化 |
 | PagePlanner / LayoutEngine | 页面计划、区域划分、表格分页、overflow 诊断 |
-| DataSourceResolver | 路径解析、usage 解释、数据源容错策略 |
+| BindingResolver | `fieldPath` 根路径解析、`bindIndex`、格式化诊断 |
+| DataSourceRegistry | Designer 字段树注册、usage 解释、命名空间隔离 |
 | CommandManager | 撤销/重做、命令合并、事务 |
 | UnitManager | 单位转换精度 |
 | MigrationRegistry | 版本迁移链路 |
@@ -18,7 +19,7 @@
 覆盖关键用户路径：
 
 ```
-1. 加载模板 → 传入数据源/调试数据 → 打开 Viewer → 验证页面预览输出
+1. 加载模板 → Designer 传入数据源 → Viewer 传入调试数据 → 验证页面预览输出
 2. 设计器打开 → 添加元素 → 设置属性 → 导出 Schema
 3. 设计器打开 → 绑定字段 → 删除绑定 → 验证静态值恢复显示
 4. 设计器打开 → `table-data` 绑定集合字段 → 验证主数据源和相对字段约束

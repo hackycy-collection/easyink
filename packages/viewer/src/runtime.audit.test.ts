@@ -140,37 +140,27 @@ describe('viewer audit risk regressions', () => {
     expect(host.document.querySelector('[data-element-id="hosted"]')).not.toBeNull()
   })
 
-  it('resolves bindings from multiple dataSources by sourceId and sourceTag', async () => {
+  it('resolves bindings from runtime data without data source descriptors', async () => {
     const container = document.createElement('div')
-    const { diagnostics, onDiagnostic } = collectDiagnostics()
     const viewer = createViewer({ container })
     const schema = fixedSchema([
-      textNode('customer', { sourceId: 'customer', fieldPath: 'name' }),
-      textNode('total', { sourceId: 'order', sourceTag: 'order-tag', fieldPath: 'total' }),
-      textNode('missing', { sourceId: 'customer', fieldPath: 'missing/path' }),
-      textNode('unknown-source', { sourceId: 'product', fieldPath: 'sku' }),
+      textNode('customer', { sourceId: 'customer', fieldPath: 'customer/name' }),
+      textNode('total', { sourceId: 'order', sourceTag: 'order-tag', fieldPath: 'order/total' }),
     ])
 
     await viewer.open({
       schema,
-      dataSources: [
-        { id: 'customer', name: 'Customer', fields: [] },
-        { id: 'order', name: 'Order', tag: 'order-tag', fields: [] },
-      ],
       data: {
-        'customer': { name: 'Ada' },
-        'order-tag': { total: 42 },
+        customer: { name: 'Ada' },
+        order: { total: 42 },
       },
-      onDiagnostic,
     })
 
     expect(container.textContent).toContain('Ada')
     expect(container.textContent).toContain('42')
-    expect(diagnostics.some(d => d.code === 'BINDING_PATH_NOT_FOUND')).toBe(true)
-    expect(diagnostics.some(d => d.code === 'BINDING_SOURCE_MISSING')).toBe(true)
   })
 
-  it('keeps root-shaped payloads when a data source id collides with a field name', async () => {
+  it('keeps root-shaped payloads when sourceId collides with a field name', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     registerTableMaterial(viewer)
@@ -181,18 +171,6 @@ describe('viewer audit risk regressions', () => {
         textNode('number', { sourceId: 'invoice', fieldPath: 'invoice/number' }),
         tableNode(),
       ]),
-      dataSources: [
-        {
-          id: 'invoice',
-          name: 'Invoice',
-          fields: [
-            { name: 'companyName', path: 'company/name' },
-            { name: 'invoiceNumber', path: 'invoice/number' },
-            { name: 'itemName', path: 'items/name' },
-          ],
-        },
-        { id: 'product', name: 'Product', fields: [{ name: 'sku', path: 'sku' }] },
-      ],
       data: {
         company: { name: 'Root Company' },
         invoice: { number: 'INV-1' },
@@ -205,7 +183,7 @@ describe('viewer audit risk regressions', () => {
     expect(container.textContent).toContain('Root Item')
   })
 
-  it('matches unwrapped root payloads by descriptor fields when multiple data sources are available', async () => {
+  it('renders unwrapped root payloads without descriptor field matching', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     registerTableMaterial(viewer)
@@ -215,17 +193,6 @@ describe('viewer audit risk regressions', () => {
         textNode('store', { sourceId: 'supermarket', fieldPath: 'store/name' }),
         tableNode('supermarket'),
       ]),
-      dataSources: [
-        {
-          id: 'supermarket',
-          name: 'Supermarket',
-          fields: [
-            { name: 'storeName', path: 'store/name' },
-            { name: 'itemName', path: 'items/name' },
-          ],
-        },
-        { id: 'product', name: 'Product', fields: [{ name: 'sku', path: 'sku' }] },
-      ],
       data: {
         store: { name: 'Root Store' },
         items: [{ name: 'Milk' }],
@@ -236,25 +203,24 @@ describe('viewer audit risk regressions', () => {
     expect(container.textContent).toContain('Milk')
   })
 
-  it('keeps table-data source resolution inside the selected data source', async () => {
+  it('resolves table-data collections from the runtime data root', async () => {
     const container = document.createElement('div')
     const viewer = createViewer({ container })
     registerTableMaterial(viewer)
 
     await viewer.open({
       schema: fixedSchema([tableNode()]),
-      dataSources: [{ id: 'invoice', name: 'Invoice', fields: [] }],
       data: {
         invoice: {
-          items: [{ name: 'Paper' }, { name: 'Ink' }],
+          items: [{ name: 'Wrong Nested' }],
         },
-        items: [{ name: 'Wrong Root' }],
+        items: [{ name: 'Paper' }, { name: 'Ink' }],
       },
     })
 
     expect(container.textContent).toContain('Paper')
     expect(container.textContent).toContain('Ink')
-    expect(container.textContent).not.toContain('Wrong Root')
+    expect(container.textContent).not.toContain('Wrong Nested')
   })
 
   it('preserves raw binding value types before material render boundaries', () => {
@@ -274,11 +240,9 @@ describe('viewer audit risk regressions', () => {
     }
 
     const projected = projectBindings(node, {
-      product: {
-        value: 123456,
-        format: 'CODE128',
-        params: { width: 2 },
-      },
+      value: 123456,
+      format: 'CODE128',
+      params: { width: 2 },
     })
     const props = applyBindingsToProps(node.props, projected, node.type)
 

@@ -113,9 +113,9 @@ interface SaveBranchMenuState {
 const viewer = createViewer({ mode: 'fixed' })
 const exportRuntime = createExportRuntime()
 
-await viewer.open({ schema, data, dataSources })
+await viewer.open({ schema, data })
 await viewer.print()
-await exportRuntime.exportDocument({ schema, data, dataSources, entry: 'preview' })
+await exportRuntime.exportDocument({ schema, data, entry: 'preview' })
 
 // 宿主仍可按自己的部署环境补充：
 // 1. 浏览器打印桥接

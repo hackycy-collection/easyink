@@ -1,10 +1,8 @@
 import type { BindingFormatDiagnostic, FontProvider, MaterialViewerExtension, ViewerMeasureContext, ViewerMeasureResult, ViewerRenderContext, ViewerRenderOutput, ViewerRenderSize } from '@easyink/core'
-import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema } from '@easyink/schema'
 import type { DiagnosticCategory, DiagnosticSeverity, ExportEntry, ExportFormat, ExportPhase } from '@easyink/shared'
 import type { ViewerHost } from './viewer-host'
 
-export * from '@easyink/datasource'
 export * from '@easyink/schema'
 
 // Re-export viewer-material contract types from core so host code can import from one place.
@@ -25,7 +23,6 @@ export interface ViewerOptions {
 export interface ViewerOpenInput {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
 
@@ -90,7 +87,6 @@ export interface ViewerExporter {
 export interface ViewerExportContext {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
   renderedPages?: ViewerPageMetrics[]
   container?: HTMLElement

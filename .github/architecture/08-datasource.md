@@ -327,7 +327,9 @@ const bwipFields: DataFieldNode[] = [
 
 - Designer 通过字段树帮助绑定
 - 模板通过绑定引用保持可回放性
-- Viewer 通过绝对路径直接从 data 解析值，不依赖数据源系统
+- Viewer 通过 `fieldPath` 直接从运行时 `data` 根对象解析值，不依赖数据源系统
+- `sourceId / sourceName / sourceTag` 是设计时重匹配、诊断和模板可读性元数据，不是 Viewer 的运行时数据选择器
+- Viewer 不接受 `dataSources`，不根据数据源描述符评分、匹配、分包或重构 `data`
 
 ## 8.11 绑定解析函数
 
@@ -349,6 +351,8 @@ function resolveNodeBindings(
 
 Viewer 不做异步数据加载，宿主负责在调用 `viewer.open({ schema, data })` 前准备好数据。
 
+如果宿主确实有多个业务接口，宿主必须在调用 Viewer 前自行合并为模板 `fieldPath` 可直接命中的数据结构，或先转换 Schema 绑定路径。Viewer 不猜测哪个接口对应哪个 `sourceId`。
+
 ## 8.12 路径与格式规则
 
 ### 路径规则
@@ -357,7 +361,7 @@ Viewer 不做异步数据加载，宿主负责在调用 `viewer.open({ schema, d
 - 导入层兼容 `.` 路径和仅 `key` 的老格式
 - 对数组字段，集合节点路径指向集合本身，子字段路径指向集合内的叶子字段
 - 容器、对象、数组都可以通过嵌套路径表达
-- **所有 fieldPath 均为绝对路径**，从数据源根开始。repeat-template 行内 cell 的 fieldPath 也是绝对路径（如 `items/name`），不再存在相对路径语义
+- **所有 fieldPath 均为绝对路径**，从 Viewer 收到的运行时 `data` 根对象开始。repeat-template 行内 cell 的 fieldPath 也是绝对路径（如 `items/name`），不再存在相对路径语义
 - 集合前缀在运行时由 `extractCollectionPath()` 从同行 cell 的 fieldPath 中提取公共部分，再通过 `Array.isArray` 确认
 
 ### `resolveBindingValue` 接口
@@ -372,6 +376,7 @@ function resolveBindingValue(
 ```
 
 - `fieldPath` 始终从 `data` 根开始遍历（绝对路径语义）
+- `sourceId` 与 `sourceTag` 不参与运行时查找
 - repeat-template 行的叶子字段值通过专用函数 `resolveFieldFromRecord(leafField, record)` 从集合项中解析，leafField 为 fieldPath 去掉集合前缀后的剩余部分
 
 ### 集合路径推导工具函数

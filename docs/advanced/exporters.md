@@ -36,7 +36,6 @@ interface ViewerExporter {
 interface ViewerExportContext {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
   renderedPages?: ViewerPageMetrics[]
   container?: HTMLElement

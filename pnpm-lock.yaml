@@ -736,9 +736,6 @@ importers:
       '@easyink/core':
         specifier: workspace:*
         version: link:../core
-      '@easyink/datasource':
-        specifier: workspace:*
-        version: link:../datasource
       '@easyink/material-line':
         specifier: workspace:*
         version: link:../materials/line

@@ -19,7 +19,6 @@ const viewer = createViewer({ host })
 await viewer.open({
   schema: documentSchema,
   data: { title: 'Hello', items: [...] },
-  dataSources: [{ id: 'ds1', fields: [...] }],
 })
 
 // 4. 使用完毕后销毁
@@ -90,7 +89,6 @@ const viewer = createViewer({ host })
 await viewer.open({
   schema: documentSchema,           // DocumentSchema
   data: { title: 'Hello' },        // 运行时数据
-  dataSources: [...],               // 数据源描述符
   onDiagnostic: (event) => {       // 诊断事件回调
     console.warn(`[${event.severity}] ${event.code}: ${event.message}`)
   },
@@ -200,9 +198,27 @@ viewer.registerPrintDriver({
 })
 ```
 
+## 数据输入契约
+
+Viewer 只接收 `schema + data`，不接收 Designer 的 `dataSources`。宿主需要在调用 `viewer.open()` 前完成数据加载、权限过滤、接口聚合和字段结构整理。
+
+绑定解析只按 `BindingRef.fieldPath` 从传入的 `data` 根对象取值；`sourceId`、`sourceName`、`sourceTag` 是模板里的设计时引用元数据，不参与 Viewer 的数据匹配、评分或分包。
+
+```ts
+await viewer.open({
+  schema,
+  data: {
+    customer: { name: 'Ada' },
+    items: [{ name: 'Paper', qty: 2 }],
+  },
+})
+```
+
+如果业务确实存在多来源数据，宿主应先把它们组合成模板 `fieldPath` 能直接命中的结构，或在打开 Viewer 前转换 Schema 中的绑定路径。Viewer 不根据数据源描述符猜测来源。
+
 ## 数据绑定
 
-Viewer 在渲染时自动解析 Schema 中的数据绑定。绑定通过 `BindingRef` 引用数据源中的字段路径。
+Viewer 在渲染时自动解析 Schema 中的数据绑定。绑定通过 `BindingRef.fieldPath` 引用运行时数据中的字段路径。
 
 ```ts
 // Schema 中的元素绑定示例
@@ -211,12 +227,12 @@ Viewer 在渲染时自动解析 Schema 中的数据绑定。绑定通过 `Bindin
   props: { content: '默认文本' },
   binding: {
     sourceId: 'order',
-    path: 'customerName',
+    fieldPath: 'customer/name',
   },
 }
 ```
 
-渲染时，Viewer 会将 `data.customerName` 的值替换到元素的 `content` 属性上。
+渲染时，Viewer 会将 `data.customer.name` 的值替换到元素的 `content` 属性上。
 
 ## 诊断系统
 

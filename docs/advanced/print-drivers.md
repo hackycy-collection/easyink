@@ -27,7 +27,6 @@ interface ViewerPrintContext extends ViewerExportContext {
 interface ViewerExportContext {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   entry: ExportEntry
   onPhase?: (event: ViewerTaskPhaseEvent) => void
   onProgress?: (event: ViewerTaskProgressEvent) => void

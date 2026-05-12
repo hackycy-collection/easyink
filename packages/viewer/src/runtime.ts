@@ -20,7 +20,6 @@ import { createInternalHooks, createPagePlan, FontManager } from '@easyink/core'
 import { traverseNodes, validateSchema } from '@easyink/schema'
 import { UNIT_FACTOR } from '@easyink/shared'
 import { applyBindingsToProps, projectBindings } from './binding-projector'
-import { resolveViewerDataContext } from './data-source-resolver'
 import { collectFontFamilies, loadAndInjectFonts } from './font-loader'
 import { MaterialRendererRegistry } from './material-registry'
 import { PrintPolicyError, resolvePrintPolicy } from './print-policy'
@@ -34,7 +33,6 @@ export class ViewerRuntime {
   private _options: ViewerOptions
   private _schema?: DocumentSchema
   private _data: Record<string, unknown> = {}
-  private _dataSources: ViewerOpenInput['dataSources'] = []
   private _diagnosticHandler?: (event: ViewerDiagnosticEvent) => void
   private _exporters: ViewerExporter[] = []
   private _printDrivers: PrintDriver[] = []
@@ -87,11 +85,7 @@ export class ViewerRuntime {
     const normalizedSchema = this.callSchemaNormalizeHook(input.schema)
     this._schema = normalizedSchema
 
-    const dataResolution = resolveViewerDataContext({ data: input.data, dataSources: input.dataSources })
-    this._data = dataResolution.data
-    this._dataSources = input.dataSources ?? []
-    for (const diagnostic of dataResolution.diagnostics)
-      this.emitDiagnostic(diagnostic)
+    this._data = input.data ?? {}
 
     // 3. Render (font loading + binding + page plan + DOM)
     if (this._host) {
@@ -101,10 +95,7 @@ export class ViewerRuntime {
 
   async updateData(data: Record<string, unknown>): Promise<void> {
     this.ensureNotDestroyed()
-    const dataResolution = resolveViewerDataContext({ data, dataSources: this._dataSources })
-    this._data = dataResolution.data
-    for (const diagnostic of dataResolution.diagnostics)
-      this.emitDiagnostic(diagnostic)
+    this._data = data
     if (this._host && this._schema) {
       await this.render()
     }
@@ -236,7 +227,6 @@ export class ViewerRuntime {
         await driver.print({
           schema: this._schema,
           data: this._data,
-          dataSources: this._dataSources,
           entry: 'preview',
           printPolicy,
           renderedPages: this.renderedPages,
@@ -349,7 +339,6 @@ export class ViewerRuntime {
     const context = {
       schema: this._schema,
       data: this._data,
-      dataSources: this._dataSources,
       entry: options.entry ?? 'api' as const,
       renderedPages: this.renderedPages,
       container: this._host?.mount,
@@ -596,7 +585,7 @@ export class ViewerRuntime {
       }
 
       try {
-        const projected = projectBindings(node, this._data, this._dataSources)
+        const projected = projectBindings(node, this._data)
         for (const binding of projected) {
           for (const diagnostic of binding.diagnostics ?? []) {
             diagnostics.push({

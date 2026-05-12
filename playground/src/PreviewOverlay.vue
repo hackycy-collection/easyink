@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ExportFormatPlugin, ExportProgress } from '@easyink/export-runtime'
-import type { DataSourceDescriptor, DocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
+import type { DocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetrics, ViewerRuntime } from '@easyink/viewer'
 import { createDomPdfExportPlugin } from '@easyink/export-plugin-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
@@ -27,7 +27,6 @@ import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMill
 const props = defineProps<{
   schema: DocumentSchema
   data: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
 }>()
 
 const emit = defineEmits<{
@@ -79,7 +78,6 @@ onMounted(async () => {
   await viewer.open({
     schema: props.schema,
     data: props.data,
-    dataSources: props.dataSources,
   })
 
   updatePageCount()

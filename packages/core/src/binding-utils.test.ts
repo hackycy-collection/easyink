@@ -14,6 +14,18 @@ describe('resolveBindingValue', () => {
     expect(resolveBindingValue(binding, data)).toBe('Jane')
   })
 
+  it('does not treat sourceId as a runtime data namespace', () => {
+    const binding = { sourceId: 'invoice', fieldPath: 'invoice/number' }
+    const data = { invoice: { number: 'INV-1' } }
+    expect(resolveBindingValue(binding, data)).toBe('INV-1')
+  })
+
+  it('prefers the data root when sourceId collides with a field name', () => {
+    const binding = { sourceId: 's1', fieldPath: 'name' }
+    const data = { s1: { name: 'Nested' }, name: 'Root' }
+    expect(resolveBindingValue(binding, data)).toBe('Root')
+  })
+
   it('returns undefined for missing path', () => {
     const binding = { sourceId: 's1', fieldPath: 'missing/path' }
     const data = { name: 'John' }

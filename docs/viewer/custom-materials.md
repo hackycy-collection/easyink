@@ -75,7 +75,6 @@ measure(node, context) {
 ```ts
 interface ViewerRenderContext {
   data?: Record<string, unknown>      // 运行时数据
-  dataSources?: DataSourceDescriptor[] // 数据源
   pageNumber?: number                  // 当前页码
   totalPages?: number                  // 总页数
 }

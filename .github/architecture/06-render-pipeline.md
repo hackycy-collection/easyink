@@ -11,10 +11,7 @@ Schema
 SchemaNormalizer / Migrator
   │
   ▼
-DataSourceResolver
-  │
-  ▼
-UsageFormatter / AggregateResolver
+BindingProjector / FormatResolver
   │
   ▼
 PagePlanner
@@ -30,7 +27,8 @@ MaterialRendererRegistry
 关键点：
 
 - 预览是 Viewer 独立流程，不在设计器画布中完成
-- 数据加载、字体加载、分页、缩略图生成都属于 Viewer
+- 字体加载、绑定投影、分页、缩略图生成都属于 Viewer
+- 数据加载和多接口聚合不属于 Viewer，宿主必须在 `open()` 前准备好运行时 `data`
 - 设计器只负责嵌入和调度 Viewer
 
 ## 6.2 运行时阶段补充
@@ -39,13 +37,12 @@ MaterialRendererRegistry
 
 1. `SchemaCodec`：把外部输入转为 EasyInk 规范模型。
 2. `FontRegistryLoader`：加载字体描述与字体资源。
-3. `DataSourceResolver`：根据 `sourceId / sourceTag` 拉取数据。
-4. `BindingProjector`：处理 `usage / union / bindIndex`。对 table-data 节点执行单元格级预解析（见 6.6.1）。
-5. `MeasureAndFlowResolver`：先测量 table-data 等动态物料的运行态尺寸，再在 `stack` 模式下执行流式回流，把后续 flow 元素按文档顺序重新定位。
-6. `PagePlanner`：基于回流后的几何结果生成固定分页、连续页或标签页计划。对 table-data 元素与 ViewerExtension 协作完成行展开和分页（见 [7.3](./07-layout-engine.md)）。
-7. `RenderSurface`：输出页面 DOM/SVG 和缩略图，并把最终 `ViewerPageMetrics` 缓存在 ViewerRuntime 内。`RenderSurface` 只负责页面容器、定位和通用诊断，不允许按 `materialType` 写分支。若某类物料的运行态渲染尺寸不等于 schema 几何尺寸，必须由 `MaterialViewerExtension.getRenderSize()` 通过注册表回传，`RenderSurface` 只消费 registry 返回值。
-8. `PrintPolicyResolver`：基于 `page.mode / pageSizeMode / renderedPages` 解析打印策略。`stack + driver` 不强制纸张尺寸，交给打印机驱动；`stack + fixed` 必须使用 render 阶段缓存的最终页面尺寸，缺失时发出 `PRINT_RENDER_METRICS_MISSING` 并拒绝打印。
-9. `ExportPluginLoader`：按需装载导出依赖和插件。
+3. `BindingProjector`：按 `BindingRef.fieldPath` 从传入的 `data` 根对象解析值，并处理 `bindIndex` 与显示格式。对 table-data 节点执行单元格级解析（见 6.6.1）。
+4. `MeasureAndFlowResolver`：先测量 table-data 等动态物料的运行态尺寸，再在 `stack` 模式下执行流式回流，把后续 flow 元素按文档顺序重新定位。
+5. `PagePlanner`：基于回流后的几何结果生成固定分页、连续页或标签页计划。对 table-data 元素与 ViewerExtension 协作完成行展开和分页（见 [7.3](./07-layout-engine.md)）。
+6. `RenderSurface`：输出页面 DOM/SVG 和缩略图，并把最终 `ViewerPageMetrics` 缓存在 ViewerRuntime 内。`RenderSurface` 只负责页面容器、定位和通用诊断，不允许按 `materialType` 写分支。若某类物料的运行态渲染尺寸不等于 schema 几何尺寸，必须由 `MaterialViewerExtension.getRenderSize()` 通过注册表回传，`RenderSurface` 只消费 registry 返回值。
+7. `PrintPolicyResolver`：基于 `page.mode / pageSizeMode / renderedPages` 解析打印策略。`stack + driver` 不强制纸张尺寸，交给打印机驱动；`stack + fixed` 必须使用 render 阶段缓存的最终页面尺寸，缺失时发出 `PRINT_RENDER_METRICS_MISSING` 并拒绝打印。
+8. `ExportPluginLoader`：按需装载导出依赖和插件。
 
 ## 6.3 Viewer 接口
 
@@ -63,7 +60,6 @@ interface ViewerRuntime {
 interface ViewerOpenInput {
   schema: DocumentSchema
   data?: Record<string, unknown>
-  dataSources?: DataSourceDescriptor[]
   onDiagnostic?: (event: ViewerDiagnosticEvent) => void
 }
 
@@ -90,8 +86,8 @@ EasyInk 存在两套独立的物料渲染能力，不共享实现代码：
 
 设计器预览时：
 
-1. Designer 把当前 Schema 和调试数据传给 iframe Viewer。
-2. Viewer 重新做数据解析、分页和渲染。
+1. Designer 把当前 Schema 和调试数据传给 iframe Viewer，不传 `dataSources`。
+2. Viewer 重新做绑定解析、分页和渲染。
 3. Designer 只接收预览结果事件，不直接操纵 Viewer 内部 DOM。
 
 这保证：
@@ -103,11 +99,9 @@ EasyInk 存在两套独立的物料渲染能力，不共享实现代码：
 
 Viewer 在渲染前执行：
 
-- 数据源适配器调用
-- 字段路径解析
+- `BindingRef.fieldPath` 路径解析
 - `BindingRef.format` 显示格式解释
 - 聚合规则求值
-- union 批量投放结果合并
 
 显示格式规则由 Viewer 在绑定解析边界统一执行：
 
