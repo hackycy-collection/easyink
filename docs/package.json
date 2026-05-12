@@ -1,0 +1,11 @@
+{
+  "name": "@easyink/docs",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "devDependencies": {
+    "vue": "catalog:framework"
+  }
+}

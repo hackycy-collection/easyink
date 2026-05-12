@@ -14,12 +14,14 @@ const dataSources: DataSourceDescriptor[] = [{
   name: '订单数据',
   fields: [
     { path: 'orderNo', title: '订单号' },
-    { path: 'customer.name', title: '客户名称' },
-    { path: 'customer.phone', title: '联系电话' },
-    { path: 'items', title: '商品列表', fields: [
-      { path: 'items[].name', title: '商品名称' },
-      { path: 'items[].qty', title: '数量' },
-      { path: 'items[].price', title: '单价' },
+    { path: 'customer', title: '客户', fields: [
+      { path: 'customer/name', title: '客户名称' },
+      { path: 'customer/phone', title: '联系电话' },
+    ]},
+    { path: 'items', title: '商品列表', tag: 'collection', fields: [
+      { path: 'items/name', title: '商品名称' },
+      { path: 'items/qty', title: '数量' },
+      { path: 'items/price', title: '单价' },
     ]},
     { path: 'qrcode', title: '二维码' },
   ],
@@ -31,7 +33,7 @@ const dataSources: DataSourceDescriptor[] = [{
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | `name` | `string` | 字段内部名称 |
-| `path` | `string` | 数据路径，如 `customer.name` 或 `items[].name` |
+| `path` | `string` | 数据路径，以 `/` 分隔，如 `customer/name` 或 `items/price` |
 | `title` | `string` | 显示名称（在数据源面板中展示） |
 | `fields` | `DataFieldNode[]` | 子字段（用于嵌套对象或数组） |
 | `use` | `MaterialUseToken` | 推荐使用的物料类型 |
@@ -69,21 +71,10 @@ Viewer 渲染时，`projectBindings()` 函数解析每个元素的绑定：
 
 Designer 的 `dataSources` 只负责字段树、拖拽绑定和字段推荐；预览或打印时不要把 `dataSources` 传给 Viewer。
 
-## 从 JSON 自动生成数据源
+## JSON 自动生成数据源
 
-如果你的数据是 JSON 对象，可以递归转换为 `DataSourceDescriptor`：
+如果你的数据是 JSON 对象，可以直接粘贴到下方，自动生成 `DataSourceDescriptor`：
 
-```ts
-function jsonToDataSource(data: Record<string, unknown>, id = 'data'): DataSourceDescriptor {
-  const fields = Object.entries(data).map(([key, value]) => ({
-    path: key,
-    title: key,
-    ...(typeof value === 'object' && value !== null
-      ? { fields: /* 递归处理 */ }
-      : {}),
-  }))
-  return { id, name: id, fields }
-}
-```
+<JsonToDatasource />
 
-Playground 中的 `playground/src/utils/json-to-datasource.ts` 提供了完整的实现，自动推断 `image` 和 `text` 类型。
+生成逻辑：递归遍历 JSON 对象，数组取首个元素推断子字段，字符串值自动推断 `use`（URL 类推断为 `image`，其余为 `text`）。完整实现见 `playground/src/utils/json-to-datasource.ts`。
