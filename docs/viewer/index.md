@@ -1,5 +1,7 @@
 # Viewer
 
+[![npm](https://img.shields.io/npm/v/@easyink/viewer?style=flat&colorA=080f12&colorB=1fa669)](https://npmjs.com/package/@easyink/viewer)
+
 `@easyink/viewer` 是一个独立的文档预览引擎。接收 Schema + 数据，产出渲染后的页面 DOM、缩略图、打印和导出能力。可独立于 Designer 使用。
 
 ## 基本用法

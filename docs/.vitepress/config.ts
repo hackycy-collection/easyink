@@ -34,6 +34,7 @@ export default defineConfig({
           items: [
             { text: '快速上手', link: '/guide/getting-started' },
             { text: '核心概念', link: '/guide/concepts' },
+            { text: '包概览', link: '/guide/packages' },
           ],
         },
       ],

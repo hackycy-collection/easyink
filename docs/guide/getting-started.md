@@ -9,6 +9,8 @@
 
 ## 安装
 
+大多数场景只需安装面向应用的两个包（完整包列表见 [包概览](/guide/packages)）：
+
 ```bash
 # 设计器（包含完整的编辑工作台）
 pnpm add @easyink/designer
