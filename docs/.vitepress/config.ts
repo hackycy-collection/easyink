@@ -21,7 +21,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/getting-started' },
       { text: 'Designer', link: '/designer/' },
       { text: 'Viewer', link: '/viewer/' },
-      { text: '.NET', link: '/dotnet/' },
+      { text: '静默打印', link: '/printing/' },
       { text: '进阶', link: '/advanced/print-drivers' },
       { text: 'API', link: '/api/' },
       { text: '在线演示', link: 'https://hackycy.github.io/easyink' },
@@ -63,9 +63,72 @@ export default defineConfig({
           ],
         },
       ],
+      '/printing/': [
+        {
+          text: '静默打印',
+          items: [
+            { text: '概述', link: '/printing/' },
+          ],
+        },
+        {
+          text: 'Electron HiPrint',
+          items: [
+            { text: '概述', link: '/hiprint/' },
+            { text: '快速上手', link: '/hiprint/getting-started' },
+          ],
+        },
+        {
+          text: 'EasyInk Printer (.NET)',
+          items: [
+            { text: '概述', link: '/dotnet/' },
+            { text: '快速上手', link: '/dotnet/getting-started' },
+            { text: 'Engine DLL', link: '/dotnet/engine' },
+            { text: 'Printer 应用', link: '/dotnet/printer' },
+            { text: 'API 参考', link: '/dotnet/api-reference' },
+          ],
+        },
+      ],
+      '/hiprint/': [
+        {
+          text: '静默打印',
+          items: [
+            { text: '概述', link: '/printing/' },
+          ],
+        },
+        {
+          text: 'Electron HiPrint',
+          items: [
+            { text: '概述', link: '/hiprint/' },
+            { text: '快速上手', link: '/hiprint/getting-started' },
+          ],
+        },
+        {
+          text: 'EasyInk Printer (.NET)',
+          items: [
+            { text: '概述', link: '/dotnet/' },
+            { text: '快速上手', link: '/dotnet/getting-started' },
+            { text: 'Engine DLL', link: '/dotnet/engine' },
+            { text: 'Printer 应用', link: '/dotnet/printer' },
+            { text: 'API 参考', link: '/dotnet/api-reference' },
+          ],
+        },
+      ],
       '/dotnet/': [
         {
-          text: '.NET 打印服务',
+          text: '静默打印',
+          items: [
+            { text: '概述', link: '/printing/' },
+          ],
+        },
+        {
+          text: 'Electron HiPrint',
+          items: [
+            { text: '概述', link: '/hiprint/' },
+            { text: '快速上手', link: '/hiprint/getting-started' },
+          ],
+        },
+        {
+          text: 'EasyInk Printer (.NET)',
           items: [
             { text: '概述', link: '/dotnet/' },
             { text: '快速上手', link: '/dotnet/getting-started' },
