@@ -10,13 +10,6 @@
       "@easyink/mcp-server"
     ]
   ],
-  "linked": [
-    [
-      "@easyink/ai",
-      "@easyink/icons",
-      "@easyink/ui"
-    ]
-  ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
