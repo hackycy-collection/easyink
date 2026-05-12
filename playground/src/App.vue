@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DataSourceDescriptor, DocumentSchema } from '@easyink/designer'
+import type { DataSourceDescriptor, NormalizedDocumentSchema } from '@easyink/designer'
 import type { SampleTemplateEntry } from '@easyink/samples'
 import type { StoredTemplate } from './storage/template-store'
 import { createAIContribution } from '@easyink/ai'
@@ -16,7 +16,7 @@ import PreviewOverlay from './PreviewOverlay.vue'
 import { getLastTemplateId, getTemplate, listTemplates, saveTemplate, setLastTemplateId } from './storage/template-store'
 import { jsonToDataSource } from './utils/json-to-datasource'
 
-const schema = ref<DocumentSchema>(blankA4Template)
+const schema = ref<NormalizedDocumentSchema>(blankA4Template)
 const preferenceProvider = createLocalStoragePreferenceProvider()
 
 // Workspace state
@@ -26,7 +26,7 @@ const previewingSample = ref<SampleTemplateEntry>()
 
 const showTemplateGallery = ref(false)
 const showPreview = ref(false)
-const previewSchema = ref<DocumentSchema>()
+const previewSchema = ref<NormalizedDocumentSchema>()
 const showDataEditor = ref(false)
 
 const customData = ref<Record<string, unknown>>({})
@@ -61,7 +61,7 @@ function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function saveCurrentTemplate(schemaSnapshot: DocumentSchema): Promise<void> {
+async function saveCurrentTemplate(schemaSnapshot: NormalizedDocumentSchema): Promise<void> {
   const template = currentTemplate.value
   if (!template)
     return

@@ -1,4 +1,5 @@
-import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { BindingRef, DocumentSchema, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
+import { normalizeDocumentSchema } from '@easyink/schema'
 import { BLOCKED_PATH_KEYS, deepClone, FIELD_PATH_SEPARATOR, generateId } from '@easyink/shared'
 
 /**
@@ -85,7 +86,7 @@ export class SchemaValidator {
 
     // Step 2: Semantic validation (only if structure is valid)
     if (structResult.valid) {
-      const schemaObj = schema as DocumentSchema
+      const schemaObj = normalizeDocumentSchema(schema as DocumentSchema)
       const semanticResult = this.validateSemantics(schemaObj)
       errors.push(...semanticResult.errors)
       warnings.push(...semanticResult.warnings)
@@ -198,7 +199,7 @@ export class SchemaValidator {
   /**
    * Validate schema semantics.
    */
-  validateSemantics(schema: DocumentSchema): ValidationResult {
+  validateSemantics(schema: NormalizedDocumentSchema): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -254,7 +255,7 @@ export class SchemaValidator {
   /**
    * Validate binding references.
    */
-  validateBindings(schema: DocumentSchema): ValidationResult {
+  validateBindings(schema: NormalizedDocumentSchema): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -306,7 +307,7 @@ export class SchemaValidator {
   /**
    * Extract all binding references from a schema.
    */
-  private extractAllBindings(schema: DocumentSchema): BindingRef[] {
+  private extractAllBindings(schema: NormalizedDocumentSchema): BindingRef[] {
     const bindings: BindingRef[] = []
 
     const traverse = (elements: MaterialNode[]): void => {
@@ -351,8 +352,8 @@ export class SchemaValidator {
   /**
    * Auto-fix a schema.
    */
-  autoFix(schema: DocumentSchema): { fixed: DocumentSchema, issues: AutoFixedIssue[] } {
-    const fixed = deepClone(schema)
+  autoFix(schema: DocumentSchema): { fixed: NormalizedDocumentSchema, issues: AutoFixedIssue[] } {
+    const fixed = normalizeDocumentSchema(deepClone(schema))
     const issues: AutoFixedIssue[] = []
     if (!fixed.version) {
       const original = fixed.version
@@ -397,8 +398,8 @@ export class SchemaValidator {
 /**
  * Normalize all field paths in a schema to use canonical separator.
  */
-export function normalizeAllFieldPaths(schema: DocumentSchema): DocumentSchema {
-  const fixed = deepClone(schema)
+export function normalizeAllFieldPaths(schema: DocumentSchema): NormalizedDocumentSchema {
+  const fixed = normalizeDocumentSchema(deepClone(schema))
 
   const traverse = (elements: MaterialNode[]): void => {
     for (const element of elements) {

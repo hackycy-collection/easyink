@@ -1,4 +1,4 @@
-import type { DocumentSchema, ElementGroupSchema, GuideSchema, MaterialNode, PageSchema } from '@easyink/schema'
+import type { ElementGroupSchema, GuideSchema, MaterialNode, NormalizedDocumentSchema, PageSchema } from '@easyink/schema'
 import type { Command } from '../command'
 import type { MaterialResizeSideEffect } from '../material-extension'
 import { deepClone, generateId } from '@easyink/shared'
@@ -38,7 +38,7 @@ export class RemoveMaterialCommand implements Command {
   constructor(
     private elements: MaterialNode[],
     private nodeId: string,
-    private schema?: DocumentSchema,
+    private schema?: NormalizedDocumentSchema,
   ) {}
 
   execute(): void {
@@ -69,7 +69,7 @@ export class AddElementGroupCommand implements Command {
   private oldGroups: ElementGroupSchema[] | undefined
 
   constructor(
-    private schema: DocumentSchema,
+    private schema: NormalizedDocumentSchema,
     private group: ElementGroupSchema,
   ) {}
 
@@ -96,7 +96,7 @@ export class RemoveElementGroupCommand implements Command {
   private oldGroups: ElementGroupSchema[] | undefined
 
   constructor(
-    private schema: DocumentSchema,
+    private schema: NormalizedDocumentSchema,
     private groupId: string,
   ) {}
 
@@ -114,7 +114,7 @@ export class RemoveElementGroupCommand implements Command {
   }
 }
 
-function pruneElementFromGroups(schema: DocumentSchema, elementId: string): void {
+function pruneElementFromGroups(schema: NormalizedDocumentSchema, elementId: string): void {
   if (!schema.groups)
     return
   const nextGroups: ElementGroupSchema[] = []
@@ -399,7 +399,7 @@ export class UpdateGuidesCommand implements Command {
   private oldGuides: GuideSchema | undefined
 
   constructor(
-    private schema: DocumentSchema,
+    private schema: NormalizedDocumentSchema,
     private newGuides: GuideSchema,
   ) {}
 
@@ -418,15 +418,15 @@ export class UpdateDocumentCommand implements Command {
   readonly id = generateId('cmd')
   readonly type = 'update-document'
   readonly description = 'Update document'
-  private oldValues: Partial<DocumentSchema> = {}
+  private oldValues: Partial<NormalizedDocumentSchema> = {}
 
   constructor(
-    private schema: DocumentSchema,
-    private updates: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
-    precomputedOldValues?: Partial<Pick<DocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
+    private schema: NormalizedDocumentSchema,
+    private updates: Partial<Pick<NormalizedDocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
+    precomputedOldValues?: Partial<Pick<NormalizedDocumentSchema, 'unit' | 'meta' | 'extensions' | 'compat'>>,
   ) {
     if (precomputedOldValues) {
-      this.oldValues = deepClone(precomputedOldValues) as Partial<DocumentSchema>
+      this.oldValues = deepClone(precomputedOldValues) as Partial<NormalizedDocumentSchema>
     }
   }
 

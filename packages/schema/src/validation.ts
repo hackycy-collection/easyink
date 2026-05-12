@@ -1,4 +1,4 @@
-import type { DocumentSchema } from './types'
+import type { DocumentSchema, NormalizedDocumentSchema } from './types'
 import { isObject, SCHEMA_VERSION } from '@easyink/shared'
 
 const UNIT_TYPES = new Set(['mm', 'pt', 'px', 'inch'])
@@ -123,7 +123,7 @@ export function validateSchemaIssues(schema: unknown): SchemaValidationIssue[] {
   return issues
 }
 
-export function isValidSchema(schema: unknown): schema is DocumentSchema {
+export function isValidSchema(schema: unknown): schema is NormalizedDocumentSchema {
   return validateSchemaIssues(schema).length === 0
 }
 
@@ -138,7 +138,7 @@ export function serializeSchema(schema: DocumentSchema): string {
  * Deserialize a JSON string to DocumentSchema.
  * Throws if schema is invalid.
  */
-export function deserializeSchema(json: string): DocumentSchema {
+export function deserializeSchema(json: string): NormalizedDocumentSchema {
   let parsed: unknown
 
   try {
@@ -157,7 +157,7 @@ export function deserializeSchema(json: string): DocumentSchema {
     )
   }
 
-  const schemaVersion = (parsed as DocumentSchema).version
+  const schemaVersion = (parsed as NormalizedDocumentSchema).version
   if (!isCompatibleVersion(schemaVersion)) {
     throw new SchemaDeserializeError(
       'incompatible-version',
@@ -166,7 +166,7 @@ export function deserializeSchema(json: string): DocumentSchema {
     )
   }
 
-  return parsed as DocumentSchema
+  return parsed as NormalizedDocumentSchema
 }
 
 /**

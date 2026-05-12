@@ -1,5 +1,5 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { DocumentSchema } from '@easyink/schema'
+import type { NormalizedDocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
 // ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ export const badgeDemoData: Record<string, unknown> = {
 // Badge template (card size 86x54mm, fixed mode)
 // ---------------------------------------------------------------------------
 
-export const badgeTemplate: DocumentSchema = {
+export const badgeTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {

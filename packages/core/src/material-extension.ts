@@ -1,4 +1,4 @@
-import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { BindingRef, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
 import type { BindingDisplayFormat, PropSchemaType } from '@easyink/shared'
 import type { Command } from './command'
 import type { BehaviorRegistration, EditingSessionRef, MaterialGeometry, SelectionDecorationDef, SelectionType, TransactionAPI } from './editing-session'
@@ -184,7 +184,7 @@ export type MaterialExtensionFactory = (context: MaterialExtensionContext) => Ma
 
 /** Context provided to material extension factories for querying state and issuing commands. */
 export interface MaterialExtensionContext {
-  getSchema: () => DocumentSchema
+  getSchema: () => NormalizedDocumentSchema
   getNode: (id: string) => MaterialNode | undefined
   getSelection: () => SelectionSnapshot
   getBindingLabel: (binding: BindingRef) => string

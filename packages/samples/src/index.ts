@@ -1,4 +1,4 @@
-import type { DocumentSchema } from '@easyink/schema'
+import type { NormalizedDocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 import { flowInvoiceTemplate } from './datasources'
 import { badgeDemoData, badgeTemplate } from './templates/badge'
@@ -17,14 +17,14 @@ export interface SampleTemplateEntry {
   name: string
   category: string
   thumbnail?: string
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   demoData?: Record<string, unknown>
 }
 
 /**
  * A4 空白模板。
  */
-export const blankA4Template: DocumentSchema = {
+export const blankA4Template: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {
@@ -39,7 +39,7 @@ export const blankA4Template: DocumentSchema = {
 /**
  * 简单发票模板，含标题文本和数据表格占位。
  */
-export const simpleInvoiceTemplate: DocumentSchema = {
+export const simpleInvoiceTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {
@@ -104,7 +104,7 @@ export const simpleInvoiceTemplate: DocumentSchema = {
  * `page.width/height` 为单个标签的尺寸；整张标签纸尺寸由 columns/rows/gap 派生。
  * copies=9 + columns=3,rows=1 → 聚合为 3 张 A4 横向标签纸（每张 3 个标签）。
  */
-export const labelTemplate: DocumentSchema = {
+export const labelTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {
@@ -153,7 +153,7 @@ export const labelTemplate: DocumentSchema = {
 /**
  * 收据模板（堆叠模式）。
  */
-export const receiptTemplate: DocumentSchema = {
+export const receiptTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {

@@ -1,8 +1,8 @@
-import type { DocumentSchema } from './types'
+import type { NormalizedDocumentSchema } from './types'
 import { SCHEMA_VERSION } from '@easyink/shared'
 import { formatSchemaValidationIssue, SchemaMigrationError, validateSchemaIssues } from './validation'
 
-export type MigrationFunction = (schema: Record<string, unknown>) => DocumentSchema
+export type MigrationFunction = (schema: Record<string, unknown>) => NormalizedDocumentSchema
 
 interface MigrationEntry {
   fromMajor: number
@@ -48,7 +48,7 @@ export class MigrationRegistry {
     return path
   }
 
-  migrate(schema: Record<string, unknown>): DocumentSchema {
+  migrate(schema: Record<string, unknown>): NormalizedDocumentSchema {
     const version = (schema.version as string) || '0.0.0'
     const fromMajor = parseMajor(version)
     const currentMajor = parseMajor(SCHEMA_VERSION)
@@ -79,12 +79,12 @@ export class MigrationRegistry {
   }
 }
 
-function toDocumentSchema(schema: Record<string, unknown>): DocumentSchema {
+function toDocumentSchema(schema: Record<string, unknown>): NormalizedDocumentSchema {
   assertDocumentSchema(schema)
   return schema
 }
 
-function assertDocumentSchema(schema: Record<string, unknown>): asserts schema is Record<string, unknown> & DocumentSchema {
+function assertDocumentSchema(schema: Record<string, unknown>): asserts schema is Record<string, unknown> & NormalizedDocumentSchema {
   const issues = validateSchemaIssues(schema)
   if (issues.length > 0) {
     throw new SchemaMigrationError(

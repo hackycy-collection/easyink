@@ -1,4 +1,4 @@
-import type { DocumentSchema, MaterialNode, PageSchema, TableCellSchema, TableColumnSchema, TableNode, TableRowSchema, TableSchema } from './types'
+import type { MaterialNode, NormalizedDocumentSchema, PageSchema, TableCellSchema, TableColumnSchema, TableNode, TableRowSchema, TableSchema } from './types'
 import { isObject } from '@easyink/shared'
 import { isTableNode } from './types'
 
@@ -45,7 +45,7 @@ const PAGE_FIELD_MAP: Record<string, keyof PageSchema> = {
 /**
  * Decode a benchmark-format document into canonical DocumentSchema.
  */
-export function decodeBenchmarkInput(input: BenchmarkDocumentInput): DocumentSchema {
+export function decodeBenchmarkInput(input: BenchmarkDocumentInput): NormalizedDocumentSchema {
   const passthrough: Record<string, unknown> = {}
 
   // Guides
@@ -139,15 +139,15 @@ export function decodeBenchmarkInput(input: BenchmarkDocumentInput): DocumentSch
     ? input.elements.map(decodeBenchmarkElement)
     : []
 
-  const schema: DocumentSchema = {
+  const schema: NormalizedDocumentSchema = {
     version: '1.0.0',
-    unit: (input.unit as DocumentSchema['unit']) || 'mm',
+    unit: (input.unit as NormalizedDocumentSchema['unit']) || 'mm',
     page: {
       mode: 'fixed',
       width: 210,
       height: 297,
       ...page,
-    } as DocumentSchema['page'],
+    } as NormalizedDocumentSchema['page'],
     guides: {
       x: guidesX,
       y: guidesY,
@@ -157,7 +157,7 @@ export function decodeBenchmarkInput(input: BenchmarkDocumentInput): DocumentSch
           x: [],
           y: [],
           ...(isObject(g) ? g : {}),
-        })) as DocumentSchema['guides']['groups']
+        })) as NormalizedDocumentSchema['guides']['groups']
         : undefined,
     },
     elements,
@@ -174,7 +174,7 @@ export function decodeBenchmarkInput(input: BenchmarkDocumentInput): DocumentSch
   return schema
 }
 
-function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['elements'][number] {
+function decodeBenchmarkElement(input: BenchmarkElementInput): NormalizedDocumentSchema['elements'][number] {
   const { id, type, x = 0, y = 0, width = 100, height = 50, ...rest } = input
 
   const knownKeys = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'alpha', 'hidden', 'locked', 'zIndex', 'name', 'print'])
@@ -209,7 +209,7 @@ function decodeBenchmarkElement(input: BenchmarkElementInput): DocumentSchema['e
   if (rest.name != null)
     node.name = rest.name as string
   if (rest.print != null)
-    node.print = rest.print as DocumentSchema['elements'][number]['print']
+    node.print = rest.print as NormalizedDocumentSchema['elements'][number]['print']
 
   // Table elements: convert extensions.table to node.table
   let decodedNode: MaterialNode | TableNode = node
@@ -270,7 +270,7 @@ function decodeLegacyTableCellContent(rawContent: unknown, rowIndex: number, col
 /**
  * Encode canonical DocumentSchema back to benchmark format.
  */
-export function encodeToBenchmark(schema: DocumentSchema): BenchmarkDocumentInput {
+export function encodeToBenchmark(schema: NormalizedDocumentSchema): BenchmarkDocumentInput {
   const page: Record<string, unknown> = {}
 
   // Reverse page field mapping
@@ -339,7 +339,7 @@ export function encodeToBenchmark(schema: DocumentSchema): BenchmarkDocumentInpu
   return result
 }
 
-function encodeBenchmarkElement(node: DocumentSchema['elements'][number]): BenchmarkElementInput {
+function encodeBenchmarkElement(node: NormalizedDocumentSchema['elements'][number]): BenchmarkElementInput {
   const result: BenchmarkElementInput = {
     id: node.id,
     type: node.type,

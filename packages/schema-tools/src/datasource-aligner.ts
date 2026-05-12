@@ -1,5 +1,5 @@
 import type { DataFieldNode, DataSourceDescriptor } from '@easyink/datasource'
-import type { BindingRef, DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { BindingRef, MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
 import { deepClone, FIELD_PATH_SEPARATOR } from '@easyink/shared'
 
 /**
@@ -9,7 +9,7 @@ export interface AlignmentResult {
   /** Whether alignment was successful */
   aligned: boolean
   /** Aligned schema */
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   /** Data source (may be modified) */
   dataSource: DataSourceDescriptor
   /** Warnings during alignment */
@@ -42,7 +42,7 @@ export class DataSourceAligner {
    * Checks that all binding references have corresponding fields in the data source.
    */
   align(
-    schema: DocumentSchema,
+    schema: NormalizedDocumentSchema,
     dataSource: DataSourceDescriptor,
   ): AlignmentResult {
     const warnings: string[] = []
@@ -127,7 +127,7 @@ export class DataSourceAligner {
   /**
    * Extract all bindings from a schema.
    */
-  extractBindings(schema: DocumentSchema): Array<{ binding: BindingRef, elementId: string }> {
+  extractBindings(schema: NormalizedDocumentSchema): Array<{ binding: BindingRef, elementId: string }> {
     const bindings: Array<{ binding: BindingRef, elementId: string }> = []
 
     const traverse = (elements: MaterialNode[]): void => {
@@ -299,9 +299,9 @@ export class DataSourceAligner {
    * Updates binding field paths based on fuzzy matches.
    */
   applyAlignment(
-    schema: DocumentSchema,
+    schema: NormalizedDocumentSchema,
     alignment: AlignmentResult,
-  ): DocumentSchema {
+  ): NormalizedDocumentSchema {
     if (alignment.warnings.length === 0) {
       return schema
     }

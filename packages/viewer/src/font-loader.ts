@@ -1,11 +1,11 @@
 import type { FontManager, FontSource } from '@easyink/core'
-import type { DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
 import type { ViewerDiagnosticEvent } from './types'
 
 /**
  * Collect all font families referenced in a schema (page-level + element-level).
  */
-export function collectFontFamilies(schema: DocumentSchema): Set<string> {
+export function collectFontFamilies(schema: NormalizedDocumentSchema): Set<string> {
   const families = new Set<string>()
 
   // Page-level font

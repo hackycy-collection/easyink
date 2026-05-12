@@ -1,10 +1,10 @@
-import type { DocumentSchema } from '@easyink/designer'
+import type { NormalizedDocumentSchema } from '@easyink/designer'
 
 export interface StoredTemplate {
   id: string
   name: string
   category: string
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   /** Per-template preview data; persisted alongside schema. */
   data?: Record<string, unknown>
   createdAt: number

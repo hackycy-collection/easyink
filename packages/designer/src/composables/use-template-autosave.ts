@@ -1,4 +1,4 @@
-import type { DocumentSchema } from '@easyink/schema'
+import type { NormalizedDocumentSchema } from '@easyink/schema'
 import type { DesignerStore } from '../store/designer-store'
 import type { TemplateAutoSaveOptions } from '../types'
 import { nextTick, onBeforeUnmount, watch } from 'vue'
@@ -56,8 +56,8 @@ export function useTemplateAutoSave(
     return options.delay ?? DEFAULT_SAVE_DELAY
   }
 
-  function cloneSchema(schema: DocumentSchema): DocumentSchema {
-    return JSON.parse(JSON.stringify(schema)) as DocumentSchema
+  function cloneSchema(schema: NormalizedDocumentSchema): NormalizedDocumentSchema {
+    return JSON.parse(JSON.stringify(schema)) as NormalizedDocumentSchema
   }
 
   function getErrorMessage(error: unknown): string | undefined {

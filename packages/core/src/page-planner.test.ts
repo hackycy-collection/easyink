@@ -1,4 +1,4 @@
-import type { DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { MaterialNode, NormalizedDocumentSchema, PageSchema } from '@easyink/schema'
 import { describe, expect, it } from 'vitest'
 import { createPagePlan } from './page-planner'
 
@@ -15,7 +15,7 @@ function makeNode(id: string, overrides: Partial<MaterialNode> = {}): MaterialNo
   }
 }
 
-function makeSchema(pageOverrides: Partial<DocumentSchema['page']>, elements: MaterialNode[] = []): DocumentSchema {
+function makeSchema(pageOverrides: Partial<PageSchema>, elements: MaterialNode[] = []): NormalizedDocumentSchema {
   return {
     version: '1.0.0',
     unit: 'mm',

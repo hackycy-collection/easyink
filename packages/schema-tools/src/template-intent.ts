@@ -1,4 +1,4 @@
-import type { BindingRef, DocumentSchema, ExpectedDataSource, ExpectedField, MaterialNode, PageSchema, TableDataSchema, TableNode } from '@easyink/schema'
+import type { BindingRef, ExpectedDataSource, ExpectedField, MaterialNode, NormalizedDocumentSchema, PageSchema, TableDataSchema, TableNode } from '@easyink/schema'
 import type { AIGenerationPlan } from '@easyink/shared'
 import type { DomainFieldSpec, DomainProfile } from './domain-profile'
 import { BLOCKED_PATH_KEYS, FIELD_PATH_SEPARATOR } from '@easyink/shared'
@@ -52,7 +52,7 @@ export interface TemplateBuildOptions {
 }
 
 export interface TemplateBuildResult {
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   expectedDataSource: ExpectedDataSource
   intent: Required<Pick<TemplateGenerationIntent, 'dataSourceName' | 'fields' | 'sections' | 'warnings'>> & TemplateGenerationIntent
   /**
@@ -73,7 +73,7 @@ export function buildSchemaFromTemplateIntent(
   const missingRequiredPaths = computeMissingRequiredPaths(rawIntent.fields, profile)
   const intent = normalizeTemplateIntent(rawIntent, options)
   const page = resolvePage(intent, options.plan)
-  const schema: DocumentSchema = {
+  const schema: NormalizedDocumentSchema = {
     version: '1.0.0',
     unit: 'mm',
     page,

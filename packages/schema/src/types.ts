@@ -17,6 +17,18 @@ export type PagePrintOrientation = 'auto' | 'portrait' | 'landscape'
 // ─── Document Schema ───────────────────────────────────────────────
 
 export interface DocumentSchema {
+  version?: string
+  meta?: DocumentMeta
+  unit?: UnitType
+  page?: Partial<PageSchema>
+  guides?: Partial<GuideSchema>
+  elements?: MaterialNode[]
+  groups?: ElementGroupSchema[]
+  extensions?: DocumentSchemaExtensions
+  compat?: BenchmarkCompatState
+}
+
+export interface NormalizedDocumentSchema {
   version: string
   meta?: DocumentMeta
   unit: UnitType
@@ -28,12 +40,7 @@ export interface DocumentSchema {
   compat?: BenchmarkCompatState
 }
 
-export type DocumentSchemaInput = Partial<Omit<DocumentSchema, 'page' | 'guides' | 'elements' | 'groups'>> & {
-  page?: Partial<PageSchema>
-  guides?: Partial<GuideSchema>
-  elements?: MaterialNode[]
-  groups?: ElementGroupSchema[]
-}
+export type DocumentSchemaInput = DocumentSchema
 
 export interface DocumentMeta {
   name?: string
@@ -113,7 +120,7 @@ export interface ProviderFactorySnapshot {
  */
 export interface TemplateVersion {
   id: string
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   prompt?: string
   source: string
   timestamp: number

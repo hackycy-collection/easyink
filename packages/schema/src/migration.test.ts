@@ -1,13 +1,13 @@
-import type { DocumentSchema } from './types'
+import type { NormalizedDocumentSchema } from './types'
 import { describe, expect, it } from 'vitest'
 import { MigrationRegistry } from './migration'
 import { SchemaMigrationError } from './validation'
 
-function toUnit(value: unknown): DocumentSchema['unit'] {
+function toUnit(value: unknown): NormalizedDocumentSchema['unit'] {
   return value === 'mm' || value === 'pt' || value === 'px' ? value : 'mm'
 }
 
-function createMigratedSchema(schema: Record<string, unknown>, extra?: Record<string, unknown>): DocumentSchema {
+function createMigratedSchema(schema: Record<string, unknown>, extra?: Record<string, unknown>): NormalizedDocumentSchema {
   const migrated = {
     version: '1.0.0',
     unit: toUnit(schema.unit),

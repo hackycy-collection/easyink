@@ -1,4 +1,4 @@
-import type { DocumentSchema, MaterialNode } from '@easyink/schema'
+import type { MaterialNode, NormalizedDocumentSchema } from '@easyink/schema'
 import type { Command } from './command'
 import { describe, expect, it } from 'vitest'
 import { CommandManager } from './command'
@@ -295,7 +295,7 @@ describe('logical element group commands', () => {
     return { id, type: 'rect', x: 0, y: 0, width: 10, height: 10, props: {} }
   }
 
-  function makeSchema(): DocumentSchema {
+  function makeSchema(): NormalizedDocumentSchema {
     return {
       version: '1.0.0',
       unit: 'px',

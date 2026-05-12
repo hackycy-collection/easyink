@@ -1,5 +1,5 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { DocumentSchema } from '@easyink/schema'
+import type { NormalizedDocumentSchema } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ export const certificateDemoData: Record<string, unknown> = {
 // Certificate template (A4 landscape, fixed mode)
 // ---------------------------------------------------------------------------
 
-export const certificateTemplate: DocumentSchema = {
+export const certificateTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {

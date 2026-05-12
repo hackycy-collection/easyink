@@ -3,7 +3,7 @@
  * No external dependencies. Serves only internal use cases.
  */
 
-import type { DocumentSchema } from '@easyink/schema'
+import type { NormalizedDocumentSchema } from '@easyink/schema'
 
 type SyncHookCallback<T extends unknown[]> = (...args: T) => void
 type SyncWaterfallCallback<T> = (value: T) => T
@@ -85,7 +85,7 @@ export class AsyncHook<T extends unknown[] = []> {
 // ---------------------------------------------------------------------------
 
 export interface PagePlanningContext {
-  schema: DocumentSchema
+  schema: NormalizedDocumentSchema
   mode: string
 }
 
@@ -115,7 +115,7 @@ export interface CommandRecord {
 }
 
 export interface InternalHooks {
-  beforeSchemaNormalize: SyncWaterfallHook<DocumentSchema>
+  beforeSchemaNormalize: SyncWaterfallHook<NormalizedDocumentSchema>
   beforePagePlan: SyncWaterfallHook<PagePlanningContext>
   beforeMaterialRender: SyncWaterfallHook<MaterialRenderPayload>
   diagnosticsEmitted: AsyncHook<[ViewerDiagnosticEvent]>

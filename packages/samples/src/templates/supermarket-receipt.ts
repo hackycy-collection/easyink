@@ -1,5 +1,5 @@
 import type { DataSourceDescriptor } from '@easyink/datasource'
-import type { DocumentSchema, TableDataSchema, TableNode } from '@easyink/schema'
+import type { NormalizedDocumentSchema, TableDataSchema, TableNode } from '@easyink/schema'
 import { SCHEMA_VERSION } from '@easyink/shared'
 
 // ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ function createReceiptItemsTable(): TableNode {
   }
 }
 
-export const supermarketReceiptTemplate: DocumentSchema = {
+export const supermarketReceiptTemplate: NormalizedDocumentSchema = {
   version: SCHEMA_VERSION,
   unit: 'mm',
   page: {
