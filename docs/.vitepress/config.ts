@@ -24,6 +24,7 @@ export default defineConfig({
       { text: '.NET', link: '/dotnet/' },
       { text: '进阶', link: '/advanced/print-drivers' },
       { text: 'API', link: '/api/' },
+      { text: '在线演示', link: 'https://hackycy.github.io/easyink' },
     ],
 
     sidebar: {

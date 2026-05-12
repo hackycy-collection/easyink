@@ -13,14 +13,14 @@ hero:
       text: 快速上手
       link: /guide/getting-started
     - theme: alt
+      text: 在线演示
+      link: https://hackycy.github.io/easyink
+    - theme: alt
       text: Designer
       link: /designer/
     - theme: alt
       text: Viewer
       link: /viewer/
-    - theme: alt
-      text: API
-      link: /api/
 
 features:
   - icon: 🎨
