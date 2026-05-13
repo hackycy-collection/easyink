@@ -19,6 +19,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+call :verify_sqlite_interop "%PROJECT_DIR%\bin\Release\net48\publish"
+if errorlevel 1 exit /b 1
+
 echo [2/2] Building installer...
 set "ISCC="
 where iscc >nul 2>&1 && set "ISCC=iscc"
@@ -39,6 +42,18 @@ if errorlevel 1 (
 
 echo.
 echo Done: output\EasyInkPrinter-Setup.exe
+exit /b 0
+
+:verify_sqlite_interop
+set PUBLISH_DIR=%~1
+if not exist "%PUBLISH_DIR%\x64\SQLite.Interop.dll" (
+    echo Missing SQLite native dependency: %PUBLISH_DIR%\x64\SQLite.Interop.dll
+    exit /b 1
+)
+if not exist "%PUBLISH_DIR%\x86\SQLite.Interop.dll" (
+    echo Missing SQLite native dependency: %PUBLISH_DIR%\x86\SQLite.Interop.dll
+    exit /b 1
+)
 exit /b 0
 
 :prepare_version_args

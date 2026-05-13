@@ -19,6 +19,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+call :verify_sqlite_interop "%PROJECT_DIR%\bin\Release\net48\publish"
+if errorlevel 1 exit /b 1
+
 echo [2/2] Packaging portable...
 if exist "%OUTPUT_DIR%\%ZIP_NAME%.zip" del "%OUTPUT_DIR%\%ZIP_NAME%.zip"
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
@@ -32,6 +35,18 @@ if errorlevel 1 (
 echo.
 echo Done: output\%ZIP_NAME%.zip
 echo Run EasyInk.Printer.exe directly after extract
+exit /b 0
+
+:verify_sqlite_interop
+set PUBLISH_DIR=%~1
+if not exist "%PUBLISH_DIR%\x64\SQLite.Interop.dll" (
+    echo Missing SQLite native dependency: %PUBLISH_DIR%\x64\SQLite.Interop.dll
+    exit /b 1
+)
+if not exist "%PUBLISH_DIR%\x86\SQLite.Interop.dll" (
+    echo Missing SQLite native dependency: %PUBLISH_DIR%\x86\SQLite.Interop.dll
+    exit /b 1
+)
 exit /b 0
 
 :prepare_version_args

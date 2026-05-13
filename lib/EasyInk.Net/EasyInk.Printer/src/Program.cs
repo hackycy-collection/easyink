@@ -12,6 +12,7 @@ using EasyInk.Printer.UI;
 using EasyInk.Printer.Server;
 using EasyInk.Printer.Config;
 using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer;
 
@@ -20,6 +21,7 @@ static class Program
     private static Mutex _mutex;
     private static string _crashLogDir;
     private static bool _disposed;
+    private static int _fatalDialogShown;
 
     [STAThread]
     static void Main(string[] args)
@@ -37,10 +39,13 @@ static class Program
         {
             Run();
         }
+        catch (Exception ex)
+        {
+            HandleFatalException(ex, "Program.Main");
+        }
         finally
         {
-            _mutex.ReleaseMutex();
-            _mutex.Dispose();
+            DisposeMutex();
         }
     }
 
@@ -48,6 +53,7 @@ static class Program
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
         var config = HostConfig.Load();
 
@@ -60,16 +66,16 @@ static class Program
 
         _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir);
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            WriteCrashLog(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
+            HandleFatalException(ToException(e.ExceptionObject), "AppDomain.UnhandledException");
         Application.ThreadException += (s, e) =>
-            WriteCrashLog(e.Exception, "Application.ThreadException");
+            HandleFatalException(e.Exception, "Application.ThreadException");
         TaskScheduler.UnobservedTaskException += (s, e) =>
         {
-            WriteCrashLog(e.Exception, "TaskScheduler.UnobservedTaskException");
+            HandleFatalException(e.Exception, "TaskScheduler.UnobservedTaskException");
             e.SetObserved();
         };
 
-        var auditService = new AuditService(config.DbPath);
+        IAuditService auditService = CreateAuditService(config.DbPath);
         var engineApi = new EngineApi(
             sumatraPdfExePath: null,
             sumatraTempDir: config.SumatraTempDir,
@@ -127,8 +133,7 @@ static class Program
         {
             Cleanup(httpServer, wsHandler, engineApi, trayIcon);
 
-            _mutex.ReleaseMutex();
-            _mutex.Dispose();
+            DisposeMutex();
 
             Process.Start(Application.ExecutablePath);
             Application.Exit();
@@ -224,13 +229,156 @@ static class Program
         EngineApi.ClearEvents();
     }
 
-    private static void WriteCrashLog(Exception ex, string source)
+    private static IAuditService CreateAuditService(string dbPath)
     {
         try
         {
-            if (string.IsNullOrEmpty(_crashLogDir)) return;
-            if (!Directory.Exists(_crashLogDir))
-                Directory.CreateDirectory(_crashLogDir);
+            return new AuditService(dbPath);
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Error("审计日志初始化失败，已禁用审计功能", ex);
+
+            var logPath = WriteCrashLog(ex, "AuditService.InitializeDatabase");
+            ShowMessage(
+                BuildAuditServiceWarning(ex, logPath),
+                "EasyInk Printer 启动告警",
+                MessageBoxIcon.Warning);
+
+            return new NullAuditService();
+        }
+    }
+
+    private static Exception ToException(object exceptionObject)
+    {
+        if (exceptionObject is Exception exception)
+            return exception;
+
+        return new InvalidOperationException($"捕获到非 Exception 类型的未处理异常: {exceptionObject ?? "(null)"}");
+    }
+
+    private static void DisposeMutex()
+    {
+        if (_mutex == null) return;
+
+        try { _mutex.ReleaseMutex(); } catch (ApplicationException) { } catch (ObjectDisposedException) { }
+        try { _mutex.Dispose(); } catch (ObjectDisposedException) { }
+
+        _mutex = null;
+    }
+
+    private static void HandleFatalException(Exception ex, string source)
+    {
+        var safeException = ex ?? new InvalidOperationException("捕获到空异常对象。");
+
+        try
+        {
+            SimpleLogger.Error($"未处理异常: {source}", safeException);
+        }
+        catch
+        {
+            // 忽略日志二次失败，避免覆盖原始异常。
+        }
+
+        var logPath = WriteCrashLog(safeException, source);
+        if (Interlocked.CompareExchange(ref _fatalDialogShown, 1, 0) != 0)
+            return;
+
+        ShowMessage(
+            BuildFatalErrorMessage(safeException, logPath),
+            "EasyInk Printer 启动失败",
+            MessageBoxIcon.Error);
+    }
+
+    private static string BuildFatalErrorMessage(Exception ex, string logPath)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("EasyInk Printer 启动失败，应用即将退出。");
+        AppendUserFacingException(sb, ex);
+        AppendSQLiteGuidance(sb, ex);
+        AppendLogPath(sb, logPath);
+        return sb.ToString().TrimEnd();
+    }
+
+    private static string BuildAuditServiceWarning(Exception ex, string logPath)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("审计日志模块初始化失败，打印服务会继续启动，但日志记录与查询功能不可用。");
+        AppendUserFacingException(sb, ex);
+        AppendSQLiteGuidance(sb, ex);
+        AppendLogPath(sb, logPath);
+        return sb.ToString().TrimEnd();
+    }
+
+    private static void AppendUserFacingException(StringBuilder sb, Exception ex)
+    {
+        sb.AppendLine();
+        sb.AppendLine($"异常类型: {ex.GetType().Name}");
+        sb.AppendLine($"异常消息: {ex.Message}");
+    }
+
+    private static void AppendSQLiteGuidance(StringBuilder sb, Exception ex)
+    {
+        if (!ContainsSQLiteInteropError(ex)) return;
+
+        sb.AppendLine();
+        sb.AppendLine("原因判断: 缺少 SQLite 原生依赖，或该依赖的运行库未安装。");
+        sb.AppendLine("请确认安装目录中存在 x64\\SQLite.Interop.dll 和 x86\\SQLite.Interop.dll。");
+        sb.AppendLine("如果文件缺失，请重新安装最新安装包；如果文件存在，请检查系统是否缺少 Microsoft Visual C++ 运行库。");
+    }
+
+    private static bool ContainsSQLiteInteropError(Exception ex)
+    {
+        if (ex == null) return false;
+
+        if (ex is DllNotFoundException &&
+            ex.Message.IndexOf("SQLite.Interop.dll", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        if (ex is AggregateException aggregateException)
+        {
+            foreach (var inner in aggregateException.InnerExceptions)
+            {
+                if (ContainsSQLiteInteropError(inner))
+                    return true;
+            }
+        }
+
+        return ContainsSQLiteInteropError(ex.InnerException);
+    }
+
+    private static void AppendLogPath(StringBuilder sb, string logPath)
+    {
+        if (string.IsNullOrEmpty(logPath)) return;
+
+        sb.AppendLine();
+        sb.AppendLine($"崩溃日志: {logPath}");
+    }
+
+    private static void ShowMessage(string text, string caption, MessageBoxIcon icon)
+    {
+        try
+        {
+            MessageBox.Show(text, caption, MessageBoxButtons.OK, icon);
+        }
+        catch
+        {
+            // 桌面环境异常时至少保留日志文件。
+        }
+    }
+
+    private static string WriteCrashLog(Exception ex, string source)
+    {
+        try
+        {
+            var crashLogDir = string.IsNullOrWhiteSpace(_crashLogDir)
+                ? Path.Combine(AppContext.BaseDirectory, "logs", "crash")
+                : _crashLogDir;
+
+            if (!Directory.Exists(crashLogDir))
+                Directory.CreateDirectory(crashLogDir);
 
             var sb = new StringBuilder();
             sb.AppendLine("========== 崩溃日志 ==========");
@@ -251,12 +399,14 @@ static class Program
             AppendException(sb, ex, 0);
 
             var fileName = $"crash_{DateTime.Now:yyyyMMdd_HHmmss}.log";
-            var filePath = Path.Combine(_crashLogDir, fileName);
+            var filePath = Path.Combine(crashLogDir, fileName);
             File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+            return filePath;
         }
         catch
         {
             // 崩溃时写日志本身不应再抛异常
+            return null;
         }
     }
 

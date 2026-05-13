@@ -278,6 +278,10 @@ publish/
 ├── Newtonsoft.Json.dll
 ├── Dapper.dll
 ├── System.Data.SQLite.dll
+├── x64/
+│   └── SQLite.Interop.dll
+├── x86/
+│   └── SQLite.Interop.dll
 └── ...
 ```
 
@@ -285,4 +289,5 @@ publish/
 
 - Windows 7 SP1 及以上
 - .NET Framework 4.8 运行时
+- 安装目录需保留 `x64/SQLite.Interop.dll` 与 `x86/SQLite.Interop.dll`，否则审计日志模块会在启动时失败
 - 无需额外安装，复制即用
