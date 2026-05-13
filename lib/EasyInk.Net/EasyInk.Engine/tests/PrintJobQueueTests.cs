@@ -47,11 +47,21 @@ public class PrintJobQueueTests
     [Fact]
     public void GetJobStatus_InitiallyQueued()
     {
-        using var queue = CreateQueue();
+        var gate = new ManualResetEventSlim(false);
+        var printService = new Mock<IPrintService>();
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+            .Returns(() => { gate.Wait(); return PrinterResult.Ok("test", PrintResult.Success("done")); });
+
+        using var queue = new PrintJobQueue(printService.Object);
         var jobId = queue.Enqueue(null, MakeRequest());
         var job = queue.GetJobStatus(jobId);
         Assert.NotNull(job);
         Assert.Equal(JobStatus.Queued, job.Status);
+
+        gate.Set();
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline && queue.GetJobStatus(jobId).Status == JobStatus.Queued)
+            Thread.Sleep(50);
     }
 
     [Fact]
