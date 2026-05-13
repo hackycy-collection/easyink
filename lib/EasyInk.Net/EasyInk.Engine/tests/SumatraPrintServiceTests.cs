@@ -119,7 +119,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest(copies: 3);
         var args = SumatraPrintService.BuildArguments(@"C:\test.pdf", request);
 
-        Assert.Contains("-print-settings \"noscale,3x\"", args);
+        Assert.Contains("-print-settings \"shrink,3x\"", args);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest(landscape: true);
         var args = SumatraPrintService.BuildArguments(@"C:\test.pdf", request);
 
-        Assert.Contains("-print-settings \"noscale,landscape\"", args);
+        Assert.Contains("-print-settings \"shrink,landscape\"", args);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest(copies: 2, landscape: true);
         var args = SumatraPrintService.BuildArguments(@"C:\test.pdf", request);
 
-        Assert.Contains("-print-settings \"noscale,2x,landscape\"", args);
+        Assert.Contains("-print-settings \"shrink,2x,landscape\"", args);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest();
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
-        Assert.Equal("noscale", settings);
+        Assert.Equal("shrink", settings);
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest(copies: 5);
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
-        Assert.Equal("noscale,5x", settings);
+        Assert.Equal("shrink,5x", settings);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class SumatraPrintServiceTests
         var request = CreateRequest(landscape: true);
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
-        Assert.Equal("noscale,landscape", settings);
+        Assert.Equal("shrink,landscape", settings);
     }
 
     [Fact]

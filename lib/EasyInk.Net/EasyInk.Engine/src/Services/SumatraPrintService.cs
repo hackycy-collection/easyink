@@ -119,7 +119,7 @@ public class SumatraPrintService : IPrintService
     {
         var parts = new StringBuilder();
 
-        parts.Append("noscale");
+        parts.Append("shrink");
 
         if (request.Copies > 1)
             parts.Append($",{request.Copies}x");
