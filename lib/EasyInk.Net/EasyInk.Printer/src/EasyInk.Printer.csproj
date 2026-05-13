@@ -35,14 +35,17 @@
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
-    <PackageReference Include="Stub.System.Data.SQLite.Core.NetFramework" Version="1.0.119" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(PkgStub_System_Data_SQLite_Core_NetFramework)' != ''">
-    <SQLiteInteropNativeFile Include="$(PkgStub_System_Data_SQLite_Core_NetFramework)\build\net46\x86\SQLite.Interop.dll">
+  <PropertyGroup>
+    <SQLiteStubPackageRoot>$(NuGetPackageRoot)stub.system.data.sqlite.core.netframework\1.0.119\</SQLiteStubPackageRoot>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(SQLiteStubPackageRoot)build\net46\x86\SQLite.Interop.dll')">
+    <SQLiteInteropNativeFile Include="$(SQLiteStubPackageRoot)build\net46\x86\SQLite.Interop.dll">
       <TargetSubDir>x86\</TargetSubDir>
     </SQLiteInteropNativeFile>
-    <SQLiteInteropNativeFile Include="$(PkgStub_System_Data_SQLite_Core_NetFramework)\build\net46\x64\SQLite.Interop.dll">
+    <SQLiteInteropNativeFile Include="$(SQLiteStubPackageRoot)build\net46\x64\SQLite.Interop.dll">
       <TargetSubDir>x64\</TargetSubDir>
     </SQLiteInteropNativeFile>
   </ItemGroup>
