@@ -54,6 +54,14 @@ if not exist "%PUBLISH_DIR%\x86\SQLite.Interop.dll" (
     echo Missing SQLite native dependency: %PUBLISH_DIR%\x86\SQLite.Interop.dll
     exit /b 1
 )
+if not exist "%PUBLISH_DIR%\x64\pdfium.dll" (
+    echo Missing pdfium native dependency: %PUBLISH_DIR%\x64\pdfium.dll
+    exit /b 1
+)
+if not exist "%PUBLISH_DIR%\x86\pdfium.dll" (
+    echo Missing pdfium native dependency: %PUBLISH_DIR%\x86\pdfium.dll
+    exit /b 1
+)
 exit /b 0
 
 :prepare_version_args
