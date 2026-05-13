@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using EasyInk.Printer.Config;
 using Xunit;
 
@@ -34,10 +36,34 @@ public class HostConfigTests
     }
 
     [Fact]
+    public void DefaultDbPath_UsesLocalApplicationData()
+    {
+        var expected = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EasyInk.Printer",
+            "data",
+            "audit.db");
+
+        Assert.Equal(expected, HostConfig.DefaultDbPath);
+    }
+
+    [Fact]
     public void DefaultSumatraTempDir_HasDriveLetter()
     {
         var dir = HostConfig.DefaultSumatraTempDir;
         Assert.True(HostConfig.IsValidFilePath(dir, out _));
+    }
+
+    [Fact]
+    public void DefaultCrashLogDir_UsesLocalApplicationData()
+    {
+        var expected = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EasyInk.Printer",
+            "data",
+            "crash");
+
+        Assert.Equal(expected, HostConfig.DefaultCrashLogDir);
     }
 
     [Fact]
@@ -56,5 +82,11 @@ public class HostConfigTests
     public void ResolveDbPath_Custom_ReturnsCustom()
     {
         Assert.Equal(@"D:\custom\db.sqlite", HostConfig.ResolveDbPath(@"D:\custom\db.sqlite"));
+    }
+
+    [Fact]
+    public void ResolveCrashLogDir_Null_ReturnsDefault()
+    {
+        Assert.Equal(HostConfig.DefaultCrashLogDir, HostConfig.ResolveCrashLogDir(null));
     }
 }

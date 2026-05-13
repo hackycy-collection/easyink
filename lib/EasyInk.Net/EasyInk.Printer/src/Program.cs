@@ -374,7 +374,7 @@ static class Program
         try
         {
             var crashLogDir = string.IsNullOrWhiteSpace(_crashLogDir)
-                ? Path.Combine(AppContext.BaseDirectory, "logs", "crash")
+                ? HostConfig.DefaultCrashLogDir
                 : _crashLogDir;
 
             if (!Directory.Exists(crashLogDir))

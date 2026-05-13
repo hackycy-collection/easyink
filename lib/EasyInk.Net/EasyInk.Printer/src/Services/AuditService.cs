@@ -19,10 +19,10 @@ public class AuditService : IAuditService
     /// <summary>
     /// 初始化审计服务
     /// </summary>
-    /// <param name="dbPath">数据库文件路径，默认为应用目录下 data/audit.db</param>
+    /// <param name="dbPath">数据库文件路径，默认为当前用户本地应用数据目录下的 audit.db</param>
     public AuditService(string dbPath = null)
     {
-        var path = dbPath ?? Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
+        var path = HostConfig.ResolveDbPath(dbPath);
         _connectionString = $"Data Source={path}";
 
         var directory = Path.GetDirectoryName(path);

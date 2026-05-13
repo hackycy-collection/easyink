@@ -23,6 +23,11 @@ public class HostConfig
     private int _printTimeoutSeconds = DefaultPrintTimeoutSeconds;
     private int _maxConcurrentRequests = DefaultConcurrentRequests;
 
+    private static readonly string DefaultDataDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "EasyInk.Printer",
+        "data");
+
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
@@ -57,11 +62,11 @@ public class HostConfig
         set => _maxConcurrentRequests = value < MinConcurrentRequests ? MinConcurrentRequests : value;
     }
 
-    public static string DefaultDbPath => Path.Combine(AppContext.BaseDirectory, "data", "audit.db");
+    public static string DefaultDbPath => Path.Combine(DefaultDataDir, "audit.db");
 
     public static string DefaultSumatraTempDir => Path.GetTempPath();
 
-    public static string DefaultCrashLogDir => Path.Combine(AppContext.BaseDirectory, "data", "crash");
+    public static string DefaultCrashLogDir => Path.Combine(DefaultDataDir, "crash");
 
     public static string ResolveDbPath(string dbPath)
     {
