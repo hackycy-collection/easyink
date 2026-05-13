@@ -285,6 +285,33 @@ public class PrinterService : IPrinterService
         return val != null && (bool)val;
     }
 
+    /// <summary>
+    /// 按宽度匹配打印机注册的纸型，返回 PaperKind 值；未匹配返回 null
+    /// </summary>
+    public int? GetPaperKind(string printerName, double widthMm)
+    {
+        const int ToleranceHundredths = 10; // ~0.25mm
+        var targetHundredths = (int)Math.Round(widthMm / 25.4 * 100);
+
+        try
+        {
+            var settings = new PrinterSettings { PrinterName = printerName };
+            foreach (PaperSize size in settings.PaperSizes)
+            {
+                if (size.Kind == PaperKind.Custom)
+                    continue;
+                if (Math.Abs(size.Width - targetHundredths) <= ToleranceHundredths)
+                    return (int)size.Kind;
+            }
+        }
+        catch (Exception ex)
+        {
+            EngineApi.RaiseLog(LogLevel.Error, $"查询打印机 {printerName} 纸型失败: {ex.Message}");
+        }
+
+        return null;
+    }
+
     private List<PaperSizeInfo> GetSupportedPaperSizes(string printerName)
     {
         var sizes = new List<PaperSizeInfo>();

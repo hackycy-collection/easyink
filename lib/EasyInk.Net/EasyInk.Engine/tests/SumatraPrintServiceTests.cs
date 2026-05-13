@@ -197,4 +197,37 @@ public class SumatraPrintServiceTests
         Assert.Contains("landscape", settings);
         Assert.Contains("paper=50mm x 30mm", settings);
     }
+
+    [Fact]
+    public void BuildPrintSettings_WithPaperKind_UsesPaperKind()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: 256);
+
+        Assert.Contains("paperkind=256", settings);
+        Assert.DoesNotContain("paper=", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_PaperKindZero_FallsBackToPaper()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: 0);
+
+        Assert.Contains("paper=80mm x 200mm", settings);
+        Assert.DoesNotContain("paperkind=", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_PaperKindNull_FallsBackToPaper()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: null);
+
+        Assert.Contains("paper=80mm x 200mm", settings);
+        Assert.DoesNotContain("paperkind=", settings);
+    }
 }

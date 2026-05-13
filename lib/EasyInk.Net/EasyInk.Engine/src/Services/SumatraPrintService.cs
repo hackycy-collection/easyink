@@ -68,7 +68,11 @@ public class SumatraPrintService : IPrintService
             var pdfBytes = provider.GetPdfBytes();
             File.WriteAllBytes(tempFile, pdfBytes);
 
-            var args = BuildArguments(tempFile, request);
+            var paperKind = request.PaperSize != null
+                ? _printerService.GetPaperKind(request.PrinterName, request.PaperSize.Width)
+                : null;
+
+            var args = BuildArguments(tempFile, request, paperKind);
             var exitCode = RunProcess(_sumatraExePath, args, _timeoutMs, out var stderr);
 
             if (exitCode == 0)
@@ -100,14 +104,14 @@ public class SumatraPrintService : IPrintService
         }
     }
 
-    internal static string BuildArguments(string pdfPath, PrintRequestParams request)
+    internal static string BuildArguments(string pdfPath, PrintRequestParams request, int? paperKind = null)
     {
         var sb = new StringBuilder();
         sb.Append($"-print-to \"{request.PrinterName}\" ");
         sb.Append("-exit-on-print ");
         sb.Append("-silent ");
 
-        var settings = BuildPrintSettings(request);
+        var settings = BuildPrintSettings(request, paperKind);
         if (settings.Length > 0)
             sb.Append($"-print-settings \"{settings}\" ");
 
@@ -115,7 +119,7 @@ public class SumatraPrintService : IPrintService
         return sb.ToString();
     }
 
-    internal static string BuildPrintSettings(PrintRequestParams request)
+    internal static string BuildPrintSettings(PrintRequestParams request, int? paperKind = null)
     {
         var parts = new StringBuilder();
 
@@ -131,14 +135,22 @@ public class SumatraPrintService : IPrintService
 
         if (request.PaperSize != null)
         {
-            // SumatraPDF expects: paper={w}mm x {h}mm (spaces around 'x', unit after each value)
-            var wMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
-                ? request.PaperSize.Width * 25.4
-                : request.PaperSize.Width;
-            var hMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
-                ? request.PaperSize.Height * 25.4
-                : request.PaperSize.Height;
-            parts.Append($",paper={wMm:0.##}mm x {hMm:0.##}mm");
+            if (paperKind.HasValue && paperKind.Value != 0)
+            {
+                // Use driver-registered paper kind to avoid custom paper size path
+                parts.Append($",paperkind={paperKind.Value}");
+            }
+            else
+            {
+                // Fallback: SumatraPDF expects paper={w}mm x {h}mm
+                var wMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
+                    ? request.PaperSize.Width * 25.4
+                    : request.PaperSize.Width;
+                var hMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
+                    ? request.PaperSize.Height * 25.4
+                    : request.PaperSize.Height;
+                parts.Append($",paper={wMm:0.##}mm x {hMm:0.##}mm");
+            }
         }
 
         return parts.ToString();

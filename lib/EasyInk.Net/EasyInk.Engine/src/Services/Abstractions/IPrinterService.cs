@@ -18,4 +18,9 @@ public interface IPrinterService
     /// </summary>
     /// <param name="printerName">打印机名称</param>
     PrinterStatus GetPrinterStatus(string printerName);
+
+    /// <summary>
+    /// 按宽度匹配打印机注册的纸型，返回 PaperKind 值；未匹配返回 null
+    /// </summary>
+    int? GetPaperKind(string printerName, double widthMm);
 }
