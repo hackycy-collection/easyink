@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
 using EasyInk.Engine.Models;
@@ -120,17 +121,10 @@ public class PdfiumPrintService : IPrintService
         printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
         printDoc.OriginAtMargins = false;
 
-        // Copies: prefer spooler-level, fall back to manual
+        // Manual copies: repeat pages in PrintPage handler.
+        // Avoids spooler-level copies which are unreliable for continuous-paper thermal printers.
         short copies = (short)Math.Max(request.Copies, 1);
-        var supportsCopies = printDoc.PrinterSettings.CanDuplex
-            || printDoc.PrinterSettings.MaximumCopies > 1;
-        if (supportsCopies)
-        {
-            printDoc.PrinterSettings.Copies = copies;
-        }
-
-        // If spooler doesn't support copies, repeat pages manually
-        int logicalPageCount = supportsCopies ? pageImages.Length : pageImages.Length * copies;
+        int logicalPageCount = pageImages.Length * copies;
         int pageIndex = 0;
 
         printDoc.PrintPage += (_, e) =>
@@ -157,10 +151,10 @@ public class PdfiumPrintService : IPrintService
             int drawX = bounds.Left + (bounds.Width - drawW) / 2;
             int drawY = bounds.Top + (bounds.Height - drawH) / 2;
 
-            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-            e.Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
 
             e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
 
