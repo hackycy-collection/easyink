@@ -119,21 +119,21 @@ public class SumatraPrintService : IPrintService
     {
         var parts = new StringBuilder();
 
+        parts.Append("noscale");
+
         if (request.Copies > 1)
-            parts.Append($"{request.Copies}x");
+            parts.Append($",{request.Copies}x");
 
         if (request.Landscape)
         {
-            if (parts.Length > 0) parts.Append(',');
-            parts.Append("landscape");
+            parts.Append(",landscape");
         }
 
         if (request.PaperSize != null)
         {
-            if (parts.Length > 0) parts.Append(',');
             var w = request.PaperSize.Width.ToString("0.##");
             var h = request.PaperSize.Height.ToString("0.##");
-            parts.Append($"paper={w}x{h}{request.PaperSize.Unit}");
+            parts.Append($",paper={w}x{h}{request.PaperSize.Unit}");
         }
 
         return parts.ToString();
