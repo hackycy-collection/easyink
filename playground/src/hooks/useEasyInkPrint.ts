@@ -40,6 +40,7 @@ export interface PrintServiceConfig {
   apiKey?: string
   printerName?: string
   copies: number
+  forcePageSize?: boolean
 }
 
 // ---------- config persistence ----------
@@ -49,6 +50,7 @@ function defaultConfig(): PrintServiceConfig {
     enabled: false,
     serviceUrl: DEFAULT_PRINT_SERVICE_URL,
     copies: 1,
+    forcePageSize: false,
   }
 }
 
@@ -64,6 +66,7 @@ function loadConfig(): PrintServiceConfig {
       apiKey: parsed.apiKey,
       printerName: parsed.printerName,
       copies: parsed.copies ?? 1,
+      forcePageSize: parsed.forcePageSize ?? false,
     }
   }
   catch {
@@ -337,7 +340,7 @@ async function refreshDevices(): Promise<PrintServiceDevice[]> {
 
 async function printPdf(
   pdfBlob: Blob,
-  opts: { printerName: string, copies: number, paperSize: PaperSizeParams, landscape?: boolean, offset?: OffsetParams },
+  opts: { printerName: string, copies: number, paperSize?: PaperSizeParams, landscape?: boolean, offset?: OffsetParams },
 ): Promise<string> {
   if (pdfBlob.size <= 0)
     throw new Error('PDF 内容为空')
@@ -460,7 +463,7 @@ if (config.enabled) {
 
 // ---------- public API ----------
 
-export function usePrintService() {
+export function useEasyInkPrint() {
   return {
     config,
     connectionState: computed(() => connectionState.value),
@@ -474,6 +477,7 @@ export function usePrintService() {
     printerName: computed(() => config.printerName),
     copies: computed(() => config.copies),
     serviceUrl: computed(() => config.serviceUrl),
+    forcePageSize: computed(() => Boolean(config.forcePageSize)),
 
     connect,
     disconnect,
@@ -485,4 +489,4 @@ export function usePrintService() {
   }
 }
 
-export type PrintServiceStore = ReturnType<typeof usePrintService>
+export type PrintServiceStore = ReturnType<typeof useEasyInkPrint>

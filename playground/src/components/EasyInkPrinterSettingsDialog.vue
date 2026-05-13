@@ -19,13 +19,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { usePrintService } from '../hooks/usePrintService'
+import { useEasyInkPrint } from '@/hooks/useEasyInkPrint'
 
 const emit = defineEmits<{
   close: []
 }>()
 
-const printService = usePrintService()
+const printService = useEasyInkPrint()
 
 const statusText = computed(() => {
   if (!printService.enabled.value)
@@ -93,6 +93,10 @@ function handleApiKeyChange(value: string | number) {
 function handleCopiesChange(value: string | number) {
   const v = Number(value)
   printService.updateConfig({ copies: Number.isFinite(v) && v >= 1 ? Math.min(99, Math.trunc(v)) : 1 })
+}
+
+function handleForcePageSizeChange(checked: boolean) {
+  printService.updateConfig({ forcePageSize: checked })
 }
 
 function handleDeviceChange(value: AcceptableValue) {
@@ -226,6 +230,20 @@ onMounted(() => {
             :max="99"
             :disabled="!printService.enabled.value"
             @update:model-value="handleCopiesChange"
+          />
+        </div>
+
+        <div class="flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <Label>强制传纸张尺寸</Label>
+            <p class="text-xs text-muted-foreground">
+              关闭时不传 paperSize，由打印机驱动按当前介质决定；仅在标签机必须显式指定尺寸时开启。
+            </p>
+          </div>
+          <Switch
+            :model-value="printService.forcePageSize.value"
+            :disabled="!printService.enabled.value"
+            @update:model-value="handleForcePageSizeChange"
           />
         </div>
 

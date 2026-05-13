@@ -228,4 +228,4 @@ context.onDiagnostic?.({
 Playground 中有两个完整的打印驱动实现：
 
 - `playground/src/drivers/hiprint-print-driver.ts` -- 直接发送 DOM 到 electron-hiprint
-- `playground/src/drivers/print-service-driver.ts` -- 先生成 PDF 再通过 WebSocket 发送
+- `playground/src/drivers/easyink-print-driver.ts` -- 先生成 PDF 再通过 WebSocket 发送

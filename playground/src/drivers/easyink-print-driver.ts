@@ -1,6 +1,6 @@
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
-import { usePrintService } from '../hooks/usePrintService'
+import { useEasyInkPrint } from '../hooks/useEasyInkPrint'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintLandscape, resolvePrintOffset, resolvePrintSize, toMillimeters } from '../utils/viewer-output'
 
 /**
@@ -8,11 +8,11 @@ import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintLandscape, r
  * Renders viewer pages to PDF,
  * then sends the PDF to the print service over WebSocket (binary frame, async print).
  */
-export function createPrintServiceDriver(): PrintDriver {
-  const service = usePrintService()
+export function createEasyInkPrintDriver(): PrintDriver {
+  const service = useEasyInkPrint()
 
   return {
-    id: 'print-service-driver',
+    id: 'easyink-print-driver',
     async print(context: ViewerPrintContext) {
       if (!service.enabled.value)
         throw new Error('打印服务未启用')
@@ -47,7 +47,9 @@ export function createPrintServiceDriver(): PrintDriver {
       const jobId = await service.printPdf(pdfBlob, {
         printerName: service.printerName.value,
         copies: service.config.copies || 1,
-        paperSize: { width: widthMm, height: heightMm, unit: 'mm' },
+        paperSize: service.forcePageSize.value
+          ? { width: widthMm, height: heightMm, unit: 'mm' }
+          : undefined,
         landscape,
         offset: resolvePrintOffset(context.printPolicy.offset),
       })

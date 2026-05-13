@@ -18,10 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './components/ui/dropdown-menu'
+import { createEasyInkPrintDriver } from './drivers/easyink-print-driver'
 import { createHiPrintDriver } from './drivers/hiprint-print-driver'
-import { createPrintServiceDriver } from './drivers/print-service-driver'
+import { useEasyInkPrint } from './hooks/useEasyInkPrint'
 import { usePrinter } from './hooks/useHiPrint'
-import { usePrintService } from './hooks/usePrintService'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
 
 const props = defineProps<{
@@ -37,7 +37,7 @@ const EXPORT_FORMAT = 'playground-demo-json'
 const PDF_FORMAT = 'pdf'
 const BROWSER_PRINT_DRIVER_ID = 'browser'
 const HIPRINT_DRIVER_ID = 'hiprint-driver'
-const PRINT_SERVICE_DRIVER_ID = 'print-service-driver'
+const EASYINK_PRINT_DRIVER_ID = 'easyink-print-driver'
 
 const iframeRef = ref<HTMLIFrameElement>()
 let viewerHost: ViewerHost | undefined
@@ -51,7 +51,7 @@ const totalPages = ref(1)
 
 // Print channel integration
 const hiPrint = usePrinter()
-const printService = usePrintService()
+const easyInkPrint = useEasyInkPrint()
 const showHiPrintSettings = ref(false)
 const showEasyInkPrinterSettings = ref(false)
 const isPrinting = ref(false)
@@ -135,7 +135,7 @@ function registerOutputIntegrations(runtime: ViewerRuntime) {
   })
 
   runtime.registerPrintDriver(createHiPrintDriver())
-  runtime.registerPrintDriver(createPrintServiceDriver())
+  runtime.registerPrintDriver(createEasyInkPrintDriver())
 }
 
 function createPlaygroundJsonExportPlugin(): ExportFormatPlugin<{ schema: DocumentSchema, data: Record<string, unknown> }, Blob> {
@@ -412,17 +412,17 @@ async function ensureHiPrintReady(): Promise<boolean> {
   return true
 }
 
-async function ensurePrintServiceReady(): Promise<boolean> {
-  if (!printService.enabled.value) {
+async function ensureEasyInkPrintReady(): Promise<boolean> {
+  if (!easyInkPrint.enabled.value) {
     toast.error('请先在设置中启用 EasyInk Printer')
     showEasyInkPrinterSettings.value = true
     return false
   }
 
-  if (!printService.isConnected.value) {
+  if (!easyInkPrint.isConnected.value) {
     const progressId = toast.loading('正在连接 EasyInk Printer 服务...')
     try {
-      await printService.connect()
+      await easyInkPrint.connect()
       toast.dismiss(progressId)
     }
     catch (err) {
@@ -433,7 +433,7 @@ async function ensurePrintServiceReady(): Promise<boolean> {
     }
   }
 
-  if (!printService.printerName.value) {
+  if (!easyInkPrint.printerName.value) {
     toast.error('请先在 EasyInk Printer 设置中选择目标打印机')
     showEasyInkPrinterSettings.value = true
     return false
@@ -471,9 +471,9 @@ async function handleHiPrintPrint() {
     await runViewerPrint(HIPRINT_DRIVER_ID, 'driver', 'HiPrint 打印')
 }
 
-async function handlePrintServicePrint() {
-  if (await ensurePrintServiceReady())
-    await runViewerPrint(PRINT_SERVICE_DRIVER_ID, 'fixed', 'EasyInk Printer 打印')
+async function handleEasyInkPrintPrint() {
+  if (await ensureEasyInkPrintReady())
+    await runViewerPrint(EASYINK_PRINT_DRIVER_ID, 'fixed', 'EasyInk Printer 打印')
 }
 
 function openHiPrintSettings() {
@@ -548,7 +548,7 @@ async function handleExport() {
             <DropdownMenuItem :disabled="isPrinting" @click="handleHiPrintPrint">
               HiPrint 打印
             </DropdownMenuItem>
-            <DropdownMenuItem :disabled="isPrinting" @click="handlePrintServicePrint">
+            <DropdownMenuItem :disabled="isPrinting" @click="handleEasyInkPrintPrint">
               EasyInk Printer 打印
             </DropdownMenuItem>
             <DropdownMenuSeparator />

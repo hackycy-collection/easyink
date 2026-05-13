@@ -38,7 +38,7 @@ curl http://localhost:18080/api/printers
 这是整个集成的核心，负责 WebSocket 连接、PDF 分块上传、打印任务轮询。
 
 ```ts
-// src/hooks/usePrintService.ts
+// src/hooks/useEasyInkPrint.ts
 import { computed, ref } from 'vue'
 
 const CONFIG_KEY = 'easyink:printServiceConfig'
@@ -268,7 +268,7 @@ function setEnabled(enabled: boolean) {
 }
 
 // ---- 导出单例 ----
-export function usePrintService() {
+export function useEasyInkPrint() {
   return {
     config,
     connectionState,
@@ -295,9 +295,9 @@ export function usePrintService() {
 与 HiPrint 不同，EasyInk Printer 的流程是：先将 Viewer 页面渲染为 PDF，再上传 PDF 到 .NET 服务打印。
 
 ```ts
-// src/drivers/print-service-driver.ts
+// src/drivers/easyink-print-driver.ts
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
-import { usePrintService } from '../hooks/usePrintService'
+import { useEasyInkPrint } from '../hooks/useEasyInkPrint'
 
 const UNIT_TO_MM: Record<string, number> = {
   cm: 10, in: 25.4, inch: 25.4, mm: 1, pt: 0.352778, px: 25.4 / 96,
@@ -320,11 +320,11 @@ function resolvePrintLandscape(orientation: string, width: number, height: numbe
   return width > height
 }
 
-export function createPrintServiceDriver(): PrintDriver {
-  const service = usePrintService()
+export function createEasyInkPrintDriver(): PrintDriver {
+  const service = useEasyInkPrint()
 
   return {
-    id: 'print-service-driver',
+    id: 'easyink-print-driver',
     async print(context: ViewerPrintContext) {
       if (!service.enabled.value) throw new Error('打印服务未启用')
       if (!service.isConnected.value) await service.connect()
@@ -388,13 +388,13 @@ async function renderPagesToPdf(
 ## 第五步：注册驱动并调用打印
 
 ```ts
-import { createPrintServiceDriver } from './drivers/print-service-driver'
+import { createEasyInkPrintDriver } from './drivers/easyink-print-driver'
 
 // 在 Viewer 初始化后注册
-runtime.registerPrintDriver(createPrintServiceDriver())
+runtime.registerPrintDriver(createEasyInkPrintDriver())
 
 // 调用打印（注意 pageSizeMode 用 'fixed'，与 HiPrint 的 'driver' 不同）
-await runtime.print({ driverId: 'print-service-driver', pageSizeMode: 'fixed' })
+await runtime.print({ driverId: 'easyink-print-driver', pageSizeMode: 'fixed' })
 ```
 
 ## 第六步：纯 HTTP 调用（不依赖 Viewer）
@@ -442,8 +442,8 @@ async function listPrinters() {
 4. 在设置对话框中配置连接地址和打印机
 
 相关源码：
-- `playground/src/hooks/usePrintService.ts` -- 连接管理和打印 API
-- `playground/src/drivers/print-service-driver.ts` -- PrintDriver 实现
+- `playground/src/hooks/useEasyInkPrint.ts` -- 连接管理和打印 API
+- `playground/src/drivers/easyink-print-driver.ts` -- PrintDriver 实现
 - `playground/src/components/EasyInkPrinterSettingsDialog.vue` -- 设置界面
 
 ## 常见问题
