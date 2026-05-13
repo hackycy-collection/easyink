@@ -75,13 +75,13 @@ const renamePrompt = computed(() => {
   if (!output.value) {
     return ''
   }
-  return `请根据每个字段 path 的语义，将下面 DataSourceDescriptor 中所有 DataFieldNode 的 name 字段改为更具语义的命名。
+  return `请根据每个字段 path 的语义，将下面 DataSourceDescriptor 中所有 DataFieldNode 的 title 字段改为更具语义的中文名称。
 
 规则：
-1. 分组节点（有 fields 子节点）：用 path 中该层级的名称，必要时翻译为中文，如 address -> 地址、items -> 商品列表
+1. 分组节点（有 fields 子节点）：根据 path 语义翻译为中文，如 address -> 地址、items -> 商品列表
 2. 叶子节点（无 fields）：根据 path 的完整语义生成简短的中文名称，如 customer/name -> 姓名、items/price -> 单价、address/city -> 城市
-3. name 必须在同级兄弟节点中唯一
-4. DataSourceDescriptor 顶层的 id 和 name 保持不变
+3. name 字段保持原值不动，只改 title
+4. DataSourceDescriptor 顶层的 id、name、title 保持不变
 5. 只输出修改后的完整 JSON，不要解释
 
 以下是需要处理的 DataSourceDescriptor：
