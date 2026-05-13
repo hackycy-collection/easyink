@@ -71,7 +71,9 @@ public class EngineApi : IDisposable
     }
 
     /// <summary>
-    /// 初始化打印引擎
+    /// 初始化打印引擎。
+    /// 默认使用 Pdfium + Windows Print Spooler 打印路径。
+    /// 传入 printService 可替换实现（如 SumatraPrintService）。
     /// </summary>
     public EngineApi(
         IPrinterService printerService = null,
@@ -83,7 +85,7 @@ public class EngineApi : IDisposable
     {
         _printerService = printerService ?? new PrinterService();
         _printService = printService
-            ?? new SumatraPrintService(_printerService, sumatraPdfExePath, sumatraTempDir, printTimeoutMs);
+            ?? new PdfiumPrintService(_printerService);
         _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100);
     }
 
