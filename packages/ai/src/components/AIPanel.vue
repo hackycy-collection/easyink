@@ -443,7 +443,7 @@ watch(() => props.open, (open) => {
     <div class="ai-panel__header">
       <div class="ai-panel__title">
         <IconSparkles :size="16" />
-        <span>AI 模板生成</span>
+        <span>{{ props.store.t('designer.ai.title') }}</span>
       </div>
       <div class="ai-panel__head-actions">
         <select

@@ -496,7 +496,7 @@ function toggleSnapMenu(ev: MouseEvent) {
         v-for="action in toolbarActions"
         :key="action.id"
         class="ei-topbar-b__btn ei-topbar-b__btn--contribution"
-        :title="action.label"
+        :title="store.t(action.label)"
         @click="contributionRegistry && action.onClick(contributionRegistry.context)"
       >
         <component :is="action.icon" :size="16" :stroke-width="1.5" />

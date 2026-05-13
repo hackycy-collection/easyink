@@ -30,7 +30,7 @@ const TYPE_TO_LOCALE: Record<string, string> = {
 
 function localizeEntry(entry: HistoryEntry): string {
   const key = TYPE_TO_LOCALE[entry.type]
-  return key ? store.t(key) : entry.description
+  return store.t(key ?? entry.description)
 }
 
 const entries = ref<HistoryEntry[]>([])

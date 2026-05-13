@@ -140,7 +140,7 @@ export function createTableKeyboardNavBehavior(delegate: TableEditingDelegate): 
           if (cell) {
             cell.content = { text: '' }
           }
-        }, { label: 'Clear cell content' })
+        }, { label: 'designer.history.updateTableCell' })
         return
       }
 
@@ -235,7 +235,7 @@ export function createTableResizeBehavior(delegate: TableEditingDelegate): Behav
           d.width = newTableWidth
           for (let i = 0; i < d.table.topology.columns.length; i++)
             d.table.topology.columns[i]!.ratio = widths[i]! / newTableWidth
-        }, { mergeKey: `resize-col-${p.index}`, label: 'Resize column' })
+        }, { mergeKey: `resize-col-${p.index}`, label: 'designer.history.resizeTableColumn' })
       }
       else {
         const rows = node.table.topology.rows
@@ -259,7 +259,7 @@ export function createTableResizeBehavior(delegate: TableEditingDelegate): Behav
           d.height = newTableHeight
           for (let i = 0; i < d.table.topology.rows.length; i++)
             d.table.topology.rows[i]!.height = heights[i]!
-        }, { mergeKey: `resize-row-${p.index}`, label: 'Resize row' })
+        }, { mergeKey: `resize-row-${p.index}`, label: 'designer.history.resizeTableRow' })
       }
     },
   }
@@ -294,7 +294,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
                 c.content = {}
               c.content.text = p.text
             }
-          }, { label: 'Edit cell text' })
+          }, { label: 'designer.history.updateTableCell' })
           break
         }
 
@@ -308,7 +308,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               cells: Array.from({ length: colCount }, () => ({})),
             })
             d.height += avgHeight
-          }, { label: 'Insert row above' })
+          }, { label: 'designer.table.insertRowAbove' })
           ctx.selectionStore.set({
             type: 'table.cell',
             nodeId: node.id,
@@ -326,7 +326,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               cells: Array.from({ length: colCount }, () => ({})),
             })
             d.height += avgHeight
-          }, { label: 'Insert row below' })
+          }, { label: 'designer.table.insertRowBelow' })
           break
 
         case 'remove-row': {
@@ -337,7 +337,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
           ctx.tx.run<TableNode>(node.id, (d) => {
             d.table.topology.rows.splice(row, 1)
             d.height -= removedHeight * rowScale
-          }, { label: 'Remove row' })
+          }, { label: 'designer.table.removeRow' })
           const newRow = Math.min(row, node.table.topology.rows.length - 2)
           ctx.selectionStore.set({
             type: 'table.cell',
@@ -356,7 +356,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               r.cells.splice(col, 0, {})
             }
             d.width += d.width * newRatio / totalRatio
-          }, { label: 'Insert column left' })
+          }, { label: 'designer.table.insertColLeft' })
           ctx.selectionStore.set({
             type: 'table.cell',
             nodeId: node.id,
@@ -373,7 +373,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               r.cells.splice(col + 1, 0, {})
             }
             d.width += d.width * newRatio / totalRatio
-          }, { label: 'Insert column right' })
+          }, { label: 'designer.table.insertColRight' })
           break
 
         case 'remove-col': {
@@ -387,7 +387,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               r.cells.splice(col, 1)
             }
             d.width -= d.width * removedRatio / totalRatio
-          }, { label: 'Remove column' })
+          }, { label: 'designer.table.removeCol' })
           const newCol = Math.min(col, node.table.topology.columns.length - 2)
           ctx.selectionStore.set({
             type: 'table.cell',
@@ -412,7 +412,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
             if (!c)
               return
             c.colSpan = ncs
-          }, { label: 'Merge right' })
+          }, { label: 'designer.table.mergeRight' })
           break
         }
 
@@ -431,7 +431,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
             if (!c)
               return
             c.rowSpan = nrs
-          }, { label: 'Merge down' })
+          }, { label: 'designer.table.mergeDown' })
           break
         }
 
@@ -446,7 +446,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
               return
             c.colSpan = undefined
             c.rowSpan = undefined
-          }, { label: 'Split cell' })
+          }, { label: 'designer.table.splitCell' })
           break
         }
 
@@ -462,7 +462,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
             if (!c.typography)
               c.typography = {}
             c.typography.textAlign = align
-          }, { label: `Align ${align}` })
+          }, { label: `designer.table.align${align === 'left' ? 'Left' : align === 'center' ? 'Center' : 'Right'}` })
           break
         }
 
@@ -478,7 +478,7 @@ export function createTableCommandHandlerBehavior(delegate: TableEditingDelegate
             if (!c.typography)
               c.typography = {}
             c.typography.verticalAlign = valign
-          }, { label: `Vertical align ${valign}` })
+          }, { label: `designer.table.align${valign === 'top' ? 'Top' : valign === 'middle' ? 'Middle' : 'Bottom'}` })
           break
         }
 

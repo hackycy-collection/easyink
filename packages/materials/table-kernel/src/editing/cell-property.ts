@@ -105,14 +105,14 @@ export function createCellSubPropertySchema(
         tx.run<TableNode>(sel.nodeId, (d) => {
           const c = d.table.topology.rows[row]!.cells[col]!
           c.padding = { top: v, right: v, bottom: v, left: v }
-        }, { label: 'Update cell padding' })
+        }, { label: 'designer.history.updateTableCell' })
         return
       }
       if (key === 'border') {
         tx.run<TableNode>(sel.nodeId, (d) => {
           const c = d.table.topology.rows[row]!.cells[col]!
           c.border = toCellBorder(value)
-        }, { label: 'Update cell border' })
+        }, { label: 'designer.history.updateTableCell' })
         return
       }
       // Typography property
@@ -121,7 +121,7 @@ export function createCellSubPropertySchema(
         if (!c.typography)
           c.typography = {}
         writeTypographyValue(c.typography, key, value)
-      }, { label: `Update cell ${key}` })
+      }, { label: 'designer.history.updateTableCell' })
     },
 
     get binding() {
@@ -145,12 +145,12 @@ export function createCellSubPropertySchema(
       if (rowRole === 'repeat-template') {
         tx.run<TableNode>(sel.nodeId, (d) => {
           d.table.topology.rows[row]!.cells[col]!.binding = undefined
-        }, { label: 'Clear cell binding' })
+        }, { label: 'designer.history.clearBinding' })
       }
       else {
         tx.run<TableNode>(sel.nodeId, (d) => {
           d.table.topology.rows[row]!.cells[col]!.staticBinding = undefined
-        }, { label: 'Clear cell binding' })
+        }, { label: 'designer.history.clearBinding' })
       }
     },
 
@@ -164,14 +164,14 @@ export function createCellSubPropertySchema(
           const binding = d.table.topology.rows[row]!.cells[col]!.binding
           if (binding)
             binding.format = format
-        }, { label: 'Update cell binding format' })
+        }, { label: 'designer.history.updateTableCell' })
       }
       else {
         tx.run<TableNode>(sel.nodeId, (d) => {
           const binding = d.table.topology.rows[row]!.cells[col]!.staticBinding
           if (binding)
             binding.format = format
-        }, { label: 'Update cell binding format' })
+        }, { label: 'designer.history.updateTableCell' })
       }
     },
   }

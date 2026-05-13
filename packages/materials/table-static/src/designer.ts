@@ -110,7 +110,7 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
         const c = d.table.topology.rows[cell.row]!.cells[cell.col]!
         c.staticBinding = { ...binding }
         c.content = undefined
-      }, { label: 'Bind static field' })
+      }, { label: 'designer.history.bindField' })
     },
   }
 }

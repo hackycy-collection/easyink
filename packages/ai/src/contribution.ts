@@ -33,7 +33,7 @@ export function createAIContribution(options: CreateAIContributionOptions = {}):
       ctx.registerToolbarAction({
         id: 'ai.toggle',
         icon: IconSparkles,
-        label: options.label ?? 'AI 模板生成',
+        label: options.label ?? 'designer.ai.title',
         onClick: () => {
           void ctx.executeCommand('ai.togglePanel')
         },

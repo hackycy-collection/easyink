@@ -256,14 +256,14 @@ function createDatasourceDropHandler(context: MaterialExtensionContext): Datasou
 
         context.tx.run<TableNode>(node.id, (d) => {
           d.table.topology.rows[cell.row]!.cells[cell.col]!.binding = { ...binding }
-        }, { label: 'Bind data field' })
+        }, { label: 'designer.history.bindField' })
       }
       else {
         context.tx.run<TableNode>(node.id, (d) => {
           const c = d.table.topology.rows[cell.row]!.cells[cell.col]!
           c.staticBinding = { ...binding }
           c.content = undefined
-        }, { label: 'Bind static field' })
+        }, { label: 'designer.history.bindField' })
       }
     },
   }

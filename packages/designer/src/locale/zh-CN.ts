@@ -2,6 +2,9 @@ import type { LocaleMessages } from '../types'
 
 const zhCN: LocaleMessages = {
   designer: {
+    ai: {
+      title: 'AI 模板生成',
+    },
     toolbar: {
       text: '文本',
       image: '图片',
@@ -434,6 +437,7 @@ const zhCN: LocaleMessages = {
       insertTableRow: '插入表格行',
       removeTableRow: '删除表格行',
       resizeTableColumn: '调整列宽',
+      resizeTableRow: '调整行高',
       updateTableCell: '修改单元格',
       updateTableSection: '修改表格区段',
     },

@@ -2,6 +2,9 @@ import type { LocaleMessages } from '../types'
 
 const enUS: LocaleMessages = {
   designer: {
+    ai: {
+      title: 'AI Template Generator',
+    },
     toolbar: {
       text: 'Text',
       image: 'Image',
@@ -434,6 +437,7 @@ const enUS: LocaleMessages = {
       insertTableRow: 'Insert Table Row',
       removeTableRow: 'Remove Table Row',
       resizeTableColumn: 'Resize Column',
+      resizeTableRow: 'Resize Row',
       updateTableCell: 'Update Cell',
       updateTableSection: 'Update Table Section',
     },

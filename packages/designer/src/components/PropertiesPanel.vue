@@ -576,7 +576,7 @@ function readPropValue(schema: PropSchema): unknown {
         <EiPanel
           v-for="[group, schemas] in subGroupedSchemas"
           :key="`sub-${group}`"
-          :title="subPropertySchema.title ? `${subPropertySchema.title} - ${groupLabel(group)}` : groupLabel(group)"
+          :title="subPropertySchema.title ? `${store.t(subPropertySchema.title)} - ${groupLabel(group)}` : groupLabel(group)"
           collapsible
           flat
         >
