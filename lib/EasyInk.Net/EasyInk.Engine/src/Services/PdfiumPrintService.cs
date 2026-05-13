@@ -81,13 +81,17 @@ public class PdfiumPrintService : IPrintService
             paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
         }
 
-        // Render all pages
+        int renderWidth = (int)Math.Round(paperWidthMm / 25.4 * dpi);
+        int renderHeight = (int)Math.Round(paperHeightMm / 25.4 * dpi);
+
+        // Render all pages at the target DPI with correct pixel dimensions
         var pageImages = new Image[pageCount];
         try
         {
             for (int i = 0; i < pageCount; i++)
             {
-                pageImages[i] = pdfDoc.Render(i, (int)dpi, (int)dpi, PdfRenderFlags.ForPrinting);
+                pageImages[i] = pdfDoc.Render(i, renderWidth, renderHeight, (int)dpi, (int)dpi,
+                    PdfRenderFlags.ForPrinting);
             }
 
             PrintImages(request, paperWidthMm, paperHeightMm, pageImages);
@@ -138,21 +142,25 @@ public class PdfiumPrintService : IPrintService
             }
 
             var img = pageImages[pageIndex % pageImages.Length];
-            var targetBounds = e.MarginBounds;
+            var bounds = e.MarginBounds;
 
-            // Scale image to fit printable area while preserving aspect ratio
-            float scaleX = (float)targetBounds.Width / img.Width;
-            float scaleY = (float)targetBounds.Height / img.Height;
+            // Set page unit to hundredths of an inch (same as MarginBounds)
+            e.Graphics.PageUnit = GraphicsUnit.Display;
+
+            // Scale image to fit printable area preserving aspect ratio
+            float scaleX = (float)bounds.Width / img.Width;
+            float scaleY = (float)bounds.Height / img.Height;
             float scale = Math.Min(scaleX, scaleY);
 
             int drawW = (int)(img.Width * scale);
             int drawH = (int)(img.Height * scale);
-            int drawX = targetBounds.Left + (targetBounds.Width - drawW) / 2;
-            int drawY = targetBounds.Top + (targetBounds.Height - drawH) / 2;
+            int drawX = bounds.Left + (bounds.Width - drawW) / 2;
+            int drawY = bounds.Top + (bounds.Height - drawH) / 2;
 
             e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
             e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            e.Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
 
             e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
 
