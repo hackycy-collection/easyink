@@ -32,7 +32,7 @@ public class HttpServer
         try
         {
             _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://localhost:{_port}/");
+            _listener.Prefixes.Add($"http://+:{_port}/");
             _listener.Start();
 
             _cts = new CancellationTokenSource();

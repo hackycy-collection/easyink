@@ -35,7 +35,7 @@ public class HostConfig
     public string DbPath { get; set; }
     public string SumatraTempDir { get; set; }
     public string CrashLogDir { get; set; }
-    public bool TrustAllOrigins { get; set; } = false;
+    public bool TrustAllOrigins { get; set; } = true;
     public string ApiKey { get; set; }
 
     public int MaxWebSocketConnections
