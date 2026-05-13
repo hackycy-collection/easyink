@@ -6,6 +6,7 @@ const DEFAULT_JSON = JSON.stringify({}, null, 2)
 const jsonText = ref(DEFAULT_JSON)
 const parseError = ref('')
 const copied = ref(false)
+const promptCopied = ref(false)
 
 watch(jsonText, () => {
   try {
@@ -69,6 +70,37 @@ async function handleCopy() {
     copied.value = false
   }, 1500)
 }
+
+const renamePrompt = computed(() => {
+  if (!output.value) {
+    return ''
+  }
+  return `请根据每个字段 path 的语义，将下面 DataSourceDescriptor 中所有 DataFieldNode 的 name 字段改为更具语义的命名。
+
+规则：
+1. 分组节点（有 fields 子节点）：用 path 中该层级的名称，必要时翻译为中文，如 address -> 地址、items -> 商品列表
+2. 叶子节点（无 fields）：根据 path 的完整语义生成简短的中文名称，如 customer/name -> 姓名、items/price -> 单价、address/city -> 城市
+3. name 必须在同级兄弟节点中唯一
+4. DataSourceDescriptor 顶层的 id 和 name 保持不变
+5. 只输出修改后的完整 JSON，不要解释
+
+以下是需要处理的 DataSourceDescriptor：
+\`\`\` json
+${output.value}
+\`\`\`
+`
+})
+
+async function handleCopyPrompt() {
+  if (!renamePrompt.value) {
+    return
+  }
+  await navigator.clipboard.writeText(renamePrompt.value)
+  promptCopied.value = true
+  setTimeout(() => {
+    promptCopied.value = false
+  }, 1500)
+}
 </script>
 
 <template>
@@ -100,13 +132,24 @@ async function handleCopy() {
     <div class="ei-j2ds__section">
       <div class="ei-j2ds__bar">
         <span class="ei-j2ds__label">DataSourceDescriptor</span>
-        <button
-          class="ei-j2ds__btn"
-          :class="{ 'ei-j2ds__btn--ok': copied }"
-          @click="handleCopy"
-        >
-          {{ copied ? '已复制' : '复制' }}
-        </button>
+        <div class="ei-j2ds__actions">
+          <button
+            class="ei-j2ds__btn"
+            :class="{ 'ei-j2ds__btn--ok': promptCopied }"
+            :disabled="!output"
+            @click="handleCopyPrompt"
+          >
+            {{ promptCopied ? '已复制' : 'AI提示词' }}
+          </button>
+          <button
+            class="ei-j2ds__btn"
+            :class="{ 'ei-j2ds__btn--ok': copied }"
+            :disabled="!output"
+            @click="handleCopy"
+          >
+            {{ copied ? '已复制' : '复制结构' }}
+          </button>
+        </div>
       </div>
       <pre class="ei-j2ds__pre">{{ output }}</pre>
     </div>
@@ -144,6 +187,11 @@ async function handleCopy() {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--vp-c-text-2);
+}
+
+.ei-j2ds__actions {
+  display: flex;
+  gap: 8px;
 }
 
 .ei-j2ds__btn {
