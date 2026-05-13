@@ -183,7 +183,7 @@ public class SumatraPrintServiceTests
         request.PaperSize = new PaperSizeParams { Width = 100, Height = 150, Unit = "mm" };
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
-        Assert.Contains("paper=100x150mm", settings);
+        Assert.Contains("paper=100mm x 150mm", settings);
     }
 
     [Fact]
@@ -195,6 +195,6 @@ public class SumatraPrintServiceTests
 
         Assert.Contains("2x", settings);
         Assert.Contains("landscape", settings);
-        Assert.Contains("paper=50x30mm", settings);
+        Assert.Contains("paper=50mm x 30mm", settings);
     }
 }

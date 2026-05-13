@@ -131,9 +131,14 @@ public class SumatraPrintService : IPrintService
 
         if (request.PaperSize != null)
         {
-            var w = request.PaperSize.Width.ToString("0.##");
-            var h = request.PaperSize.Height.ToString("0.##");
-            parts.Append($",paper={w}x{h}{request.PaperSize.Unit}");
+            // SumatraPDF expects: paper={w}mm x {h}mm (spaces around 'x', unit after each value)
+            var wMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
+                ? request.PaperSize.Width * 25.4
+                : request.PaperSize.Width;
+            var hMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
+                ? request.PaperSize.Height * 25.4
+                : request.PaperSize.Height;
+            parts.Append($",paper={wMm:0.##}mm x {hMm:0.##}mm");
         }
 
         return parts.ToString();
