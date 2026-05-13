@@ -16,7 +16,7 @@ EngineApi (公共入口)
 ├── IPrinterService          ← 打印机枚举/状态查询
 │   └── PrinterService       ← 默认实现：WMI 查询
 ├── IPrintService            ← 打印执行
-│   └── SumatraPrintService  ← 默认实现：SumatraPDF 矢量直通
+│   └── PdfiumPrintService   ← 默认实现：Pdfium 渲染 + Windows Print Spooler
 ├── PrintJobQueue            ← 异步队列（BlockingCollection + 后台线程）
 └── IPdfProvider             ← PDF 数据源策略
     ├── Base64PdfProvider
@@ -44,11 +44,8 @@ dotnet build EasyInk.Engine/src
 ```csharp
 using EasyInk.Engine;
 
-// 创建引擎（自动查找同目录下的 SumatraPDF.exe）
+// 创建引擎（默认使用 Pdfium + Windows Print Spooler）
 using var api = new EngineApi();
-
-// 或指定 SumatraPDF 路径
-using var api = new EngineApi(sumatraPdfExePath: @"C:\tools\SumatraPDF.exe");
 ```
 
 ## 核心 API
@@ -183,7 +180,7 @@ EngineApi.Log += (level, message) =>
 
 ### 自定义打印服务
 
-实现 `IPrintService` 接口可替换 SumatraPDF：
+实现 `IPrintService` 接口可替换默认打印实现：
 
 ```csharp
 public class MyPrintService : IPrintService
@@ -207,5 +204,6 @@ using var api = new EngineApi(printService: new MyPrintService());
 | 包 | 说明 |
 |----|------|
 | Newtonsoft.Json | JSON 序列化 |
-| System.Drawing | 图像处理（纸张尺寸） |
+| PdfiumViewer | PDF 渲染（Chromium 同款 PDF 引擎） |
+| System.Drawing | 图像处理 / 打印输出 |
 | System.Management | WMI 查询（打印机状态） |

@@ -17,7 +17,6 @@
 ```bash
 # 环境：Windows 7 SP1+，.NET SDK 10.0+
 cd lib/EasyInk.Net
-powershell -File EasyInk.Printer/tools/download-sumatra.ps1   # 首次需要
 dotnet build EasyInk.Engine/src
 dotnet build EasyInk.Printer/src
 dotnet run --project EasyInk.Printer/src

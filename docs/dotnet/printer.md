@@ -40,11 +40,6 @@ EasyInk.Printer
 ```bash
 cd lib/EasyInk.Net
 
-# 首次构建前下载 SumatraPDF
-cd EasyInk.Printer
-powershell -File tools/download-sumatra.ps1
-cd ..
-
 # 构建
 dotnet build EasyInk.Printer/src
 ```
@@ -77,7 +72,6 @@ build-installer.bat 1.2.3-beta.1
   "minimizeToTray": true,
   "startMinimized": true,
   "dbPath": null,
-  "sumatraTempDir": null,
   "crashLogDir": null,
   "trustAllOrigins": false,
   "apiKey": null,
@@ -95,7 +89,6 @@ build-installer.bat 1.2.3-beta.1
 | `minimizeToTray` | 关闭窗口时最小化到托盘 | `true` |
 | `startMinimized` | 启动时最小化 | `true` |
 | `dbPath` | 审计数据库路径（null 为默认位置） | `null` |
-| `sumatraTempDir` | SumatraPDF 临时目录 | `null` |
 | `crashLogDir` | 崩溃日志目录 | `null` |
 | `trustAllOrigins` | 允许所有 CORS 来源 | `false` |
 | `apiKey` | API Key（null 为不启用认证） | `null` |
@@ -135,7 +128,6 @@ curl -H "X-API-Key: your-secret-key" http://localhost:18080/api/printers
 publish/
 ├── EasyInk.Printer.exe          # 主程序
 ├── EasyInk.Engine.dll           # 打印引擎
-├── SumatraPDF.exe               # PDF 打印引擎（矢量直通）
 ├── Newtonsoft.Json.dll
 ├── Dapper.dll
 ├── System.Data.SQLite.dll
