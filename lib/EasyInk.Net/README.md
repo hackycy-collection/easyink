@@ -18,10 +18,7 @@ EasyInk 的 .NET 包集合，基于 .NET Framework 4.8 开发，兼容 Windows 7
 EasyInk.Printer              ← 完整应用：HTTP 服务 + 系统托盘 + 桌面管理窗口 + 审计日志
     │
     ▼
-EasyInk.Engine.dll           ← 打印引擎：打印机管理、PDF 打印执行、队列管理
-    │
-    ▼
-SumatraPDF.exe               ← 矢量直通打印
+EasyInk.Engine.dll           ← 打印引擎：Pdfium 渲染 + Windows Print Spooler
 ```
 
 ## 目录结构
@@ -112,13 +109,6 @@ build-installer.bat 1.2.3-beta.1
 
 - `1.2.3` 会生成 `AssemblyVersion=1.2.3.0`、`FileVersion=1.2.3.0`。
 - `1.2.3-beta.1` 会生成 `Version=1.2.3-beta.1`、`InformationalVersion=1.2.3-beta.1`，同时将 `AssemblyVersion` 和 `FileVersion` 归一到 `1.2.3.0`。
-
-首次打包前仍需先下载 SumatraPDF：
-
-```powershell
-cd lib/EasyInk.Net/EasyInk.Printer
-powershell -File tools/download-sumatra.ps1
-```
 
 ## 兼容性
 

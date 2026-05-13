@@ -77,9 +77,6 @@ static class Program
 
         IAuditService auditService = CreateAuditService(config.DbPath);
         var engineApi = new EngineApi(
-            sumatraPdfExePath: null,
-            sumatraTempDir: config.SumatraTempDir,
-            printTimeoutMs: config.PrintTimeoutSeconds * 1000,
             maxQueueSize: config.MaxQueueSize);
 
         // 订阅打印完成事件，写入审计日志

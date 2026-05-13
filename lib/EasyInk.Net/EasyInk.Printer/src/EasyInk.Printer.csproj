@@ -23,14 +23,6 @@
     <EmbeddedResource Include="app.ico" />
   </ItemGroup>
 
-  <!-- SumatraPDF: download via tools/download-sumatra.ps1, placed in src/bin/SumatraPDF/ -->
-  <ItemGroup>
-    <Content Include="bin\SumatraPDF\SumatraPDF.exe" Condition="Exists('bin\SumatraPDF\SumatraPDF.exe')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>SumatraPDF.exe</Link>
-    </Content>
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

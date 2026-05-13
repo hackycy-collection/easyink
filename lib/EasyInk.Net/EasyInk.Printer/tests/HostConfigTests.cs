@@ -48,13 +48,6 @@ public class HostConfigTests
     }
 
     [Fact]
-    public void DefaultSumatraTempDir_HasDriveLetter()
-    {
-        var dir = HostConfig.DefaultSumatraTempDir;
-        Assert.True(HostConfig.IsValidFilePath(dir, out _));
-    }
-
-    [Fact]
     public void DefaultCrashLogDir_UsesLocalApplicationData()
     {
         var expected = Path.Combine(

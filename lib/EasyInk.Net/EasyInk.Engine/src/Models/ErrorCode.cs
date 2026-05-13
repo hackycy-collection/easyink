@@ -18,8 +18,6 @@ public static class ErrorCode
     /// <summary>队列已满</summary>
     public const string QueueFull = "QUEUE_FULL";
 
-    /// <summary>SumatraPDF 不存在</summary>
-    public const string SumatraNotFound = "SUMATRA_NOT_FOUND";
     /// <summary>打印失败</summary>
     public const string PrintFailed = "PRINT_FAILED";
     /// <summary>打印超时</summary>

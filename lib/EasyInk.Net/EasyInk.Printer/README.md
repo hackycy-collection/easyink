@@ -28,7 +28,7 @@ EasyInk.Printer (WinExe, 完整应用)
 
 EasyInk.Engine (Library, 纯打印)
 ├── 打印机枚举/状态查询 (WMI)
-├── PDF 打印执行 (SumatraPDF)
+├── PDF 渲染 + Windows Print Spooler 打印
 ├── 打印队列管理
 └── 日志通过事件回传调用方
 ```
@@ -49,14 +49,14 @@ EasyInk.Engine (Library, 纯打印)
 │         │ (Engine)   │  │ (SQLite)    │                    │
 │         └─────┬─────┘  └─────────────┘                    │
 │        ┌──────┼──────┐                                    │
-│  ┌─────▼──┐┌──▼───┐                                      │
-│  │Printer ││Sumatra│                                      │
-│  │Service ││Print  │                                      │
+│  ┌─────▼──┐┌──▼──────┐                                   │
+│  │Printer ││Pdfium   │                                   │
+│  │Service ││Print    │                                   │
 │  │(WMI)   ││Service│                                      │
 │  └────────┘└──┬───┘                                       │
 │               │  矢量直通                                   │
 │         ┌─────▼─────┐                                     │
-│         │SumatraPDF │                                     │
+│         │Spooler   │                                     │
 │         │  .exe     │                                     │
 │         └───────────┘                                     │
 └──────────────────────────────────────────────────────────┘
@@ -216,15 +216,6 @@ EasyInk.Net/
 
 ## 构建与部署
 
-### 构建前准备
-
-首次构建前需下载 SumatraPDF（PDF 直接打印引擎，约 15MB）：
-
-```bash
-cd lib/EasyInk.Net/EasyInk.Printer
-powershell -File tools/download-sumatra.ps1
-```
-
 ### 构建
 
 ```bash
@@ -274,7 +265,6 @@ build-installer.bat 1.2.3-beta.1
 publish/
 ├── EasyInk.Printer.exe          # 主程序
 ├── EasyInk.Engine.dll           # 打印引擎
-├── SumatraPDF.exe               # PDF 打印引擎（矢量直通）
 ├── Newtonsoft.Json.dll
 ├── Dapper.dll
 ├── System.Data.SQLite.dll

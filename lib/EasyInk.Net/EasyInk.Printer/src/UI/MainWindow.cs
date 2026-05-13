@@ -803,30 +803,6 @@ public class MainWindow : Form
                 txtDbPath.Text = dlg.FileName;
         };
 
-        var lblTempDir = new Label { Text = "PDF 临时目录:", Anchor = AnchorStyles.Left, AutoSize = true };
-        var txtTempDir = new TextBox
-        {
-            Text = string.IsNullOrWhiteSpace(_config.SumatraTempDir) ? HostConfig.DefaultSumatraTempDir : _config.SumatraTempDir,
-            Dock = DockStyle.Fill,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right
-        };
-        var btnBrowseTemp = new Button
-        {
-            Text = "浏览",
-            Width = 52,
-            Anchor = AnchorStyles.Left
-        };
-        btnBrowseTemp.Click += (s, e) =>
-        {
-            using var dlg = new FolderBrowserDialog
-            {
-                Description = "选择 PDF 临时文件目录",
-                SelectedPath = txtTempDir.Text
-            };
-            if (dlg.ShowDialog() == DialogResult.OK)
-                txtTempDir.Text = dlg.SelectedPath;
-        };
-
         var lblCrashDir = new Label { Text = "崩溃日志目录:", Anchor = AnchorStyles.Left, AutoSize = true };
         var txtCrashDir = new TextBox
         {
@@ -854,12 +830,9 @@ public class MainWindow : Form
         pathPanel.Controls.Add(lblDbPath, 0, 0);
         pathPanel.Controls.Add(txtDbPath, 1, 0);
         pathPanel.Controls.Add(btnBrowseDb, 2, 0);
-        pathPanel.Controls.Add(lblTempDir, 0, 1);
-        pathPanel.Controls.Add(txtTempDir, 1, 1);
-        pathPanel.Controls.Add(btnBrowseTemp, 2, 1);
-        pathPanel.Controls.Add(lblCrashDir, 0, 2);
-        pathPanel.Controls.Add(txtCrashDir, 1, 2);
-        pathPanel.Controls.Add(btnBrowseCrash, 2, 2);
+        pathPanel.Controls.Add(lblCrashDir, 0, 1);
+        pathPanel.Controls.Add(txtCrashDir, 1, 1);
+        pathPanel.Controls.Add(btnBrowseCrash, 2, 1);
         grpPath.Controls.Add(pathPanel);
 
         // 保存按钮
@@ -878,14 +851,6 @@ public class MainWindow : Form
             {
                 MessageBox.Show($"数据库路径无效: {dbError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtDbPath.Focus();
-                return;
-            }
-
-            var tempDirValue = txtTempDir.Text.Trim();
-            if (!HostConfig.IsValidFilePath(tempDirValue + Path.DirectorySeparatorChar, out var tempError))
-            {
-                MessageBox.Show($"PDF 临时目录无效: {tempError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtTempDir.Focus();
                 return;
             }
 
@@ -908,8 +873,6 @@ public class MainWindow : Form
 
             _config.DbPath = string.Equals(dbPathValue, HostConfig.DefaultDbPath, StringComparison.OrdinalIgnoreCase)
                 ? null : dbPathValue;
-            _config.SumatraTempDir = string.Equals(tempDirValue, HostConfig.DefaultSumatraTempDir.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
-                ? null : tempDirValue;
             _config.CrashLogDir = string.Equals(crashDirValue, HostConfig.DefaultCrashLogDir, StringComparison.OrdinalIgnoreCase)
                 ? null : crashDirValue;
 

@@ -33,7 +33,6 @@ public class HostConfig
     public bool MinimizeToTray { get; set; } = true;
     public bool StartMinimized { get; set; } = true;
     public string DbPath { get; set; }
-    public string SumatraTempDir { get; set; }
     public string CrashLogDir { get; set; }
     public bool TrustAllOrigins { get; set; } = true;
     public string ApiKey { get; set; }
@@ -64,18 +63,11 @@ public class HostConfig
 
     public static string DefaultDbPath => Path.Combine(DefaultDataDir, "audit.db");
 
-    public static string DefaultSumatraTempDir => Path.GetTempPath();
-
     public static string DefaultCrashLogDir => Path.Combine(DefaultDataDir, "crash");
 
     public static string ResolveDbPath(string dbPath)
     {
         return string.IsNullOrWhiteSpace(dbPath) ? DefaultDbPath : dbPath;
-    }
-
-    public static string ResolveSumatraTempDir(string dir)
-    {
-        return string.IsNullOrWhiteSpace(dir) ? DefaultSumatraTempDir : dir;
     }
 
     public static string ResolveCrashLogDir(string dir)

@@ -7,7 +7,7 @@ EasyInk 的打印引擎，纯 .NET 类库（DLL），仅负责打印链路，不
 - **无 UI 依赖**：不引用 WinForms/WPF，可嵌入任何宿主
 - **无持久化**：日志通过静态事件 `EngineApi.Log` 回传，由宿主决定存储方式
 - **策略模式**：PDF 来源（Base64/URL/Binary）通过 `IPdfProvider` 抽象，可扩展
-- **接口驱动**：`IPrinterService` 和 `IPrintService` 可替换默认实现（WMI / SumatraPDF）
+- **接口驱动**：`IPrinterService` 和 `IPrintService` 可替换默认实现
 
 ## 架构
 
@@ -16,7 +16,7 @@ EngineApi (公共入口)
 ├── IPrinterService          ← 打印机枚举/状态查询
 │   └── PrinterService       ← 默认实现：WMI 查询
 ├── IPrintService            ← 打印执行
-│   └── SumatraPrintService  ← 默认实现：SumatraPDF 矢量直通
+│   └── PdfiumPrintService   ← 默认实现：Pdfium 渲染 + Windows Print Spooler
 ├── PrintJobQueue            ← 异步队列（BlockingCollection + 后台线程）
 └── IPdfProvider             ← PDF 数据源策略
     ├── Base64PdfProvider
@@ -29,14 +29,11 @@ EngineApi (公共入口)
 ### EngineApi
 
 ```csharp
-// 使用默认实现（WMI + SumatraPDF）
+// 使用默认实现（WMI + Pdfium/Spooler）
 using var api = new EngineApi();
 
 // 或注入自定义实现
 using var api = new EngineApi(printerService, printService);
-
-// 或指定 SumatraPDF 路径
-using var api = new EngineApi(sumatraPdfExePath: @"C:\tools\SumatraPDF.exe");
 ```
 
 #### 方法一览
@@ -120,7 +117,7 @@ using var api = new EngineApi(sumatraPdfExePath: @"C:\tools\SumatraPDF.exe");
 |----|------|------|
 | `JobStatus` | `Queued`, `Printing`, `Completed`, `Failed` | 任务状态 |
 | `PrinterStatusCode` | `Ready`, `PrinterOffline`, `PaperJam`, `PaperOut`, `PrinterStopped`, `PrinterError`, `PrinterNotFound` | 打印机状态码 |
-| `ErrorCode` | `InvalidParams`, `InvalidJson`, `UnknownCommand`, `JobNotFound`, `QueueFull`, `SumatraNotFound`, `PrintFailed`, `PrintTimeout`, `InvalidPdfSource`, `Unauthorized`, `NotFound` 等 | 错误码 |
+| `ErrorCode` | `InvalidParams`, `InvalidJson`, `UnknownCommand`, `JobNotFound`, `QueueFull`, `PrintFailed`, `PrintTimeout`, `InvalidPdfSource`, `Unauthorized`, `NotFound` 等 | 错误码 |
 
 ## 日志订阅
 
@@ -136,7 +133,7 @@ EngineApi.Log += (level, message) =>
 
 ### 自定义打印服务
 
-实现 `IPrintService` 接口可替换 SumatraPDF：
+实现 `IPrintService` 接口可替换默认实现：
 
 ```csharp
 public class MyPrintService : IPrintService
@@ -160,7 +157,8 @@ using var api = new EngineApi(printService: new MyPrintService());
 | 包 | 说明 |
 |----|------|
 | Newtonsoft.Json | JSON 序列化 |
-| System.Drawing | 图像处理（纸张尺寸） |
+| PdfiumViewer | PDF 渲染（Chromium 同款 PDF 引擎） |
+| System.Drawing | 图像处理 / 打印输出 |
 | System.Management | WMI 查询（打印机状态） |
 
 ## 构建
