@@ -13,6 +13,7 @@ import { useMaterialDrop } from '../composables/use-material-drop'
 import { useCanvasInteractionController } from '../interactions'
 import { isElementRotatable } from '../materials/capabilities'
 import { getSelectionBox } from '../snap'
+import { clampWorkspaceWindows, hasUsableWorkspaceRect, resolveAnchoredWorkspaceWindows } from '../store/workspace-window-layout'
 import { CANVAS_CONTAINER_KEY } from './canvas-container'
 import CanvasContextMenu from './CanvasContextMenu.vue'
 import CanvasElementContent from './CanvasElementContent.vue'
@@ -279,21 +280,30 @@ function handleRulerHover(hover: { axis: 'x' | 'y', position: number } | null) {
 
 // ─── Window position clamping ────────────────────────────────────
 
+let windowLayoutTimer: ReturnType<typeof setTimeout> | null = null
+
 function clampWindowPositions() {
   const el = containerRef.value
   if (!el)
     return
   const rect = el.getBoundingClientRect()
-  const rulerSize = 20
-  for (const win of store.workbench.windows) {
-    const maxX = rect.width - win.width
-    const maxY = rect.height - 32
-    win.x = maxX <= rulerSize ? rulerSize : Math.max(rulerSize, Math.min(win.x, maxX))
-    win.y = maxY <= rulerSize ? rulerSize : Math.max(rulerSize, Math.min(win.y, maxY))
-  }
+  if (!hasUsableWorkspaceRect(rect))
+    return
+
+  resolveAnchoredWorkspaceWindows(store.workbench.windows, rect)
+  clampWorkspaceWindows(store.workbench.windows, rect)
 }
 
-const containerObserver = new ResizeObserver(clampWindowPositions)
+function scheduleWindowLayout() {
+  if (windowLayoutTimer)
+    clearTimeout(windowLayoutTimer)
+  windowLayoutTimer = setTimeout(() => {
+    windowLayoutTimer = null
+    clampWindowPositions()
+  }, 120)
+}
+
+const containerObserver = new ResizeObserver(scheduleWindowLayout)
 
 // ─── Lifecycle ───────────────────────────────────────────────────
 
@@ -305,16 +315,7 @@ onMounted(() => {
   // Register page element provider so material extensions can do coordinate conversion
   store.setPageElProvider(() => pageRef.value)
 
-  const rect = el.getBoundingClientRect()
-  for (const win of store.workbench.windows) {
-    if (win.x < 0) {
-      win.x = rect.width - win.width - 12
-    }
-    if (win.y < 0) {
-      win.y = rect.height - win.height - 12
-    }
-  }
-  clampWindowPositions()
+  scheduleWindowLayout()
   containerObserver.observe(el)
   // Sync initial scroll position
   if (scrollRef.value) {
@@ -323,6 +324,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (windowLayoutTimer) {
+    clearTimeout(windowLayoutTimer)
+    windowLayoutTimer = null
+  }
   containerObserver.disconnect()
   cursorPos.value = null
   cleanupOverlay()

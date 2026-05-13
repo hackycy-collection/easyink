@@ -1,4 +1,5 @@
 import type { WorkspaceWindowState } from '../types'
+import { WORKSPACE_RULER_SIZE, WORKSPACE_WINDOW_TITLEBAR_VISIBLE_HEIGHT } from '../store/workspace-window-layout'
 
 export function useWindowDrag(
   getWindowState: () => WorkspaceWindowState,
@@ -25,12 +26,11 @@ export function useWindowDrag(
 
     function onMove(ev: PointerEvent) {
       const rect = container!.getBoundingClientRect()
-      const rulerSize = 20
       const maxX = rect.width - win.width
-      const maxY = rect.height - 32 // keep at least titlebar visible
+      const maxY = rect.height - WORKSPACE_WINDOW_TITLEBAR_VISIBLE_HEIGHT
       // If window is larger than container, pin to left/top edge
-      win.x = maxX <= rulerSize ? rulerSize : Math.max(rulerSize, Math.min(maxX, ev.clientX - startX))
-      win.y = maxY <= rulerSize ? rulerSize : Math.max(rulerSize, Math.min(maxY, ev.clientY - startY))
+      win.x = maxX <= WORKSPACE_RULER_SIZE ? WORKSPACE_RULER_SIZE : Math.max(WORKSPACE_RULER_SIZE, Math.min(maxX, ev.clientX - startX))
+      win.y = maxY <= WORKSPACE_RULER_SIZE ? WORKSPACE_RULER_SIZE : Math.max(WORKSPACE_RULER_SIZE, Math.min(maxY, ev.clientY - startY))
     }
 
     function onUp() {
