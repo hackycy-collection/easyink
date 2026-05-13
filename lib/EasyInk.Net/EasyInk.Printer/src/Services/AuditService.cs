@@ -4,6 +4,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using Dapper;
+using EasyInk.Printer.Config;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
 
