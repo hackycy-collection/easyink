@@ -97,7 +97,8 @@ using var api = new EngineApi(sumatraPdfExePath: @"C:\tools\SumatraPDF.exe");
 | Copies | int | 份数，默认 1 |
 | Landscape | bool | 横向打印 |
 | Dpi | int | 分辨率，默认 300 |
-| PaperSize | PaperSizeParams | 自定义纸张尺寸 |
+| PaperSize | PaperSizeParams | PDF/模板纸张尺寸 |
+| ForcePaperSize | bool | 是否强制把 PaperSize 下发为驱动纸张参数，默认 false |
 | Offset | OffsetParams | 打印偏移 |
 | UserData | UserDataParams | 自定义数据（用户ID、标签类型） |
 

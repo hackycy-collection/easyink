@@ -118,14 +118,14 @@ public class EngineApi : IDisposable
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null, bool landscape = false)
+        string userId = null, string labelType = null, bool landscape = false, bool forcePaperSize = false)
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
 
         var requestId = Guid.NewGuid().ToString();
         var response = _printService.Print(requestId, request);
@@ -140,14 +140,14 @@ public class EngineApi : IDisposable
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null, bool landscape = false)
+        string userId = null, string labelType = null, bool landscape = false, bool forcePaperSize = false)
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
             return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape);
+            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
 
         try
         {
@@ -278,7 +278,7 @@ public class EngineApi : IDisposable
         string pdfUrl, byte[] pdfBytes, int copies,
         double? paperWidth, double? paperHeight, string paperUnit, int dpi,
         double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType,
-        bool landscape)
+        bool landscape, bool forcePaperSize)
     {
         return new PrintRequestParams
         {
@@ -289,6 +289,7 @@ public class EngineApi : IDisposable
             Copies = copies,
             Dpi = dpi,
             Landscape = landscape,
+            ForcePaperSize = forcePaperSize,
             PaperSize = paperWidth.HasValue && paperHeight.HasValue
                 ? new PaperSizeParams { Width = paperWidth.Value, Height = paperHeight.Value, Unit = paperUnit }
                 : null,

@@ -152,8 +152,11 @@ EngineApi.Log += (level, message) =>
 | Copies | int | 份数，默认 1 |
 | Landscape | bool | 横向打印 |
 | Dpi | int | 分辨率，默认 300 |
-| PaperSize | PaperSizeParams | 自定义纸张尺寸 |
+| PaperSize | PaperSizeParams | PDF/模板纸张尺寸 |
+| ForcePaperSize | bool | 是否强制把 PaperSize 下发为驱动纸张参数，默认 false |
 | Offset | OffsetParams | 打印偏移 |
+
+热敏小票机、连续纸建议保持 `ForcePaperSize=false`，让驱动使用当前介质。只有标签机等驱动不收到自定义尺寸会回退到 A4 时，才设为 `true`。
 
 三种 PDF 来源互斥，只能提供其一。
 

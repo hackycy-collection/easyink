@@ -177,10 +177,21 @@ public class SumatraPrintServiceTests
     }
 
     [Fact]
-    public void BuildPrintSettings_WithPaperSize()
+    public void BuildPrintSettings_WithPaperSize_NotForced_UsesDriverDefault()
     {
         var request = CreateRequest();
         request.PaperSize = new PaperSizeParams { Width = 100, Height = 150, Unit = "mm" };
+        var settings = SumatraPrintService.BuildPrintSettings(request);
+
+        Assert.Equal("shrink", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_WithPaperSize_Forced_UsesPaperSize()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 100, Height = 150, Unit = "mm" };
+        request.ForcePaperSize = true;
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
         Assert.Contains("paper=100mm x 150mm", settings);
@@ -191,6 +202,7 @@ public class SumatraPrintServiceTests
     {
         var request = CreateRequest(copies: 2, landscape: true);
         request.PaperSize = new PaperSizeParams { Width = 50, Height = 30, Unit = "mm" };
+        request.ForcePaperSize = true;
         var settings = SumatraPrintService.BuildPrintSettings(request);
 
         Assert.Contains("2x", settings);
@@ -203,6 +215,7 @@ public class SumatraPrintServiceTests
     {
         var request = CreateRequest();
         request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
         var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: 256);
 
         Assert.Contains("paperkind=256", settings);
@@ -214,6 +227,7 @@ public class SumatraPrintServiceTests
     {
         var request = CreateRequest();
         request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
         var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: 0);
 
         Assert.Contains("paper=80mm x 200mm", settings);
@@ -225,9 +239,61 @@ public class SumatraPrintServiceTests
     {
         var request = CreateRequest();
         request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
         var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: null);
 
         Assert.Contains("paper=80mm x 200mm", settings);
         Assert.DoesNotContain("paperkind=", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_SkipPaperSettings_ForcedPaperSize_UsesOnlyShrink()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: null, skipPaperSettings: true);
+
+        Assert.Equal("shrink", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_SkipPaperSettings_WithPaperKind_StillSkipped()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: 256, skipPaperSettings: true);
+
+        Assert.Equal("shrink", settings);
+        Assert.DoesNotContain("paperkind=", settings);
+        Assert.DoesNotContain("paper=", settings);
+    }
+
+    [Fact]
+    public void BuildPrintSettings_SkipPaperSettings_WithCopiesAndLandscape()
+    {
+        var request = CreateRequest(copies: 2, landscape: true);
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
+        var settings = SumatraPrintService.BuildPrintSettings(request, paperKind: null, skipPaperSettings: true);
+
+        Assert.Contains("shrink", settings);
+        Assert.Contains("2x", settings);
+        Assert.Contains("landscape", settings);
+        Assert.DoesNotContain("paper=", settings);
+    }
+
+    [Fact]
+    public void BuildArguments_SkipPaperSettings_ProducesNoPaperFlag()
+    {
+        var request = CreateRequest();
+        request.PaperSize = new PaperSizeParams { Width = 80, Height = 200, Unit = "mm" };
+        request.ForcePaperSize = true;
+        var args = SumatraPrintService.BuildArguments(@"C:\test.pdf", request, skipPaperSettings: true);
+
+        Assert.Contains("-print-settings \"shrink\"", args);
+        Assert.DoesNotContain("paper=", args);
+        Assert.DoesNotContain("paperkind=", args);
     }
 }

@@ -48,6 +48,7 @@ interface PrintServiceConfig {
   apiKey: string
   printerName: string
   copies: number
+  forcePageSize: boolean
 }
 
 function loadConfig(): PrintServiceConfig {
@@ -55,7 +56,7 @@ function loadConfig(): PrintServiceConfig {
     const raw = localStorage.getItem(CONFIG_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
-  return { enabled: false, serviceUrl: 'http://localhost:18080', apiKey: '', printerName: '', copies: 1 }
+  return { enabled: false, serviceUrl: 'http://localhost:18080', apiKey: '', printerName: '', copies: 1, forcePageSize: false }
 }
 
 function saveConfig(config: PrintServiceConfig) {
@@ -226,6 +227,7 @@ async function printPdf(pdfBlob: Blob, options: {
   copies?: number
   paperSize?: { width: number; height: number; unit: string }
   landscape?: boolean
+  forcePaperSize?: boolean
 }): Promise<string> {
   const CHUNK_SIZE = 1024 * 1024 // 1MB
   const totalChunks = Math.ceil(pdfBlob.size / CHUNK_SIZE)
@@ -244,6 +246,7 @@ async function printPdf(pdfBlob: Blob, options: {
     printerName: options.printerName,
     copies: options.copies ?? 1,
     paperSize: options.paperSize,
+    forcePaperSize: options.forcePaperSize,
     landscape: options.landscape,
   })
 
@@ -280,6 +283,7 @@ export function useEasyInkPrint() {
     enabled: computed(() => config.value.enabled),
     printerName: computed(() => config.value.printerName),
     copies: computed(() => config.value.copies),
+    forcePageSize: computed(() => config.value.forcePageSize),
     activeJobs,
     connect,
     refreshDevices,
@@ -348,7 +352,10 @@ export function createEasyInkPrintDriver(): PrintDriver {
       const jobId = await service.printPdf(pdfBlob, {
         printerName: service.printerName.value,
         copies: service.config.copies || 1,
-        paperSize: { width: widthMm, height: heightMm, unit: 'mm' },
+        paperSize: service.forcePageSize.value
+          ? { width: widthMm, height: heightMm, unit: 'mm' }
+          : undefined,
+        forcePaperSize: service.forcePageSize.value,
         landscape,
       })
 

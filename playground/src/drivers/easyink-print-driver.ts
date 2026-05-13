@@ -50,6 +50,7 @@ export function createEasyInkPrintDriver(): PrintDriver {
         paperSize: service.forcePageSize.value
           ? { width: widthMm, height: heightMm, unit: 'mm' }
           : undefined,
+        forcePaperSize: service.forcePageSize.value,
         landscape,
         offset: resolvePrintOffset(context.printPolicy.offset),
       })

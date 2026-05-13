@@ -15,6 +15,7 @@ namespace EasyInk.Engine.Services;
 public class SumatraPrintService : IPrintService
 {
     private const int DefaultTimeoutMs = 30_000;
+    private const string DevModeMutexPrefix = @"Local\EasyInk_DevMode_";
 
     private readonly string _sumatraExePath;
     private readonly string _tempDir;
@@ -63,16 +64,44 @@ public class SumatraPrintService : IPrintService
             return PrinterResult.Error(requestId, ErrorCode.SumatraNotFound, $"SumatraPDF.exe 不存在: {_sumatraExePath}");
 
         var tempFile = Path.Combine(_tempDir, $"easyink_{requestId}.pdf");
+        DevModeSession devModeSession = null;
+        Mutex devModeMutex = null;
+        var ownsMutex = false;
+
         try
         {
             var pdfBytes = provider.GetPdfBytes();
             File.WriteAllBytes(tempFile, pdfBytes);
 
-            var paperKind = request.PaperSize != null
-                ? _printerService.GetPaperKind(request.PrinterName, request.PaperSize.Width)
-                : null;
+            var forcePaperSize = request.ForcePaperSize && request.PaperSize != null;
+            string args;
 
-            var args = BuildArguments(tempFile, request, paperKind);
+            if (forcePaperSize)
+            {
+                var widthMm = ToMillimeters(request.PaperSize.Width, request.PaperSize.Unit);
+                var heightMm = ToMillimeters(request.PaperSize.Height, request.PaperSize.Unit);
+
+                devModeMutex = AcquireDevModeMutex(request.PrinterName, out ownsMutex);
+                devModeSession = DevModeSession.TryCreate(request.PrinterName, widthMm, heightMm);
+
+                if (devModeSession != null)
+                {
+                    args = BuildArguments(tempFile, request, skipPaperSettings: true);
+                }
+                else
+                {
+                    ReleaseDevModeMutex(ref devModeMutex, ref ownsMutex);
+                    EngineApi.RaiseLog(LogLevel.Info,
+                        $"DEVMODE negotiation failed for {request.PrinterName}, falling back to paperkind");
+                    var paperKind = _printerService.GetPaperKind(request.PrinterName, widthMm);
+                    args = BuildArguments(tempFile, request, paperKind);
+                }
+            }
+            else
+            {
+                args = BuildArguments(tempFile, request);
+            }
+
             var exitCode = RunProcess(_sumatraExePath, args, _timeoutMs, out var stderr);
 
             if (exitCode == 0)
@@ -100,18 +129,47 @@ public class SumatraPrintService : IPrintService
         }
         finally
         {
+            devModeSession?.Dispose();
+            ReleaseDevModeMutex(ref devModeMutex, ref ownsMutex);
             TryDelete(tempFile);
         }
     }
 
-    internal static string BuildArguments(string pdfPath, PrintRequestParams request, int? paperKind = null)
+    private static Mutex AcquireDevModeMutex(string printerName, out bool ownsMutex)
+    {
+        var mutexName = DevModeMutexPrefix + printerName.Replace('\\', '_');
+        var mutex = new Mutex(false, mutexName);
+        try { mutex.WaitOne(); ownsMutex = true; }
+        catch (AbandonedMutexException) { ownsMutex = true; }
+        return mutex;
+    }
+
+    private static void ReleaseDevModeMutex(ref Mutex mutex, ref bool ownsMutex)
+    {
+        if (ownsMutex)
+        {
+            try { mutex?.ReleaseMutex(); } catch { }
+            ownsMutex = false;
+        }
+        try { mutex?.Dispose(); } catch { }
+        mutex = null;
+    }
+
+    private static double ToMillimeters(double value, string unit)
+    {
+        return string.Equals(unit, "inch", StringComparison.OrdinalIgnoreCase)
+            ? value * 25.4
+            : value;
+    }
+
+    internal static string BuildArguments(string pdfPath, PrintRequestParams request, int? paperKind = null, bool skipPaperSettings = false)
     {
         var sb = new StringBuilder();
         sb.Append($"-print-to \"{request.PrinterName}\" ");
         sb.Append("-exit-on-print ");
         sb.Append("-silent ");
 
-        var settings = BuildPrintSettings(request, paperKind);
+        var settings = BuildPrintSettings(request, paperKind, skipPaperSettings);
         if (settings.Length > 0)
             sb.Append($"-print-settings \"{settings}\" ");
 
@@ -119,7 +177,7 @@ public class SumatraPrintService : IPrintService
         return sb.ToString();
     }
 
-    internal static string BuildPrintSettings(PrintRequestParams request, int? paperKind = null)
+    internal static string BuildPrintSettings(PrintRequestParams request, int? paperKind = null, bool skipPaperSettings = false)
     {
         var parts = new StringBuilder();
 
@@ -133,16 +191,14 @@ public class SumatraPrintService : IPrintService
             parts.Append(",landscape");
         }
 
-        if (request.PaperSize != null)
+        if (request.ForcePaperSize && request.PaperSize != null && !skipPaperSettings)
         {
             if (paperKind.HasValue && paperKind.Value != 0)
             {
-                // Use driver-registered paper kind to avoid custom paper size path
                 parts.Append($",paperkind={paperKind.Value}");
             }
             else
             {
-                // Fallback: SumatraPDF expects paper={w}mm x {h}mm
                 var wMm = string.Equals(request.PaperSize.Unit, "inch", StringComparison.OrdinalIgnoreCase)
                     ? request.PaperSize.Width * 25.4
                     : request.PaperSize.Width;

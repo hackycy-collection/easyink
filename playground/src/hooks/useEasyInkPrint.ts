@@ -340,7 +340,7 @@ async function refreshDevices(): Promise<PrintServiceDevice[]> {
 
 async function printPdf(
   pdfBlob: Blob,
-  opts: { printerName: string, copies: number, paperSize?: PaperSizeParams, landscape?: boolean, offset?: OffsetParams },
+  opts: { printerName: string, copies: number, paperSize?: PaperSizeParams, forcePaperSize?: boolean, landscape?: boolean, offset?: OffsetParams },
 ): Promise<string> {
   if (pdfBlob.size <= 0)
     throw new Error('PDF 内容为空')
@@ -366,6 +366,7 @@ async function printPdf(
     printerName: opts.printerName,
     copies: opts.copies,
     paperSize: opts.paperSize,
+    forcePaperSize: opts.forcePaperSize,
     landscape: opts.landscape,
     offset: opts.offset,
   })

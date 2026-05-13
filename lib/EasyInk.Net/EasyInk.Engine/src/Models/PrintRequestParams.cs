@@ -40,6 +40,11 @@ public class PrintRequestParams
     public PaperSizeParams PaperSize { get; set; }
 
     /// <summary>
+    /// 是否强制把 PaperSize 传给底层打印引擎。默认由打印机驱动使用当前介质。
+    /// </summary>
+    public bool ForcePaperSize { get; set; }
+
+    /// <summary>
     /// DPI（每英寸点数）
     /// </summary>
     public int Dpi { get; set; } = 300;

@@ -106,8 +106,11 @@ curl -X POST http://localhost:18080/api/print \
 | `copies` | int | 否 | 份数，默认 1 |
 | `landscape` | bool | 否 | 横向打印 |
 | `dpi` | int | 否 | 分辨率，默认 300 |
-| `paperSize` | object | 否 | 自定义纸张 `{width, height, unit}` |
+| `paperSize` | object | 否 | PDF/模板纸张尺寸 `{width, height, unit}`；默认不下发给 SumatraPDF |
+| `forcePaperSize` | bool | 否 | 是否强制把 `paperSize` 作为驱动纸张参数传给 SumatraPDF，默认 `false` |
 | `offset` | object | 否 | 打印偏移 `{x, y}` |
+
+热敏小票机、连续纸默认保持 `forcePaperSize=false`，由 Windows 打印机驱动的当前介质配置完成纸张协商；标签机必须显式指定尺寸时再开启。
 
 #### POST /api/print/async
 
