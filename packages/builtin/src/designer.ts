@@ -11,7 +11,7 @@ import {
   IconPageNumber,
   IconQrcode,
   IconRect,
-  IconSparkles,
+  IconStar,
   IconSvg,
   IconTable,
   IconText,
@@ -239,7 +239,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_STAR_TYPE,
       name: '星星',
-      icon: IconSparkles,
+      icon: IconStar,
       category: 'svg',
       capabilities: SVG_STAR_CAPABILITIES,
       createDefaultNode: createSvgStarNode,

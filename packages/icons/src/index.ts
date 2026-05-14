@@ -86,6 +86,7 @@ export {
   SlidersHorizontal as IconSliders,
   Magnet as IconSnap,
   Sparkles as IconSparkles,
+  Star as IconStar,
   FileCode as IconSvg,
   Table as IconTable,
   BetweenVerticalStart as IconTableInsertColLeft,
