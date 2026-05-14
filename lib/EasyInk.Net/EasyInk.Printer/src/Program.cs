@@ -26,6 +26,12 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Length >= 3 && args[0] == "--register-urlacl" && int.TryParse(args[1], out var port))
+        {
+            RegisterUrlAcl(port, args[2]);
+            return;
+        }
+
         bool createdNew;
         _mutex = new Mutex(true, "EasyInk.Printer.SingleInstance", out createdNew);
 
@@ -120,6 +126,23 @@ static class Program
         if (!httpServer.TryStart())
         {
             SimpleLogger.Error($"HTTP 服务启动失败: {httpServer.LastError}");
+
+            if (httpServer.IsAccessDenied)
+            {
+                var result = MessageBox.Show(
+                    "EasyInk Printer 需要注册网络监听权限才能启动 HTTP 服务。\n\n" +
+                    "此操作仅需执行一次，需要管理员授权。\n" +
+                    "注册完成后应用将自动重启。",
+                    "需要注册网络权限",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning);
+
+                if (result == DialogResult.OK)
+                {
+                    LaunchUrlAclRegistration(config.HttpPort);
+                    return;
+                }
+            }
         }
 
         var trayIcon = new TrayIcon(httpServer);
@@ -149,6 +172,24 @@ static class Program
             if (!httpServer.TryStart())
             {
                 SimpleLogger.Error($"HTTP 服务重启失败: {httpServer.LastError}");
+
+                if (httpServer.IsAccessDenied)
+                {
+                    var result = MessageBox.Show(
+                        "EasyInk Printer 需要注册网络监听权限才能启动 HTTP 服务。\n\n" +
+                        "此操作仅需执行一次，需要管理员授权。\n" +
+                        "注册完成后应用将自动重启。",
+                        "需要注册网络权限",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning);
+
+                    if (result == DialogResult.OK)
+                    {
+                        LaunchUrlAclRegistration(config.HttpPort);
+                        Application.Exit();
+                        return;
+                    }
+                }
             }
             if (httpServer.IsRunning)
             {
@@ -433,5 +474,81 @@ static class Program
             sb.AppendLine();
             AppendException(sb, ex.InnerException, depth + 1);
         }
+    }
+
+    private static void LaunchUrlAclRegistration(int port)
+    {
+        var user = $"{Environment.UserDomainName}\\{Environment.UserName}";
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = Application.ExecutablePath,
+            Arguments = $"--register-urlacl {port} \"{user}\"",
+            Verb = "runas",
+            UseShellExecute = true
+        });
+    }
+
+    private static void RegisterUrlAcl(int port, string user)
+    {
+        try
+        {
+            using (var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "netsh",
+                    Arguments = $"http add urlacl url=http://+:{port}/ user={user}",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    StandardOutputEncoding = Encoding.Default,
+                    StandardErrorEncoding = Encoding.Default
+                }
+            })
+            {
+                process.Start();
+                var error = process.StandardError.ReadToEnd();
+                var output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode == 0)
+                {
+                    MessageBox.Show(
+                        "网络权限注册成功！\n\n应用将重新启动。",
+                        "EasyInk Printer",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    RestartNonElevated();
+                }
+                else
+                {
+                    var message = string.IsNullOrWhiteSpace(error) ? output : error;
+                    MessageBox.Show(
+                        $"网络权限注册失败。\n\n{message}",
+                        "EasyInk Printer - 注册失败",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"网络权限注册异常。\n\n{ex.Message}",
+                "EasyInk Printer - 注册异常",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private static void RestartNonElevated()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = Application.ExecutablePath,
+            UseShellExecute = false
+        });
     }
 }

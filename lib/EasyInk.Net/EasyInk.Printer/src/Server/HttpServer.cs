@@ -18,6 +18,7 @@ public class HttpServer
 
     public int Port => _port;
     public bool IsRunning { get; private set; }
+    public bool IsAccessDenied { get; private set; }
     public string LastError { get; private set; }
 
     public Func<HttpListenerContext, Task> OnRequest { get; set; }
@@ -31,6 +32,8 @@ public class HttpServer
     public bool TryStart()
     {
         if (IsRunning) return true;
+
+        IsAccessDenied = false;
 
         try
         {
@@ -49,6 +52,15 @@ public class HttpServer
                 TaskScheduler.Default);
 
             return true;
+        }
+        catch (HttpListenerException ex) when (ex.ErrorCode == 5)
+        {
+            IsAccessDenied = true;
+            LastError = ex.Message;
+            _listener?.Close();
+            _listener = null;
+            IsRunning = false;
+            return false;
         }
         catch (Exception ex)
         {
