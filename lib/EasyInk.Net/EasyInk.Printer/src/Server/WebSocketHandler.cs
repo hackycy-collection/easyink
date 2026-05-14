@@ -91,7 +91,7 @@ public class WebSocketHandler : IDisposable
         if (_connections.Count >= _maxConnections)
         {
             context.Response.StatusCode = 429;
-            var bytes = Encoding.UTF8.GetBytes("{\"success\":false,\"errorInfo\":{\"code\":\"TooManyConnections\",\"message\":\"WebSocket 连接数已达上限\"}}");
+            var bytes = Encoding.UTF8.GetBytes("{\"success\":false,\"errorInfo\":{\"code\":\"TooManyConnections\",\"message\":\"" + LangManager.Get("Ws_ConnectionLimit") + "\"}}");
             context.Response.ContentType = "application/json";
             context.Response.ContentLength64 = bytes.Length;
             await context.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
@@ -155,7 +155,7 @@ public class WebSocketHandler : IDisposable
 
                 if (messageBuffer.Length > MaxBinaryMessageSize)
                 {
-                    await SendError(ws, ErrorCode.MessageTooLarge, "消息体过大");
+                    await SendError(ws, ErrorCode.MessageTooLarge, LangManager.Get("Ws_MessageTooLarge"));
                     return;
                 }
             }

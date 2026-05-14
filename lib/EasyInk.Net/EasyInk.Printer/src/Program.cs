@@ -37,7 +37,7 @@ static class Program
 
         if (!createdNew)
         {
-            MessageBox.Show("EasyInk Printer 已在运行中。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(LangManager.Get("App_AlreadyRunning_Message"), LangManager.Get("App_AlreadyRunning_Title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -62,6 +62,7 @@ static class Program
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
         var config = HostConfig.Load();
+        LangManager.Initialize();
 
         var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath);
         var logDir = Path.GetDirectoryName(resolvedDbPath);
@@ -125,15 +126,13 @@ static class Program
 
         if (!httpServer.TryStart())
         {
-            SimpleLogger.Error($"HTTP 服务启动失败: {httpServer.LastError}");
+            SimpleLogger.Error(LangManager.Get("App_HttpStartFailed", httpServer.LastError));
 
             if (httpServer.IsAccessDenied)
             {
                 var result = MessageBox.Show(
-                    "EasyInk Printer 需要注册网络监听权限才能启动 HTTP 服务。\n\n" +
-                    "此操作仅需执行一次，需要管理员授权。\n" +
-                    "注册完成后应用将自动重启。",
-                    "需要注册网络权限",
+                    LangManager.Get("App_NeedUrlAcl_Message"),
+                    LangManager.Get("App_NeedUrlAcl_Title"),
                     MessageBoxButtons.OKCancel,
                     MessageBoxIcon.Warning);
 
@@ -171,15 +170,13 @@ static class Program
             httpServer.Stop();
             if (!httpServer.TryStart())
             {
-                SimpleLogger.Error($"HTTP 服务重启失败: {httpServer.LastError}");
+                SimpleLogger.Error(LangManager.Get("App_HttpRestartFailed", httpServer.LastError));
 
                 if (httpServer.IsAccessDenied)
                 {
                     var result = MessageBox.Show(
-                        "EasyInk Printer 需要注册网络监听权限才能启动 HTTP 服务。\n\n" +
-                        "此操作仅需执行一次，需要管理员授权。\n" +
-                        "注册完成后应用将自动重启。",
-                        "需要注册网络权限",
+                        LangManager.Get("App_NeedUrlAcl_Message"),
+                        LangManager.Get("App_NeedUrlAcl_Title"),
                         MessageBoxButtons.OKCancel,
                         MessageBoxIcon.Warning);
 
@@ -193,13 +190,13 @@ static class Program
             }
             if (httpServer.IsRunning)
             {
-                trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
-                trayIcon.ShowBalloon("EasyInk Printer", "服务已重启");
+                trayIcon.UpdateStatus(LangManager.Get("Tray_Status_Running", config.HttpPort));
+                trayIcon.ShowBalloon("EasyInk Printer", LangManager.Get("Tray_Balloon_Restarted"));
             }
             else
             {
-                trayIcon.UpdateStatus("异常 - 启动失败");
-                trayIcon.ShowBalloon("EasyInk Printer", $"服务启动失败: {httpServer.LastError}");
+                trayIcon.UpdateStatus(LangManager.Get("Tray_Status_Error"));
+                trayIcon.ShowBalloon("EasyInk Printer", LangManager.Get("App_ServerStartFailed", httpServer.LastError));
             }
         };
 
@@ -210,9 +207,9 @@ static class Program
         };
 
         if (httpServer.IsRunning)
-            trayIcon.UpdateStatus($"运行中 - 端口 {config.HttpPort}");
+            trayIcon.UpdateStatus(LangManager.Get("Tray_Status_Running", config.HttpPort));
         else
-            trayIcon.UpdateStatus("异常 - 启动失败");
+            trayIcon.UpdateStatus(LangManager.Get("Tray_Status_Error"));
 
         if (config.StartMinimized)
         {
@@ -231,8 +228,8 @@ static class Program
             }
 
             var result = MessageBox.Show(
-                "关闭窗口后打印服务将停止运行，已提交的打印任务会中断。\n确定要退出吗？",
-                "退出确认",
+                LangManager.Get("App_CloseConfirm_Message"),
+                LangManager.Get("App_CloseConfirm_Title"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
@@ -278,7 +275,7 @@ static class Program
             var logPath = WriteCrashLog(ex, "AuditService.InitializeDatabase");
             ShowMessage(
                 BuildAuditServiceWarning(ex, logPath),
-                "EasyInk Printer 启动告警",
+                LangManager.Get("App_AuditWarning_Title"),
                 MessageBoxIcon.Warning);
 
             return new NullAuditService();
@@ -290,7 +287,7 @@ static class Program
         if (exceptionObject is Exception exception)
             return exception;
 
-        return new InvalidOperationException($"捕获到非 Exception 类型的未处理异常: {exceptionObject ?? "(null)"}");
+        return new InvalidOperationException(LangManager.Get("App_UnhandledNonException", exceptionObject ?? LangManager.Get("App_UnhandledNullOrEmpty")));
     }
 
     private static void DisposeMutex()
@@ -305,7 +302,7 @@ static class Program
 
     private static void HandleFatalException(Exception ex, string source)
     {
-        var safeException = ex ?? new InvalidOperationException("捕获到空异常对象。");
+        var safeException = ex ?? new InvalidOperationException(LangManager.Get("App_CaughtNullException"));
 
         try
         {
@@ -322,14 +319,14 @@ static class Program
 
         ShowMessage(
             BuildFatalErrorMessage(safeException, logPath),
-            "EasyInk Printer 启动失败",
+            LangManager.Get("App_FatalError_Title"),
             MessageBoxIcon.Error);
     }
 
     private static string BuildFatalErrorMessage(Exception ex, string logPath)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("EasyInk Printer 启动失败，应用即将退出。");
+        sb.AppendLine(LangManager.Get("App_FatalError_Message"));
         AppendUserFacingException(sb, ex);
         AppendSQLiteGuidance(sb, ex);
         AppendLogPath(sb, logPath);
@@ -339,7 +336,7 @@ static class Program
     private static string BuildAuditServiceWarning(Exception ex, string logPath)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("审计日志模块初始化失败，打印服务会继续启动，但日志记录与查询功能不可用。");
+        sb.AppendLine(LangManager.Get("App_AuditWarning_Message"));
         AppendUserFacingException(sb, ex);
         AppendSQLiteGuidance(sb, ex);
         AppendLogPath(sb, logPath);
@@ -349,8 +346,8 @@ static class Program
     private static void AppendUserFacingException(StringBuilder sb, Exception ex)
     {
         sb.AppendLine();
-        sb.AppendLine($"异常类型: {ex.GetType().Name}");
-        sb.AppendLine($"异常消息: {ex.Message}");
+        sb.AppendLine($"{LangManager.Get("App_ExceptionType")}: {ex.GetType().Name}");
+        sb.AppendLine($"{LangManager.Get("App_ExceptionMessage")}: {ex.Message}");
     }
 
     private static void AppendSQLiteGuidance(StringBuilder sb, Exception ex)
@@ -358,9 +355,9 @@ static class Program
         if (!ContainsSQLiteInteropError(ex)) return;
 
         sb.AppendLine();
-        sb.AppendLine("原因判断: 缺少 SQLite 原生依赖，或该依赖的运行库未安装。");
-        sb.AppendLine("请确认安装目录中存在 x64\\SQLite.Interop.dll 和 x86\\SQLite.Interop.dll。");
-        sb.AppendLine("如果文件缺失，请重新安装最新安装包；如果文件存在，请检查系统是否缺少 Microsoft Visual C++ 运行库。");
+        sb.AppendLine(LangManager.Get("App_SQLiteGuidance_Reason"));
+        sb.AppendLine(LangManager.Get("App_SQLiteGuidance_CheckFiles"));
+        sb.AppendLine(LangManager.Get("App_SQLiteGuidance_Action"));
     }
 
     private static bool ContainsSQLiteInteropError(Exception ex)
@@ -390,7 +387,7 @@ static class Program
         if (string.IsNullOrEmpty(logPath)) return;
 
         sb.AppendLine();
-        sb.AppendLine($"崩溃日志: {logPath}");
+        sb.AppendLine($"{LangManager.Get("App_CrashLog_Path")}: {logPath}");
     }
 
     private static void ShowMessage(string text, string caption, MessageBoxIcon icon)
@@ -417,12 +414,12 @@ static class Program
                 Directory.CreateDirectory(crashLogDir);
 
             var sb = new StringBuilder();
-            sb.AppendLine("========== 崩溃日志 ==========");
-            sb.AppendLine($"时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
-            sb.AppendLine($"来源: {source}");
+            sb.AppendLine($"========== {LangManager.Get("App_CrashLog_Title")} ==========");
+            sb.AppendLine($"{LangManager.Get("App_CrashLog_Time")}: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"{LangManager.Get("App_CrashLog_Source")}: {source}");
             sb.AppendLine();
 
-            sb.AppendLine("--- 环境信息 ---");
+            sb.AppendLine($"--- {LangManager.Get("App_CrashLog_EnvironmentInfo")} ---");
             sb.AppendLine($"OS: {Environment.OSVersion}");
             sb.AppendLine($".NET: {Environment.Version}");
             sb.AppendLine($"64位系统: {Environment.Is64BitOperatingSystem}");
@@ -431,7 +428,7 @@ static class Program
             sb.AppendLine($"进程运行时长: {Process.GetCurrentProcess().TotalProcessorTime}");
             sb.AppendLine();
 
-            sb.AppendLine("--- 异常信息 ---");
+            sb.AppendLine($"--- {LangManager.Get("App_CrashLog_ExceptionInfo")} ---");
             AppendException(sb, ex, 0);
 
             var fileName = $"crash_{DateTime.Now:yyyyMMdd_HHmmss}.log";
@@ -452,19 +449,19 @@ static class Program
 
         var indent = new string(' ', depth * 2);
         if (depth > 0)
-            sb.AppendLine($"{indent}--- 内部异常 (InnerException) ---");
+            sb.AppendLine($"{indent}--- {LangManager.Get("App_InnerException_Label")} ---");
 
-        sb.AppendLine($"{indent}类型: {ex.GetType().FullName}");
-        sb.AppendLine($"{indent}消息: {ex.Message}");
-        sb.AppendLine($"{indent}堆栈:");
-        sb.AppendLine(ex.StackTrace ?? "(无堆栈信息)");
+        sb.AppendLine($"{indent}{LangManager.Get("App_Type")}: {ex.GetType().FullName}");
+        sb.AppendLine($"{indent}{LangManager.Get("App_Message")}: {ex.Message}");
+        sb.AppendLine($"{indent}{LangManager.Get("App_StackTrace")}:");
+        sb.AppendLine(ex.StackTrace ?? LangManager.Get("App_NoStackTrace"));
 
         if (ex is AggregateException agg)
         {
             for (int i = 0; i < agg.InnerExceptions.Count; i++)
             {
                 sb.AppendLine();
-                sb.AppendLine($"{indent}--- 聚合异常 [{i}] ---");
+                sb.AppendLine($"{indent}--- {LangManager.Get("App_AggregateException_Label")} [{i}] ---");
                 AppendException(sb, agg.InnerExceptions[i], depth + 1);
             }
         }
@@ -515,8 +512,8 @@ static class Program
                 if (process.ExitCode == 0)
                 {
                     MessageBox.Show(
-                        "网络权限注册成功！\n\n应用将重新启动。",
-                        "EasyInk Printer",
+                        LangManager.Get("App_AclSuccess"),
+                        LangManager.Get("App_AclSuccess_Title"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                     RestartNonElevated();
@@ -525,8 +522,8 @@ static class Program
                 {
                     var message = string.IsNullOrWhiteSpace(error) ? output : error;
                     MessageBox.Show(
-                        $"网络权限注册失败。\n\n{message}",
-                        "EasyInk Printer - 注册失败",
+                        LangManager.Get("App_AclFailure", message),
+                        LangManager.Get("App_AclFailure_Title"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                 }
@@ -535,8 +532,8 @@ static class Program
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"网络权限注册异常。\n\n{ex.Message}",
-                "EasyInk Printer - 注册异常",
+                LangManager.Get("App_AclException", ex.Message),
+                LangManager.Get("App_AclException_Title"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

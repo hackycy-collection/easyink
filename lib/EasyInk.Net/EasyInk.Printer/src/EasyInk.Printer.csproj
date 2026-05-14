@@ -21,6 +21,12 @@
 
   <ItemGroup>
     <EmbeddedResource Include="app.ico" />
+    <EmbeddedResource Include="Resources\zh-CN.json">
+      <LogicalName>EasyInk.Printer.i18n.zh-CN.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\en-US.json">
+      <LogicalName>EasyInk.Printer.i18n.en-US.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

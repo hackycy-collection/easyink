@@ -44,7 +44,7 @@ public class MainWindow : Form
 
     private void InitializeComponent()
     {
-        Text = "EasyInk Printer Host";
+        Text = LangManager.Get("Window_Title");
         Icon = TrayIcon.LoadAppIcon();
         Size = new Size(900, 640);
         StartPosition = FormStartPosition.CenterScreen;
@@ -98,7 +98,7 @@ public class MainWindow : Form
 
     private TabPage CreateDashboardTab()
     {
-        var tab = new TabPage("仪表盘");
+        var tab = new TabPage(LangManager.Get("Dashboard_Tab"));
         var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
 
         var titleFont = new Font("Microsoft YaHei UI", 9f);
@@ -114,7 +114,7 @@ public class MainWindow : Form
 
         var hasError = !_server.IsRunning && _server.LastError != null;
         var statusColor = hasError ? colorError : colorRunning;
-        var statusText = _server.IsRunning ? "运行中" : (hasError ? "异常" : "已停止");
+        var statusText = _server.IsRunning ? LangManager.Get("Dashboard_Status_Running") : (hasError ? LangManager.Get("Dashboard_Status_Error") : LangManager.Get("Dashboard_Status_Stopped"));
 
         // -- 状态卡片 --
         var cardsPanel = new FlowLayoutPanel
@@ -128,14 +128,14 @@ public class MainWindow : Form
         };
 
         Label lblStatusVal, lblPortVal, lblWsVal, lblQueueVal;
-        var cardStatus = CreateCardPanel(cardSize, statusColor, "服务状态",
+        var cardStatus = CreateCardPanel(cardSize, statusColor, LangManager.Get("Dashboard_ServiceStatus"),
             statusText, valueFont, statusColor, titleFont, out lblStatusVal);
-        var cardPort = CreateCardPanel(cardSize, colorPort, "端口",
+        var cardPort = CreateCardPanel(cardSize, colorPort, LangManager.Get("Dashboard_Port"),
             _server.Port.ToString(), valueFont, colorPort, titleFont, out lblPortVal);
-        var cardWs = CreateCardPanel(cardSize, colorWs, "WebSocket 连接",
+        var cardWs = CreateCardPanel(cardSize, colorWs, LangManager.Get("Dashboard_WebSocket"),
             _wsHandler.ConnectionCount.ToString(), valueFont, colorWs, titleFont, out lblWsVal);
-        var cardQueue = CreateCardPanel(cardSize, colorIdle, "打印队列",
-            "空闲", valueFont, colorIdle, titleFont, out lblQueueVal);
+        var cardQueue = CreateCardPanel(cardSize, colorIdle, LangManager.Get("Dashboard_PrintQueue"),
+            LangManager.Get("Dashboard_Status_Idle"), valueFont, colorIdle, titleFont, out lblQueueVal);
 
         cardsPanel.Controls.AddRange(new Control[] { cardStatus, cardPort, cardWs, cardQueue });
 
@@ -166,7 +166,7 @@ public class MainWindow : Form
 
         var lblInfoTitle = new Label
         {
-            Text = "设备信息",
+            Text = LangManager.Get("Dashboard_DeviceInfo"),
             Font = infoTitleFont,
             ForeColor = Color.FromArgb(50, 50, 50),
             Dock = DockStyle.Top,
@@ -181,14 +181,14 @@ public class MainWindow : Form
         var deviceNumber = NetworkHelper.GenerateDeviceNumber();
         var appVersion = VersionHelper.GetDisplayVersion(typeof(StatusController).Assembly);
         var macs = NetworkHelper.GetActivePhysicalMacs();
-        var macText = macs.Count > 0 ? string.Join("  /  ", macs) : "未检测到";
+        var macText = macs.Count > 0 ? string.Join("  /  ", macs) : LangManager.Get("Dashboard_MacNotDetected");
 
         var infoRows = new[]
         {
-            new { Key = "服务地址:", Value = addresses },
-            new { Key = "设备编号:", Value = deviceNumber },
-            new { Key = "应用版本:", Value = appVersion },
-            new { Key = "MAC 地址:", Value = macText }
+            new { Key = LangManager.Get("Dashboard_ServiceAddress"), Value = addresses },
+            new { Key = LangManager.Get("Dashboard_DeviceNumber"), Value = deviceNumber },
+            new { Key = LangManager.Get("Dashboard_AppVersion"), Value = appVersion },
+            new { Key = LangManager.Get("Dashboard_MacAddress"), Value = macText }
         };
 
         foreach (var row in infoRows.Reverse())
@@ -249,7 +249,7 @@ public class MainWindow : Form
 
         if (hasError)
         {
-            lblError.Text = $"启动失败: {_server.LastError}  请检查端口是否被占用或权限是否足够。";
+            lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError);
             errorPanel.Height = 40;
             errorPanel.Visible = true;
         }
@@ -257,7 +257,7 @@ public class MainWindow : Form
         // -- 刷新按钮 --
         var btnRefresh = new Button
         {
-            Text = "刷新",
+            Text = LangManager.Get("Common_Refresh"),
             Size = new Size(72, 28),
             Margin = new Padding(0)
         };
@@ -275,7 +275,7 @@ public class MainWindow : Form
         {
             // 刷新服务状态卡片
             var err = !_server.IsRunning && _server.LastError != null;
-            lblStatusVal.Text = _server.IsRunning ? "运行中" : (err ? "异常" : "已停止");
+            lblStatusVal.Text = _server.IsRunning ? LangManager.Get("Dashboard_Status_Running") : (err ? LangManager.Get("Dashboard_Status_Error") : LangManager.Get("Dashboard_Status_Stopped"));
             lblStatusVal.ForeColor = err ? colorError : colorRunning;
             cardStatus.Controls[1].BackColor = err ? colorError : colorRunning;
             lblPortVal.Text = _server.Port.ToString();
@@ -287,7 +287,7 @@ public class MainWindow : Form
             // 刷新错误区域
             if (err)
             {
-                lblError.Text = $"启动失败: {_server.LastError}  请检查端口是否被占用或权限是否足够。";
+                lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError);
                 errorPanel.Height = 40;
                 errorPanel.Visible = true;
             }
@@ -315,13 +315,13 @@ public class MainWindow : Form
             var hasActive = result.Success && result.Data is List<PrintJob> jobs
                 && jobs.Any(j => j.Status == JobStatus.Printing || j.Status == JobStatus.Queued);
 
-            lblQueueVal.Text = hasActive ? "忙碌" : "空闲";
+            lblQueueVal.Text = hasActive ? LangManager.Get("Dashboard_Status_Busy") : LangManager.Get("Dashboard_Status_Idle");
             lblQueueVal.ForeColor = hasActive ? colorBusy : colorIdle;
             cardQueue.Controls[1].BackColor = hasActive ? colorBusy : colorIdle;
         }
         catch
         {
-            lblQueueVal.Text = "--";
+            lblQueueVal.Text = LangManager.Get("Dashboard_Status_Unknown");
             lblQueueVal.ForeColor = colorIdle;
         }
     }
@@ -382,7 +382,7 @@ public class MainWindow : Form
 
     private TabPage CreatePrintersTab()
     {
-        var tab = new TabPage("打印机");
+        var tab = new TabPage(LangManager.Get("Printers_Tab"));
 
         var listView = new ListView
         {
@@ -391,11 +391,11 @@ public class MainWindow : Form
             FullRowSelect = true,
             GridLines = true
         };
-        listView.Columns.Add("打印机名称", 250);
-        listView.Columns.Add("默认", 50);
-        listView.Columns.Add("状态", 100);
-        listView.Columns.Add("在线", 60);
-        listView.Columns.Add("有纸", 60);
+        listView.Columns.Add(LangManager.Get("Printers_ColName"), 250);
+        listView.Columns.Add(LangManager.Get("Printers_ColDefault"), 50);
+        listView.Columns.Add(LangManager.Get("Printers_ColStatus"), 100);
+        listView.Columns.Add(LangManager.Get("Printers_ColOnline"), 60);
+        listView.Columns.Add(LangManager.Get("Printers_ColPaper"), 60);
 
         var toolPanel = new Panel
         {
@@ -406,7 +406,7 @@ public class MainWindow : Form
 
         var btnRefresh = new Button
         {
-            Text = "刷新",
+            Text = LangManager.Get("Common_Refresh"),
             Dock = DockStyle.Left,
             Width = 80
         };
@@ -442,7 +442,7 @@ public class MainWindow : Form
         catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            try { MessageBox.Show($"{operationName}失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            try { MessageBox.Show(LangManager.Get(operationName, ex.Message), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Error); }
             catch (ObjectDisposedException) { }
         }
         finally
@@ -453,16 +453,16 @@ public class MainWindow : Form
 
     private async void RefreshPrinters(ListView listView)
     {
-        await RefreshListViewAsync<PrinterInfo>(listView, 1, "获取打印机列表", () => _api.GetPrinters(),
+        await RefreshListViewAsync<PrinterInfo>(listView, 1, "Error_GetPrinters", () => _api.GetPrinters(),
             (listViewCtrl, data) =>
             {
                 foreach (var p in data)
                 {
                     var item = new ListViewItem(p.Name);
-                    item.SubItems.Add(p.IsDefault ? "是" : "");
+                    item.SubItems.Add(p.IsDefault ? LangManager.Get("Common_Yes") : "");
                     item.SubItems.Add(p.Status?.Message ?? "");
-                    item.SubItems.Add(p.Status?.IsOnline == true ? "是" : "否");
-                    item.SubItems.Add(p.Status?.HasPaper == true ? "是" : "否");
+                    item.SubItems.Add(p.Status?.IsOnline == true ? LangManager.Get("Common_Yes") : LangManager.Get("Common_No"));
+                    item.SubItems.Add(p.Status?.HasPaper == true ? LangManager.Get("Common_Yes") : LangManager.Get("Common_No"));
                     listViewCtrl.Items.Add(item);
                 }
             });
@@ -470,7 +470,7 @@ public class MainWindow : Form
 
     private async void RefreshJobs(ListView listView)
     {
-        await RefreshListViewAsync<PrintJob>(listView, 2, "获取任务列表", () => _api.GetAllJobs(),
+        await RefreshListViewAsync<PrintJob>(listView, 2, "Error_GetJobs", () => _api.GetAllJobs(),
             (listViewCtrl, data) =>
             {
                 foreach (var job in data)
@@ -487,7 +487,7 @@ public class MainWindow : Form
 
     private TabPage CreateJobsTab()
     {
-        var tab = new TabPage("任务");
+        var tab = new TabPage(LangManager.Get("Jobs_Tab"));
 
         var listView = new ListView
         {
@@ -496,11 +496,11 @@ public class MainWindow : Form
             FullRowSelect = true,
             GridLines = true
         };
-        listView.Columns.Add("任务ID", 200);
-        listView.Columns.Add("打印机", 150);
-        listView.Columns.Add("状态", 100);
-        listView.Columns.Add("创建时间", 150);
-        listView.Columns.Add("错误信息", 200);
+        listView.Columns.Add(LangManager.Get("Jobs_ColJobId"), 200);
+        listView.Columns.Add(LangManager.Get("Jobs_ColPrinter"), 150);
+        listView.Columns.Add(LangManager.Get("Jobs_ColStatus"), 100);
+        listView.Columns.Add(LangManager.Get("Jobs_ColCreatedTime"), 150);
+        listView.Columns.Add(LangManager.Get("Jobs_ColError"), 200);
 
         var toolPanel = new Panel
         {
@@ -511,7 +511,7 @@ public class MainWindow : Form
 
         var btnRefresh = new Button
         {
-            Text = "刷新",
+            Text = LangManager.Get("Common_Refresh"),
             Dock = DockStyle.Left,
             Width = 80
         };
@@ -526,7 +526,7 @@ public class MainWindow : Form
 
     private TabPage CreateLogsTab()
     {
-        var tab = new TabPage("日志");
+        var tab = new TabPage(LangManager.Get("Logs_Tab"));
 
         var filterPanel = new Panel
         {
@@ -544,11 +544,11 @@ public class MainWindow : Form
             Padding = new Padding(0)
         };
 
-        var lblFrom = new Label { Text = "从:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
+        var lblFrom = new Label { Text = LangManager.Get("Logs_From"), AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
         var dtpFrom = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0), Value = DateTime.Today.AddDays(-7) };
-        var lblTo = new Label { Text = "到:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
+        var lblTo = new Label { Text = LangManager.Get("Logs_To"), AutoSize = true, Margin = new Padding(0, 4, 4, 0) };
         var dtpTo = new DateTimePicker { Width = 140, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 0, 12, 0), Value = DateTime.Now };
-        var btnQuery = new Button { Text = "查询", Width = 70, Margin = new Padding(0) };
+        var btnQuery = new Button { Text = LangManager.Get("Common_Query"), Width = 70, Margin = new Padding(0) };
 
         flowLayout.Controls.AddRange(new Control[] { lblFrom, dtpFrom, lblTo, dtpTo, btnQuery });
         filterPanel.Controls.Add(flowLayout);
@@ -560,12 +560,12 @@ public class MainWindow : Form
             FullRowSelect = true,
             GridLines = true
         };
-        listView.Columns.Add("时间", 150);
-        listView.Columns.Add("打印机", 150);
-        listView.Columns.Add("状态", 80);
-        listView.Columns.Add("用户", 100);
-        listView.Columns.Add("任务ID", 200);
-        listView.Columns.Add("错误", 200);
+        listView.Columns.Add(LangManager.Get("Logs_ColTime"), 150);
+        listView.Columns.Add(LangManager.Get("Logs_ColPrinter"), 150);
+        listView.Columns.Add(LangManager.Get("Logs_ColStatus"), 80);
+        listView.Columns.Add(LangManager.Get("Logs_ColUser"), 100);
+        listView.Columns.Add(LangManager.Get("Logs_ColJobId"), 200);
+        listView.Columns.Add(LangManager.Get("Logs_ColError"), 200);
 
         btnQuery.Click += (s, e) => RefreshLogs(listView, dtpFrom.Value, dtpTo.Value);
 
@@ -595,7 +595,7 @@ public class MainWindow : Form
         catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
-            try { MessageBox.Show($"查询日志失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            try { MessageBox.Show(LangManager.Get("Error_QueryLogs", ex.Message), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Error); }
             catch (ObjectDisposedException) { }
         }
         finally
@@ -606,14 +606,14 @@ public class MainWindow : Form
 
     private TabPage CreateSettingsTab()
     {
-        var tab = new TabPage("设置");
+        var tab = new TabPage(LangManager.Get("Settings_Tab"));
 
         var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
 
         // 基本设置组
         var grpBasic = new GroupBox
         {
-            Text = "基本设置",
+            Text = LangManager.Get("Settings_Basic"),
             Dock = DockStyle.Top,
             Height = 100,
             Padding = new Padding(12, 8, 12, 12)
@@ -631,7 +631,7 @@ public class MainWindow : Form
         basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
-        var lblPort = new Label { Text = "HTTP 端口:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblPort = new Label { Text = LangManager.Get("Settings_HttpPort"), Anchor = AnchorStyles.Left, AutoSize = true };
         var numPort = new NumericUpDown
         {
             Width = 120,
@@ -641,7 +641,7 @@ public class MainWindow : Form
             Anchor = AnchorStyles.Left
         };
 
-        var lblAutoStart = new Label { Text = "开机自启动:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblAutoStart = new Label { Text = LangManager.Get("Settings_AutoStart"), Anchor = AnchorStyles.Left, AutoSize = true };
         var chkAutoStart = new CheckBox
         {
             Text = "",
@@ -658,7 +658,7 @@ public class MainWindow : Form
         // 显示设置组
         var grpDisplay = new GroupBox
         {
-            Text = "显示设置",
+            Text = LangManager.Get("Settings_Display"),
             Dock = DockStyle.Top,
             Height = 96,
             Padding = new Padding(12, 8, 12, 12)
@@ -666,7 +666,7 @@ public class MainWindow : Form
 
         var chkMinimizeToTray = new CheckBox
         {
-            Text = "关闭窗口时最小化到托盘",
+            Text = LangManager.Get("Settings_MinimizeToTray"),
             Dock = DockStyle.Top,
             Height = 28,
             Checked = _config.MinimizeToTray,
@@ -675,7 +675,7 @@ public class MainWindow : Form
 
         var chkStartMinimized = new CheckBox
         {
-            Text = "启动时最小化到托盘（不显示主窗口）",
+            Text = LangManager.Get("Settings_StartMinimized"),
             Dock = DockStyle.Top,
             Height = 28,
             Checked = _config.StartMinimized,
@@ -687,7 +687,7 @@ public class MainWindow : Form
         // 安全设置组
         var grpSecurity = new GroupBox
         {
-            Text = "安全设置",
+            Text = LangManager.Get("Settings_Security"),
             Dock = DockStyle.Top,
             Height = 100,
             Padding = new Padding(12, 8, 12, 12)
@@ -707,12 +707,12 @@ public class MainWindow : Form
 
         var chkTrustAllOrigins = new CheckBox
         {
-            Text = "信任所有来源请求（关闭后仅允许本机页面调用）",
+            Text = LangManager.Get("Settings_TrustAllOrigins"),
             Anchor = AnchorStyles.Left,
             Checked = _config.TrustAllOrigins
         };
 
-        var lblApiKey = new Label { Text = "API Key:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblApiKey = new Label { Text = LangManager.Get("Settings_ApiKey"), Anchor = AnchorStyles.Left, AutoSize = true };
         var txtApiKey = new TextBox
         {
             Text = _config.ApiKey ?? "",
@@ -720,7 +720,7 @@ public class MainWindow : Form
             Anchor = AnchorStyles.Left | AnchorStyles.Right
         };
 
-        var placeholderText = "留空则不启用认证";
+        var placeholderText = LangManager.Get("Settings_ApiKeyPlaceholder");
         var isPlaceholder = string.IsNullOrEmpty(_config.ApiKey);
         if (isPlaceholder)
         {
@@ -754,7 +754,7 @@ public class MainWindow : Form
         // 路径设置组
         var grpPath = new GroupBox
         {
-            Text = "路径设置",
+            Text = LangManager.Get("Settings_Path"),
             Dock = DockStyle.Top,
             Height = 165,
             Padding = new Padding(12, 8, 12, 12)
@@ -774,7 +774,7 @@ public class MainWindow : Form
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
-        var lblDbPath = new Label { Text = "数据库路径:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblDbPath = new Label { Text = LangManager.Get("Settings_DbPath"), Anchor = AnchorStyles.Left, AutoSize = true };
         var txtDbPath = new TextBox
         {
             Text = string.IsNullOrWhiteSpace(_config.DbPath) ? HostConfig.DefaultDbPath : _config.DbPath,
@@ -783,7 +783,7 @@ public class MainWindow : Form
         };
         var btnBrowseDb = new Button
         {
-            Text = "浏览",
+            Text = LangManager.Get("Common_Browse"),
             Width = 52,
             Anchor = AnchorStyles.Left
         };
@@ -791,8 +791,8 @@ public class MainWindow : Form
         {
             using var dlg = new SaveFileDialog
             {
-                Title = "选择数据库文件位置",
-                Filter = "SQLite 数据库|*.db|所有文件|*.*",
+                Title = LangManager.Get("Dialog_DbFileLocation"),
+                Filter = LangManager.Get("Dialog_DbFileFilter"),
                 FileName = "audit.db",
                 InitialDirectory = Path.GetDirectoryName(txtDbPath.Text)
             };
@@ -800,7 +800,7 @@ public class MainWindow : Form
                 txtDbPath.Text = dlg.FileName;
         };
 
-        var lblCrashDir = new Label { Text = "崩溃日志目录:", Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblCrashDir = new Label { Text = LangManager.Get("Settings_CrashLogDir"), Anchor = AnchorStyles.Left, AutoSize = true };
         var txtCrashDir = new TextBox
         {
             Text = string.IsNullOrWhiteSpace(_config.CrashLogDir) ? HostConfig.DefaultCrashLogDir : _config.CrashLogDir,
@@ -809,7 +809,7 @@ public class MainWindow : Form
         };
         var btnBrowseCrash = new Button
         {
-            Text = "浏览",
+            Text = LangManager.Get("Common_Browse"),
             Width = 52,
             Anchor = AnchorStyles.Left
         };
@@ -817,7 +817,7 @@ public class MainWindow : Form
         {
             using var dlg = new FolderBrowserDialog
             {
-                Description = "选择崩溃日志目录",
+                Description = LangManager.Get("Dialog_CrashLogDir"),
                 SelectedPath = txtCrashDir.Text
             };
             if (dlg.ShowDialog() == DialogResult.OK)
@@ -835,7 +835,7 @@ public class MainWindow : Form
         // 保存按钮
         var btnSave = new Button
         {
-            Text = "保存设置",
+            Text = LangManager.Get("Common_Save"),
             Dock = DockStyle.Top,
             Height = 32,
             Margin = new Padding(0, 12, 0, 0)
@@ -846,7 +846,7 @@ public class MainWindow : Form
             var dbPathValue = txtDbPath.Text.Trim();
             if (!HostConfig.IsValidFilePath(dbPathValue, out var dbError))
             {
-                MessageBox.Show($"数据库路径无效: {dbError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(LangManager.Get("Error_DbPathInvalid", dbError), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtDbPath.Focus();
                 return;
             }
@@ -854,7 +854,7 @@ public class MainWindow : Form
             var crashDirValue = txtCrashDir.Text.Trim();
             if (!HostConfig.IsValidFilePath(crashDirValue + Path.DirectorySeparatorChar, out var crashError))
             {
-                MessageBox.Show($"崩溃日志目录无效: {crashError}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(LangManager.Get("Error_CrashLogDirInvalid", crashError), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtCrashDir.Focus();
                 return;
             }
@@ -879,15 +879,15 @@ public class MainWindow : Form
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"配置保存失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LangManager.Get("Error_ConfigSaveFailed", ex.Message), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             HostConfig.SetAutoStartRegistry(chkAutoStart.Checked);
 
             var result = MessageBox.Show(
-                "设置已保存，是否立即重启程序使配置生效？",
-                "确认",
+                LangManager.Get("Prompt_SavedRestart"),
+                LangManager.Get("Common_Confirm"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
@@ -897,7 +897,7 @@ public class MainWindow : Form
             }
             else
             {
-                MessageBox.Show("部分设置将在下次启动程序后生效。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(LangManager.Get("Prompt_DelayedApply"), LangManager.Get("Common_Info"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         };
 

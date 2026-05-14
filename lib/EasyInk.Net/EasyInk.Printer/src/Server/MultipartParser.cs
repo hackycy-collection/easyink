@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using EasyInk.Printer;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -21,7 +22,7 @@ public static class MultipartParser
     {
         var boundary = ExtractBoundary(contentType);
         if (string.IsNullOrEmpty(boundary))
-            throw new ArgumentException("无法解析 multipart boundary");
+            throw new ArgumentException(LangManager.Get("Parser_InvalidBoundary"));
 
         var parts = SplitParts(body, boundary);
         var result = new MultipartData();
@@ -42,7 +43,7 @@ public static class MultipartParser
             else if (name == "pdf" || (!string.IsNullOrEmpty(filename) && name == null))
             {
                 if (part.Body.Length > MaxPdfBytes)
-                    throw new ArgumentException($"PDF 文件过大: {part.Body.Length / 1024 / 1024}MB，上限 {MaxPdfBytes / 1024 / 1024}MB");
+                    throw new ArgumentException(LangManager.Get("Parser_PdfTooLarge", part.Body.Length / 1024 / 1024, MaxPdfBytes / 1024 / 1024));
                 result.PdfBytes = part.Body;
             }
         }

@@ -81,7 +81,7 @@ public class HostConfig
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            error = "路径不能为空";
+            error = LangManager.Get("Config_PathNotEmpty");
             return false;
         }
 
@@ -92,20 +92,20 @@ public class HostConfig
             var invalidChars = Path.GetInvalidPathChars();
             if (path.IndexOfAny(invalidChars) >= 0)
             {
-                error = "路径包含非法字符";
+                error = LangManager.Get("Config_PathInvalidChars");
                 return false;
             }
         }
         catch
         {
-            error = "路径格式无效";
+            error = LangManager.Get("Config_PathInvalidFormat");
             return false;
         }
 
         var root = Path.GetPathRoot(path);
         if (string.IsNullOrEmpty(root) || !Regex.IsMatch(root, @"^[A-Za-z]:\\"))
         {
-            error = "路径必须包含盘符（如 C:\\）";
+            error = LangManager.Get("Config_PathNoDrive");
             return false;
         }
 

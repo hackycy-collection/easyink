@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
+using EasyInk.Printer;
 
 namespace EasyInk.Printer.Api;
 
@@ -75,7 +76,7 @@ public class PrintController
     private PrinterResult ExecuteBatchCommand(string command, string body)
     {
         if (string.IsNullOrEmpty(body))
-            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "缺少请求体");
+            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, LangManager.Get("Api_MissingBody"));
 
         var token = JToken.Parse(body);
         JArray jobs;
@@ -84,7 +85,7 @@ public class PrintController
         else if (token is JObject obj && obj["jobs"] is JArray jArr)
             jobs = jArr;
         else
-            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "jobs 必须是数组");
+            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, LangManager.Get("Api_JobsMustBeArray"));
 
         var cmd = new PrinterCommand
         {

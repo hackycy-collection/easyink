@@ -1,4 +1,5 @@
 ﻿using System;
+using EasyInk.Printer;
 using Newtonsoft.Json.Linq;
 
 namespace EasyInk.Printer.Server;
@@ -24,12 +25,12 @@ public class WebSocketMessage
     public static WebSocketMessage FromBinary(byte[] data)
     {
         if (data.Length < 4)
-            throw new ArgumentException("二进制消息过短");
+            throw new ArgumentException(LangManager.Get("Ws_BinaryMessageTooShort"));
 
         // 读取元数据长度（大端序）
         int metadataLength = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
         if (metadataLength <= 0 || metadataLength > data.Length - 4)
-            throw new ArgumentException("无效的元数据长度");
+            throw new ArgumentException(LangManager.Get("Ws_InvalidMetadataLength"));
 
         // 读取元数据
         var metadataBytes = new byte[metadataLength];

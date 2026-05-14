@@ -25,16 +25,16 @@ public class TrayIcon : IDisposable
 
         _notifyIcon = new NotifyIcon
         {
-            Text = $"EasyInk Printer - 端口 {server.Port}",
+            Text = LangManager.Get("Tray_Port_Template", server.Port),
             Icon = LoadAppIcon(),
             Visible = true
         };
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("显示主窗口", null, (s, e) => OnShowMainWindow?.Invoke());
-        menu.Items.Add("重启服务", null, (s, e) => OnRestartServer?.Invoke());
+        menu.Items.Add(LangManager.Get("Tray_ShowMainWindow"), null, (s, e) => OnShowMainWindow?.Invoke());
+        menu.Items.Add(LangManager.Get("Tray_RestartService"), null, (s, e) => OnRestartServer?.Invoke());
         menu.Items.Add("-");
-        menu.Items.Add("退出", null, (s, e) => OnExit?.Invoke());
+        menu.Items.Add(LangManager.Get("Tray_Exit"), null, (s, e) => OnExit?.Invoke());
         _notifyIcon.ContextMenuStrip = menu;
 
         _notifyIcon.DoubleClick += (s, e) => OnShowMainWindow?.Invoke();

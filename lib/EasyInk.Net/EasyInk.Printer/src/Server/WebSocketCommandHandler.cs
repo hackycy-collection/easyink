@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
+using EasyInk.Printer;
 using EasyInk.Printer.Services.Abstractions;
 
 namespace EasyInk.Printer.Server;
@@ -49,7 +50,7 @@ public class WebSocketCommandHandler
                 "getJobStatus" => HandleGetJobStatus(message),
                 "getAllJobs" => _api.GetAllJobs(),
                 "queryLogs" => HandleQueryLogs(message),
-                _ => PrinterResult.Error(message.Id, ErrorCode.UnknownCommand, $"未知命令: {message.Command}")
+                _ => PrinterResult.Error(message.Id, ErrorCode.UnknownCommand, LangManager.Get("Ws_UnknownCommand", message.Command))
             };
         }
         catch (Exception ex)
@@ -75,11 +76,11 @@ public class WebSocketCommandHandler
         CleanupExpiredUploads();
 
         if (message.Params == null)
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少切片参数");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingChunkParams"));
         if (message.PdfBytes == null || message.PdfBytes.Length == 0)
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少 PDF 切片数据");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingChunkData"));
         if (message.PdfBytes.Length > MaxChunkBytes)
-            return PrinterResult.Error(message.Id, ErrorCode.ChunkTooLarge, $"PDF 切片过大，上限 {MaxChunkBytes / 1024 / 1024}MB");
+            return PrinterResult.Error(message.Id, ErrorCode.ChunkTooLarge, LangManager.Get("Ws_ChunkTooLarge", MaxChunkBytes / 1024 / 1024));
 
         var uploadId = message.Params["uploadId"]?.ToString();
         var chunkIndex = message.Params["chunkIndex"]?.ToObject<int?>();
@@ -87,11 +88,11 @@ public class WebSocketCommandHandler
         var totalBytes = message.Params["totalBytes"]?.ToObject<long?>();
 
         if (string.IsNullOrEmpty(uploadId) || chunkIndex == null || totalChunks == null || totalBytes == null)
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少 uploadId、chunkIndex、totalChunks 或 totalBytes");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingUploadParams"));
         if (totalBytes <= 0 || totalBytes > MaxPdfBytes)
-            return PrinterResult.Error(message.Id, ErrorCode.PdfTooLarge, $"PDF 文件过大，上限 {MaxPdfBytes / 1024 / 1024}MB");
+            return PrinterResult.Error(message.Id, ErrorCode.PdfTooLarge, LangManager.Get("Ws_PdfTooLarge", MaxPdfBytes / 1024 / 1024));
         if (totalChunks <= 0 || chunkIndex < 0 || chunkIndex >= totalChunks)
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "无效的切片序号");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_InvalidChunkIndex"));
 
         try
         {
@@ -117,14 +118,14 @@ public class WebSocketCommandHandler
     private PrinterResult HandlePrintUploadedPdf(WebSocketMessage message, string command)
     {
         if (message.Params == null)
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少打印参数");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingPrintParams"));
 
         var uploadId = message.Params["uploadId"]?.ToString();
         if (string.IsNullOrEmpty(uploadId))
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少 uploadId 参数");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingUploadId"));
 
         if (!_uploads.TryGetValue(uploadId, out var upload))
-            return PrinterResult.Error(message.Id, ErrorCode.UploadNotFound, $"PDF 上传不存在或已过期: {uploadId}");
+            return PrinterResult.Error(message.Id, ErrorCode.UploadNotFound, LangManager.Get("Ws_UploadNotFound", uploadId));
 
         byte[] pdfBytes;
         try
@@ -158,7 +159,7 @@ public class WebSocketCommandHandler
         }
 
         if (printParams.Count == 0)
-            return PrinterResult.Error(id, ErrorCode.InvalidParams, "缺少打印参数");
+            return PrinterResult.Error(id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingPrintParams"));
 
         return _api.HandleCommand(new PrinterCommand
         {
@@ -172,7 +173,7 @@ public class WebSocketCommandHandler
     {
         var printerName = message.Params?["printerName"]?.ToString();
         if (string.IsNullOrEmpty(printerName))
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少printerName参数");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingPrinterName"));
 
         return _api.GetPrinterStatus(printerName);
     }
@@ -181,7 +182,7 @@ public class WebSocketCommandHandler
     {
         var jobId = message.Params?["jobId"]?.ToString();
         if (string.IsNullOrEmpty(jobId))
-            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, "缺少jobId参数");
+            return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingJobId"));
 
         return _api.HandleCommand(new PrinterCommand
         {
@@ -268,13 +269,13 @@ public class WebSocketCommandHandler
             lock (_lock)
             {
                 if (totalChunks != TotalChunks || totalBytes != TotalBytes)
-                    throw new ArgumentException("上传元数据不一致");
+                    throw new ArgumentException(LangManager.Get("Ws_UploadMetadataMismatch"));
                 if (chunkIndex < 0 || chunkIndex >= TotalChunks)
                     throw new ArgumentOutOfRangeException(nameof(chunkIndex));
                 if (_chunks[chunkIndex] != null)
                     return;
                 if (ReceivedBytes + chunk.Length > TotalBytes)
-                    throw new ArgumentException("切片总大小超过声明的 PDF 大小");
+                    throw new ArgumentException(LangManager.Get("Ws_ChunkTotalSizeExceeded"));
 
                 _chunks[chunkIndex] = chunk;
                 ReceivedChunks++;
@@ -287,16 +288,16 @@ public class WebSocketCommandHandler
             lock (_lock)
             {
                 if (!IsComplete)
-                    throw new InvalidOperationException($"PDF 上传未完成: {ReceivedChunks}/{TotalChunks}");
+                    throw new InvalidOperationException(LangManager.Get("Ws_UploadIncomplete", ReceivedChunks, TotalChunks));
                 if (TotalBytes > int.MaxValue)
-                    throw new InvalidOperationException("PDF 文件过大");
+                    throw new InvalidOperationException(LangManager.Get("Ws_PdfTooLargeAssembly"));
 
                 var result = new byte[(int)TotalBytes];
                 var offset = 0;
                 foreach (var chunk in _chunks)
                 {
                     if (chunk == null)
-                        throw new InvalidOperationException("PDF 上传缺少切片");
+                        throw new InvalidOperationException(LangManager.Get("Ws_UploadMissingChunks"));
                     Buffer.BlockCopy(chunk, 0, result, offset, chunk.Length);
                     offset += chunk.Length;
                 }

@@ -64,7 +64,7 @@ public class Router
 
         if (!ValidateApiKey(request))
         {
-            var unauthorized = Encoding.UTF8.GetBytes(SerializeResult(PrinterResult.Error(null, ErrorCode.Unauthorized, "无效的 API Key")));
+            var unauthorized = Encoding.UTF8.GetBytes(SerializeResult(PrinterResult.Error(null, ErrorCode.Unauthorized, LangManager.Get("Api_InvalidApiKey"))));
             response.StatusCode = 401;
             response.ContentType = "application/json; charset=utf-8";
             response.ContentLength64 = unauthorized.Length;
@@ -113,7 +113,7 @@ public class Router
                 var name = Uri.UnescapeDataString(segments[3]);
                 return _printerController.GetPrinterStatus(name);
             }
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少打印机名称");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingPrinterName"));
         }
 
         if (method == "POST" && path == "/api/print")
@@ -135,21 +135,21 @@ public class Router
         {
             var id = path.Substring(10);
             if (string.IsNullOrEmpty(id))
-                return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少任务ID");
+                return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingJobId"));
             return _jobController.GetJobStatus(id);
         }
 
         if (method == "GET" && path == "/api/logs")
             return _logController.QueryLogs(request.QueryString);
 
-        return PrinterResult.Error(null, ErrorCode.NotFound, $"路由不存在: {method} {path}");
+        return PrinterResult.Error(null, ErrorCode.NotFound, LangManager.Get("Api_RouteNotFound", method, path));
     }
 
     private async Task<PrinterResult> HandlePrintRequest(HttpListenerRequest request)
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少请求参数");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
         if (pdfBytes != null)
             return _printController.Print(paramsJson, pdfBytes);
         return _printController.Print(paramsJson);
@@ -159,7 +159,7 @@ public class Router
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少请求参数");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
         if (pdfBytes != null)
             return _printController.EnqueuePrint(paramsJson, pdfBytes);
         return _printController.EnqueuePrint(paramsJson);
@@ -188,7 +188,7 @@ public class Router
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
         if (request.ContentLength64 > MaxRequestBodyBytes)
-            throw new InvalidOperationException($"请求体过大: {request.ContentLength64 / 1024 / 1024}MB，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
+            throw new InvalidOperationException(LangManager.Get("Api_BodyTooLarge", request.ContentLength64 / 1024 / 1024, MaxRequestBodyBytes / 1024 / 1024));
 
         var buffer = new byte[request.ContentLength64];
         int totalRead = 0;
@@ -207,7 +207,7 @@ public class Router
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
         if (request.ContentLength64 > MaxRequestBodyBytes)
-            throw new InvalidOperationException($"请求体过大: {request.ContentLength64 / 1024 / 1024}MB，上限 {MaxRequestBodyBytes / 1024 / 1024}MB");
+            throw new InvalidOperationException(LangManager.Get("Api_BodyTooLarge", request.ContentLength64 / 1024 / 1024, MaxRequestBodyBytes / 1024 / 1024));
 
         var buffer = new byte[request.ContentLength64];
         int totalRead = 0;
