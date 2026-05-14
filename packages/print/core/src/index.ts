@@ -12,6 +12,9 @@ const UNIT_TO_MM = {
 
 export type PrintConnectionState = 'idle' | 'connecting' | 'connected' | 'error'
 
+/**
+ * Minimal printer shape shared by UI stores and transport-specific clients.
+ */
 export interface PrinterDeviceLike {
   name: string
   displayName?: string
@@ -19,6 +22,9 @@ export interface PrinterDeviceLike {
   status?: unknown
 }
 
+/**
+ * Minimal print job shape shared across different print backends.
+ */
 export interface PrintJobLike {
   jobId: string
   status: string
@@ -26,6 +32,12 @@ export interface PrintJobLike {
   errorMessage?: string
 }
 
+/**
+ * Normalized error type used by all EasyInk print packages.
+ *
+ * `code` is intended for application logic and UI diagnostics, while `message`
+ * stays readable for operators.
+ */
 export class EasyInkPrintError extends Error {
   constructor(
     message: string,
@@ -37,11 +49,19 @@ export class EasyInkPrintError extends Error {
   }
 }
 
+/**
+ * Converts a Viewer dimension into millimeters so downstream drivers can work
+ * against a single unit regardless of the document's source unit.
+ */
 export function toMillimeters(value: number, unit: string): number {
   const factor = UNIT_TO_MM[unit as keyof typeof UNIT_TO_MM] || 1
   return value * factor
 }
 
+/**
+ * Resolves the effective print size from explicit print policy first and falls
+ * back to the first rendered page when the policy does not provide one.
+ */
 export function resolvePrintSize(
   sheetSize: ViewerPrintSheetSize | undefined,
   renderedPage: ViewerPageMetrics | undefined,
@@ -53,6 +73,9 @@ export function resolvePrintSize(
   throw new EasyInkPrintError('缺少打印页面尺寸', 'PRINT_SIZE_MISSING')
 }
 
+/**
+ * Resolves the effective Viewer print size in millimeters.
+ */
 export function resolveViewerPrintSize(context: ViewerPrintContext): { widthMm: number, heightMm: number } {
   const printSize = resolvePrintSize(context.printPolicy.sheetSize, context.renderedPages[0])
   return {
@@ -61,6 +84,9 @@ export function resolveViewerPrintSize(context: ViewerPrintContext): { widthMm: 
   }
 }
 
+/**
+ * Maps Viewer orientation to an explicit landscape flag when possible.
+ */
 export function resolveExplicitPrintLandscape(
   orientation: ViewerPrintPolicy['orientation'],
 ): boolean | undefined {
@@ -71,6 +97,10 @@ export function resolveExplicitPrintLandscape(
   return undefined
 }
 
+/**
+ * Resolves the final landscape flag. When orientation is `auto`, width and
+ * height are used as the fallback heuristic.
+ */
 export function resolvePrintLandscape(
   orientation: ViewerPrintPolicy['orientation'],
   widthMm: number,
@@ -79,6 +109,10 @@ export function resolvePrintLandscape(
   return resolveExplicitPrintLandscape(orientation) ?? widthMm > heightMm
 }
 
+/**
+ * Converts Viewer print offsets to millimeters and omits zero offsets so
+ * drivers can avoid sending redundant positioning information.
+ */
 export function resolvePrintOffset(
   offset: ViewerPrintPolicy['offset'],
 ): { x: number, y: number, unit: 'mm' } | undefined {
@@ -89,6 +123,10 @@ export function resolvePrintOffset(
   return { x, y, unit: 'mm' }
 }
 
+/**
+ * Returns rendered Viewer pages or throws a coded error when the container is
+ * missing or nothing has been rendered yet.
+ */
 export function getViewerPages(container: HTMLElement | undefined): HTMLElement[] {
   if (!container)
     throw new EasyInkPrintError('找不到打印内容', 'PRINT_CONTAINER_MISSING')
@@ -98,6 +136,10 @@ export function getViewerPages(container: HTMLElement | undefined): HTMLElement[
   return pages
 }
 
+/**
+ * Re-shapes export runtime diagnostics into Viewer diagnostics so driver code
+ * can forward them without duplicating mapping logic.
+ */
 export function exportDiagnosticToViewerEvent(diagnostic: ExportDiagnostic): ViewerDiagnosticEvent {
   return {
     category: 'exporter',
@@ -110,6 +152,10 @@ export function exportDiagnosticToViewerEvent(diagnostic: ExportDiagnostic): Vie
   }
 }
 
+/**
+ * Normalizes backend-specific job states to the shared set used by EasyInk UI
+ * and polling logic.
+ */
 export function normalizeJobStatus(status: unknown): 'queued' | 'printing' | 'completed' | 'failed' | 'unknown' {
   const normalized = String(status ?? '').toLowerCase()
   if (normalized === 'queued' || normalized === 'printing' || normalized === 'completed' || normalized === 'failed')

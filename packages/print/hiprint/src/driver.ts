@@ -2,6 +2,9 @@ import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import type { HiPrintClient } from './client'
 import { getViewerPages, resolveViewerPrintSize } from '@easyink/print-core'
 
+/**
+ * Configures the official Viewer print driver for HiPrint.
+ */
 export interface HiPrintDriverOptions {
   client: HiPrintClient
   id?: string
@@ -10,6 +13,11 @@ export interface HiPrintDriverOptions {
   forcePageSize?: boolean | ((printerName: string | undefined) => boolean | undefined)
 }
 
+/**
+ * Creates a Viewer print driver that forwards rendered pages to HiPrint.
+ *
+ * Use function-valued options when printer settings can change at runtime.
+ */
 export function createHiPrintDriver(options: HiPrintDriverOptions): PrintDriver {
   return {
     id: options.id ?? 'hiprint',

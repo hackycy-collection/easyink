@@ -6,6 +6,10 @@ const DEFAULT_RESPONSE_TIMEOUT_MS = 15000
 const DEFAULT_JOB_TIMEOUT_MS = 60000
 const PDF_CHUNK_SIZE_BYTES = 1024 * 1024
 
+/**
+ * Configures how the EasyInk Printer client discovers and talks to the local
+ * print service.
+ */
 export interface EasyInkPrinterClientOptions {
   serviceUrl?: string
   apiKey?: string
@@ -15,6 +19,9 @@ export interface EasyInkPrinterClientOptions {
   printerName?: string
 }
 
+/**
+ * Describes a printer returned by EasyInk Printer.
+ */
 export interface EasyInkPrinterDevice {
   name: string
   isDefault?: boolean
@@ -24,18 +31,27 @@ export interface EasyInkPrinterDevice {
   supportedPaperSizes?: Array<{ name: string, width: number, height: number }>
 }
 
+/**
+ * Paper size passed to the EasyInk Printer service.
+ */
 export interface EasyInkPrinterPaperSize {
   width: number
   height: number
   unit: 'mm' | 'inch'
 }
 
+/**
+ * Print offset passed to the EasyInk Printer service.
+ */
 export interface EasyInkPrinterOffset {
   x: number
   y: number
   unit: 'mm' | 'inch'
 }
 
+/**
+ * Normalized print job state returned by the EasyInk Printer service.
+ */
 export interface EasyInkPrinterJob {
   jobId: string
   status: 'queued' | 'printing' | 'completed' | 'failed' | 'unknown'
@@ -43,6 +59,9 @@ export interface EasyInkPrinterJob {
   errorMessage?: string
 }
 
+/**
+ * Options for submitting a rendered PDF to EasyInk Printer.
+ */
 export interface EasyInkPrinterPrintPdfOptions {
   printerName?: string
   copies?: number
@@ -83,6 +102,10 @@ export class EasyInkPrinterClient {
   private readonly responseTimeoutMs: number
   private readonly pendingRequests = new Map<string, PendingRequest>()
 
+  /**
+   * Creates a stateful client around the EasyInk Printer HTTP and WebSocket
+   * endpoints.
+   */
   constructor(options: EasyInkPrinterClientOptions = {}) {
     this.serviceUrl = options.serviceUrl ?? DEFAULT_EASYINK_PRINTER_URL
     this.apiKey = options.apiKey
@@ -92,10 +115,19 @@ export class EasyInkPrinterClient {
     this.responseTimeoutMs = options.responseTimeoutMs ?? DEFAULT_RESPONSE_TIMEOUT_MS
   }
 
+  /**
+   * Indicates whether the underlying WebSocket is currently open.
+   */
   get isConnected(): boolean {
     return this.connectionState === 'connected' && this.ws?.readyState === WebSocket.OPEN
   }
 
+  /**
+   * Updates runtime configuration. Endpoint changes reset cached devices and
+   * jobs because they are no longer valid for the new service.
+   *
+   * Returns `true` when a reconnect is required.
+   */
   configure(options: Partial<EasyInkPrinterClientOptions>): boolean {
     const endpointChanged = (options.serviceUrl !== undefined && options.serviceUrl !== this.serviceUrl)
       || (options.apiKey !== undefined && options.apiKey !== this.apiKey)
@@ -119,6 +151,9 @@ export class EasyInkPrinterClient {
     return endpointChanged
   }
 
+  /**
+   * Opens the WebSocket connection used for command submission and job polling.
+   */
   async connect(): Promise<void> {
     if (this.isConnected)
       return
@@ -188,6 +223,9 @@ export class EasyInkPrinterClient {
     return this.connectPromise
   }
 
+  /**
+   * Closes the current connection and rejects any in-flight requests.
+   */
   disconnect(): void {
     this.connectPromise = undefined
     this.rejectPending(new EasyInkPrintError('连接已断开', 'PRINTER_DISCONNECTED'))
@@ -201,6 +239,10 @@ export class EasyInkPrinterClient {
     this.connectionState = 'idle'
   }
 
+  /**
+   * Refreshes printers from the HTTP endpoint and keeps the selected printer in
+   * sync with the returned device list.
+   */
   async refreshPrinters(): Promise<EasyInkPrinterDevice[]> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), this.responseTimeoutMs)
@@ -230,10 +272,17 @@ export class EasyInkPrinterClient {
     }
   }
 
+  /**
+   * Alias of `refreshPrinters()` for UI-friendly naming.
+   */
   listPrinters(): Promise<EasyInkPrinterDevice[]> {
     return this.refreshPrinters()
   }
 
+  /**
+   * Selects the default printer reported by the service, or falls back to the
+   * first available printer.
+   */
   async useDefaultPrinter(): Promise<string | undefined> {
     const devices = this.devices.length > 0 ? this.devices : await this.refreshPrinters()
     const printer = devices.find(device => device.isDefault) ?? devices[0]
@@ -241,10 +290,18 @@ export class EasyInkPrinterClient {
     return this.printerName
   }
 
+  /**
+   * Sets the printer that subsequent print jobs should use by default.
+   */
   setPrinter(printerName: string | undefined): void {
     this.printerName = printerName
   }
 
+  /**
+   * Uploads a PDF to the service and returns the created job ID.
+   *
+   * The PDF is chunked to avoid large single-frame WebSocket messages.
+   */
   async printPdf(pdfBlob: Blob, options: EasyInkPrinterPrintPdfOptions = {}): Promise<string> {
     if (pdfBlob.size <= 0)
       throw new EasyInkPrintError('PDF 内容为空', 'PDF_EMPTY')
@@ -290,11 +347,18 @@ export class EasyInkPrinterClient {
     return jobId
   }
 
+  /**
+   * Convenience wrapper that submits the PDF and waits until the job finishes
+   * or fails.
+   */
   async printPdfAndWait(pdfBlob: Blob, options: EasyInkPrinterPrintPdfOptions & { timeoutMs?: number } = {}): Promise<EasyInkPrinterJob> {
     const jobId = await this.printPdf(pdfBlob, options)
     return this.waitForJob(jobId, options.timeoutMs)
   }
 
+  /**
+   * Polls the remote job until it completes, fails, or times out.
+   */
   async waitForJob(jobId: string, timeoutMs = DEFAULT_JOB_TIMEOUT_MS): Promise<EasyInkPrinterJob> {
     await this.connect()
     const startedAt = Date.now()
@@ -463,6 +527,10 @@ export class EasyInkPrinterClient {
   }
 }
 
+/**
+ * Creates a client for applications that want the official EasyInk Printer
+ * transport without re-implementing connection and upload logic.
+ */
 export function createEasyInkPrinterClient(options?: EasyInkPrinterClientOptions): EasyInkPrinterClient {
   return new EasyInkPrinterClient(options)
 }

@@ -6,6 +6,10 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 4000
 const DEFAULT_REFRESH_DELAY_MS = 300
 const DEFAULT_REFRESH_TIMEOUT_MS = 2500
 
+/**
+ * Configures how the HiPrint client connects to electron-hiprint and how it
+ * chooses default device behavior.
+ */
 export interface HiPrintClientOptions {
   serviceUrl?: string
   namespace?: string
@@ -17,6 +21,9 @@ export interface HiPrintClientOptions {
   forcePageSizeByDevice?: Record<string, boolean>
 }
 
+/**
+ * Describes a printer reported by the HiPrint runtime.
+ */
 export interface HiPrintDevice {
   description?: string
   displayName?: string
@@ -26,6 +33,9 @@ export interface HiPrintDevice {
   options?: Record<string, unknown>
 }
 
+/**
+ * Options for printing a single HTML document through HiPrint.
+ */
 export interface PrintHtmlOptions {
   html: string
   width: number
@@ -38,8 +48,14 @@ export interface PrintHtmlOptions {
   paperHeader?: number
 }
 
+/**
+ * Options for printing one or more already-rendered Viewer pages.
+ */
 export interface PrintPagesOptions extends Omit<PrintHtmlOptions, 'html'> {}
 
+/**
+ * Progress payload emitted while printing multiple pages sequentially.
+ */
 export interface HiPrintProgress {
   current: number
   total: number
@@ -83,6 +99,9 @@ export class HiPrintClient {
   private readonly refreshDelayMs: number
   private readonly refreshTimeoutMs: number
 
+  /**
+   * Creates a stateful wrapper around `vue-plugin-hiprint`.
+   */
   constructor(options: HiPrintClientOptions = {}) {
     this.serviceUrl = options.serviceUrl ?? DEFAULT_HIPRINT_URL
     this.namespace = options.namespace ?? 'easyink'
@@ -94,10 +113,20 @@ export class HiPrintClient {
     this.refreshTimeoutMs = options.refreshTimeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS
   }
 
+  /**
+   * Indicates whether the client has an active connection to the HiPrint
+   * runtime.
+   */
   get isConnected(): boolean {
     return this.connectionState === 'connected'
   }
 
+  /**
+   * Updates runtime configuration. Endpoint changes clear cached devices and
+   * require reconnecting to the new socket namespace.
+   *
+   * Returns `true` when a reconnect is required.
+   */
   configure(options: Partial<HiPrintClientOptions>): boolean {
     const endpointChanged = (options.serviceUrl !== undefined && options.serviceUrl !== this.serviceUrl)
       || (options.namespace !== undefined && options.namespace !== this.namespace)
@@ -122,6 +151,9 @@ export class HiPrintClient {
     return endpointChanged
   }
 
+  /**
+   * Connects to electron-hiprint and starts a device refresh in the background.
+   */
   connect(): Promise<void> {
     this.ensureInit()
 
@@ -166,12 +198,19 @@ export class HiPrintClient {
     return this.connectPromise
   }
 
+  /**
+   * Stops the underlying socket bridge.
+   */
   disconnect(): void {
     this.stopSocket()
     this.connectionState = 'idle'
     this.connectPromise = undefined
   }
 
+  /**
+   * Refreshes the printer list from HiPrint and keeps the selected printer in
+   * sync with the available devices.
+   */
   async refreshPrinters(): Promise<HiPrintDevice[]> {
     if (this.connectionState !== 'connected')
       await this.connect()
@@ -204,10 +243,17 @@ export class HiPrintClient {
     return this.devices
   }
 
+  /**
+   * Alias of `refreshPrinters()` for UI-friendly naming.
+   */
   listPrinters(): Promise<HiPrintDevice[]> {
     return this.refreshPrinters()
   }
 
+  /**
+   * Selects the default printer reported by HiPrint, or falls back to the
+   * first available device.
+   */
   async useDefaultPrinter(): Promise<string | undefined> {
     const devices = this.devices.length > 0 ? this.devices : await this.refreshPrinters()
     const printer = devices.find(device => device.isDefault) ?? devices[0]
@@ -215,10 +261,17 @@ export class HiPrintClient {
     return this.printerName
   }
 
+  /**
+   * Sets the printer that future print calls should use by default.
+   */
   setPrinter(printerName: string | undefined): void {
     this.printerName = printerName
   }
 
+  /**
+   * Persists whether a specific printer should receive an explicit custom page
+   * size.
+   */
   setForcePageSize(printerName: string, value: boolean): void {
     if (value)
       this.forcePageSizeByDevice[printerName] = true
@@ -226,10 +279,17 @@ export class HiPrintClient {
       delete this.forcePageSizeByDevice[printerName]
   }
 
+  /**
+   * Checks whether a specific printer should receive an explicit custom page
+   * size.
+   */
   isForcePageSize(printerName: string | undefined): boolean {
     return Boolean(printerName && this.forcePageSizeByDevice[printerName])
   }
 
+  /**
+   * Prints a single HTML payload through HiPrint.
+   */
   async printHtml(options: PrintHtmlOptions): Promise<void> {
     if (this.connectionState !== 'connected')
       await this.connect()
@@ -263,6 +323,10 @@ export class HiPrintClient {
     })
   }
 
+  /**
+   * Prints already-rendered Viewer pages sequentially and reports page-level
+   * progress after each successful submission.
+   */
   async printPages(
     pages: HTMLElement[],
     options: PrintPagesOptions,
@@ -314,6 +378,10 @@ export class HiPrintClient {
   }
 }
 
+/**
+ * Creates a client for applications that want the official HiPrint transport
+ * without dealing with `vue-plugin-hiprint` directly.
+ */
 export function createHiPrintClient(options?: HiPrintClientOptions): HiPrintClient {
   return new HiPrintClient(options)
 }

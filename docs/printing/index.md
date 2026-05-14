@@ -1,34 +1,125 @@
 # 打印方案
 
-EasyInk 提供两种本地打印方案，均为**静默打印**（无需用户手动操作浏览器打印对话框）。根据你的技术栈和部署环境选择合适的方案。
+EasyInk 的本地打印目标很明确：让业务代码只关心“打印什么”和“发给哪台打印机”，而不是自己处理 PDF 渲染、WebSocket 通信、分页 DOM 提取和任务轮询。
 
-前端集成时优先使用官方打印包：
+如果你是第一次接入，优先走官方打印包：
 
-- `@easyink/print-easyink`：EasyInk Printer (.NET) 客户端和 Viewer 驱动
-- `@easyink/print-hiprint`：HiPrint 客户端和 Viewer 驱动
+- `@easyink/print-easyink`：对接 EasyInk Printer (.NET)，把 Viewer 页面转成 PDF 后发送到本地打印服务
+- `@easyink/print-hiprint`：对接 electron-hiprint，直接把 Viewer 页面 HTML 发送给 HiPrint
 
-业务侧只需要创建客户端、注册驱动并调用 `viewer.print()`，不需要自己实现 WebSocket、PDF 分块上传或 PrintDriver。
+这两个包都已经包含了“客户端 + Viewer 打印驱动”两层能力。大多数项目不需要自己重写 `PrintDriver`。
+
+## 你真正要做的事情
+
+无论选哪条链路，前端接入步骤都一样：
+
+1. 安装对应的打印包。
+2. 创建打印客户端，管理连接地址、默认打印机和份数。
+3. 把官方驱动注册到 Viewer。
+4. 调用 `viewer.print()`。
+5. 在设置页暴露打印机列表、连接状态和错误信息。
+
+也就是说，业务系统真正需要维护的状态通常只有这些：
+
+- 打印服务地址
+- 当前选中的打印机
+- 默认份数
+- 是否强制纸张尺寸
+- 连接状态和最近一次错误
 
 ## 方案对比
 
 | | EasyInk Printer (.NET) | HiPrint (vue-plugin-hiprint) |
 |---|---|---|
-| **技术栈** | .NET Framework 4.8 | Node.js / Electron |
 | **运行平台** | 仅 Windows | Windows / macOS / Linux |
-| **打印引擎** | Pdfium 渲染 + Windows Print Spooler | Chromium 内置打印 |
-| **打印格式** | PDF（前端先渲染为 PDF 再发送） | HTML（直接发送页面 HTML） |
-| **通信协议** | HTTP + WebSocket | WebSocket |
-| **内置组件** | 项目内置 EasyInk Printer | 需额外安装 electron-hiprint |
-| **适用场景** | Windows 桌面环境、需要矢量质量 | 跨平台、小票/标签打印 |
-| **前端包** | `@easyink/print-easyink` | `@easyink/print-hiprint` |
+| **打印输入** | PDF | HTML |
+| **渲染质量** | 适合对矢量质量要求高的正式单据 | 适合标签、小票、跨平台打印 |
+| **通信方式** | HTTP + WebSocket | WebSocket |
+| **典型场景** | 面单、正式报表、A4 文档 | 小票、标签、嵌入 Electron 的桌面应用 |
+| **前端驱动默认 pageSizeMode** | `fixed` | `driver` |
+| **官方包** | `@easyink/print-easyink` | `@easyink/print-hiprint` |
 
 ## 如何选择
 
-- **Windows 环境 + 需要稳定打印质量**：选 EasyInk Printer，Pdfium 渲染 + Windows 原生打印管线，DEVMODE 由驱动完整协商
-- **跨平台**：选 HiPrint，electron-hiprint 支持 Windows/macOS/Linux
-- **已有 electron-hiprint 服务**：直接复用，无需额外部署
+### 选 EasyInk Printer 的情况
+
+- 你的部署环境是 Windows。
+- 你更在意 PDF 打印质量和系统打印稳定性。
+- 你希望纸张尺寸、方向、偏移量都由打印服务准确控制。
+
+### 选 HiPrint 的情况
+
+- 你需要跨平台。
+- 你的系统已经在使用 electron-hiprint。
+- 你打印的主要是标签、小票、卡片等较轻量页面。
+
+### 不要自己实现驱动的情况
+
+如果你的打印目标只是“把 Viewer 已经渲染好的页面交给本地服务”，官方驱动已经覆盖了绝大多数需求。只有在下面这些情况才建议写自定义驱动：
+
+- 你有独立的企业打印网关，需要走自定义协议。
+- 你要接专用硬件或厂商 SDK。
+- 你需要在提交前做额外的签名、加密或审计。
+
+## 推荐的前端封装方式
+
+不要把连接逻辑散落在按钮点击里。更稳定的方式是把打印集成收口成一个可复用的 store 或 hook：
+
+```ts
+const client = createEasyInkPrinterClient(...)
+
+export function usePrintService() {
+	return {
+		client,
+		connect,
+		disconnect,
+		refreshDevices,
+		config,
+		devices,
+		jobs,
+		connectionState,
+		lastError,
+	}
+}
+```
+
+这样做的原因有两个：
+
+- Viewer 驱动只负责“本次打印怎么发”，不负责“配置存在哪、何时重连”。
+- 打印设置页、诊断页、预览页都能共享同一份连接状态。
+
+## 常见问题
+
+### Viewer 已渲染成功，但没有打印输出
+
+先检查三件事：
+
+1. 打印驱动是否已经注册，`driverId` 是否匹配。
+2. `context.container` 中是否真的存在 `.ei-viewer-page`。
+3. 本地打印服务是否在线，且打印机已经被选中。
+
+### 为什么 EasyInk Printer 要先转 PDF
+
+因为目标不是“把浏览器 DOM 打出去”，而是“把页面以稳定、可控、与浏览器缩放无关的形式交给 Windows 打印管线”。PDF 是这里最稳定的交换格式。
+
+### 为什么 HiPrint 可能需要按设备决定 `forcePageSize`
+
+部分驱动对自定义纸张支持有限，强制设置 page size 反而会导致缩放、留白或打印失败。所以 `forcePageSize` 更适合作为“按打印机型号配置”的策略，而不是单个全局布尔值。
+
+## 排错顺序
+
+当用户反馈“点了打印没反应”时，排查顺序建议固定下来：
+
+1. 先看连接状态是否为 `connected`。
+2. 再看打印机列表是否成功刷新。
+3. 再看当前打印机名称是否存在于设备列表。
+4. 再看 `viewer.print()` 期间的 `onPhase` 和 `onProgress` 事件。
+5. 最后再查本地打印服务日志。
+
+这个顺序的原因是，大多数问题并不在模板渲染，而是在连接、选机和设备侧能力协商。
 
 ## 下一步
 
-- [EasyInk Printer (.NET)](/dotnet/) -- 内置打印服务，Windows 专用
-- [Electron HiPrint](/hiprint/) -- 基于 vue-plugin-hiprint 的跨平台方案
+- [EasyInk Printer (.NET)](/dotnet/)：了解 Windows 打印服务部署方式
+- [Electron HiPrint](/hiprint/)：了解 electron-hiprint 的运行要求
+- [自定义打印驱动开发](/advanced/print-drivers) ：当官方驱动不满足你的接入要求时再进入这一层

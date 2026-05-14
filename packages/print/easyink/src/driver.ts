@@ -3,6 +3,9 @@ import type { EasyInkPrinterClient, EasyInkPrinterPrintPdfOptions } from './clie
 import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
 import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintLandscape, resolvePrintOffset, resolveViewerPrintSize } from '@easyink/print-core'
 
+/**
+ * Configures the official Viewer print driver for EasyInk Printer.
+ */
 export interface EasyInkPrinterDriverOptions {
   client: EasyInkPrinterClient
   id?: string
@@ -13,6 +16,12 @@ export interface EasyInkPrinterDriverOptions {
   waitForCompletion?: boolean
 }
 
+/**
+ * Creates a Viewer print driver that renders Viewer pages to PDF and submits
+ * the resulting document to EasyInk Printer.
+ *
+ * Use function-valued options when printer settings can change at runtime.
+ */
 export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions): PrintDriver {
   return {
     id: options.id ?? 'easyink-printer',
