@@ -6,7 +6,9 @@
 
 [架构文档索引](.github/architecture/README.md)
 
-禁止使用`structuredClone`
-禁止使用unicode字符表情
-各个包间需通过pnpm workspace引入包
-确保项目`pnpm lint`和`pnpm typecheck`和`pnpm build`通过
+# 注意事项
+
+- 禁止使用`structuredClone`
+- 禁止使用unicode字符表情
+- 各个包间需通过pnpm workspace引入包
+- 确保项目`pnpm build`、`pnpm lint`、`pnpm typecheck`通过（按顺序）
