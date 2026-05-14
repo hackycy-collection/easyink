@@ -14,6 +14,7 @@ export interface SvgStarProps {
 
 export interface SvgStarControlSelection {
   handle: 'inner-radius'
+  index: number
 }
 
 export const SVG_STAR_DEFAULTS: SvgStarProps = {

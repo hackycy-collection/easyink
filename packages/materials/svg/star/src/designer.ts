@@ -1,10 +1,10 @@
-import type { BehaviorRegistration, MaterialDesignerExtension, MaterialExtensionContext, MaterialGeometry, Rect, Selection, SelectionType, SubPropertySchema, TransactionAPI } from '@easyink/core'
+import type { BehaviorRegistration, EditingSessionRef, MaterialDesignerExtension, MaterialExtensionContext, MaterialGeometry, Rect, Selection, SelectionType, SubPropertySchema, TransactionAPI } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { SvgStarControlSelection, SvgStarProps } from './schema'
 import { undoBoundaryMiddleware } from '@easyink/core'
 import { getNodeProps } from '@easyink/schema'
 import { createPointerGesture } from '@easyink/shared'
-import { computed, defineComponent, h } from 'vue'
+import { computed, defineComponent, h, onUnmounted } from 'vue'
 import { buildStarSvgMarkup, getStarControlRect, getStarEditGuide, resolveStarControl, updateStarControlFromLocalPoint } from './rendering'
 import { SVG_STAR_DEFAULTS } from './schema'
 
@@ -44,7 +44,7 @@ function createStarGeometry(): MaterialGeometry {
       return {
         type: STAR_CONTROL_SELECTION_TYPE,
         nodeId: node.id,
-        payload: control ?? { handle: 'inner-radius' },
+        payload: control ?? { handle: 'inner-radius', index: 0 },
       }
     },
   }
@@ -63,8 +63,8 @@ function createStarSelectionType(): SelectionType<SvgStarControlSelection> {
     validate(payload): payload is SvgStarControlSelection {
       if (typeof payload !== 'object' || payload === null)
         return false
-      const handle = (payload as SvgStarControlSelection).handle
-      return handle === 'inner-radius'
+      const p = payload as SvgStarControlSelection
+      return p.handle === 'inner-radius' && typeof p.index === 'number' && p.index >= 0
     },
     getPropertySchema(sel, node) {
       return createStarSubPropertySchema(sel, node)
@@ -117,22 +117,27 @@ function createStarHandleBehavior(): BehaviorRegistration {
       }
 
       if (ctx.event.command === 'svg-star.select-handle') {
-        const handle = (ctx.event.payload as SvgStarControlSelection).handle
+        const payload = ctx.event.payload as SvgStarControlSelection
         ctx.selectionStore.set({
           type: STAR_CONTROL_SELECTION_TYPE,
           nodeId: ctx.node.id,
-          payload: { handle },
+          payload: { handle: payload.handle, index: payload.index },
         })
         return
       }
 
       if (ctx.event.command === 'enter-edit') {
         if (!ctx.selection) {
+          const currentProps = {
+            ...SVG_STAR_DEFAULTS,
+            ...getNodeProps<SvgStarProps>(ctx.node),
+          }
           ctx.selectionStore.set({
             type: STAR_CONTROL_SELECTION_TYPE,
             nodeId: ctx.node.id,
-            payload: { handle: 'inner-radius' },
+            payload: { handle: 'inner-radius', index: 0 },
           })
+          ctx.session.setMeta('starInnerRatio', currentProps.starInnerRatio)
         }
         return
       }
@@ -155,6 +160,7 @@ function createStarHandleBehavior(): BehaviorRegistration {
           mergeKey: `svg-star:${payload.handle}`,
           label: 'designer.history.updateSvgStar',
         })
+        ctx.session.setMeta('starInnerRatio', nextProps.starInnerRatio)
         return
       }
 
@@ -170,21 +176,37 @@ function createStarDecorationComponent() {
       rects: { type: Array as () => Rect[], required: true },
       selection: { type: Object as () => Selection, required: true },
       node: { type: Object as () => MaterialNode, required: true },
-      session: { type: Object as () => { dispatch: (event: unknown) => void }, required: true },
+      session: { type: Object as () => EditingSessionRef, required: true },
       unit: { type: String, required: true },
     },
     setup(props) {
-      const currentHandle = computed(() => (props.selection.payload as SvgStarControlSelection).handle)
-      const starProps = computed(() => ({
-        ...SVG_STAR_DEFAULTS,
-        ...getNodeProps<SvgStarProps>(props.node),
-      }))
+      const currentSelection = computed(() => props.selection.payload as SvgStarControlSelection)
+      const starProps = computed(() => {
+        const nodeProps = getNodeProps<SvgStarProps>(props.node)
+        const metaRatio = props.session.meta.starInnerRatio as number | undefined
+        return {
+          ...SVG_STAR_DEFAULTS,
+          ...nodeProps,
+          starInnerRatio: metaRatio ?? nodeProps.starInnerRatio ?? SVG_STAR_DEFAULTS.starInnerRatio,
+        }
+      })
+      let activeGesture: ReturnType<typeof createPointerGesture> | null = null
 
-      function onHandlePointerDown(handle: SvgStarControlSelection['handle'], event: PointerEvent) {
+      function onHandlePointerDown(handle: SvgStarControlSelection['handle'], index: number, event: PointerEvent) {
         event.stopPropagation()
         event.preventDefault()
-        createPointerGesture({
-          target: event.currentTarget as HTMLElement,
+        const target = event.currentTarget as HTMLElement
+        if (!target)
+          return
+
+        props.session.dispatch({
+          kind: 'command',
+          command: 'svg-star.select-handle',
+          payload: { handle, index },
+        })
+
+        activeGesture = createPointerGesture({
+          target,
           event,
           onMove(moveEvent) {
             props.session.dispatch({
@@ -197,19 +219,32 @@ function createStarDecorationComponent() {
               },
             })
           },
-          onEnd() {},
+          onEnd() {
+            activeGesture = null
+          },
         })
       }
 
-      function renderHandle(handle: SvgStarControlSelection['handle'], label: string) {
-        const selected = currentHandle.value === handle
+      function cleanupGesture() {
+        if (activeGesture) {
+          activeGesture.abort()
+          activeGesture = null
+        }
+      }
+
+      onUnmounted(cleanupGesture)
+
+      function renderHandle(handle: SvgStarControlSelection['handle'], index: number, label: string) {
+        const sel = currentSelection.value
+        const selected = sel.handle === handle && sel.index === index
         const guide = getStarEditGuide(starProps.value)
+        const pos = guide.handles[index]
 
         return h('div', {
           style: {
             position: 'absolute',
-            left: `calc(${guide.handle.x}% - 4px)`,
-            top: `calc(${guide.handle.y}% - 4px)`,
+            left: `calc(${pos.x}% - 4px)`,
+            top: `calc(${pos.y}% - 4px)`,
             width: '8px',
             height: '8px',
             borderRadius: '999px',
@@ -221,7 +256,7 @@ function createStarDecorationComponent() {
             pointerEvents: 'auto',
           },
           title: label,
-          onPointerdown: (event: PointerEvent) => onHandlePointerDown(handle, event),
+          onPointerdown: (event: PointerEvent) => onHandlePointerDown(handle, index, event),
         })
       }
 
@@ -242,39 +277,17 @@ function createStarDecorationComponent() {
           style: {
             ...baseStyle,
             pointerEvents: 'none',
-          },
-        }, [h('svg', {
-          'style': {
-            position: 'absolute',
-            inset: '0',
-            overflow: 'visible',
-          },
-          'viewBox': '0 0 100 100',
-          'preserveAspectRatio': 'none',
-          'aria-hidden': 'true',
-        }, [h('ellipse', {
-          'cx': `${guide.center.x}`,
-          'cy': `${guide.center.y}`,
-          'rx': `${guide.radiusX}`,
-          'ry': `${guide.radiusY}`,
-          'fill': 'none',
-          'stroke': 'rgba(24, 144, 255, 0.8)',
-          'stroke-width': '1',
-          'stroke-dasharray': '3 2',
-        })])]))
-
-        overlays.push(h('div', {
-          style: {
-            ...baseStyle,
-            pointerEvents: 'auto',
+            zIndex: 6,
           },
         }, [h('div', {
           style: {
             position: 'absolute',
             inset: '0',
-            pointerEvents: 'auto',
+            pointerEvents: 'none',
           },
-        }, [renderHandle('inner-radius', '调整内角比例')])]))
+        }, guide.handles.map((_, index) =>
+          renderHandle('inner-radius', index, `调整内角比例 ${index + 1}`),
+        ))]))
 
         return h('div', {}, overlays)
       }

@@ -60,7 +60,7 @@ describe('renderSvgStar', () => {
     const props = node.props as unknown as SvgStarProps
 
     expect(resolveStarControl({ x: 10, y: 10 }, node, props)).toBeNull()
-    expect(resolveStarControl({ x: 70, y: 50 }, node, props)).toEqual({ handle: 'inner-radius' })
+    expect(resolveStarControl({ x: 62, y: 38 }, node, props)).toEqual({ handle: 'inner-radius', index: 0 })
   })
 
   it('exposes deep-edit controls only for the inner angle ratio', () => {
@@ -70,7 +70,7 @@ describe('renderSvgStar', () => {
     const schema = selectionType?.getPropertySchema?.({
       type: 'svg-star.control',
       nodeId: node.id,
-      payload: { handle: 'inner-radius' },
+      payload: { handle: 'inner-radius', index: 0 },
     }, node)
 
     expect(schema?.title).toBe('星星编辑')
