@@ -52,7 +52,7 @@ public static class SimpleLogger
     private static void Write(string level, string message)
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}";
-        Debug.WriteLine(line);
+        System.Diagnostics.Debug.WriteLine(line);
 
         if (_logPath == null) return;
         try

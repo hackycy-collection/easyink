@@ -453,7 +453,7 @@ public class MainWindow : Form
 
     private async void RefreshPrinters(ListView listView)
     {
-        await RefreshListViewAsync(listView, 1, "获取打印机列表", () => _api.GetPrinters(),
+        await RefreshListViewAsync<PrinterInfo>(listView, 1, "获取打印机列表", () => _api.GetPrinters(),
             (listViewCtrl, data) =>
             {
                 foreach (var p in data)
@@ -470,7 +470,7 @@ public class MainWindow : Form
 
     private async void RefreshJobs(ListView listView)
     {
-        await RefreshListViewAsync(listView, 2, "获取任务列表", () => _api.GetAllJobs(),
+        await RefreshListViewAsync<PrintJob>(listView, 2, "获取任务列表", () => _api.GetAllJobs(),
             (listViewCtrl, data) =>
             {
                 foreach (var job in data)
