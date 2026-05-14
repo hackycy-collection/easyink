@@ -21,8 +21,12 @@
     "build": "tsdown",
     "dev": "tsdown --watch"
   },
+  "peerDependencies": {
+    "vue": "catalog:framework"
+  },
   "dependencies": {
     "@easyink/core": "workspace:*",
+    "@easyink/icons": "workspace:*",
     "@easyink/material-barcode": "workspace:*",
     "@easyink/material-chart": "workspace:*",
     "@easyink/material-container": "workspace:*",

@@ -1,46 +1,12 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
 import type { MaterialCatalogEntry } from '../types'
 import { AddMaterialCommand } from '@easyink/core'
-import {
-  IconBarcode,
-  IconChart,
-  IconContainer,
-  IconDataTable,
-  IconEllipse,
-  IconImage,
-  IconLine,
-  IconPageNumber,
-  IconQrcode,
-  IconRect,
-  IconSparkles,
-  IconSvg,
-  IconTable,
-  IconText,
-} from '@easyink/icons'
 import { computed } from 'vue'
 import { useDesignerStore } from '../composables'
 import { MATERIAL_DRAG_MIME } from '../composables/use-material-drop'
 import { selectOne } from '../interactions/selection-api'
 
 const store = useDesignerStore()
-
-const ICON_MAP: Record<string, Component> = {
-  'text': IconText,
-  'image': IconImage,
-  'barcode': IconBarcode,
-  'qrcode': IconQrcode,
-  'line': IconLine,
-  'rect': IconRect,
-  'ellipse': IconEllipse,
-  'container': IconContainer,
-  'table-static': IconTable,
-  'table-data': IconDataTable,
-  'chart': IconChart,
-  'sparkles': IconSparkles,
-  'svg': IconSvg,
-  'page-number': IconPageNumber,
-}
 
 const quickMaterials = computed<MaterialCatalogEntry[]>(() => store.getQuickMaterials())
 
@@ -56,10 +22,6 @@ const groupedCategories = computed(() => {
 const hasRegisteredMaterials = computed(() =>
   quickMaterials.value.length > 0 || groupedCategories.value.length > 0,
 )
-
-function getIcon(iconKey: string): Component | undefined {
-  return ICON_MAP[iconKey]
-}
 
 function handleAddMaterial(entry: MaterialCatalogEntry) {
   const definition = store.getMaterial(entry.materialType)
@@ -107,7 +69,7 @@ function handleDragStart(e: DragEvent, entry: MaterialCatalogEntry) {
           @click="handleAddMaterial(mat)"
           @dragstart="handleDragStart($event, mat)"
         >
-          <component :is="getIcon(mat.icon)" v-if="getIcon(mat.icon)" :size="20" :stroke-width="1.5" class="ei-material-panel__icon" />
+          <component :is="mat.icon" :size="20" :stroke-width="1.5" class="ei-material-panel__icon" />
           <span class="ei-material-panel__label">{{ store.t(mat.label) }}</span>
         </button>
       </div>
@@ -128,7 +90,7 @@ function handleDragStart(e: DragEvent, entry: MaterialCatalogEntry) {
             @click="handleAddMaterial(item)"
             @dragstart="handleDragStart($event, item)"
           >
-            <component :is="getIcon(item.icon)" v-if="getIcon(item.icon)" :size="20" :stroke-width="1.5" class="ei-material-panel__icon" />
+            <component :is="item.icon" :size="20" :stroke-width="1.5" class="ei-material-panel__icon" />
             <span class="ei-material-panel__label">{{ store.t(item.label) }}</span>
           </button>
         </div>

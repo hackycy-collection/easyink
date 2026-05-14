@@ -1,47 +1,12 @@
 <script setup lang="ts">
 import type { MaterialNode } from '@easyink/schema'
 import type { TreeNode } from '@easyink/ui'
-import type { Component } from 'vue'
 import { UpdateMaterialMetaCommand } from '@easyink/core'
-import {
-  IconBarcode,
-  IconChart,
-  IconContainer,
-  IconDataTable,
-  IconEllipse,
-  IconHidden,
-  IconImage,
-  IconLine,
-  IconLock,
-  IconPageNumber,
-  IconQrcode,
-  IconRect,
-  IconSparkles,
-  IconSvg,
-  IconTable,
-  IconText,
-} from '@easyink/icons'
+import { IconHidden, IconLock } from '@easyink/icons'
 import { EiIcon, EiTree } from '@easyink/ui'
 import { computed } from 'vue'
 import { useDesignerStore } from '../composables'
 import { selectOne } from '../interactions/selection-api'
-
-const ICON_MAP: Record<string, Component> = {
-  'text': IconText,
-  'image': IconImage,
-  'barcode': IconBarcode,
-  'qrcode': IconQrcode,
-  'line': IconLine,
-  'rect': IconRect,
-  'ellipse': IconEllipse,
-  'container': IconContainer,
-  'table-static': IconTable,
-  'table-data': IconDataTable,
-  'chart': IconChart,
-  'sparkles': IconSparkles,
-  'svg': IconSvg,
-  'page-number': IconPageNumber,
-}
 
 const store = useDesignerStore()
 
@@ -55,10 +20,11 @@ function getNodeLabel(node: MaterialNode): string {
 }
 
 function toTreeNode(node: MaterialNode): TreeNode {
+  const definition = store.getMaterial(node.type)
   return {
     id: node.id,
     label: getNodeLabel(node),
-    icon: node.type,
+    icon: definition?.icon,
     children: node.children?.map(toTreeNode),
     data: node,
   }
@@ -96,7 +62,6 @@ function handleShow(node: MaterialNode) {
   <EiTree
     :nodes="treeNodes"
     :selected-id="selectedId"
-    :icon-map="ICON_MAP"
     default-expand-all
     @select="handleSelect"
   >

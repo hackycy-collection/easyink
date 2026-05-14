@@ -7,7 +7,7 @@ import { getPropSchemas } from './prop-schemas'
 export interface DesignerMaterialRegistration {
   type: string
   name: string
-  icon: string
+  icon: MaterialDefinition['icon']
   category: MaterialDefinition['category']
   capabilities: MaterialCapabilities
   createDefaultNode: MaterialDefinition['createDefaultNode']
@@ -22,7 +22,7 @@ export interface DesignerCatalogRegistration {
   type: string
   group: MaterialCatalogEntry['group']
   label?: string
-  icon?: string
+  icon?: MaterialCatalogEntry['icon']
   createDefaultNode?: MaterialDefinition['createDefaultNode']
   dragData?: string
 }

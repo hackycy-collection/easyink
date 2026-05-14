@@ -1,6 +1,7 @@
 import type { MaterialExtensionFactory, MaterialViewerExtension, PropSchema } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { MaterialCategory } from '@easyink/shared'
+import type { Component } from 'vue'
 
 export type BuiltinPanelSectionId = 'geometry' | 'props' | 'overlay' | 'binding' | 'visibility'
 
@@ -19,7 +20,7 @@ export interface BuiltinMaterialCapabilities {
 export interface BuiltinDesignerMaterialRegistration {
   type: string
   name: string
-  icon: string
+  icon: Component
   category: MaterialCategory
   capabilities: BuiltinMaterialCapabilities
   createDefaultNode: (input?: Partial<MaterialNode>, unit?: string) => MaterialNode
@@ -34,7 +35,7 @@ export interface BuiltinDesignerCatalogRegistration {
   type: string
   group: 'data' | 'chart' | 'svg' | 'utility'
   label?: string
-  icon?: string
+  icon?: Component
   createDefaultNode?: (input?: Partial<MaterialNode>, unit?: string) => MaterialNode
   dragData?: string
 }

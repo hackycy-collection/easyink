@@ -2,6 +2,9 @@ import type { PropSchema } from '@easyink/core'
 import type { DataSourceDescriptor } from '@easyink/datasource'
 import type { DocumentSchema, MaterialNode } from '@easyink/schema'
 import type { MaterialCategory } from '@easyink/shared'
+import type { Component } from 'vue'
+
+export type MaterialIcon = Component
 
 export type {
   BehaviorContext,
@@ -158,7 +161,7 @@ export interface SectionFilterContext {
 export interface MaterialDefinition {
   type: string
   name: string
-  icon: string
+  icon: MaterialIcon
   category: MaterialCategory
   capabilities: MaterialCapabilities
   props: PropSchema[]
@@ -189,7 +192,7 @@ export interface MaterialCatalogEntry {
   id: string
   group: 'quick' | 'data' | 'chart' | 'svg' | 'utility'
   label: string
-  icon: string
+  icon: MaterialIcon
   materialType: string
   createDefaultNode?: MaterialDefinition['createDefaultNode']
   dragData?: string

@@ -220,7 +220,10 @@ export class DesignerStore {
   // ─── Material registry ────────────────────────────────────────
 
   registerMaterial(definition: MaterialDefinition): void {
-    this._materials.set(definition.type, definition)
+    this._materials.set(definition.type, markRaw({
+      ...definition,
+      icon: markRaw(definition.icon),
+    }))
   }
 
   getMaterial(type: string): MaterialDefinition | undefined {
@@ -228,7 +231,10 @@ export class DesignerStore {
   }
 
   registerCatalogEntry(entry: MaterialCatalogEntry): void {
-    this._catalog.push(entry)
+    this._catalog.push(markRaw({
+      ...entry,
+      icon: markRaw(entry.icon),
+    }))
   }
 
   getCatalog(): MaterialCatalogEntry[] {

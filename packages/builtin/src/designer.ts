@@ -1,5 +1,21 @@
 import type { BuiltinDesignerMaterialBundle, BuiltinPanelSectionId } from './types'
 import {
+  IconBarcode,
+  IconChart,
+  IconContainer,
+  IconDataTable,
+  IconEllipse,
+  IconImage,
+  IconLine,
+  IconPageNumber,
+  IconQrcode,
+  IconRect,
+  IconSparkles,
+  IconSvg,
+  IconTable,
+  IconText,
+} from '@easyink/icons'
+import {
   BARCODE_CAPABILITIES,
   BARCODE_TYPE,
   createBarcodeExtension,
@@ -110,7 +126,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: TEXT_TYPE,
       name: 'designer.toolbar.text',
-      icon: 'text',
+      icon: IconText,
       category: 'basic',
       capabilities: TEXT_CAPABILITIES,
       createDefaultNode: createTextNode,
@@ -119,7 +135,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: IMAGE_TYPE,
       name: 'designer.toolbar.image',
-      icon: 'image',
+      icon: IconImage,
       category: 'basic',
       capabilities: IMAGE_CAPABILITIES,
       createDefaultNode: createImageNode,
@@ -128,7 +144,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: BARCODE_TYPE,
       name: 'designer.toolbar.barcode',
-      icon: 'barcode',
+      icon: IconBarcode,
       category: 'basic',
       capabilities: BARCODE_CAPABILITIES,
       createDefaultNode: createBarcodeNode,
@@ -137,7 +153,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: QRCODE_TYPE,
       name: 'designer.toolbar.qrcode',
-      icon: 'qrcode',
+      icon: IconQrcode,
       category: 'basic',
       capabilities: QRCODE_CAPABILITIES,
       createDefaultNode: createQrcodeNode,
@@ -146,7 +162,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: LINE_TYPE,
       name: 'designer.toolbar.line',
-      icon: 'line',
+      icon: IconLine,
       category: 'basic',
       capabilities: LINE_CAPABILITIES,
       createDefaultNode: createLineNode,
@@ -155,7 +171,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: RECT_TYPE,
       name: 'designer.toolbar.rect',
-      icon: 'rect',
+      icon: IconRect,
       category: 'basic',
       capabilities: RECT_CAPABILITIES,
       createDefaultNode: createRectNode,
@@ -164,7 +180,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: ELLIPSE_TYPE,
       name: 'designer.toolbar.ellipse',
-      icon: 'ellipse',
+      icon: IconEllipse,
       category: 'basic',
       capabilities: ELLIPSE_CAPABILITIES,
       createDefaultNode: createEllipseNode,
@@ -173,7 +189,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: CONTAINER_TYPE,
       name: 'designer.toolbar.container',
-      icon: 'container',
+      icon: IconContainer,
       category: 'layout',
       capabilities: CONTAINER_CAPABILITIES,
       createDefaultNode: createContainerNode,
@@ -182,7 +198,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: TABLE_STATIC_TYPE,
       name: 'designer.toolbar.table',
-      icon: 'table-static',
+      icon: IconTable,
       category: 'data',
       capabilities: TABLE_STATIC_CAPABILITIES,
       createDefaultNode: createTableStaticNode,
@@ -192,7 +208,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: TABLE_DATA_TYPE,
       name: 'designer.toolbar.dataTable',
-      icon: 'table-data',
+      icon: IconDataTable,
       category: 'data',
       capabilities: TABLE_DATA_CAPABILITIES,
       createDefaultNode: createTableDataNode,
@@ -203,7 +219,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: CHART_TYPE,
       name: 'designer.toolbar.chart',
-      icon: 'chart',
+      icon: IconChart,
       category: 'chart',
       capabilities: CHART_CAPABILITIES,
       createDefaultNode: createChartNode,
@@ -212,7 +228,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_CUSTOM_TYPE,
       name: '自定义',
-      icon: 'svg',
+      icon: IconSvg,
       category: 'svg',
       capabilities: SVG_CUSTOM_CAPABILITIES,
       createDefaultNode: createSvgCustomNode,
@@ -222,7 +238,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_STAR_TYPE,
       name: '星星',
-      icon: 'sparkles',
+      icon: IconSparkles,
       category: 'svg',
       capabilities: SVG_STAR_CAPABILITIES,
       createDefaultNode: createSvgStarNode,
@@ -232,7 +248,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_ELLIPSE_TYPE,
       name: '椭圆',
-      icon: 'ellipse',
+      icon: IconEllipse,
       category: 'svg',
       capabilities: SVG_ELLIPSE_CAPABILITIES,
       createDefaultNode: createSvgEllipseNode,
@@ -242,7 +258,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_HEART_TYPE,
       name: '心形',
-      icon: 'svg',
+      icon: IconSvg,
       category: 'svg',
       capabilities: SVG_HEART_CAPABILITIES,
       createDefaultNode: createSvgHeartNode,
@@ -252,7 +268,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: PAGE_NUMBER_TYPE,
       name: 'designer.toolbar.pageNumber',
-      icon: 'page-number',
+      icon: IconPageNumber,
       category: 'utility',
       capabilities: PAGE_NUMBER_CAPABILITIES,
       createDefaultNode: createPageNumberNode,

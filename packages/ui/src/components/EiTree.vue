@@ -66,6 +66,14 @@ function toggleExpand(id: string) {
 function isExpanded(id: string): boolean {
   return expandedIds.value.has(id)
 }
+
+function resolveIcon(node: TreeNode): Component | undefined {
+  if (!node.icon)
+    return undefined
+  if (typeof node.icon === 'string')
+    return props.iconMap?.[node.icon]
+  return node.icon
+}
 </script>
 
 <template>
@@ -97,8 +105,8 @@ function isExpanded(id: string): boolean {
           </svg>
         </span>
         <component
-          :is="iconMap?.[node.icon ?? '']"
-          v-if="iconMap && node.icon && iconMap[node.icon]"
+          :is="resolveIcon(node)"
+          v-if="resolveIcon(node)"
           class="ei-tree__icon"
           :size="14"
           :stroke-width="1.5"
