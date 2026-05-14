@@ -18,6 +18,8 @@ export interface HiPrintClientOptions {
   connectTimeoutMs?: number
   refreshDelayMs?: number
   refreshTimeoutMs?: number
+  forcePageSize?: boolean
+  /** @deprecated Use forcePageSize instead. */
   forcePageSizeByDevice?: Record<string, boolean>
 }
 
@@ -88,7 +90,7 @@ export class HiPrintClient {
   namespace: string
   printerName?: string
   defaultCopies: number
-  forcePageSizeByDevice: Record<string, boolean>
+  forcePageSize: boolean
   connectionState: 'idle' | 'connecting' | 'connected' | 'error' = 'idle'
   lastError = ''
   devices: HiPrintDevice[] = []
@@ -107,7 +109,7 @@ export class HiPrintClient {
     this.namespace = options.namespace ?? 'easyink'
     this.printerName = options.printerName
     this.defaultCopies = options.defaultCopies ?? 1
-    this.forcePageSizeByDevice = { ...(options.forcePageSizeByDevice ?? {}) }
+    this.forcePageSize = normalizeForcePageSize(options.forcePageSize, options.forcePageSizeByDevice)
     this.connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS
     this.refreshDelayMs = options.refreshDelayMs ?? DEFAULT_REFRESH_DELAY_MS
     this.refreshTimeoutMs = options.refreshTimeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS
@@ -145,8 +147,9 @@ export class HiPrintClient {
       this.printerName = options.printerName
     if (options.defaultCopies !== undefined)
       this.defaultCopies = options.defaultCopies
-    if (options.forcePageSizeByDevice !== undefined)
-      this.forcePageSizeByDevice = { ...options.forcePageSizeByDevice }
+    if (options.forcePageSize !== undefined || options.forcePageSizeByDevice !== undefined) {
+      this.forcePageSize = normalizeForcePageSize(options.forcePageSize, options.forcePageSizeByDevice, this.forcePageSize)
+    }
 
     return endpointChanged
   }
@@ -269,22 +272,23 @@ export class HiPrintClient {
   }
 
   /**
-   * Persists whether a specific printer should receive an explicit custom page
-   * size.
+   * Persists whether HiPrint should receive an explicit custom page size.
    */
-  setForcePageSize(printerName: string, value: boolean): void {
-    if (value)
-      this.forcePageSizeByDevice[printerName] = true
-    else
-      delete this.forcePageSizeByDevice[printerName]
+  setForcePageSize(value: boolean): void
+  setForcePageSize(_printerName: string, value: boolean): void
+  setForcePageSize(printerNameOrValue: string | boolean, value?: boolean): void {
+    this.forcePageSize = typeof printerNameOrValue === 'boolean'
+      ? printerNameOrValue
+      : Boolean(value)
   }
 
   /**
-   * Checks whether a specific printer should receive an explicit custom page
-   * size.
+   * Checks whether HiPrint should receive an explicit custom page size.
    */
-  isForcePageSize(printerName: string | undefined): boolean {
-    return Boolean(printerName && this.forcePageSizeByDevice[printerName])
+  isForcePageSize(): boolean
+  isForcePageSize(_printerName: string | undefined): boolean
+  isForcePageSize(_printerName?: string | undefined): boolean {
+    return this.forcePageSize
   }
 
   /**
@@ -318,7 +322,7 @@ export class HiPrintClient {
         height: options.height,
         orientation: options.orientation,
         copies: options.copies ?? this.defaultCopies,
-        forcePageSize: options.forcePageSize ?? this.isForcePageSize(printerName),
+        forcePageSize: options.forcePageSize ?? this.isForcePageSize(),
       }))
     })
   }
@@ -438,4 +442,16 @@ function normalizeHiPrintDevices(devices: HiPrintDevice[]): HiPrintDevice[] {
 function serializeViewerPage(page: HTMLElement): string {
   const clone = page.cloneNode(true) as HTMLElement
   return clone.outerHTML
+}
+
+function normalizeForcePageSize(
+  forcePageSize: boolean | undefined,
+  forcePageSizeByDevice?: Record<string, boolean>,
+  fallback = false,
+): boolean {
+  if (forcePageSize !== undefined)
+    return forcePageSize
+  if (forcePageSizeByDevice)
+    return Object.values(forcePageSizeByDevice).some(Boolean)
+  return fallback
 }

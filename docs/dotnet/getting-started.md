@@ -100,7 +100,10 @@ viewer.registerPrintDriver(createEasyInkPrinterDriver({
   client: printer,
   printerName: () => settings.printerName,
   copies: () => settings.copies,
-  forcePaperSize: () => settings.forcePaperSize,
+  forcePageSize: () => settings.forcePageSize,
+  resolveRequestOptions: () => ({
+    dpi: settings.dpi,
+  }),
 }))
 ```
 
@@ -149,14 +152,14 @@ await printer.printPdfAndWait(file, {
 
 ## 纸张策略
 
-默认 `forcePaperSize=false`，由打印机驱动使用当前介质；这适合小票机、连续纸和大多数办公打印机。
+默认 `forcePageSize=false`，由打印机驱动使用当前介质；这适合小票机、连续纸和大多数办公打印机。
 
 标签机必须显式按模板尺寸打印时再开启：
 
 ```ts
 viewer.registerPrintDriver(createEasyInkPrinterDriver({
   client: printer,
-  forcePaperSize: true,
+  forcePageSize: true,
 }))
 ```
 

@@ -10,6 +10,6 @@ export function createHiPrintDriver(): PrintDriver {
     client: printer.client,
     printerName: () => printer.printerDevice.value,
     copies: () => printer.copies.value,
-    forcePageSize: printerName => printer.isForcePageSize(printerName),
+    forcePageSize: () => printer.forcePageSize.value,
   })
 }

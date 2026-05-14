@@ -1,18 +1,17 @@
+import type { PrintDriverBaseOptions, PrintDriverValue } from '@easyink/print-core'
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import type { EasyInkPrinterClient, EasyInkPrinterPrintPdfOptions } from './client'
 import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
-import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintLandscape, resolvePrintOffset, resolveViewerPrintSize } from '@easyink/print-core'
+import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintDriverValue, resolvePrintLandscape, resolvePrintOffset, resolveViewerPrintSize } from '@easyink/print-core'
 
 /**
  * Configures the official Viewer print driver for EasyInk Printer.
  */
-export interface EasyInkPrinterDriverOptions {
-  client: EasyInkPrinterClient
-  id?: string
-  printerName?: string | (() => string | undefined)
-  copies?: number | (() => number | undefined)
-  forcePaperSize?: boolean | (() => boolean | undefined)
-  dpi?: number | (() => number | undefined)
+export interface EasyInkPrinterDriverOptions extends PrintDriverBaseOptions<EasyInkPrinterClient, EasyInkPrinterPrintPdfOptions> {
+  /** @deprecated Use forcePageSize instead. */
+  forcePaperSize?: PrintDriverValue<boolean>
+  /** @deprecated Prefer resolveRequestOptions for backend-specific settings. */
+  dpi?: PrintDriverValue<number>
   waitForCompletion?: boolean
 }
 
@@ -30,6 +29,10 @@ export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions)
       const pages = getViewerPages(context.container)
       const { widthMm, heightMm } = resolveViewerPrintSize(context)
       const landscape = resolvePrintLandscape(context.printPolicy.orientation, widthMm, heightMm)
+      const printerName = resolvePrintDriverValue(options.printerName)
+      const copies = resolvePrintDriverValue(options.copies)
+      const forcePageSize = resolvePrintDriverValue(options.forcePageSize)
+        ?? resolvePrintDriverValue(options.forcePaperSize)
 
       context.onPhase?.({ phase: 'preparing', message: '生成 PDF 中' })
       const pdfBlob = await renderPagesToPdfBlob({
@@ -41,16 +44,27 @@ export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions)
       })
 
       context.onPhase?.({ phase: 'submitting', message: '发送打印任务' })
+      const requestOptions = await options.resolveRequestOptions?.({
+        printContext: context,
+        pages,
+        widthMm,
+        heightMm,
+        printerName,
+        copies,
+        forcePageSize,
+        landscape,
+      })
       const printOptions: EasyInkPrinterPrintPdfOptions = {
-        printerName: resolveValue(options.printerName),
-        copies: resolveValue(options.copies),
-        paperSize: resolveValue(options.forcePaperSize)
+        printerName,
+        copies,
+        paperSize: forcePageSize
           ? { width: widthMm, height: heightMm, unit: 'mm' }
           : undefined,
-        forcePaperSize: resolveValue(options.forcePaperSize),
+        forcePageSize,
         landscape,
         offset: resolvePrintOffset(context.printPolicy.offset),
-        dpi: resolveValue(options.dpi),
+        dpi: resolvePrintDriverValue(options.dpi),
+        ...requestOptions,
       }
 
       const jobId = await options.client.printPdf(pdfBlob, printOptions)
@@ -61,10 +75,4 @@ export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions)
       await options.client.waitForJob(jobId)
     },
   }
-}
-
-function resolveValue<T>(value: T | (() => T | undefined) | undefined): T | undefined {
-  return typeof value === 'function'
-    ? (value as () => T | undefined)()
-    : value
 }

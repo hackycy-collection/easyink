@@ -93,15 +93,8 @@ function handleDeviceChange(value: AcceptableValue) {
   hiPrint.updateConfig({ printerDevice })
 }
 
-const forcePageSize = computed(() =>
-  hiPrint.isForcePageSize(hiPrint.printerDevice.value),
-)
-
 function handleToggleForcePageSize(checked: boolean) {
-  const device = hiPrint.printerDevice.value
-  if (!device)
-    return
-  hiPrint.setForcePageSize(device, checked)
+  hiPrint.setForcePageSize(checked)
 }
 
 async function syncPrinterForm() {
@@ -226,19 +219,19 @@ onMounted(() => {
           />
         </div>
 
-        <!-- Force pageSize (per device) -->
+        <!-- Force pageSize -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <Label>为当前打印机强制使用模板纸张尺寸</Label>
+            <Label>强制使用模板纸张尺寸</Label>
             <Switch
-              :model-value="forcePageSize"
-              :disabled="!hiPrint.enabled.value || !hiPrint.printerDevice.value"
+              :model-value="hiPrint.forcePageSize.value"
+              :disabled="!hiPrint.enabled.value"
               @update:model-value="handleToggleForcePageSize"
             />
           </div>
           <p class="text-xs text-muted-foreground">
             默认关闭：由 HiPrint 和打印机驱动协商当前介质，小票机、连续纸、普通打印机通常应保持关闭。
-            如果某些标签机驱动会回退到 A4 缩印，再只为该打印机单独开启。
+            如果某些标签机驱动会回退到 A4 缩印，再在这里全局开启显式尺寸。
           </p>
         </div>
       </div>

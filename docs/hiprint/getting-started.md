@@ -83,11 +83,15 @@ viewer.registerPrintDriver(createHiPrintDriver({
   client: hiPrint,
   printerName: () => settings.printerName,
   copies: () => settings.copies,
-  forcePageSize: printerName => settings.forcePageSizeByDevice[printerName ?? ''],
+  forcePageSize: () => settings.forcePageSize,
+  resolveRequestOptions: () => ({
+    paperHeader: settings.paperHeader,
+    paperFooter: settings.paperFooter,
+  }),
 }))
 ```
 
-这里把 `forcePageSize` 设计成“按设备决定”而不是单个全局布尔值，是因为不同打印机型号对自定义纸张的支持差异很大。
+这里把公共字段收敛成统一 API：`printerName`、`copies`、`forcePageSize`。如果 HiPrint 还需要额外参数，就通过 `resolveRequestOptions` 单独扩展，而不是继续往顶层堆专有字段。
 
 ## 指定打印机
 
@@ -109,10 +113,10 @@ hiPrint.setPrinter(printers[0]?.name)
 
 ## 标签机纸张策略
 
-默认不向 electron-hiprint 强制传 `pageSize`，由打印机驱动使用当前介质。DELI 等标签机如果回退到 A4 缩印，再只为该设备开启：
+默认不向 electron-hiprint 强制传 `pageSize`，由打印机驱动使用当前介质。DELI 等标签机如果回退到 A4 缩印，再全局开启显式尺寸：
 
 ```ts
-hiPrint.setForcePageSize('DELI-DL-888D', true)
+hiPrint.setForcePageSize(true)
 await viewer.print({ driverId: 'hiprint' })
 ```
 

@@ -1,17 +1,12 @@
+import type { PrintDriverBaseOptions } from '@easyink/print-core'
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
-import type { HiPrintClient } from './client'
-import { getViewerPages, resolveViewerPrintSize } from '@easyink/print-core'
+import type { HiPrintClient, PrintPagesOptions } from './client'
+import { getViewerPages, resolvePrintDriverValue, resolveViewerPrintSize } from '@easyink/print-core'
 
 /**
  * Configures the official Viewer print driver for HiPrint.
  */
-export interface HiPrintDriverOptions {
-  client: HiPrintClient
-  id?: string
-  printerName?: string | (() => string | undefined)
-  copies?: number | (() => number | undefined)
-  forcePageSize?: boolean | ((printerName: string | undefined) => boolean | undefined)
-}
+export interface HiPrintDriverOptions extends PrintDriverBaseOptions<HiPrintClient, PrintPagesOptions> {}
 
 /**
  * Creates a Viewer print driver that forwards rendered pages to HiPrint.
@@ -25,8 +20,18 @@ export function createHiPrintDriver(options: HiPrintDriverOptions): PrintDriver 
     async print(context: ViewerPrintContext) {
       const pages = getViewerPages(context.container)
       const { widthMm, heightMm } = resolveViewerPrintSize(context)
-      const printerName = resolveValue(options.printerName) ?? options.client.printerName ?? await options.client.useDefaultPrinter()
-      const forcePageSize = resolveForcePageSize(options.forcePageSize, printerName)
+      const printerName = resolvePrintDriverValue(options.printerName) ?? options.client.printerName ?? await options.client.useDefaultPrinter()
+      const copies = resolvePrintDriverValue(options.copies)
+      const forcePageSize = resolvePrintDriverValue(options.forcePageSize)
+      const requestOptions = await options.resolveRequestOptions?.({
+        printContext: context,
+        pages,
+        widthMm,
+        heightMm,
+        printerName,
+        copies,
+        forcePageSize,
+      })
 
       context.onPhase?.({ phase: 'printing', message: 'HiPrint 打印中' })
       await options.client.printPages(pages, {
@@ -34,26 +39,12 @@ export function createHiPrintDriver(options: HiPrintDriverOptions): PrintDriver 
         height: heightMm,
         printerName,
         orientation: context.printPolicy.orientation,
-        copies: resolveValue(options.copies),
+        copies,
         forcePageSize,
+        ...requestOptions,
       }, (progress) => {
         context.onProgress?.({ ...progress, message: 'HiPrint 打印中' })
       })
     },
   }
-}
-
-function resolveValue<T>(value: T | (() => T | undefined) | undefined): T | undefined {
-  return typeof value === 'function'
-    ? (value as () => T | undefined)()
-    : value
-}
-
-function resolveForcePageSize(
-  value: boolean | ((printerName: string | undefined) => boolean | undefined) | undefined,
-  printerName: string | undefined,
-): boolean | undefined {
-  if (typeof value === 'function')
-    return value(printerName)
-  return value
 }

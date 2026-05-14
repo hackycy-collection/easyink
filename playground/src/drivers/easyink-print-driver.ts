@@ -10,6 +10,6 @@ export function createEasyInkPrintDriver(): PrintDriver {
     client: service.client,
     printerName: () => service.printerName.value,
     copies: () => service.copies.value,
-    forcePaperSize: () => service.forcePageSize.value,
+    forcePageSize: () => service.forcePageSize.value,
   })
 }

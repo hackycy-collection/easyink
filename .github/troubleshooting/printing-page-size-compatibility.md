@@ -68,11 +68,11 @@
 
 ## 本仓库落地方式
 
-已在 playground 打印链路中改成“每台打印机单独配置是否强制 `pageSize`”的策略：
+已在 playground 打印链路中改成“统一全局 `forcePageSize`，后端专属参数独立扩展”的策略：
 
 | 文件 | 落地内容 |
 |---|---|
-| `playground/src/hooks/usePrinter.ts` | 新增按设备持久化的 `forcePageSizeByDevice`；`printHtml` / `printPages` 仅在 `forcePageSize` 为真时传入 `pageSize`、`landscape`、`scaleFactor` |
+| `playground/src/hooks/usePrinter.ts` | 持久化单个全局 `forcePageSize`；`printHtml` / `printPages` 仅在 `forcePageSize` 为真时传入 `pageSize`、`landscape`、`scaleFactor` |
 | `playground/src/PreviewOverlay.vue` | 发起打印时按当前设备读取 `forcePageSize` |
 | `playground/src/components/HiPrintSettingsDialog.vue` | 新增“强制使用模板纸张尺寸”开关 |
 
@@ -90,7 +90,7 @@
 
 ## 处理原则
 
-1. 先区分设备类型，不要全局套用一个打印参数组合。
+1. 先区分问题发生在哪个后端，不要把后端私有参数混进统一公共 API。
 2. 先确认问题发生在模板渲染阶段还是打印输出阶段。
 3. 只把强制 `pageSize` 用在确实需要它的设备上。
 4. 对连续纸和小票打印机，优先让驱动使用系统当前介质配置。

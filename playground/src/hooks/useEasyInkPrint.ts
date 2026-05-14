@@ -123,7 +123,7 @@ async function refreshDevices(): Promise<PrintServiceDevice[]> {
 
 async function printPdf(
   pdfBlob: Blob,
-  opts: { printerName: string, copies: number, paperSize?: PaperSizeParams, forcePaperSize?: boolean, landscape?: boolean, offset?: OffsetParams },
+  opts: { printerName: string, copies: number, paperSize?: PaperSizeParams, forcePageSize?: boolean, landscape?: boolean, offset?: OffsetParams },
 ): Promise<string> {
   const jobId = await client.printPdf(pdfBlob, opts)
   syncState()

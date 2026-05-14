@@ -12,6 +12,30 @@ const UNIT_TO_MM = {
 
 export type PrintConnectionState = 'idle' | 'connecting' | 'connected' | 'error'
 
+export type PrintDriverValue<T> = T | (() => T | undefined)
+
+export interface PrintDriverRequestContext {
+  printContext: ViewerPrintContext
+  pages: HTMLElement[]
+  widthMm: number
+  heightMm: number
+  printerName?: string
+  copies?: number
+  forcePageSize?: boolean
+  landscape?: boolean
+}
+
+export interface PrintDriverBaseOptions<TClient, TRequestOptions> {
+  client: TClient
+  id?: string
+  printerName?: PrintDriverValue<string>
+  copies?: PrintDriverValue<number>
+  forcePageSize?: PrintDriverValue<boolean>
+  resolveRequestOptions?: (
+    context: PrintDriverRequestContext,
+  ) => Partial<TRequestOptions> | undefined | Promise<Partial<TRequestOptions> | undefined>
+}
+
 /**
  * Minimal printer shape shared by UI stores and transport-specific clients.
  */
@@ -161,4 +185,10 @@ export function normalizeJobStatus(status: unknown): 'queued' | 'printing' | 'co
   if (normalized === 'queued' || normalized === 'printing' || normalized === 'completed' || normalized === 'failed')
     return normalized
   return 'unknown'
+}
+
+export function resolvePrintDriverValue<T>(value: PrintDriverValue<T> | undefined): T | undefined {
+  return typeof value === 'function'
+    ? (value as () => T | undefined)()
+    : value
 }

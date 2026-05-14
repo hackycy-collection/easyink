@@ -25,6 +25,10 @@ export interface PrinterConfig {
   printerDevice?: string
   printCopies?: number
   printerServiceUrl?: string
+  forcePageSize?: boolean
+}
+
+type StoredPrinterConfig = Partial<PrinterConfig> & {
   forcePageSizeByDevice?: Record<string, boolean>
 }
 
@@ -36,7 +40,7 @@ function defaultConfig(): PrinterConfig {
     printerDevice: undefined,
     printCopies: DEFAULT_PRINTER_COPIES,
     printerServiceUrl: DEFAULT_PRINTER_HOST,
-    forcePageSizeByDevice: {},
+    forcePageSize: false,
   }
 }
 
@@ -45,13 +49,13 @@ function loadConfig(): PrinterConfig {
     const stored = localStorage.getItem(PRINTER_CONFIG_KEY)
     if (!stored)
       return defaultConfig()
-    const parsed = JSON.parse(stored) as Partial<PrinterConfig>
+    const parsed = JSON.parse(stored) as StoredPrinterConfig
     return {
       enablePrinterService: parsed.enablePrinterService ?? false,
       printerDevice: parsed.printerDevice,
       printCopies: parsed.printCopies ?? DEFAULT_PRINTER_COPIES,
       printerServiceUrl: parsed.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
-      forcePageSizeByDevice: parsed.forcePageSizeByDevice ?? {},
+      forcePageSize: parsed.forcePageSize ?? Object.values(parsed.forcePageSizeByDevice ?? {}).some(Boolean),
     }
   }
   catch {
@@ -72,7 +76,7 @@ const client = createHiPrintClient({
   namespace: import.meta.env?.VITE_APP_NAMESPACE || 'easyink-playground',
   printerName: config.printerDevice,
   defaultCopies: config.printCopies ?? DEFAULT_PRINTER_COPIES,
-  forcePageSizeByDevice: config.forcePageSizeByDevice,
+  forcePageSize: config.forcePageSize,
 })
 const connectionState = ref<ConnectionState>(client.connectionState)
 const lastError = ref(client.lastError)
@@ -88,7 +92,7 @@ watch(config, (val) => {
     serviceUrl: val.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
     printerName: val.printerDevice,
     defaultCopies: val.printCopies ?? DEFAULT_PRINTER_COPIES,
-    forcePageSizeByDevice: val.forcePageSizeByDevice ?? {},
+    forcePageSize: val.forcePageSize ?? false,
   })
   if (reconnect) {
     syncState()
@@ -102,7 +106,7 @@ function syncState() {
   lastError.value = client.lastError
   devices.value = [...client.devices]
   config.printerDevice = client.printerName
-  config.forcePageSizeByDevice = { ...client.forcePageSizeByDevice }
+  config.forcePageSize = client.forcePageSize
 }
 
 async function connect(): Promise<void> {
@@ -162,13 +166,13 @@ async function printPages(
   syncState()
 }
 
-function setForcePageSize(deviceName: string, value: boolean): void {
-  client.setForcePageSize(deviceName, value)
+function setForcePageSize(value: boolean): void {
+  client.setForcePageSize(value)
   syncState()
 }
 
-function isForcePageSize(deviceName: string | undefined): boolean {
-  return client.isForcePageSize(deviceName)
+function isForcePageSize(): boolean {
+  return client.isForcePageSize()
 }
 
 if (config.enablePrinterService) {
@@ -189,6 +193,7 @@ export function usePrinter() {
     printerDevice: computed(() => config.printerDevice),
     copies: computed(() => config.printCopies ?? DEFAULT_PRINTER_COPIES),
     serviceUrl: computed(() => config.printerServiceUrl ?? DEFAULT_PRINTER_HOST),
+    forcePageSize: computed(() => Boolean(config.forcePageSize)),
 
     connect,
     disconnect,
