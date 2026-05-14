@@ -13,7 +13,7 @@ export interface SvgCustomProps {
 export const SVG_CUSTOM_DEFAULTS: SvgCustomProps = {
   content: '',
   viewBox: '0 0 100 100',
-  preserveAspectRatio: 'xMidYMid meet',
+  preserveAspectRatio: 'none',
   fillColor: '#000000',
 }
 

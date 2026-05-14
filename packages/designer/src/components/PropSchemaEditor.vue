@@ -21,6 +21,11 @@ const emit = defineEmits<{
 
 const label = computed(() => props.t(props.schema.label))
 
+const placeholder = computed(() => {
+  const value = props.schema.editorOptions?.placeholder
+  return typeof value === 'string' ? value : undefined
+})
+
 const enumOptions = computed(() => {
   if (!props.schema.enum)
     return []
@@ -90,6 +95,7 @@ function onCommit(val: unknown) {
         v-if="schema.type === 'string' || schema.type === 'image'"
         :label="label"
         :model-value="(value as string) ?? ''"
+        :placeholder="placeholder"
         :disabled="disabled"
         @update:model-value="onPreview"
         @commit="onCommit"
@@ -134,6 +140,7 @@ function onCommit(val: unknown) {
         :label="label"
         :model-value="(value as string) ?? ''"
         :disabled="disabled"
+        :placeholder="placeholder"
         :rows="(schema.editorOptions?.rows as number) ?? 3"
         @update:model-value="onPreview"
         @commit="onCommit"

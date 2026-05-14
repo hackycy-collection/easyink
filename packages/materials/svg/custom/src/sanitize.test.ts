@@ -2,6 +2,7 @@ import type { MaterialNode } from '@easyink/schema'
 import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { sanitizeSvgContent } from './sanitize'
+import { createSvgCustomNode } from './schema'
 import { renderSvgCustom } from './viewer'
 
 describe('sanitizeSvgContent', () => {
@@ -32,6 +33,34 @@ describe('sanitizeSvgContent', () => {
 })
 
 describe('renderSvgCustom', () => {
+  it('defaults custom SVG scaling to fill the material box', () => {
+    const node = createSvgCustomNode({
+      props: {
+        content: '<path d="M0 0H100V100Z" />',
+      },
+    })
+
+    const output = readTrustedViewerHtml(renderSvgCustom(node).html!)
+
+    expect(output).toContain('preserveAspectRatio="none"')
+  })
+
+  it('accepts a pasted complete svg and uses its own coordinate box', () => {
+    const node = createSvgCustomNode({
+      props: {
+        content: '<svg width="24" height="16" fill="none"><path d="M0 0H24V16Z" /></svg>',
+      },
+    })
+
+    const output = readTrustedViewerHtml(renderSvgCustom(node).html!)
+
+    expect(output).toContain('viewBox="0 0 24 16"')
+    expect(output).toContain('fill="none"')
+    expect(output).not.toContain('<head')
+    expect(output).not.toContain('<body')
+    expect(output.match(/<svg/g)?.length).toBe(1)
+  })
+
   it('sanitizes content and escapes wrapper attributes', () => {
     const node = {
       id: 'svg_1',

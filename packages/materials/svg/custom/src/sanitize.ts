@@ -103,8 +103,13 @@ export function sanitizeSvgContent(content: string): string {
 
   const outputDocument = sourceDocument.implementation.createDocument(SVG_NS, 'svg', null)
   const outputRoot = outputDocument.documentElement
+  for (const child of Array.from(outputRoot.childNodes)) {
+    outputRoot.removeChild(child)
+  }
 
   for (const child of Array.from(sourceDocument.documentElement.childNodes)) {
+    if (isParserArtifact(child))
+      continue
     const sanitized = sanitizeNode(child, outputDocument)
     if (sanitized)
       outputRoot.appendChild(sanitized)
@@ -112,8 +117,16 @@ export function sanitizeSvgContent(content: string): string {
 
   const serializer = new XMLSerializer()
   return Array.from(outputRoot.childNodes)
+    .filter(child => !isParserArtifact(child))
     .map(child => serializer.serializeToString(child))
     .join('')
+}
+
+function isParserArtifact(node: Node): boolean {
+  if (node.nodeType !== ELEMENT_NODE)
+    return false
+  const element = node as Element
+  return element.namespaceURI === 'http://www.w3.org/1999/xhtml' && (element.localName === 'head' || element.localName === 'body')
 }
 
 function sanitizeNode(node: Node, outputDocument: XMLDocument): Node | null {

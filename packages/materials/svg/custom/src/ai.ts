@@ -2,11 +2,12 @@ import type { AIMaterialDescriptor } from '@easyink/shared'
 
 export const svgCustomAIMaterialDescriptor = {
   type: 'svg',
-  description: 'Custom inline SVG material for raw vector content.',
+  description: 'Custom SVG material that accepts a complete pasted <svg> or sanitized SVG child markup.',
   properties: ['content', 'viewBox', 'preserveAspectRatio', 'fillColor'],
-  requiredProps: ['content', 'viewBox', 'preserveAspectRatio'],
+  requiredProps: ['content'],
   binding: 'none',
   usage: [
-    'Use this material when the SVG markup is provided directly.',
+    'Use this material only when the user needs to paste or generate raw SVG markup directly.',
+    'For built-in shapes such as star, ellipse, or heart, use the dedicated SVG shape materials instead of writing SVG content.',
   ],
 } satisfies AIMaterialDescriptor

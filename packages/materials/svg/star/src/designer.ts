@@ -1,4 +1,4 @@
-import type { BehaviorRegistration, MaterialDesignerExtension, MaterialExtensionContext, MaterialGeometry, Rect, Selection, SelectionType } from '@easyink/core'
+import type { BehaviorRegistration, MaterialDesignerExtension, MaterialExtensionContext, MaterialGeometry, Rect, Selection, SelectionType, SubPropertySchema, TransactionAPI } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { SvgStarControlSelection, SvgStarProps } from './schema'
 import { selectionMiddleware, undoBoundaryMiddleware } from '@easyink/core'
@@ -66,7 +66,58 @@ function createStarSelectionType(): SelectionType<SvgStarControlSelection> {
       const handle = (payload as SvgStarControlSelection).handle
       return handle === 'inner-radius' || handle === 'rotation'
     },
+    getPropertySchema(sel, node) {
+      return createStarSubPropertySchema(sel, node)
+    },
   }
+}
+
+function createStarSubPropertySchema(_selection: Selection<SvgStarControlSelection>, node: MaterialNode): SubPropertySchema {
+  const schemas = [
+    { key: 'starInnerRatio', label: '星角大小', type: 'number', group: 'shape', min: 0.08, max: 0.95, step: 0.01 },
+    { key: 'starRotation', label: '星角角度', type: 'number', group: 'shape', min: -180, max: 180, step: 1 },
+  ]
+
+  return {
+    title: '星星编辑',
+    schemas,
+    read(key) {
+      const props = {
+        ...SVG_STAR_DEFAULTS,
+        ...getNodeProps<SvgStarProps>(node),
+      }
+      if (key === 'starInnerRatio')
+        return props.starInnerRatio
+      if (key === 'starRotation')
+        return props.starRotation
+      return undefined
+    },
+    write(key, value, tx: TransactionAPI) {
+      if (key !== 'starInnerRatio' && key !== 'starRotation')
+        return
+      const numericValue = typeof value === 'number' ? value : Number(value)
+      if (Number.isNaN(numericValue))
+        return
+      tx.run<MaterialNode>(node.id, (draft) => {
+        const draftProps = draft.props ?? (draft.props = {})
+        draftProps[key] = key === 'starInnerRatio'
+          ? Math.min(0.95, Math.max(0.08, numericValue))
+          : normalizeStarDegrees(numericValue)
+      }, {
+        mergeKey: `svg-star:property:${key}`,
+        label: 'designer.history.updateSvgStar',
+      })
+    },
+  }
+}
+
+function normalizeStarDegrees(value: number): number {
+  let normalized = value
+  while (normalized > 180)
+    normalized -= 360
+  while (normalized <= -180)
+    normalized += 360
+  return normalized
 }
 
 function createStarHandleBehavior(): BehaviorRegistration {

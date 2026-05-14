@@ -5,12 +5,12 @@ import { escapeHtml } from '@easyink/shared'
 
 const VIEWBOX_SIZE = 100
 const STAR_CENTER = 50
-const STAR_OUTER_RADIUS = 44
+const STAR_OUTER_RADIUS = 50
 const ROTATION_HANDLE_OFFSET = 14
 
 export function buildStarSvgMarkup(props: SvgStarProps, unit = 'mm'): string {
   const normalized = normalizeStarProps(props)
-  return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">`
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">`
     + `<polygon points="${getStarPolygonPoints(normalized)}" ${getPaintAttrs(normalized, unit)} />`
     + `</svg>`
 }
@@ -47,7 +47,8 @@ export function resolveStarControl(localPoint: Point, node: MaterialNode, props:
 }
 
 export function updateStarControlFromLocalPoint(node: MaterialNode, props: SvgStarProps, handle: SvgStarControlSelection['handle'], localPoint: Point): Partial<SvgStarProps> {
-  const normalizedPoint = localToNormalizedPoint(node, localPoint)
+  const viewBoxPoint = localToNormalizedPoint(node, localPoint)
+  const normalizedPoint = fromFittedViewBoxPoint(props, viewBoxPoint)
 
   if (handle === 'rotation') {
     return {
@@ -68,7 +69,13 @@ export function getStarHandleRects(node: MaterialNode, props: SvgStarProps): Rec
 }
 
 function getStarPolygonPoints(props: SvgStarProps): string {
-  const points: string[] = []
+  const points = getRawStarPolygonPoints(props).map(point => toFittedViewBoxPoint(props, point))
+
+  return points.map(point => `${roundPoint(point.x)},${roundPoint(point.y)}`).join(' ')
+}
+
+function getRawStarPolygonPoints(props: SvgStarProps): Point[] {
+  const points: Point[] = []
   const pointCount = clamp(Math.round(props.starPoints), 3, 24)
   const innerRadius = STAR_OUTER_RADIUS * clamp(props.starInnerRatio, 0.08, 0.95)
 
@@ -77,10 +84,10 @@ function getStarPolygonPoints(props: SvgStarProps): string {
     const angle = degreesToRadians(props.starRotation + (index * 180) / pointCount)
     const x = STAR_CENTER + Math.cos(angle) * radius
     const y = STAR_CENTER + Math.sin(angle) * radius
-    points.push(`${roundPoint(x)},${roundPoint(y)}`)
+    points.push({ x, y })
   }
 
-  return points.join(' ')
+  return points
 }
 
 function getPaintAttrs(props: SvgStarProps, unit: string): string {
@@ -101,17 +108,49 @@ function getStarControlLocalPoint(node: MaterialNode, props: SvgStarProps, handl
 function getStarControlNormalizedPoint(props: SvgStarProps, handle: SvgStarControlSelection['handle']): Point {
   if (handle === 'rotation') {
     const angle = degreesToRadians(props.starRotation)
-    return {
+    return toFittedViewBoxPoint(props, {
       x: STAR_CENTER + Math.cos(angle) * (STAR_OUTER_RADIUS + ROTATION_HANDLE_OFFSET),
       y: STAR_CENTER + Math.sin(angle) * (STAR_OUTER_RADIUS + ROTATION_HANDLE_OFFSET),
-    }
+    })
   }
 
   const angle = degreesToRadians(props.starRotation + 180 / clamp(Math.round(props.starPoints), 3, 24))
   const radius = STAR_OUTER_RADIUS * clamp(props.starInnerRatio, 0.08, 0.95)
-  return {
+  return toFittedViewBoxPoint(props, {
     x: STAR_CENTER + Math.cos(angle) * radius,
     y: STAR_CENTER + Math.sin(angle) * radius,
+  })
+}
+
+function toFittedViewBoxPoint(props: SvgStarProps, point: Point): Point {
+  const bounds = getStarBounds(props)
+  return {
+    x: ((point.x - bounds.minX) / Math.max(bounds.width, Number.EPSILON)) * VIEWBOX_SIZE,
+    y: ((point.y - bounds.minY) / Math.max(bounds.height, Number.EPSILON)) * VIEWBOX_SIZE,
+  }
+}
+
+function fromFittedViewBoxPoint(props: SvgStarProps, point: Point): Point {
+  const bounds = getStarBounds(props)
+  return {
+    x: bounds.minX + (point.x / VIEWBOX_SIZE) * bounds.width,
+    y: bounds.minY + (point.y / VIEWBOX_SIZE) * bounds.height,
+  }
+}
+
+function getStarBounds(props: SvgStarProps): { minX: number, minY: number, width: number, height: number } {
+  const points = getRawStarPolygonPoints(props)
+  const xs = points.map(point => point.x)
+  const ys = points.map(point => point.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  return {
+    minX,
+    minY,
+    width: maxX - minX,
+    height: maxY - minY,
   }
 }
 

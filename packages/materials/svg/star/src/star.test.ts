@@ -1,5 +1,6 @@
 import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
+import { createSvgStarExtension } from './designer'
 import { createSvgStarNode } from './schema'
 import { renderSvgStar } from './viewer'
 
@@ -19,8 +20,24 @@ describe('renderSvgStar', () => {
     const output = readTrustedViewerHtml(renderSvgStar(node).html!)
 
     expect(output).toContain('<polygon')
+    expect(output).toContain('preserveAspectRatio="none"')
     expect(output).toContain('stroke-width="0.5mm"')
     expect(output).toContain('#ffcc00')
+  })
+
+  it('exposes deep-edit controls for star angle size and rotation', () => {
+    const node = createSvgStarNode()
+    const extension = createSvgStarExtension({} as never)
+    const selectionType = extension.selectionTypes?.[0]
+    const schema = selectionType?.getPropertySchema?.({
+      type: 'svg-star.control',
+      nodeId: node.id,
+      payload: { handle: 'inner-radius' },
+    }, node)
+
+    expect(schema?.title).toBe('星星编辑')
+    expect(schema?.schemas.map(item => item.key)).toEqual(['starInnerRatio', 'starRotation'])
+    expect(schema?.read('starInnerRatio')).toBe(0.48)
   })
 
   it('creates default nodes sized for a square star viewBox', () => {

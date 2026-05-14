@@ -16,7 +16,7 @@ export function buildSvgHeartMarkup(props: SvgHeartProps, unit = 'mm'): string {
   ].join(' ')
   const borderWidth = Math.max(0, props.borderWidth || 0)
 
-  return `<svg viewBox="0 0 100 90" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg">`
+  return `<svg viewBox="6 12 88 70" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">`
     + `<path d="${path}" fill="${escapeHtml(props.fillColor || 'transparent')}" stroke="${escapeHtml(borderWidth > 0 ? props.borderColor : 'transparent')}" stroke-width="${borderWidth}${unit}" vector-effect="non-scaling-stroke" />`
     + `</svg>`
 }

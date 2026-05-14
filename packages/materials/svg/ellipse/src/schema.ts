@@ -14,7 +14,7 @@ export const SVG_ELLIPSE_DEFAULTS: SvgEllipseProps = {
   fillColor: '#000000',
   borderWidth: 0,
   borderColor: '#000000',
-  ellipseInset: 8,
+  ellipseInset: 0,
 }
 
 export const SVG_ELLIPSE_CAPABILITIES = {
