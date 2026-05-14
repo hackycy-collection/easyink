@@ -222,7 +222,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_STAR_TYPE,
       name: '星星',
-      icon: 'svg',
+      icon: 'sparkles',
       category: 'svg',
       capabilities: SVG_STAR_CAPABILITIES,
       createDefaultNode: createSvgStarNode,

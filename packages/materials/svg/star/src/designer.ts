@@ -1,11 +1,11 @@
 import type { BehaviorRegistration, MaterialDesignerExtension, MaterialExtensionContext, MaterialGeometry, Rect, Selection, SelectionType, SubPropertySchema, TransactionAPI } from '@easyink/core'
 import type { MaterialNode } from '@easyink/schema'
 import type { SvgStarControlSelection, SvgStarProps } from './schema'
-import { selectionMiddleware, undoBoundaryMiddleware } from '@easyink/core'
+import { undoBoundaryMiddleware } from '@easyink/core'
 import { getNodeProps } from '@easyink/schema'
 import { createPointerGesture } from '@easyink/shared'
 import { computed, defineComponent, h } from 'vue'
-import { buildStarSvgMarkup, getStarControlRect, getStarHandleRects, resolveStarControl, updateStarControlFromLocalPoint } from './rendering'
+import { buildStarSvgMarkup, getStarControlRect, getStarEditGuide, resolveStarControl, updateStarControlFromLocalPoint } from './rendering'
 import { SVG_STAR_DEFAULTS } from './schema'
 
 const STAR_CONTROL_SELECTION_TYPE = 'svg-star.control'
@@ -38,13 +38,13 @@ function createStarGeometry(): MaterialGeometry {
         ...getNodeProps<SvgStarProps>(node),
       }
       const control = resolveStarControl(point, node, props)
-      if (!control)
+      if (!control && !(point.x >= 0 && point.y >= 0 && point.x <= node.width && point.y <= node.height))
         return null
 
       return {
         type: STAR_CONTROL_SELECTION_TYPE,
         nodeId: node.id,
-        payload: control,
+        payload: control ?? { handle: 'inner-radius' },
       }
     },
   }
@@ -64,7 +64,7 @@ function createStarSelectionType(): SelectionType<SvgStarControlSelection> {
       if (typeof payload !== 'object' || payload === null)
         return false
       const handle = (payload as SvgStarControlSelection).handle
-      return handle === 'inner-radius' || handle === 'rotation'
+      return handle === 'inner-radius'
     },
     getPropertySchema(sel, node) {
       return createStarSubPropertySchema(sel, node)
@@ -75,7 +75,6 @@ function createStarSelectionType(): SelectionType<SvgStarControlSelection> {
 function createStarSubPropertySchema(_selection: Selection<SvgStarControlSelection>, node: MaterialNode): SubPropertySchema {
   const schemas = [
     { key: 'starInnerRatio', label: '星角大小', type: 'number', group: 'shape', min: 0.08, max: 0.95, step: 0.01 },
-    { key: 'starRotation', label: '星角角度', type: 'number', group: 'shape', min: -180, max: 180, step: 1 },
   ]
 
   return {
@@ -88,36 +87,23 @@ function createStarSubPropertySchema(_selection: Selection<SvgStarControlSelecti
       }
       if (key === 'starInnerRatio')
         return props.starInnerRatio
-      if (key === 'starRotation')
-        return props.starRotation
       return undefined
     },
     write(key, value, tx: TransactionAPI) {
-      if (key !== 'starInnerRatio' && key !== 'starRotation')
+      if (key !== 'starInnerRatio')
         return
       const numericValue = typeof value === 'number' ? value : Number(value)
       if (Number.isNaN(numericValue))
         return
       tx.run<MaterialNode>(node.id, (draft) => {
         const draftProps = draft.props ?? (draft.props = {})
-        draftProps[key] = key === 'starInnerRatio'
-          ? Math.min(0.95, Math.max(0.08, numericValue))
-          : normalizeStarDegrees(numericValue)
+        draftProps[key] = Math.min(0.95, Math.max(0.08, numericValue))
       }, {
         mergeKey: `svg-star:property:${key}`,
         label: 'designer.history.updateSvgStar',
       })
     },
   }
-}
-
-function normalizeStarDegrees(value: number): number {
-  let normalized = value
-  while (normalized > 180)
-    normalized -= 360
-  while (normalized <= -180)
-    normalized += 360
-  return normalized
 }
 
 function createStarHandleBehavior(): BehaviorRegistration {
@@ -137,6 +123,17 @@ function createStarHandleBehavior(): BehaviorRegistration {
           nodeId: ctx.node.id,
           payload: { handle },
         })
+        return
+      }
+
+      if (ctx.event.command === 'enter-edit') {
+        if (!ctx.selection) {
+          ctx.selectionStore.set({
+            type: STAR_CONTROL_SELECTION_TYPE,
+            nodeId: ctx.node.id,
+            payload: { handle: 'inner-radius' },
+          })
+        }
         return
       }
 
@@ -182,12 +179,10 @@ function createStarDecorationComponent() {
         ...SVG_STAR_DEFAULTS,
         ...getNodeProps<SvgStarProps>(props.node),
       }))
-      const handleRects = computed(() => getStarHandleRects(props.node, starProps.value))
 
       function onHandlePointerDown(handle: SvgStarControlSelection['handle'], event: PointerEvent) {
         event.stopPropagation()
         event.preventDefault()
-        props.session.dispatch({ kind: 'command', command: 'svg-star.select-handle', payload: { handle } })
         createPointerGesture({
           target: event.currentTarget as HTMLElement,
           event,
@@ -207,21 +202,22 @@ function createStarDecorationComponent() {
       }
 
       function renderHandle(handle: SvgStarControlSelection['handle'], label: string) {
-        const rect = handleRects.value[handle]
         const selected = currentHandle.value === handle
+        const guide = getStarEditGuide(starProps.value)
+
         return h('div', {
           style: {
             position: 'absolute',
-            left: `${rect.x}${props.unit}`,
-            top: `${rect.y}${props.unit}`,
-            width: `${rect.width}${props.unit}`,
-            height: `${rect.height}${props.unit}`,
+            left: `calc(${guide.handle.x}% - 4px)`,
+            top: `calc(${guide.handle.y}% - 4px)`,
+            width: '8px',
+            height: '8px',
             borderRadius: '999px',
             background: selected ? '#1890ff' : '#ffffff',
-            border: '2px solid #1890ff',
+            border: '1.5px solid #1890ff',
             boxSizing: 'border-box',
-            boxShadow: selected ? '0 0 0 4px rgba(24, 144, 255, 0.15)' : '0 1px 3px rgba(0, 0, 0, 0.18)',
-            cursor: handle === 'rotation' ? 'grab' : 'ns-resize',
+            boxShadow: selected ? '0 0 0 3px rgba(24, 144, 255, 0.16)' : '0 1px 2px rgba(0, 0, 0, 0.16)',
+            cursor: 'grab',
             pointerEvents: 'auto',
           },
           title: label,
@@ -230,26 +226,55 @@ function createStarDecorationComponent() {
       }
 
       return () => {
-        const selectedRect = props.rects[0]
+        const guide = getStarEditGuide(starProps.value)
         const overlays = []
+        const baseStyle = {
+          position: 'absolute',
+          left: `${props.node.x}${props.unit}`,
+          top: `${props.node.y}${props.unit}`,
+          width: `${props.node.width}${props.unit}`,
+          height: `${props.node.height}${props.unit}`,
+          transform: `rotate(${props.node.rotation ?? 0}deg)`,
+          transformOrigin: 'center center',
+        } as const
 
-        if (selectedRect) {
-          overlays.push(h('div', {
-            style: {
-              position: 'absolute',
-              left: `${selectedRect.x - 2}${props.unit}`,
-              top: `${selectedRect.y - 2}${props.unit}`,
-              width: `${selectedRect.width + 4}${props.unit}`,
-              height: `${selectedRect.height + 4}${props.unit}`,
-              borderRadius: '999px',
-              border: '1px dashed rgba(24, 144, 255, 0.8)',
-              pointerEvents: 'none',
-            },
-          }))
-        }
+        overlays.push(h('div', {
+          style: {
+            ...baseStyle,
+            pointerEvents: 'none',
+          },
+        }, [h('svg', {
+          'style': {
+            position: 'absolute',
+            inset: '0',
+            overflow: 'visible',
+          },
+          'viewBox': '0 0 100 100',
+          'preserveAspectRatio': 'none',
+          'aria-hidden': 'true',
+        }, [h('ellipse', {
+          'cx': `${guide.center.x}`,
+          'cy': `${guide.center.y}`,
+          'rx': `${guide.radiusX}`,
+          'ry': `${guide.radiusY}`,
+          'fill': 'none',
+          'stroke': 'rgba(24, 144, 255, 0.8)',
+          'stroke-width': '1',
+          'stroke-dasharray': '3 2',
+        })])]))
 
-        overlays.push(renderHandle('inner-radius', '调整内角'))
-        overlays.push(renderHandle('rotation', '旋转星角'))
+        overlays.push(h('div', {
+          style: {
+            ...baseStyle,
+            pointerEvents: 'auto',
+          },
+        }, [h('div', {
+          style: {
+            position: 'absolute',
+            inset: '0',
+            pointerEvents: 'auto',
+          },
+        }, [renderHandle('inner-radius', '调整内角比例')])]))
 
         return h('div', {}, overlays)
       }
@@ -274,7 +299,6 @@ export function createSvgStarExtension(_context: MaterialExtensionContext): Mate
     geometry: createStarGeometry(),
     selectionTypes: [createStarSelectionType() as SelectionType<unknown>],
     behaviors: [
-      selectionMiddleware(),
       undoBoundaryMiddleware({ groupBy: 'svg-star-control' }),
       createStarHandleBehavior(),
     ],

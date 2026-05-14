@@ -13,15 +13,15 @@ export interface SvgStarProps {
 }
 
 export interface SvgStarControlSelection {
-  handle: 'inner-radius' | 'rotation'
+  handle: 'inner-radius'
 }
 
 export const SVG_STAR_DEFAULTS: SvgStarProps = {
-  fillColor: '#F59E0B',
-  borderWidth: 0,
+  fillColor: 'transparent',
+  borderWidth: 0.26,
   borderColor: '#000000',
   starPoints: 5,
-  starInnerRatio: 0.48,
+  starInnerRatio: 0.381966,
   starRotation: -90,
 }
 
@@ -52,6 +52,7 @@ export function createSvgStarNode(partial?: Partial<MaterialNode>, unit?: string
     height: c(100),
     props: {
       ...SVG_STAR_DEFAULTS,
+      borderWidth: c(SVG_STAR_DEFAULTS.borderWidth),
       ...partialProps,
     },
     ...partialNode,

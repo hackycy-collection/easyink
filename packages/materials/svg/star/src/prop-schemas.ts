@@ -6,5 +6,4 @@ export const svgStarDesignerPropSchemas: PropSchema[] = [
   { key: 'borderColor', label: '描边颜色', type: 'color', group: 'border' },
   { key: 'starPoints', label: '星角数量', type: 'number', group: 'shape', min: 3, max: 24, step: 1 },
   { key: 'starInnerRatio', label: '内角比例', type: 'number', group: 'shape', min: 0.08, max: 0.95, step: 0.01 },
-  { key: 'starRotation', label: '旋转角度', type: 'number', group: 'shape', min: -180, max: 180, step: 1 },
 ]

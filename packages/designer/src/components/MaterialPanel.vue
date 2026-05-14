@@ -13,6 +13,7 @@ import {
   IconPageNumber,
   IconQrcode,
   IconRect,
+  IconSparkles,
   IconSvg,
   IconTable,
   IconText,
@@ -36,6 +37,7 @@ const ICON_MAP: Record<string, Component> = {
   'table-static': IconTable,
   'table-data': IconDataTable,
   'chart': IconChart,
+  'sparkles': IconSparkles,
   'svg': IconSvg,
   'page-number': IconPageNumber,
 }
