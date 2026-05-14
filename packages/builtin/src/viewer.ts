@@ -8,7 +8,10 @@ import { createLineViewerExtension, LINE_TYPE } from '@easyink/material-line'
 import { PAGE_NUMBER_TYPE, renderPageNumber } from '@easyink/material-page-number'
 import { QRCODE_TYPE, renderQrcode } from '@easyink/material-qrcode'
 import { RECT_TYPE, renderRect } from '@easyink/material-rect'
-import { renderSvg, SVG_TYPE } from '@easyink/material-svg'
+import { renderSvgCustom, SVG_CUSTOM_TYPE } from '@easyink/material-svg-custom'
+import { renderSvgEllipse, SVG_ELLIPSE_TYPE } from '@easyink/material-svg-ellipse'
+import { renderSvgHeart, SVG_HEART_TYPE } from '@easyink/material-svg-heart'
+import { renderSvgStar, SVG_STAR_TYPE } from '@easyink/material-svg-star'
 import { measureTableData, renderTableData, TABLE_DATA_TYPE } from '@easyink/material-table-data'
 import { renderTableStatic, TABLE_STATIC_TYPE } from '@easyink/material-table-static'
 import { renderText, TEXT_TYPE } from '@easyink/material-text'
@@ -28,7 +31,10 @@ export function registerBuiltinViewerMaterials(register: BuiltinViewerRegistrar)
     measure: (node, ctx) => measureTableData(node, ctx),
   })
   register(CHART_TYPE, { render: node => renderChart(node) })
-  register(SVG_TYPE, { render: node => renderSvg(node) })
+  register(SVG_CUSTOM_TYPE, { render: node => renderSvgCustom(node) })
+  register(SVG_STAR_TYPE, { render: (node, ctx) => renderSvgStar(node, ctx.unit) })
+  register(SVG_ELLIPSE_TYPE, { render: (node, ctx) => renderSvgEllipse(node, ctx.unit) })
+  register(SVG_HEART_TYPE, { render: (node, ctx) => renderSvgHeart(node, ctx.unit) })
   register(PAGE_NUMBER_TYPE, {
     render: (node, ctx) => renderPageNumber(node, ctx),
     pageAware: true,

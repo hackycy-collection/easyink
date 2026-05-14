@@ -4,6 +4,7 @@ packages:
   - packages/*
   - packages/print/*
   - packages/materials/*
+  - packages/materials/svg/*
   - packages/export/runtime
   - packages/export/plugin/*
 catalogMode: prefer

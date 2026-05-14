@@ -8,7 +8,10 @@ import { lineAIMaterialDescriptor } from '@easyink/material-line'
 import { pageNumberAIMaterialDescriptor } from '@easyink/material-page-number'
 import { qrcodeAIMaterialDescriptor } from '@easyink/material-qrcode'
 import { rectAIMaterialDescriptor } from '@easyink/material-rect'
-import { svgAIMaterialDescriptor } from '@easyink/material-svg'
+import { svgCustomAIMaterialDescriptor } from '@easyink/material-svg-custom'
+import { svgEllipseAIMaterialDescriptor } from '@easyink/material-svg-ellipse'
+import { svgHeartAIMaterialDescriptor } from '@easyink/material-svg-heart'
+import { svgStarAIMaterialDescriptor } from '@easyink/material-svg-star'
 import { tableDataAIMaterialDescriptor } from '@easyink/material-table-data'
 import { tableStaticAIMaterialDescriptor } from '@easyink/material-table-static'
 import { textAIMaterialDescriptor } from '@easyink/material-text'
@@ -25,6 +28,9 @@ export const builtinAIMaterialDescriptors: AIMaterialDescriptor[] = [
   ellipseAIMaterialDescriptor,
   containerAIMaterialDescriptor,
   pageNumberAIMaterialDescriptor,
-  svgAIMaterialDescriptor,
+  svgCustomAIMaterialDescriptor,
+  svgStarAIMaterialDescriptor,
+  svgEllipseAIMaterialDescriptor,
+  svgHeartAIMaterialDescriptor,
   chartAIMaterialDescriptor,
 ]

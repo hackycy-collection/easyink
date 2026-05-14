@@ -2,7 +2,7 @@ import type { MaterialNode } from '@easyink/schema'
 import { readTrustedViewerHtml } from '@easyink/core'
 import { describe, expect, it } from 'vitest'
 import { sanitizeSvgContent } from './sanitize'
-import { renderSvg } from './viewer'
+import { renderSvgCustom } from './viewer'
 
 describe('sanitizeSvgContent', () => {
   it('removes script elements and event handler attributes', () => {
@@ -31,7 +31,7 @@ describe('sanitizeSvgContent', () => {
   })
 })
 
-describe('renderSvg', () => {
+describe('renderSvgCustom', () => {
   it('sanitizes content and escapes wrapper attributes', () => {
     const node = {
       id: 'svg_1',
@@ -48,7 +48,7 @@ describe('renderSvg', () => {
       },
     } satisfies MaterialNode
 
-    const output = readTrustedViewerHtml(renderSvg(node).html!)
+    const output = readTrustedViewerHtml(renderSvgCustom(node).html!)
 
     expect(output).toContain('<circle')
     expect(output).not.toContain('onmouseover')

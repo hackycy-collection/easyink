@@ -1,12 +1,12 @@
 import type { AIMaterialDescriptor } from '@easyink/shared'
 
-export const svgAIMaterialDescriptor = {
+export const svgCustomAIMaterialDescriptor = {
   type: 'svg',
-  description: 'Inline SVG vector block for simple custom marks and decorative vectors.',
+  description: 'Custom inline SVG material for raw vector content.',
   properties: ['content', 'viewBox', 'preserveAspectRatio', 'fillColor'],
   requiredProps: ['content', 'viewBox', 'preserveAspectRatio'],
   binding: 'none',
   usage: [
-    'Use only when a simple vector mark is needed; prefer built-in shape materials for basic geometry.',
+    'Use this material when the SVG markup is provided directly.',
   ],
 } satisfies AIMaterialDescriptor

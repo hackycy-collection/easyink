@@ -191,6 +191,8 @@ export interface MaterialCatalogEntry {
   label: string
   icon: string
   materialType: string
+  createDefaultNode?: MaterialDefinition['createDefaultNode']
+  dragData?: string
   useTokens?: string[]
   priority?: 'quick' | 'grouped'
 }

@@ -1,0 +1,37 @@
+{
+  "name": "@easyink/material-svg-star",
+  "type": "module",
+  "version": "0.0.9",
+  "description": "EasyInk star SVG material",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "peerDependencies": {
+    "vue": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@easyink/core": "workspace:*",
+    "@easyink/schema": "workspace:*",
+    "@easyink/shared": "workspace:*"
+  }
+}

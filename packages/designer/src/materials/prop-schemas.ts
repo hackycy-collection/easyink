@@ -191,12 +191,7 @@ const CHART_PROP_SCHEMAS: PropSchema[] = [
 
 // ─── SVG ─────────────────────────────────────────────────────────────
 
-const SVG_PROP_SCHEMAS: PropSchema[] = [
-  { key: 'content', label: 'designer.property.svgContent', type: 'string', group: 'content' },
-  { key: 'viewBox', label: 'designer.property.viewBox', type: 'string', group: 'content' },
-  { key: 'preserveAspectRatio', label: 'designer.property.aspectRatio', type: 'string', group: 'content' },
-  { key: 'fillColor', label: 'designer.property.fillColor', type: 'color', group: 'appearance' },
-]
+const SVG_PROP_SCHEMAS: PropSchema[] = []
 
 // ─── Page Number ────────────────────────────────────────────────────
 

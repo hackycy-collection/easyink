@@ -1,5 +1,8 @@
-# @easyink/material-svg
+# SVG Material Catalog
 
-[![npm version](https://img.shields.io/npm/v/@easyink/material-svg)](https://www.npmjs.com/package/@easyink/material-svg)
+This directory is the SVG material workspace container.
 
-EasyInk svg material
+- `custom/` raw custom SVG material package
+- `star/` editable star SVG material package
+- `ellipse/` editable ellipse SVG material package
+- `heart/` editable heart SVG material package

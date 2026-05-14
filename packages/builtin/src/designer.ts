@@ -54,11 +54,33 @@ import {
   RECT_TYPE,
 } from '@easyink/material-rect'
 import {
-  createSvgExtension,
-  createSvgNode,
-  SVG_CAPABILITIES,
-  SVG_TYPE,
-} from '@easyink/material-svg'
+  createSvgCustomExtension,
+  createSvgCustomNode,
+  SVG_CUSTOM_CAPABILITIES,
+  SVG_CUSTOM_TYPE,
+  svgCustomDesignerPropSchemas,
+} from '@easyink/material-svg-custom'
+import {
+  createSvgEllipseExtension,
+  createSvgEllipseNode,
+  SVG_ELLIPSE_CAPABILITIES,
+  SVG_ELLIPSE_TYPE,
+  svgEllipseDesignerPropSchemas,
+} from '@easyink/material-svg-ellipse'
+import {
+  createSvgHeartExtension,
+  createSvgHeartNode,
+  SVG_HEART_CAPABILITIES,
+  SVG_HEART_TYPE,
+  svgHeartDesignerPropSchemas,
+} from '@easyink/material-svg-heart'
+import {
+  createSvgStarExtension,
+  createSvgStarNode,
+  SVG_STAR_CAPABILITIES,
+  SVG_STAR_TYPE,
+  svgStarDesignerPropSchemas,
+} from '@easyink/material-svg-star'
 import {
   createTableDataExtension,
   createTableDataNode,
@@ -188,13 +210,44 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
       factory: createChartExtension,
     },
     {
-      type: SVG_TYPE,
-      name: 'designer.toolbar.svg',
+      type: SVG_CUSTOM_TYPE,
+      name: '自定义',
       icon: 'svg',
       category: 'svg',
-      capabilities: SVG_CAPABILITIES,
-      createDefaultNode: createSvgNode,
-      factory: createSvgExtension,
+      capabilities: SVG_CUSTOM_CAPABILITIES,
+      createDefaultNode: createSvgCustomNode,
+      factory: createSvgCustomExtension,
+      propSchemas: svgCustomDesignerPropSchemas,
+    },
+    {
+      type: SVG_STAR_TYPE,
+      name: '星星',
+      icon: 'svg',
+      category: 'svg',
+      capabilities: SVG_STAR_CAPABILITIES,
+      createDefaultNode: createSvgStarNode,
+      factory: createSvgStarExtension,
+      propSchemas: svgStarDesignerPropSchemas,
+    },
+    {
+      type: SVG_ELLIPSE_TYPE,
+      name: '椭圆',
+      icon: 'ellipse',
+      category: 'svg',
+      capabilities: SVG_ELLIPSE_CAPABILITIES,
+      createDefaultNode: createSvgEllipseNode,
+      factory: createSvgEllipseExtension,
+      propSchemas: svgEllipseDesignerPropSchemas,
+    },
+    {
+      type: SVG_HEART_TYPE,
+      name: '心形',
+      icon: 'svg',
+      category: 'svg',
+      capabilities: SVG_HEART_CAPABILITIES,
+      createDefaultNode: createSvgHeartNode,
+      factory: createSvgHeartExtension,
+      propSchemas: svgHeartDesignerPropSchemas,
     },
     {
       type: PAGE_NUMBER_TYPE,
@@ -220,7 +273,10 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     { type: TABLE_DATA_TYPE, group: 'data' },
     { type: CONTAINER_TYPE, group: 'data' },
     { type: CHART_TYPE, group: 'chart' },
-    { type: SVG_TYPE, group: 'svg' },
+    { type: SVG_STAR_TYPE, group: 'svg' },
+    { type: SVG_ELLIPSE_TYPE, group: 'svg' },
+    { type: SVG_HEART_TYPE, group: 'svg' },
+    { type: SVG_CUSTOM_TYPE, group: 'svg' },
     { type: PAGE_NUMBER_TYPE, group: 'utility' },
   ],
 }

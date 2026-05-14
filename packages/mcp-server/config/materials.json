@@ -316,7 +316,7 @@
       "examples": []
     },
     "svg": {
-      "description": "Inline SVG vector block for simple custom marks and decorative vectors.",
+      "description": "Custom inline SVG material for raw vector content.",
       "properties": [
         "content",
         "viewBox",
@@ -330,7 +330,66 @@
       ],
       "binding": "none",
       "usage": [
-        "Use only when a simple vector mark is needed; prefer built-in shape materials for basic geometry."
+        "Use this material when the SVG markup is provided directly."
+      ],
+      "schemaRules": [],
+      "examples": []
+    },
+    "svg-star": {
+      "description": "Editable star SVG material with point count, inner ratio, and rotation controls.",
+      "properties": [
+        "fillColor",
+        "borderWidth",
+        "borderColor",
+        "starPoints",
+        "starInnerRatio",
+        "starRotation"
+      ],
+      "requiredProps": [
+        "fillColor",
+        "starPoints",
+        "starInnerRatio"
+      ],
+      "binding": "none",
+      "usage": [
+        "Use this material for decorative stars that need direct on-canvas editing."
+      ],
+      "schemaRules": [],
+      "examples": []
+    },
+    "svg-ellipse": {
+      "description": "Ellipse SVG material with inset and stroke controls.",
+      "properties": [
+        "fillColor",
+        "borderWidth",
+        "borderColor",
+        "ellipseInset"
+      ],
+      "requiredProps": [
+        "fillColor"
+      ],
+      "binding": "none",
+      "usage": [
+        "Use this material for ellipse-like SVG graphics in the SVG catalog."
+      ],
+      "schemaRules": [],
+      "examples": []
+    },
+    "svg-heart": {
+      "description": "Heart SVG material with editable cleft depth and shoulder width.",
+      "properties": [
+        "fillColor",
+        "borderWidth",
+        "borderColor",
+        "heartCleftDepth",
+        "heartShoulderWidth"
+      ],
+      "requiredProps": [
+        "fillColor"
+      ],
+      "binding": "none",
+      "usage": [
+        "Use this material for heart graphics that need shape-specific controls."
       ],
       "schemaRules": [],
       "examples": []

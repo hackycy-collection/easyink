@@ -1,4 +1,6 @@
 export * from './ai'
 export * from './designer'
+export * from './prop-schemas'
+export * from './sanitize'
 export * from './schema'
 export * from './viewer'

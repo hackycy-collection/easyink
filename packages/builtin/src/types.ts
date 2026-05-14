@@ -30,8 +30,13 @@ export interface BuiltinDesignerMaterialRegistration {
 }
 
 export interface BuiltinDesignerCatalogRegistration {
+  id?: string
   type: string
   group: 'data' | 'chart' | 'svg' | 'utility'
+  label?: string
+  icon?: string
+  createDefaultNode?: (input?: Partial<MaterialNode>, unit?: string) => MaterialNode
+  dragData?: string
 }
 
 export interface BuiltinDesignerMaterialBundle {

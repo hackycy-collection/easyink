@@ -35,11 +35,13 @@ export function useMaterialDrop(ctx: MaterialDropContext) {
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
-    const materialType = e.dataTransfer?.getData(MATERIAL_DRAG_MIME)
-    if (!materialType)
+    const dragData = e.dataTransfer?.getData(MATERIAL_DRAG_MIME)
+    if (!dragData)
       return
 
     const { store } = ctx
+    const catalogEntry = store.getCatalog().find(entry => entry.dragData === dragData || entry.materialType === dragData)
+    const materialType = catalogEntry?.materialType ?? dragData
     const definition = store.getMaterial(materialType)
     if (!definition)
       return
@@ -50,7 +52,7 @@ export function useMaterialDrop(ctx: MaterialDropContext) {
 
     const dropPoint = geometry.screenToDocument({ x: e.clientX, y: e.clientY })
 
-    const node = definition.createDefaultNode({
+    const node = (catalogEntry?.createDefaultNode ?? definition.createDefaultNode)({
       x: Math.max(0, dropPoint.x),
       y: Math.max(0, dropPoint.y),
     }, store.schema.unit)

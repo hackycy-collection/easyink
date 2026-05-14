@@ -63,7 +63,7 @@ function handleAddMaterial(entry: MaterialCatalogEntry) {
   const definition = store.getMaterial(entry.materialType)
   if (!definition)
     return
-  const node = definition.createDefaultNode({
+  const node = (entry.createDefaultNode ?? definition.createDefaultNode)({
     x: 50,
     y: 50,
   }, store.schema.unit)
@@ -76,7 +76,7 @@ function handleDragStart(e: DragEvent, entry: MaterialCatalogEntry) {
   if (!e.dataTransfer)
     return
   e.dataTransfer.effectAllowed = 'copy'
-  e.dataTransfer.setData(MATERIAL_DRAG_MIME, entry.materialType)
+  e.dataTransfer.setData(MATERIAL_DRAG_MIME, entry.dragData ?? entry.materialType)
 }
 </script>
 

@@ -18,8 +18,13 @@ export interface DesignerMaterialRegistration {
 }
 
 export interface DesignerCatalogRegistration {
+  id?: string
   type: string
   group: MaterialCatalogEntry['group']
+  label?: string
+  icon?: string
+  createDefaultNode?: MaterialDefinition['createDefaultNode']
+  dragData?: string
 }
 
 export interface DesignerMaterialBundle {
@@ -84,16 +89,19 @@ export function registerMaterialBundle(store: DesignerStore, bundle: DesignerMat
   }
 
   // Register grouped material catalog entries
-  for (const { type, group } of bundle.groupedCatalog) {
+  for (const entry of bundle.groupedCatalog) {
+    const { type, group } = entry
     const def = store.getMaterial(type)
     if (!def)
       continue
     store.registerCatalogEntry({
-      id: `grouped-${type}`,
+      id: entry.id ?? `grouped-${type}`,
       group,
-      label: def.name,
-      icon: def.icon,
+      label: entry.label ?? def.name,
+      icon: entry.icon ?? def.icon,
       materialType: type,
+      createDefaultNode: entry.createDefaultNode,
+      dragData: entry.dragData,
       priority: 'grouped',
     })
   }
