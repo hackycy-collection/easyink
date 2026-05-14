@@ -626,12 +626,12 @@ public class MainWindow : Form
             RowCount = 2,
             Padding = new Padding(4)
         };
-        basicPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        basicPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         basicPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         basicPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
-        var lblPort = new Label { Text = LangManager.Get("Settings_HttpPort"), Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblPort = new Label { Text = LangManager.Get("Settings_HttpPort"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var numPort = new NumericUpDown
         {
             Width = 120,
@@ -641,7 +641,7 @@ public class MainWindow : Form
             Anchor = AnchorStyles.Left
         };
 
-        var lblAutoStart = new Label { Text = LangManager.Get("Settings_AutoStart"), Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblAutoStart = new Label { Text = LangManager.Get("Settings_AutoStart"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var chkAutoStart = new CheckBox
         {
             Text = "",
@@ -660,63 +660,64 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_Display"),
             Dock = DockStyle.Top,
-            Height = 140,
+            Height = 136,
             Padding = new Padding(12, 8, 12, 12)
         };
+
+        var displayPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 3,
+            Padding = new Padding(4)
+        };
+        displayPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+        displayPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        displayPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        displayPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        displayPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         var chkMinimizeToTray = new CheckBox
         {
             Text = LangManager.Get("Settings_MinimizeToTray"),
-            Dock = DockStyle.Top,
-            Height = 28,
-            Checked = _config.MinimizeToTray,
-            Padding = new Padding(4, 2, 4, 2)
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Checked = _config.MinimizeToTray
         };
 
         var chkStartMinimized = new CheckBox
         {
             Text = LangManager.Get("Settings_StartMinimized"),
-            Dock = DockStyle.Top,
-            Height = 28,
-            Checked = _config.StartMinimized,
-            Padding = new Padding(4, 2, 4, 2)
+            Anchor = AnchorStyles.Left,
+            AutoSize = true,
+            Checked = _config.StartMinimized
         };
 
-        var langPanel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 32,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Padding = new Padding(4, 4, 4, 0)
-        };
-        var lblLang = new Label
-        {
-            Text = LangManager.Get("Settings_Language"),
-            AutoSize = true,
-            Margin = new Padding(0, 2, 8, 0)
-        };
+        var lblLang = new Label { Text = LangManager.Get("Settings_Language"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var cmbLang = new ComboBox
         {
             Width = 120,
-            DropDownStyle = ComboBoxStyle.DropDownList
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Anchor = AnchorStyles.Left
         };
         cmbLang.Items.Add(LangManager.Get("Settings_LanguageChinese"));
         cmbLang.Items.Add(LangManager.Get("Settings_LanguageEnglish"));
         cmbLang.SelectedIndex = _config.Language == "en-US" ? 1 : 0;
-        langPanel.Controls.Add(lblLang);
-        langPanel.Controls.Add(cmbLang);
 
-        grpDisplay.Controls.Add(langPanel);
-        grpDisplay.Controls.Add(chkStartMinimized);
-        grpDisplay.Controls.Add(chkMinimizeToTray);
+        displayPanel.Controls.Add(chkMinimizeToTray, 0, 0);
+        displayPanel.SetColumnSpan(chkMinimizeToTray, 2);
+        displayPanel.Controls.Add(chkStartMinimized, 0, 1);
+        displayPanel.SetColumnSpan(chkStartMinimized, 2);
+        displayPanel.Controls.Add(lblLang, 0, 2);
+        displayPanel.Controls.Add(cmbLang, 1, 2);
+        grpDisplay.Controls.Add(displayPanel);
 
         // 安全设置组
         var grpSecurity = new GroupBox
         {
             Text = LangManager.Get("Settings_Security"),
             Dock = DockStyle.Top,
-            Height = 100,
+            Height = 114,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -727,19 +728,20 @@ public class MainWindow : Form
             RowCount = 2,
             Padding = new Padding(4)
         };
-        securityPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        securityPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         securityPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        securityPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         var chkTrustAllOrigins = new CheckBox
         {
             Text = LangManager.Get("Settings_TrustAllOrigins"),
             Anchor = AnchorStyles.Left,
+            AutoSize = true,
             Checked = _config.TrustAllOrigins
         };
 
-        var lblApiKey = new Label { Text = LangManager.Get("Settings_ApiKey"), Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblApiKey = new Label { Text = LangManager.Get("Settings_ApiKey"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var txtApiKey = new TextBox
         {
             Text = _config.ApiKey ?? "",
@@ -801,7 +803,7 @@ public class MainWindow : Form
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         pathPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
-        var lblDbPath = new Label { Text = LangManager.Get("Settings_DbPath"), Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblDbPath = new Label { Text = LangManager.Get("Settings_DbPath"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var txtDbPath = new TextBox
         {
             Text = string.IsNullOrWhiteSpace(_config.DbPath) ? HostConfig.DefaultDbPath : _config.DbPath,
@@ -827,7 +829,7 @@ public class MainWindow : Form
                 txtDbPath.Text = dlg.FileName;
         };
 
-        var lblCrashDir = new Label { Text = LangManager.Get("Settings_CrashLogDir"), Anchor = AnchorStyles.Left, AutoSize = true };
+        var lblCrashDir = new Label { Text = LangManager.Get("Settings_CrashLogDir"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var txtCrashDir = new TextBox
         {
             Text = string.IsNullOrWhiteSpace(_config.CrashLogDir) ? HostConfig.DefaultCrashLogDir : _config.CrashLogDir,
