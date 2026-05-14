@@ -1,6 +1,6 @@
 # 快速上手
 
-EasyInk Printer 是 Windows 本地静默打印服务。前端使用 `@easyink/print-easyink-printer` 即可完成连接、打印机发现、PDF 生成、分块上传和任务等待，不需要业务侧手写 WebSocket 协议。
+EasyInk Printer 是 Windows 本地静默打印服务。前端使用 `@easyink/print-easyink` 即可完成连接、打印机发现、PDF 生成、分块上传和任务等待，不需要业务侧手写 WebSocket 协议。
 
 ## 第一步：启动打印服务
 
@@ -24,13 +24,13 @@ dotnet run --project EasyInk.Printer/src
 ## 第二步：安装依赖
 
 ```bash
-pnpm add @easyink/viewer @easyink/print-easyink-printer
+pnpm add @easyink/viewer @easyink/print-easyink
 ```
 
 ## 第三步：注册驱动并打印
 
 ```ts
-import { createEasyInkPrinterClient, createEasyInkPrinterDriver } from '@easyink/print-easyink-printer'
+import { createEasyInkPrinterClient, createEasyInkPrinterDriver } from '@easyink/print-easyink'
 import { createViewer } from '@easyink/viewer'
 
 const viewer = createViewer({ iframe })
@@ -94,7 +94,7 @@ viewer.registerPrintDriver(createEasyInkPrinterDriver({
 Playground 已使用官方包集成：
 
 - [playground/src/hooks/useEasyInkPrint.ts](../../playground/src/hooks/useEasyInkPrint.ts) 只保留 Vue 状态和设置持久化
-- [playground/src/drivers/easyink-print-driver.ts](../../playground/src/drivers/easyink-print-driver.ts) 调用 `@easyink/print-easyink-printer`
+- [playground/src/drivers/easyink-print-driver.ts](../../playground/src/drivers/easyink-print-driver.ts) 调用 `@easyink/print-easyink`
 
 ## 常见问题
 

@@ -693,7 +693,7 @@ importers:
         specifier: workspace:*
         version: link:../../viewer
 
-  packages/print/easyink-printer:
+  packages/print/easyink:
     dependencies:
       '@easyink/export-plugin-dom-pdf':
         specifier: workspace:*
@@ -807,9 +807,9 @@ importers:
       '@easyink/icons':
         specifier: workspace:*
         version: link:../packages/icons
-      '@easyink/print-easyink-printer':
+      '@easyink/print-easyink':
         specifier: workspace:*
-        version: link:../packages/print/easyink-printer
+        version: link:../packages/print/easyink
       '@easyink/print-hiprint':
         specifier: workspace:*
         version: link:../packages/print/hiprint

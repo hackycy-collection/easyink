@@ -1,5 +1,5 @@
-import type { EasyInkPrinterDevice, EasyInkPrinterJob, EasyInkPrinterOffset, EasyInkPrinterPaperSize } from '@easyink/print-easyink-printer'
-import { createEasyInkPrinterClient, DEFAULT_EASYINK_PRINTER_URL } from '@easyink/print-easyink-printer'
+import type { EasyInkPrinterDevice, EasyInkPrinterJob, EasyInkPrinterOffset, EasyInkPrinterPaperSize } from '@easyink/print-easyink'
+import { createEasyInkPrinterClient, DEFAULT_EASYINK_PRINTER_URL } from '@easyink/print-easyink'
 import { computed, reactive, ref, watch } from 'vue'
 
 const CONFIG_KEY = 'easyink:printServiceConfig'

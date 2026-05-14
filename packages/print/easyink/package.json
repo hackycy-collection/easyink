@@ -1,5 +1,5 @@
 {
-  "name": "@easyink/print-easyink-printer",
+  "name": "@easyink/print-easyink",
   "type": "module",
   "version": "0.0.9",
   "description": "EasyInk Printer client and viewer print driver",

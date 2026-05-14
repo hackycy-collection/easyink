@@ -1,9 +1,9 @@
-# @easyink/print-easyink-printer
+# @easyink/print-easyink
 
 Official EasyInk.Printer client and Viewer print driver.
 
 ```ts
-import { createEasyInkPrinterClient, createEasyInkPrinterDriver } from '@easyink/print-easyink-printer'
+import { createEasyInkPrinterClient, createEasyInkPrinterDriver } from '@easyink/print-easyink'
 
 const printer = createEasyInkPrinterClient()
 viewer.registerPrintDriver(createEasyInkPrinterDriver({ printer }))
