@@ -23,7 +23,7 @@ public class AuditService : IAuditService
     /// <param name="dbPath">数据库文件路径，默认为当前用户本地应用数据目录下的 audit.db</param>
     public AuditService(string? dbPath = null)
     {
-        var path = HostConfig.ResolveDbPath(dbPath);
+        var path = HostConfig.ResolveDbPath(dbPath!);
         _connectionString = $"Data Source={path}";
 
         var directory = Path.GetDirectoryName(path);

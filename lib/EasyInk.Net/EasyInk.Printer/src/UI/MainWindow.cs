@@ -25,7 +25,7 @@ public class MainWindow : Form
     private readonly EngineApi _api;
     private readonly IAuditService _auditService;
     private readonly HostConfig _config;
-    private TabControl _tabs;
+    private TabControl _tabs = null!;
     private readonly HashSet<int> _loadedTabs = new();
     private readonly HashSet<int> _refreshingTabs = new();
 
@@ -249,7 +249,7 @@ public class MainWindow : Form
 
         if (hasError)
         {
-            lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError);
+            lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError!);
             errorPanel.Height = 40;
             errorPanel.Visible = true;
         }
@@ -287,7 +287,7 @@ public class MainWindow : Form
             // 刷新错误区域
             if (err)
             {
-                lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError);
+                lblError.Text = LangManager.Get("Dashboard_StartupError", _server.LastError!);
                 errorPanel.Height = 40;
                 errorPanel.Visible = true;
             }
@@ -872,18 +872,18 @@ public class MainWindow : Form
         btnSave.Click += (s, e) =>
         {
             // 路径校验
-            var dbPathValue = txtDbPath.Text.Trim();
+            var dbPathValue = (txtDbPath.Text ?? "").Trim();
             if (!HostConfig.IsValidFilePath(dbPathValue, out var dbError))
             {
-                MessageBox.Show(LangManager.Get("Error_DbPathInvalid", dbError), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(LangManager.Get("Error_DbPathInvalid", dbError!), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtDbPath.Focus();
                 return;
             }
 
-            var crashDirValue = txtCrashDir.Text.Trim();
+            var crashDirValue = (txtCrashDir.Text ?? "").Trim();
             if (!HostConfig.IsValidFilePath(crashDirValue + Path.DirectorySeparatorChar, out var crashError))
             {
-                MessageBox.Show(LangManager.Get("Error_CrashLogDirInvalid", crashError), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(LangManager.Get("Error_CrashLogDirInvalid", crashError!), LangManager.Get("Common_Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtCrashDir.Focus();
                 return;
             }

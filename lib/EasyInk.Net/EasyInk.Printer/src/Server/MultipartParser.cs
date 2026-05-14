@@ -24,7 +24,7 @@ public static class MultipartParser
         if (string.IsNullOrEmpty(boundary))
             throw new ArgumentException(LangManager.Get("Parser_InvalidBoundary"));
 
-        var parts = SplitParts(body, boundary);
+        var parts = SplitParts(body, boundary!);
         var result = new MultipartData();
 
         foreach (var part in parts)
@@ -51,7 +51,7 @@ public static class MultipartParser
         return result;
     }
 
-    private static string ExtractBoundary(string contentType)
+    private static string? ExtractBoundary(string contentType)
     {
         if (string.IsNullOrEmpty(contentType))
             return null;
@@ -117,7 +117,7 @@ public static class MultipartParser
         return parts;
     }
 
-    private static MultipartPart ParsePart(byte[] partData)
+    private static MultipartPart? ParsePart(byte[] partData)
     {
         // 查找 headers 和 body 的分隔（空行）
         var headerEnd = FindBytes(partData, Encoding.UTF8.GetBytes("\r\n\r\n"), 0);

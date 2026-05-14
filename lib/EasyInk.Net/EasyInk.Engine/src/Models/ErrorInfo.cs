@@ -18,5 +18,5 @@ public class ErrorInfo
     /// <summary>
     /// 错误详情
     /// </summary>
-    public string Details { get; set; } = default!;
+    public string? Details { get; set; }
 }

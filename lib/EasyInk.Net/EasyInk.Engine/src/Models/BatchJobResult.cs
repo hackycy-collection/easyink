@@ -18,5 +18,5 @@ public class BatchJobResult
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; } = default!;
+    public string? ErrorMessage { get; set; }
 }

@@ -123,7 +123,7 @@ public class EngineApi : IDisposable
         PrinterCommand request;
         try
         {
-            request = JsonConvert.DeserializeObject<PrinterCommand>(json, JsonConfig.CamelCase);
+            request = JsonConvert.DeserializeObject<PrinterCommand>(json, JsonConfig.CamelCase)!;
         }
         catch (JsonException)
         {
@@ -180,7 +180,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少printerName参数");
         }
 
-        var status = _printerService.GetPrinterStatus(printerName);
+        var status = _printerService.GetPrinterStatus(printerName!);
         return PrinterResult.Ok(request.Id, status);
     }
 
@@ -224,7 +224,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少jobId参数");
         }
 
-        var info = _jobQueue.GetJobStatus(jobId);
+        var info = _jobQueue.GetJobStatus(jobId!);
         if (info == null)
         {
             return PrinterResult.Error(request.Id, ErrorCode.JobNotFound, $"任务不存在: {jobId}");
@@ -243,7 +243,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少jobs数组参数");
         }
 
-        var jobs = jArr.ToObject<List<PrintRequestParams>>();
+        var jobs = jArr.ToObject<List<PrintRequestParams>>() ?? new List<PrintRequestParams>();
         if (jobs.Count == 0)
         {
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "jobs不能为空");
@@ -257,7 +257,7 @@ public class EngineApi : IDisposable
         if (request.Params == null || request.Params.Count == 0)
             return null;
 
-        byte[] pdfBytes = null;
+        byte[]? pdfBytes = null;
         if (request.Params.TryGetValue("pdfBytes", out var rawPdfBytes))
         {
             if (rawPdfBytes is byte[] bytes)
@@ -268,7 +268,7 @@ public class EngineApi : IDisposable
 
         var jObj = JObject.FromObject(request.Params);
         var printParams = jObj.ToObject<PrintRequestParams>();
-        if (pdfBytes != null && pdfBytes.Length > 0)
+        if (pdfBytes != null && pdfBytes.Length > 0 && printParams != null)
             printParams.PdfBytes = pdfBytes;
         return printParams;
     }

@@ -86,7 +86,7 @@ public class PrinterService : IPrinterService
                                 var isOffline = GetBool(printer, "WorkOffline");
                                 var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
 
-                                map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
+                                map[name!] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
                             }
                             finally
                             {
@@ -190,7 +190,7 @@ public class PrinterService : IPrinterService
         // 通过对象路径精确获取，避免 WQL 字符串拼接注入风险
         var wmiEscapedName = printerName.Replace("\\", "\\\\").Replace("'", "\\'");
         var printerPath = new ManagementPath($"Win32_Printer.Name='{wmiEscapedName}'");
-        ManagementObject printer = null;
+        ManagementObject? printer = null;
         try
         {
             printer = new ManagementObject(printerPath);

@@ -83,7 +83,7 @@ public class WebSocketCommandHandler
         if (message.PdfBytes.Length > MaxChunkBytes)
             return PrinterResult.Error(message.Id, ErrorCode.ChunkTooLarge, LangManager.Get("Ws_ChunkTooLarge", MaxChunkBytes / 1024 / 1024));
 
-        var uploadId = message.Params["uploadId"]?.ToString();
+        var uploadId = message.Params["uploadId"]?.ToString() ?? "";
         var chunkIndex = message.Params["chunkIndex"]?.ToObject<int?>();
         var totalChunks = message.Params["totalChunks"]?.ToObject<int?>();
         var totalBytes = message.Params["totalBytes"]?.ToObject<long?>();
@@ -121,7 +121,7 @@ public class WebSocketCommandHandler
         if (message.Params == null)
             return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingPrintParams"));
 
-        var uploadId = message.Params["uploadId"]?.ToString();
+        var uploadId = message.Params["uploadId"]?.ToString() ?? "";
         if (string.IsNullOrEmpty(uploadId))
             return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingUploadId"));
 
@@ -176,7 +176,7 @@ public class WebSocketCommandHandler
         if (string.IsNullOrEmpty(printerName))
             return PrinterResult.Error(message.Id, ErrorCode.InvalidParams, LangManager.Get("Ws_MissingPrinterName"));
 
-        return _api.GetPrinterStatus(printerName);
+        return _api.GetPrinterStatus(printerName!);
     }
 
     private PrinterResult HandleGetJobStatus(WebSocketMessage message)
@@ -216,7 +216,7 @@ public class WebSocketCommandHandler
         var dict = new Dictionary<string, object>();
         foreach (var prop in obj.Properties())
         {
-            dict[prop.Name] = prop.Value.ToObject<object>();
+            dict[prop.Name] = prop.Value.ToObject<object>()!;
         }
         return dict;
     }

@@ -63,8 +63,8 @@ public class Router
             // POST routes
             Route("POST", Exact("/api/print"), HandlePrintRequest),
             Route("POST", Exact("/api/print/async"), HandleEnqueuePrintRequest),
-            Route("POST", Exact("/api/print/batch"), async req => _printController.BatchPrint(await ReadBodyAsString(req))),
-            Route("POST", Exact("/api/print/batch/async"), async req => _printController.EnqueueBatchPrint(await ReadBodyAsString(req))),
+            Route("POST", Exact("/api/print/batch"), async req => _printController.BatchPrint(await ReadBodyAsString(req) ?? "")),
+            Route("POST", Exact("/api/print/batch/async"), async req => _printController.EnqueueBatchPrint(await ReadBodyAsString(req) ?? "")),
         };
     }
 
@@ -90,7 +90,7 @@ public class Router
     {
         var segments = request.Url.AbsolutePath.TrimEnd('/').Split('/');
         if (segments.Length != 5 || string.IsNullOrEmpty(segments[3]))
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingPrinterName"));
+            return PrinterResult.Error("", ErrorCode.InvalidParams, LangManager.Get("Api_MissingPrinterName"));
         var name = Uri.UnescapeDataString(segments[3]);
         return _printerController.GetPrinterStatus(name);
     }
@@ -99,7 +99,7 @@ public class Router
     {
         var id = request.Url.AbsolutePath.TrimEnd('/').Substring(10);
         if (string.IsNullOrEmpty(id))
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingJobId"));
+            return PrinterResult.Error("", ErrorCode.InvalidParams, LangManager.Get("Api_MissingJobId"));
         return _jobController.GetJobStatus(id);
     }
 
@@ -130,7 +130,7 @@ public class Router
 
         if (!ValidateApiKey(request))
         {
-            var unauthorized = Encoding.UTF8.GetBytes(SerializeResult(PrinterResult.Error(null, ErrorCode.Unauthorized, LangManager.Get("Api_InvalidApiKey"))));
+            var unauthorized = Encoding.UTF8.GetBytes(SerializeResult(PrinterResult.Error("", ErrorCode.Unauthorized, LangManager.Get("Api_InvalidApiKey"))));
             response.StatusCode = 401;
             response.ContentType = "application/json; charset=utf-8";
             response.ContentLength64 = unauthorized.Length;
@@ -147,7 +147,7 @@ public class Router
         catch (Exception ex)
         {
             SimpleLogger.Error("请求处理异常", ex);
-            result = PrinterResult.Error(null, ErrorCode.InternalError, LangManager.Get("Api_InternalError"));
+            result = PrinterResult.Error("", ErrorCode.InternalError, LangManager.Get("Api_InternalError"));
         }
 
         var buffer = Encoding.UTF8.GetBytes(SerializeResult(result));
@@ -168,14 +168,14 @@ public class Router
                 return await route.Handler(request);
         }
 
-        return PrinterResult.Error(null, ErrorCode.NotFound, LangManager.Get("Api_RouteNotFound", method, path));
+        return PrinterResult.Error("", ErrorCode.NotFound, LangManager.Get("Api_RouteNotFound", method, path));
     }
 
     private async Task<PrinterResult> HandlePrintRequest(HttpListenerRequest request)
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
+            return PrinterResult.Error("", ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
         if (pdfBytes != null)
             return _printController.Print(paramsJson, pdfBytes);
         return _printController.Print(paramsJson);
@@ -185,7 +185,7 @@ public class Router
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
+            return PrinterResult.Error("", ErrorCode.InvalidParams, LangManager.Get("Api_MissingParams"));
         if (pdfBytes != null)
             return _printController.EnqueuePrint(paramsJson, pdfBytes);
         return _printController.EnqueuePrint(paramsJson);
@@ -198,6 +198,7 @@ public class Router
         if (contentType.Contains("multipart/form-data"))
         {
             var body = await ReadBodyAsBytes(request);
+            if (body == null) return (null, null);
             var multipart = MultipartParser.Parse(body, contentType);
 
             if (multipart.Params == null || multipart.PdfBytes == null || multipart.PdfBytes.Length == 0)
@@ -268,7 +269,7 @@ public class Router
             return true;
         if (string.IsNullOrEmpty(providedKey))
             return false;
-        if (providedKey.Length != configuredKey.Length)
+        if (providedKey!.Length != configuredKey!.Length)
             return false;
 
         // constant-time comparison to prevent timing attacks

@@ -16,7 +16,7 @@ public class WebSocketMessage
         var obj = JObject.Parse(json);
         return new WebSocketMessage
         {
-            Command = obj["command"]?.ToString(),
+            Command = obj["command"]?.ToString()!,
             Id = obj["id"]?.ToString() ?? Guid.NewGuid().ToString(),
             Params = obj["params"] as JObject
         };
@@ -40,7 +40,7 @@ public class WebSocketMessage
 
         // 读取 PDF 数据
         var pdfStart = 4 + metadataLength;
-        byte[] pdfBytes = null;
+        byte[]? pdfBytes = null;
         if (pdfStart < data.Length)
         {
             pdfBytes = new byte[data.Length - pdfStart];
@@ -49,7 +49,7 @@ public class WebSocketMessage
 
         return new WebSocketMessage
         {
-            Command = metadata["command"]?.ToString(),
+            Command = metadata["command"]?.ToString()!,
             Id = metadata["id"]?.ToString() ?? Guid.NewGuid().ToString(),
             Params = metadata["params"] as JObject,
             PdfBytes = pdfBytes

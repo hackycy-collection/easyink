@@ -42,7 +42,7 @@ public class WebSocketCommandHandlerTests
     {
         var handler = CreateHandler();
         var message = MakeMessage("noSuchCommand");
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class WebSocketCommandHandlerTests
         var api = new EngineApi(printerService.Object, new Mock<IPrintService>().Object);
         var handler = CreateHandler(api: api);
         var message = MakeMessage("getPrinters");
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class WebSocketCommandHandlerTests
     {
         var handler = CreateHandler();
         var message = MakeMessage("getPrinterStatus");
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class WebSocketCommandHandlerTests
     {
         var handler = CreateHandler();
         var message = MakeMessage("getAllJobs");
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class WebSocketCommandHandlerTests
     {
         var handler = CreateHandler();
         var message = MakeMessage("uploadPdfChunk");
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class WebSocketCommandHandlerTests
         };
         var message = MakeMessage("uploadPdfChunk", parms: parms);
         // PdfBytes is null, should return error
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class WebSocketCommandHandlerTests
         var message = MakeMessage("uploadPdfChunk", parms: parms);
         // 3MB chunk > 2MB limit
         message.PdfBytes = new byte[3 * 1024 * 1024];
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class WebSocketCommandHandlerTests
         };
         var message = MakeMessage("uploadPdfChunk", parms: parms);
         message.PdfBytes = pdfBytes;
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class WebSocketCommandHandlerTests
             ["printerName"] = "TestPrinter"
         };
         var message = MakeMessage("printUploadedPdf", parms: parms);
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class WebSocketCommandHandlerTests
         var handler = CreateHandler(api: api);
         var message = MakeMessage("getPrinters");
         // Should not throw — InternalError should be caught
-        await handler.HandleMessage(null, message);
+        await handler.HandleMessage(null!, message);
     }
 }
 

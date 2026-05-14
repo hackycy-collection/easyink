@@ -50,12 +50,12 @@ public class PrintAuditLog
     /// <summary>
     /// 用户ID
     /// </summary>
-    public string UserId { get; set; } = default!;
+    public string? UserId { get; set; }
 
     /// <summary>
     /// 标签类型
     /// </summary>
-    public string LabelType { get; set; } = default!;
+    public string? LabelType { get; set; }
 
     /// <summary>
     /// 打印状态
@@ -65,12 +65,12 @@ public class PrintAuditLog
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; } = default!;
+    public string? ErrorMessage { get; set; }
 
     /// <summary>
     /// 任务ID
     /// </summary>
-    public string JobId { get; set; } = default!;
+    public string? JobId { get; set; }
 
     /// <summary>
     /// 记录创建时间

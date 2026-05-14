@@ -71,7 +71,7 @@ public class MultipartParserTests
         var result = MultipartParser.Parse(body, contentType);
 
         Assert.NotNull(result.Params);
-        Assert.Equal("TestPrinter", result.Params!["printerName"].ToString());
+        Assert.Equal("TestPrinter", result.Params!["printerName"]!.ToString());
         Assert.NotNull(result.PdfBytes);
         Assert.Equal(pdfBytes, result.PdfBytes);
     }
@@ -113,7 +113,7 @@ public class MultipartParserTests
         var result = MultipartParser.Parse(body, contentType);
 
         Assert.NotNull(result.Params);
-        Assert.Equal("TestPrinter", result.Params!["printerName"].ToString());
+        Assert.Equal("TestPrinter", result.Params!["printerName"]!.ToString());
         Assert.Null(result.PdfBytes);
     }
 

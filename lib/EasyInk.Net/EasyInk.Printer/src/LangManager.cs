@@ -40,8 +40,8 @@ public static class LangManager
         _lock.EnterWriteLock();
         try
         {
-            _current = target;
-            CurrentCulture = culture;
+            _current = target!;
+            CurrentCulture = culture!;
         }
         finally
         {
@@ -82,7 +82,7 @@ public static class LangManager
     private static void ApplyToControl(Control control)
     {
         var tag = control.Tag as string;
-        if (!string.IsNullOrEmpty(tag) && tag.StartsWith("i18n:"))
+        if (!string.IsNullOrEmpty(tag) && tag!.StartsWith("i18n:"))
         {
             var key = tag.Substring(5);
             control.Text = Get(key);
@@ -101,7 +101,7 @@ public static class LangManager
     private static void ApplyToToolStripItem(ToolStripItem item)
     {
         var tag = item.Tag as string;
-        if (!string.IsNullOrEmpty(tag) && tag.StartsWith("i18n:"))
+        if (!string.IsNullOrEmpty(tag) && tag!.StartsWith("i18n:"))
         {
             var key = tag.Substring(5);
             item.Text = Get(key);

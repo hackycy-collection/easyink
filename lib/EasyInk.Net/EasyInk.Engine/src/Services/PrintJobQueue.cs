@@ -18,7 +18,7 @@ public class PrintJobQueue : IDisposable
 
     private readonly IPrintService _printService;
     private readonly ILogger _logger;
-    private readonly Action<string, PrintRequestParams, PrinterResult> _onPrintCompleted;
+    private readonly Action<string, PrintRequestParams, PrinterResult>? _onPrintCompleted;
     private readonly Dictionary<string, (PrintJob Job, PrintRequestParams Request)> _jobs = new();
     private readonly BlockingCollection<(string requestId, PrintRequestParams request)> _queue;
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
@@ -53,7 +53,7 @@ public class PrintJobQueue : IDisposable
     /// <param name="requestId">请求ID</param>
     /// <param name="request">打印请求参数</param>
     /// <returns>任务ID</returns>
-    public string Enqueue(string requestId, PrintRequestParams request)
+    public string Enqueue(string? requestId, PrintRequestParams request)
     {
         var jobId = requestId ?? Guid.NewGuid().ToString();
         var job = new PrintJob

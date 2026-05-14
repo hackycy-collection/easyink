@@ -98,11 +98,13 @@ public class HttpServer
 
     private async Task ListenLoop()
     {
-        while (!_cts.Token.IsCancellationRequested)
+        while (_cts is { } cts && !cts.Token.IsCancellationRequested)
         {
             try
             {
-                var context = await _listener.GetContextAsync();
+                var listener = _listener;
+                if (listener == null) break;
+                var context = await listener.GetContextAsync();
                 var handler = OnRequest;
                 if (handler != null)
                 {

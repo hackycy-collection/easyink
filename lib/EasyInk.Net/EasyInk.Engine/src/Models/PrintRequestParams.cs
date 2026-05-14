@@ -17,17 +17,17 @@ public class PrintRequestParams
     /// <summary>
     /// PDF文件的Base64编码
     /// </summary>
-    public string PdfBase64 { get; set; } = default!;
+    public string? PdfBase64 { get; set; }
 
     /// <summary>
     /// PDF文件的URL地址
     /// </summary>
-    public string PdfUrl { get; set; } = default!;
+    public string? PdfUrl { get; set; }
 
     /// <summary>
     /// PDF文件的二进制数据
     /// </summary>
-    public byte[] PdfBytes { get; set; } = default!;
+    public byte[]? PdfBytes { get; set; }
 
     /// <summary>
     /// 打印份数
@@ -37,7 +37,7 @@ public class PrintRequestParams
     /// <summary>
     /// 纸张尺寸
     /// </summary>
-    public PaperSizeParams PaperSize { get; set; } = default!;
+    public PaperSizeParams? PaperSize { get; set; }
 
     /// <summary>
     /// 是否强制把 PaperSize 传给底层打印引擎。默认由打印机驱动使用当前介质。
@@ -52,12 +52,12 @@ public class PrintRequestParams
     /// <summary>
     /// 打印偏移
     /// </summary>
-    public OffsetParams Offset { get; set; } = default!;
+    public OffsetParams? Offset { get; set; }
 
     /// <summary>
     /// 用户数据（用于审计日志）
     /// </summary>
-    public UserDataParams UserData { get; set; } = default!;
+    public UserDataParams? UserData { get; set; }
 
     /// <summary>
     /// 是否横向打印
@@ -70,9 +70,9 @@ public class PrintRequestParams
     public IPdfProvider CreatePdfProvider()
     {
         if (!string.IsNullOrEmpty(PdfBase64))
-            return new Base64PdfProvider(PdfBase64);
+            return new Base64PdfProvider(PdfBase64!);
         if (!string.IsNullOrEmpty(PdfUrl))
-            return new UrlPdfProvider(PdfUrl);
+            return new UrlPdfProvider(PdfUrl!);
         if (PdfBytes != null && PdfBytes.Length > 0)
             return new BlobPdfProvider(PdfBytes);
 

@@ -9,9 +9,10 @@ public static class VersionHelper
         var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         if (!string.IsNullOrWhiteSpace(informationalVersion))
         {
-            return informationalVersion;
+            return informationalVersion!;
         }
 
         return assembly.GetName().Version?.ToString() ?? "1.0.0";
+
     }
 }

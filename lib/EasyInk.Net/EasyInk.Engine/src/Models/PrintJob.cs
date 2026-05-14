@@ -40,10 +40,10 @@ public class PrintJob
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; } = default!;
+    public string? ErrorMessage { get; set; }
 
     /// <summary>
     /// 打印结果
     /// </summary>
-    public PrinterResult Result { get; set; } = default!;
+    public PrinterResult? Result { get; set; }
 }

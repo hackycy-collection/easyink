@@ -18,8 +18,8 @@ namespace EasyInk.Printer;
 
 static class Program
 {
-    private static Mutex _mutex;
-    private static string _crashLogDir;
+    private static Mutex _mutex = null!;
+    private static string _crashLogDir = null!;
     private static bool _disposed;
     private static int _fatalDialogShown;
 
@@ -64,11 +64,11 @@ static class Program
         var config = HostConfig.Load();
         LangManager.Initialize(string.IsNullOrEmpty(config.Language) ? null : config.Language);
 
-        var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath);
+        var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath!);
         var logDir = Path.GetDirectoryName(resolvedDbPath);
         SimpleLogger.Configure(logDir);
 
-        _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir);
+        _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir!);
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             HandleFatalException(ToException(e.ExceptionObject), "AppDomain.UnhandledException");
         Application.ThreadException += (s, e) =>
@@ -126,7 +126,7 @@ static class Program
 
         if (!httpServer.TryStart())
         {
-            SimpleLogger.Error(LangManager.Get("App_HttpStartFailed", httpServer.LastError));
+            SimpleLogger.Error(LangManager.Get("App_HttpStartFailed", httpServer.LastError!));
 
             if (httpServer.IsAccessDenied)
             {
@@ -170,7 +170,7 @@ static class Program
             httpServer.Stop();
             if (!httpServer.TryStart())
             {
-                SimpleLogger.Error(LangManager.Get("App_HttpRestartFailed", httpServer.LastError));
+                SimpleLogger.Error(LangManager.Get("App_HttpRestartFailed", httpServer.LastError!));
 
                 if (httpServer.IsAccessDenied)
                 {
@@ -196,7 +196,7 @@ static class Program
             else
             {
                 trayIcon.UpdateStatus(LangManager.Get("Tray_Status_Error"));
-                trayIcon.ShowBalloon("EasyInk Printer", LangManager.Get("App_ServerStartFailed", httpServer.LastError));
+                trayIcon.ShowBalloon("EasyInk Printer", LangManager.Get("App_ServerStartFailed", httpServer.LastError!));
             }
         };
 
@@ -277,7 +277,7 @@ static class Program
         try { _mutex.ReleaseMutex(); } catch (ApplicationException) { } catch (ObjectDisposedException) { }
         try { _mutex.Dispose(); } catch (ObjectDisposedException) { }
 
-        _mutex = null;
+        _mutex = null!;
     }
 
     private static void HandleFatalException(Exception ex, string source)
@@ -298,7 +298,7 @@ static class Program
             return;
 
         ShowMessage(
-            BuildFatalErrorMessage(safeException, logPath),
+            BuildFatalErrorMessage(safeException, logPath!),
             LangManager.Get("App_FatalError_Title"),
             MessageBoxIcon.Error);
     }
@@ -330,7 +330,7 @@ static class Program
         sb.AppendLine(LangManager.Get("App_SQLiteGuidance_Action"));
     }
 
-    private static bool ContainsSQLiteInteropError(Exception ex)
+    private static bool ContainsSQLiteInteropError(Exception? ex)
     {
         if (ex == null) return false;
 
@@ -372,7 +372,7 @@ static class Program
         }
     }
 
-    private static string WriteCrashLog(Exception ex, string source)
+    private static string? WriteCrashLog(Exception ex, string source)
     {
         try
         {
