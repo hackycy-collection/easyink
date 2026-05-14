@@ -32,12 +32,12 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 日志回调事件，订阅方自行决定如何处理日志（写文件、存数据库等）
     /// </summary>
-    public event Action<LogLevel, string> Log;
+    public event Action<LogLevel, string>? Log;
 
     /// <summary>
     /// 打印完成回调（requestId, 请求参数, 打印结果），用于审计等宿主层需求
     /// </summary>
-    public event Action<string, PrintRequestParams, PrinterResult> PrintCompleted;
+    public event Action<string, PrintRequestParams, PrinterResult>? PrintCompleted;
 
     internal void RaiseLog(LogLevel level, string message)
     {
@@ -64,8 +64,8 @@ public class EngineApi : IDisposable
     /// 传入 printService 可替换实现。
     /// </summary>
     public EngineApi(
-        IPrinterService printerService = null,
-        IPrintService printService = null,
+        IPrinterService? printerService = null,
+        IPrintService? printService = null,
         int? maxQueueSize = null)
     {
         var logger = new EventLogger(this);
@@ -252,7 +252,7 @@ public class EngineApi : IDisposable
         return ExecuteBatchJobs(request.Id, jobs, enqueue);
     }
 
-    private PrintRequestParams ExtractPrintParams(PrinterCommand request)
+    private PrintRequestParams? ExtractPrintParams(PrinterCommand request)
     {
         if (request.Params == null || request.Params.Count == 0)
             return null;
@@ -273,7 +273,7 @@ public class EngineApi : IDisposable
         return printParams;
     }
 
-    private T GetParam<T>(PrinterCommand request, string key)
+    private T? GetParam<T>(PrinterCommand request, string key)
     {
         if (request.Params == null || !request.Params.ContainsKey(key))
         {

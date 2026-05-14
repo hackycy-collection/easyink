@@ -10,7 +10,7 @@ namespace EasyInk.Printer;
 public static class SimpleLogger
 {
     private static readonly object Lock = new object();
-    private static string _logPath;
+    private static string? _logPath;
 
     /// <summary>
     /// 配置日志输出目录
@@ -34,7 +34,7 @@ public static class SimpleLogger
     /// <summary>
     /// 记录调试日志
     /// </summary>
-    public static void Debug(string message, Exception ex = null)
+    public static void Debug(string message, Exception? ex = null)
     {
         var text = ex != null ? $"{message}: {ex}" : message;
         Write("DEBUG", text);
@@ -43,7 +43,7 @@ public static class SimpleLogger
     /// <summary>
     /// 记录错误日志
     /// </summary>
-    public static void Error(string message, Exception ex = null)
+    public static void Error(string message, Exception? ex = null)
     {
         var text = ex != null ? $"{message}: {ex}" : message;
         Write("ERROR", text);

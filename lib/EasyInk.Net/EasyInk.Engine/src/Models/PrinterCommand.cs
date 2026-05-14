@@ -10,15 +10,15 @@ public class PrinterCommand
     /// <summary>
     /// 命令名称
     /// </summary>
-    public string Command { get; set; }
+    public string Command { get; set; } = default!;
 
     /// <summary>
     /// 请求ID，用于匹配响应
     /// </summary>
-    public string Id { get; set; }
+    public string Id { get; set; } = default!;
 
     /// <summary>
     /// 命令参数
     /// </summary>
-    public Dictionary<string, object> Params { get; set; }
+    public Dictionary<string, object>? Params { get; set; }
 }

@@ -12,8 +12,8 @@ namespace EasyInk.Engine.Tests;
 public class PrinterApiTests
 {
     private static EngineApi CreateApi(
-        Mock<IPrinterService> printerService = null,
-        Mock<IPrintService> printService = null)
+        Mock<IPrinterService>? printerService = null,
+        Mock<IPrintService>? printService = null)
     {
         printerService ??= new Mock<IPrinterService>();
         printService ??= new Mock<IPrintService>();
@@ -23,7 +23,7 @@ public class PrinterApiTests
             printService.Object);
     }
 
-    private static string MakeCommand(string command, string id = "test-1", Dictionary<string, object> parms = null)
+    private static string MakeCommand(string command, string id = "test-1", Dictionary<string, object>? parms = null)
     {
         return JsonConvert.SerializeObject(new PrinterCommand
         {
@@ -39,7 +39,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand("not json");
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidJson, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidJson, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand(MakeCommand("noSuchCommand"));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.UnknownCommand, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.UnknownCommand, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class PrinterApiTests
         using var api = CreateApi(printerService: printerService);
         var result = api.HandleCommand(MakeCommand("getPrinters"));
         Assert.True(result.Success);
-        var data = result.Data as List<PrinterInfo>;
+        var data = (result.Data as List<PrinterInfo>)!;
         Assert.Single(data);
         Assert.Equal("Test Printer", data[0].Name);
     }
@@ -74,7 +74,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand(MakeCommand("getPrinterStatus"));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand(MakeCommand("print"));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand(MakeCommand("getJobStatus", parms: new Dictionary<string, object> { ["jobId"] = "nonexistent" }));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.JobNotFound, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.JobNotFound, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class PrinterApiTests
         using var api = CreateApi();
         var result = api.HandleCommand(MakeCommand("queryLogs"));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.UnknownCommand, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.UnknownCommand, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class PrinterApiTests
         };
         var result = api.HandleCommand(MakeCommand("batchPrint", parms: parms));
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo!.Code);
     }
 
     [Fact]

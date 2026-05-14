@@ -16,7 +16,7 @@ public class PdfiumPrintServiceTests
         return new PdfiumPrintService(_printerService.Object);
     }
 
-    private static PrintRequestParams CreateRequest(string printerName = "TestPrinter", string pdfBase64 = null, int copies = 1)
+    private static PrintRequestParams CreateRequest(string printerName = "TestPrinter", string? pdfBase64 = null, int copies = 1)
     {
         return new PrintRequestParams
         {
@@ -46,13 +46,13 @@ public class PdfiumPrintServiceTests
         var result = CreateService().Print("req-1", CreateRequest());
 
         Assert.False(result.Success);
-        Assert.Equal("PRINTER_OFFLINE", result.ErrorInfo.Code);
+        Assert.Equal("PRINTER_OFFLINE", result.ErrorInfo!.Code);
     }
 
     [Fact]
     public void Print_NullPrinterService_ThrowsArgumentNull()
     {
-        Assert.Throws<ArgumentNullException>(() => new PdfiumPrintService(null));
+        Assert.Throws<ArgumentNullException>(() => new PdfiumPrintService(null!));
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class PdfiumPrintServiceTests
         var result = CreateService().Print("req-1", request);
 
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidPdfSource, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidPdfSource, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class PdfiumPrintServiceTests
         var result = CreateService().Print("req-1", request);
 
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidPdfSource, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.InvalidPdfSource, result.ErrorInfo!.Code);
     }
 
     [Fact]
@@ -104,6 +104,6 @@ public class PdfiumPrintServiceTests
 
         // Without native pdfium.dll, we expect an error (not a success)
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.PrintFailed, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.PrintFailed, result.ErrorInfo!.Code);
     }
 }

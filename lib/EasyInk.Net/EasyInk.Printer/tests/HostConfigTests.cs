@@ -23,10 +23,10 @@ public class HostConfigTests
     [InlineData(@"data\audit.db", "路径必须包含盘符")]
     [InlineData(@"\data\audit.db", "路径必须包含盘符")]
     [InlineData(@"1:\invalid.db", "路径必须包含盘符")]
-    public void IsValidFilePath_InvalidPaths_ReturnsFalseWithError(string path, string expectedError)
+    public void IsValidFilePath_InvalidPaths_ReturnsFalseWithError(string? path, string expectedError)
     {
-        Assert.False(HostConfig.IsValidFilePath(path, out var error));
-        Assert.Contains(expectedError, error);
+        Assert.False(HostConfig.IsValidFilePath(path!, out var error));
+        Assert.Contains(expectedError, error!);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class HostConfigTests
     [Fact]
     public void ResolveDbPath_Null_ReturnsDefault()
     {
-        Assert.Equal(HostConfig.DefaultDbPath, HostConfig.ResolveDbPath(null));
+        Assert.Equal(HostConfig.DefaultDbPath, HostConfig.ResolveDbPath(null!));
     }
 
     [Fact]
@@ -80,6 +80,6 @@ public class HostConfigTests
     [Fact]
     public void ResolveCrashLogDir_Null_ReturnsDefault()
     {
-        Assert.Equal(HostConfig.DefaultCrashLogDir, HostConfig.ResolveCrashLogDir(null));
+        Assert.Equal(HostConfig.DefaultCrashLogDir, HostConfig.ResolveCrashLogDir(null!));
     }
 }

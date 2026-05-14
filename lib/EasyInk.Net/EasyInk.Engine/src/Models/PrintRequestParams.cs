@@ -12,22 +12,22 @@ public class PrintRequestParams
     /// <summary>
     /// 打印机名称
     /// </summary>
-    public string PrinterName { get; set; }
+    public string PrinterName { get; set; } = default!;
 
     /// <summary>
     /// PDF文件的Base64编码
     /// </summary>
-    public string PdfBase64 { get; set; }
+    public string PdfBase64 { get; set; } = default!;
 
     /// <summary>
     /// PDF文件的URL地址
     /// </summary>
-    public string PdfUrl { get; set; }
+    public string PdfUrl { get; set; } = default!;
 
     /// <summary>
     /// PDF文件的二进制数据
     /// </summary>
-    public byte[] PdfBytes { get; set; }
+    public byte[] PdfBytes { get; set; } = default!;
 
     /// <summary>
     /// 打印份数
@@ -37,7 +37,7 @@ public class PrintRequestParams
     /// <summary>
     /// 纸张尺寸
     /// </summary>
-    public PaperSizeParams PaperSize { get; set; }
+    public PaperSizeParams PaperSize { get; set; } = default!;
 
     /// <summary>
     /// 是否强制把 PaperSize 传给底层打印引擎。默认由打印机驱动使用当前介质。
@@ -52,12 +52,12 @@ public class PrintRequestParams
     /// <summary>
     /// 打印偏移
     /// </summary>
-    public OffsetParams Offset { get; set; }
+    public OffsetParams Offset { get; set; } = default!;
 
     /// <summary>
     /// 用户数据（用于审计日志）
     /// </summary>
-    public UserDataParams UserData { get; set; }
+    public UserDataParams UserData { get; set; } = default!;
 
     /// <summary>
     /// 是否横向打印

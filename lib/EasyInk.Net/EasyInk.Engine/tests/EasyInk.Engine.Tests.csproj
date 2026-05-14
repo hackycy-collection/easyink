@@ -6,7 +6,7 @@
     <RootNamespace>EasyInk.Engine.Tests</RootNamespace>
     <AssemblyName>EasyInk.Engine.Tests</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

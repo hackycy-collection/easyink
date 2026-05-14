@@ -6,10 +6,10 @@ namespace EasyInk.Printer.Server;
 
 public class WebSocketMessage
 {
-    public string Command { get; set; }
-    public string Id { get; set; }
-    public JObject Params { get; set; }
-    public byte[] PdfBytes { get; set; }
+    public string Command { get; set; } = default!;
+    public string Id { get; set; } = default!;
+    public JObject? Params { get; set; }
+    public byte[]? PdfBytes { get; set; }
 
     public static WebSocketMessage FromText(string json)
     {

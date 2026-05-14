@@ -29,7 +29,7 @@ public class MainWindow : Form
     private readonly HashSet<int> _loadedTabs = new();
     private readonly HashSet<int> _refreshingTabs = new();
 
-    public event Action OnRestart;
+    public event Action? OnRestart;
 
     public MainWindow(HttpServer server, WebSocketHandler wsHandler, EngineApi api, HostConfig config, IAuditService auditService)
     {

@@ -91,8 +91,8 @@ public class PrinterResultTests
         var result = PrinterResult.Error("id-2", "CODE", "message", "details");
         Assert.False(result.Success);
         Assert.Equal("id-2", result.Id);
-        Assert.Equal("CODE", result.ErrorInfo.Code);
-        Assert.Equal("message", result.ErrorInfo.Message);
-        Assert.Equal("details", result.ErrorInfo.Details);
+        Assert.Equal("CODE", result.ErrorInfo!.Code);
+        Assert.Equal("message", result.ErrorInfo!.Message);
+        Assert.Equal("details", result.ErrorInfo!.Details);
     }
 }

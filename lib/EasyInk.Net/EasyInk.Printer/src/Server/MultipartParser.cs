@@ -10,8 +10,8 @@ namespace EasyInk.Printer.Server;
 
 public class MultipartData
 {
-    public JObject Params { get; set; }
-    public byte[] PdfBytes { get; set; }
+    public JObject? Params { get; set; }
+    public byte[]? PdfBytes { get; set; }
 }
 
 public static class MultipartParser
@@ -180,7 +180,7 @@ public static class MultipartParser
 
     private class MultipartPart
     {
-        public string Headers { get; set; }
-        public byte[] Body { get; set; }
+        public string Headers { get; set; } = default!;
+        public byte[] Body { get; set; } = default!;
     }
 }

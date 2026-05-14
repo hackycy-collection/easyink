@@ -22,7 +22,7 @@ public class PrintController
         return ExecuteCommand("print", body);
     }
 
-    public PrinterResult Print(string body, byte[] pdfBytes)
+    public PrinterResult Print(string body, byte[]? pdfBytes)
     {
         return ExecuteCommandWithBlob("print", body, pdfBytes);
     }
@@ -32,7 +32,7 @@ public class PrintController
         return ExecuteCommand("printAsync", body);
     }
 
-    public PrinterResult EnqueuePrint(string body, byte[] pdfBytes)
+    public PrinterResult EnqueuePrint(string body, byte[]? pdfBytes)
     {
         return ExecuteCommandWithBlob("printAsync", body, pdfBytes);
     }
@@ -58,7 +58,7 @@ public class PrintController
         return _api.HandleCommand(cmd);
     }
 
-    private PrinterResult ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
+    private PrinterResult ExecuteCommandWithBlob(string command, string body, byte[]? pdfBytes)
     {
         var parms = ParseBodyToDictionary(body) ?? new Dictionary<string, object>();
         if (pdfBytes != null)
@@ -96,7 +96,7 @@ public class PrintController
         return _api.HandleCommand(cmd);
     }
 
-    private static Dictionary<string, object> ParseBodyToDictionary(string body)
+    private static Dictionary<string, object>? ParseBodyToDictionary(string body)
     {
         if (string.IsNullOrEmpty(body))
             return null;

@@ -20,7 +20,7 @@ public class PrintAuditLog
     /// <summary>
     /// 打印机名称
     /// </summary>
-    public string PrinterName { get; set; }
+    public string PrinterName { get; set; } = default!;
 
     /// <summary>
     /// 纸张宽度
@@ -35,7 +35,7 @@ public class PrintAuditLog
     /// <summary>
     /// 纸张尺寸单位
     /// </summary>
-    public string PaperUnit { get; set; }
+    public string PaperUnit { get; set; } = default!;
 
     /// <summary>
     /// 打印份数
@@ -50,27 +50,27 @@ public class PrintAuditLog
     /// <summary>
     /// 用户ID
     /// </summary>
-    public string UserId { get; set; }
+    public string UserId { get; set; } = default!;
 
     /// <summary>
     /// 标签类型
     /// </summary>
-    public string LabelType { get; set; }
+    public string LabelType { get; set; } = default!;
 
     /// <summary>
     /// 打印状态
     /// </summary>
-    public string Status { get; set; }
+    public string Status { get; set; } = default!;
 
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string ErrorMessage { get; set; } = default!;
 
     /// <summary>
     /// 任务ID
     /// </summary>
-    public string JobId { get; set; }
+    public string JobId { get; set; } = default!;
 
     /// <summary>
     /// 记录创建时间

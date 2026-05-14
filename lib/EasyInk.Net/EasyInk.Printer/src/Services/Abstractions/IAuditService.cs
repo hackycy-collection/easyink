@@ -20,9 +20,9 @@ public interface IAuditService
     List<PrintAuditLog> QueryLogs(
         DateTime? startTime = null,
         DateTime? endTime = null,
-        string printerName = null,
-        string userId = null,
-        string status = null,
+        string? printerName = null,
+        string? userId = null,
+        string? status = null,
         int limit = 100,
         int offset = 0);
 }

@@ -8,15 +8,15 @@ public class ErrorInfo
     /// <summary>
     /// 错误码
     /// </summary>
-    public string Code { get; set; }
+    public string Code { get; set; } = default!;
 
     /// <summary>
     /// 错误消息
     /// </summary>
-    public string Message { get; set; }
+    public string Message { get; set; } = default!;
 
     /// <summary>
     /// 错误详情
     /// </summary>
-    public string Details { get; set; }
+    public string Details { get; set; } = default!;
 }

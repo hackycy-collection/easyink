@@ -13,7 +13,7 @@ namespace EasyInk.Printer;
 public static class LangManager
 {
     private static readonly Dictionary<string, string> _zhCN = new();
-    private static Dictionary<string, string> _current;
+    private static Dictionary<string, string> _current = null!;
     private static readonly ReaderWriterLockSlim _lock = new();
 
     static LangManager()
@@ -24,7 +24,7 @@ public static class LangManager
 
     public static string CurrentCulture { get; private set; } = "zh-CN";
 
-    public static void Initialize(string culture = null)
+    public static void Initialize(string? culture = null)
     {
         if (string.IsNullOrEmpty(culture))
         {

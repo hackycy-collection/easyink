@@ -25,7 +25,7 @@ public class Base64PdfProviderTests
     [Fact]
     public void Constructor_Null_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new Base64PdfProvider(null));
+        Assert.Throws<ArgumentException>(() => new Base64PdfProvider(null!));
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class BlobPdfProviderTests
     [Fact]
     public void Constructor_Null_ThrowsArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new BlobPdfProvider(null));
+        Assert.Throws<ArgumentException>(() => new BlobPdfProvider(null!));
     }
 
     [Fact]

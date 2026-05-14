@@ -10,12 +10,12 @@ public class PrintJob
     /// <summary>
     /// 任务ID
     /// </summary>
-    public string JobId { get; set; }
+    public string JobId { get; set; } = default!;
 
     /// <summary>
     /// 打印机名称
     /// </summary>
-    public string PrinterName { get; set; }
+    public string PrinterName { get; set; } = default!;
 
     /// <summary>
     /// 任务状态
@@ -40,10 +40,10 @@ public class PrintJob
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string ErrorMessage { get; set; } = default!;
 
     /// <summary>
     /// 打印结果
     /// </summary>
-    public PrinterResult Result { get; set; }
+    public PrinterResult Result { get; set; } = default!;
 }

@@ -10,8 +10,8 @@ namespace EasyInk.Printer.Tests;
 public class JobControllerTests
 {
     private static JobController CreateController(
-        Mock<IPrinterService> printerService = null,
-        Mock<IPrintService> printService = null)
+        Mock<IPrinterService>? printerService = null,
+        Mock<IPrintService>? printService = null)
     {
         printerService ??= new Mock<IPrinterService>();
         printService ??= new Mock<IPrintService>();
@@ -27,7 +27,7 @@ public class JobControllerTests
         var result = controller.GetJobStatus("nonexistent");
 
         Assert.False(result.Success);
-        Assert.Equal(ErrorCode.JobNotFound, result.ErrorInfo.Code);
+        Assert.Equal(ErrorCode.JobNotFound, result.ErrorInfo!.Code);
     }
 
     [Fact]

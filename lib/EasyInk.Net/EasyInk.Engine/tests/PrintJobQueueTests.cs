@@ -10,7 +10,7 @@ namespace EasyInk.Engine.Tests;
 
 public class PrintJobQueueTests
 {
-    private static PrintJobQueue CreateQueue(Mock<IPrintService> printService = null)
+    private static PrintJobQueue CreateQueue(Mock<IPrintService>? printService = null)
     {
         printService ??= new Mock<IPrintService>();
         printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<CancellationToken>()))
@@ -32,7 +32,7 @@ public class PrintJobQueueTests
     public void Enqueue_ReturnsJobId()
     {
         using var queue = CreateQueue();
-        var jobId = queue.Enqueue(null, MakeRequest());
+        var jobId = queue.Enqueue(null!, MakeRequest());
         Assert.False(string.IsNullOrEmpty(jobId));
     }
 
@@ -53,14 +53,14 @@ public class PrintJobQueueTests
             .Returns(() => { gate.Wait(); return PrinterResult.Ok("test", PrintResult.Success("done")); });
 
         using var queue = new PrintJobQueue(printService.Object);
-        var jobId = queue.Enqueue(null, MakeRequest());
+        var jobId = queue.Enqueue(null!, MakeRequest());
         var job = queue.GetJobStatus(jobId);
         Assert.NotNull(job);
-        Assert.Equal(JobStatus.Queued, job.Status);
+        Assert.Equal(JobStatus.Queued, job!.Status);
 
         gate.Set();
         var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (DateTime.UtcNow < deadline && queue.GetJobStatus(jobId).Status == JobStatus.Queued)
+        while (DateTime.UtcNow < deadline && queue.GetJobStatus(jobId)?.Status == JobStatus.Queued)
             Thread.Sleep(50);
     }
 
@@ -75,22 +75,22 @@ public class PrintJobQueueTests
     public void Enqueue_ProcessesJobToCompletion()
     {
         using var queue = CreateQueue();
-        var jobId = queue.Enqueue(null, MakeRequest());
+        var jobId = queue.Enqueue(null!, MakeRequest());
 
         // Wait for the background worker to process
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (DateTime.UtcNow < deadline)
         {
             var job = queue.GetJobStatus(jobId);
-            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Failed)
+            if (job!.Status == JobStatus.Completed || job!.Status == JobStatus.Failed)
                 break;
             Thread.Sleep(50);
         }
 
         var final = queue.GetJobStatus(jobId);
-        Assert.Equal(JobStatus.Completed, final.Status);
-        Assert.NotNull(final.CompletedAt);
-        Assert.NotNull(final.StartedAt);
+        Assert.Equal(JobStatus.Completed, final!.Status);
+        Assert.NotNull(final!.CompletedAt);
+        Assert.NotNull(final!.StartedAt);
     }
 
     [Fact]
@@ -101,28 +101,28 @@ public class PrintJobQueueTests
             .Returns(PrinterResult.Error("test", ErrorCode.PrintFailed, "boom"));
 
         using var queue = new PrintJobQueue(printService.Object);
-        var jobId = queue.Enqueue(null, MakeRequest());
+        var jobId = queue.Enqueue(null!, MakeRequest());
 
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (DateTime.UtcNow < deadline)
         {
             var job = queue.GetJobStatus(jobId);
-            if (job.Status == JobStatus.Failed)
+            if (job!.Status == JobStatus.Failed)
                 break;
             Thread.Sleep(50);
         }
 
         var final = queue.GetJobStatus(jobId);
-        Assert.Equal(JobStatus.Failed, final.Status);
-        Assert.Equal("boom", final.ErrorMessage);
+        Assert.Equal(JobStatus.Failed, final!.Status);
+        Assert.Equal("boom", final!.ErrorMessage);
     }
 
     [Fact]
     public void GetAllJobs_ReturnsAllJobs()
     {
         using var queue = CreateQueue();
-        queue.Enqueue(null, MakeRequest("Printer1"));
-        queue.Enqueue(null, MakeRequest("Printer2"));
+        queue.Enqueue(null!, MakeRequest("Printer1"));
+        queue.Enqueue(null!, MakeRequest("Printer2"));
 
         var all = queue.GetAllJobs();
         Assert.True(all.Count >= 2);

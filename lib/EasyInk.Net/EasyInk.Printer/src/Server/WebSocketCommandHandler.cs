@@ -144,12 +144,12 @@ public class WebSocketCommandHandler
         return ExecutePrintCommand(message.Id, command, printParams, pdfBytes);
     }
 
-    private PrinterResult ExecutePrintCommand(string id, string command, JObject parameters, byte[] pdfBytes)
+    private PrinterResult ExecutePrintCommand(string id, string command, JObject? parameters, byte[]? pdfBytes)
     {
         return ExecutePrintCommand(id, command, ConvertToDictionary(parameters), pdfBytes);
     }
 
-    private PrinterResult ExecutePrintCommand(string id, string command, Dictionary<string, object> parameters, byte[] pdfBytes)
+    private PrinterResult ExecutePrintCommand(string id, string command, Dictionary<string, object>? parameters, byte[]? pdfBytes)
     {
         var printParams = parameters ?? new Dictionary<string, object>();
         if (pdfBytes != null && pdfBytes.Length > 0)
@@ -208,7 +208,7 @@ public class WebSocketCommandHandler
         return PrinterResult.Ok(message.Id, new { logs });
     }
 
-    private static Dictionary<string, object> ConvertToDictionary(JObject obj)
+    private static Dictionary<string, object>? ConvertToDictionary(JObject? obj)
     {
         if (obj == null)
             return null;

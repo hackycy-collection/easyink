@@ -8,7 +8,7 @@ public class BatchJobResult
     /// <summary>
     /// 任务ID
     /// </summary>
-    public string JobId { get; set; }
+    public string? JobId { get; set; }
 
     /// <summary>
     /// 任务状态
@@ -18,5 +18,5 @@ public class BatchJobResult
     /// <summary>
     /// 错误信息
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string ErrorMessage { get; set; } = default!;
 }

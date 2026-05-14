@@ -23,11 +23,11 @@ public class WebSocketHandler : IDisposable
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly int _maxConnections;
-    private WebSocketCommandHandler _commandHandler;
+    private WebSocketCommandHandler? _commandHandler;
 
     public int ConnectionCount => _connections.Count;
 
-    public event Action ConnectionCountChanged;
+    public event Action? ConnectionCountChanged;
 
     public WebSocketHandler(int maxConnections = 100)
     {

@@ -33,7 +33,7 @@ public class PrintJobQueue : IDisposable
     /// <param name="logger">日志记录器</param>
     /// <param name="onPrintCompleted">打印完成回调</param>
     public PrintJobQueue(IPrintService printService, int maxQueueSize = DefaultMaxQueueSize,
-        ILogger logger = null, Action<string, PrintRequestParams, PrinterResult> onPrintCompleted = null)
+        ILogger? logger = null, Action<string, PrintRequestParams, PrinterResult>? onPrintCompleted = null)
     {
         _printService = printService;
         _logger = logger ?? new NullLogger();
@@ -79,7 +79,7 @@ public class PrintJobQueue : IDisposable
     /// </summary>
     /// <param name="jobId">任务ID</param>
     /// <returns>任务信息，不存在时返回 null</returns>
-    public PrintJob GetJobStatus(string jobId)
+    public PrintJob? GetJobStatus(string jobId)
     {
         lock (_jobLock)
         {
@@ -137,7 +137,7 @@ public class PrintJobQueue : IDisposable
                 jobInfo.StartedAt = DateTime.UtcNow;
             }
 
-            PrinterResult response = null;
+            PrinterResult? response = null;
             try
             {
                 response = _printService.Print(requestId, request, _cts.Token);

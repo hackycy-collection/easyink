@@ -20,7 +20,7 @@ public class PrinterService : IPrinterService
     /// <summary>
     /// 初始化打印机服务
     /// </summary>
-    public PrinterService(ILogger logger = null)
+    public PrinterService(ILogger? logger = null)
     {
         _logger = logger ?? new NullLogger();
     }

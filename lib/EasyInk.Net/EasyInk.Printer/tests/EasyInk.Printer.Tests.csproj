@@ -6,7 +6,7 @@
     <RootNamespace>EasyInk.Printer.Tests</RootNamespace>
     <AssemblyName>EasyInk.Printer.Tests</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

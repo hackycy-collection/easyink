@@ -32,10 +32,10 @@ public class HostConfig
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
     public bool StartMinimized { get; set; } = true;
-    public string DbPath { get; set; }
-    public string CrashLogDir { get; set; }
+    public string? DbPath { get; set; }
+    public string? CrashLogDir { get; set; }
     public bool TrustAllOrigins { get; set; } = false;
-    public string ApiKey { get; set; }
+    public string? ApiKey { get; set; }
     public string Language { get; set; } = "";
 
     public int MaxWebSocketConnections
@@ -76,7 +76,7 @@ public class HostConfig
         return string.IsNullOrWhiteSpace(dir) ? DefaultCrashLogDir : dir;
     }
 
-    public static bool IsValidFilePath(string path, out string error)
+    public static bool IsValidFilePath(string path, out string? error)
     {
         error = null;
 

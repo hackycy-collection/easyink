@@ -21,7 +21,7 @@ public class AuditService : IAuditService
     /// 初始化审计服务
     /// </summary>
     /// <param name="dbPath">数据库文件路径，默认为当前用户本地应用数据目录下的 audit.db</param>
-    public AuditService(string dbPath = null)
+    public AuditService(string? dbPath = null)
     {
         var path = HostConfig.ResolveDbPath(dbPath);
         _connectionString = $"Data Source={path}";
@@ -85,9 +85,9 @@ public class AuditService : IAuditService
     public List<PrintAuditLog> QueryLogs(
         DateTime? startTime = null,
         DateTime? endTime = null,
-        string printerName = null,
-        string userId = null,
-        string status = null,
+        string? printerName = null,
+        string? userId = null,
+        string? status = null,
         int limit = 100,
         int offset = 0)
     {

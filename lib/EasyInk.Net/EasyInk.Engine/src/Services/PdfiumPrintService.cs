@@ -23,7 +23,7 @@ public class PdfiumPrintService : IPrintService
     /// <summary>
     /// 初始化 Pdfium 打印服务
     /// </summary>
-    public PdfiumPrintService(IPrinterService printerService, ILogger logger = null)
+    public PdfiumPrintService(IPrinterService printerService, ILogger? logger = null)
     {
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
         _logger = logger ?? new NullLogger();
@@ -158,9 +158,9 @@ public class PdfiumPrintService : IPrintService
         printDoc.Print();
     }
 
-    private static PaperSize FindPaperSize(PrinterSettings settings, int targetWidth, int targetHeight)
+    private static PaperSize? FindPaperSize(PrinterSettings settings, int targetWidth, int targetHeight)
     {
-        PaperSize bestMatch = null;
+        PaperSize? bestMatch = null;
         int bestScore = int.MaxValue;
 
         foreach (PaperSize size in settings.PaperSizes)

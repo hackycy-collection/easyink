@@ -12,16 +12,16 @@ public class HttpServer
     private readonly int _port;
     private readonly SemaphoreSlim _concurrency;
     private readonly ConcurrentDictionary<Guid, Task> _inFlight = new();
-    private HttpListener _listener;
-    private CancellationTokenSource _cts;
-    private Task _listenTask;
+    private HttpListener? _listener;
+    private CancellationTokenSource? _cts;
+    private Task? _listenTask;
 
     public int Port => _port;
     public bool IsRunning { get; private set; }
     public bool IsAccessDenied { get; private set; }
-    public string LastError { get; private set; }
+    public string? LastError { get; private set; }
 
-    public Func<HttpListenerContext, Task> OnRequest { get; set; }
+    public Func<HttpListenerContext, Task>? OnRequest { get; set; }
 
     public HttpServer(int port, int maxConcurrentRequests = 50)
     {

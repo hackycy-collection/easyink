@@ -6,7 +6,7 @@
     <RootNamespace>EasyInk.Printer</RootNamespace>
     <AssemblyName>EasyInk.Printer</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>

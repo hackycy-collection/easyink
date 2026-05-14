@@ -10,8 +10,8 @@ namespace EasyInk.Printer.Tests;
 public class PrintControllerTests
 {
     private static PrintController CreateController(
-        Mock<IPrinterService> printerService = null,
-        Mock<IPrintService> printService = null)
+        Mock<IPrinterService>? printerService = null,
+        Mock<IPrintService>? printService = null)
     {
         printerService ??= new Mock<IPrinterService>();
         printService ??= new Mock<IPrintService>();

@@ -8,7 +8,7 @@ public class PaperSizeInfo
     /// <summary>
     /// 纸张名称
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = default!;
 
     /// <summary>
     /// 宽度（百分之一英寸）

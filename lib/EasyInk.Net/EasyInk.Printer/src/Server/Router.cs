@@ -23,7 +23,7 @@ public class Router
     private readonly StatusController _statusController;
     private readonly WebSocketHandler _wsHandler;
     private readonly bool _trustAllOrigins;
-    private readonly string _apiKey;
+    private readonly string? _apiKey;
     private readonly List<RouteEntry> _routes;
 
     private delegate Task<PrinterResult> RouteHandler(HttpListenerRequest request);
@@ -191,7 +191,7 @@ public class Router
         return _printController.EnqueuePrint(paramsJson);
     }
 
-    private async Task<(string paramsJson, byte[] pdfBytes)> ReadMultipartOrJson(HttpListenerRequest request)
+    private async Task<(string? paramsJson, byte[]? pdfBytes)> ReadMultipartOrJson(HttpListenerRequest request)
     {
         var contentType = request.ContentType ?? "";
 
@@ -209,7 +209,7 @@ public class Router
         return (await ReadBodyAsString(request), null);
     }
 
-    private static async Task<string> ReadBodyAsString(HttpListenerRequest request)
+    private static async Task<string?> ReadBodyAsString(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
@@ -228,7 +228,7 @@ public class Router
         return request.ContentEncoding.GetString(buffer, 0, totalRead);
     }
 
-    private static async Task<byte[]> ReadBodyAsBytes(HttpListenerRequest request)
+    private static async Task<byte[]?> ReadBodyAsBytes(HttpListenerRequest request)
     {
         if (request.InputStream == null) return null;
         if (request.ContentLength64 < 0) return null;
@@ -262,7 +262,7 @@ public class Router
         return ValidateApiKeyCore(_apiKey, request.Headers["X-API-Key"]);
     }
 
-    internal static bool ValidateApiKeyCore(string configuredKey, string providedKey)
+    internal static bool ValidateApiKeyCore(string? configuredKey, string? providedKey)
     {
         if (string.IsNullOrEmpty(configuredKey))
             return true;

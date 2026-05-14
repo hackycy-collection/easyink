@@ -8,7 +8,7 @@ public class PrintResult
     /// <summary>
     /// 打印任务ID
     /// </summary>
-    public string JobId { get; set; }
+    public string JobId { get; set; } = default!;
 
     /// <summary>
     /// 打印状态

@@ -15,9 +15,9 @@ namespace EasyInk.Printer.Tests;
 public class WebSocketCommandHandlerTests
 {
     private static WebSocketCommandHandler CreateHandler(
-        EngineApi api = null,
-        WebSocketHandler wsHandler = null,
-        IAuditService auditService = null)
+        EngineApi? api = null,
+        WebSocketHandler? wsHandler = null,
+        IAuditService? auditService = null)
     {
         api ??= new EngineApi(
             new Mock<IPrinterService>().Object,
@@ -27,7 +27,7 @@ public class WebSocketCommandHandlerTests
         return new WebSocketCommandHandler(api, wsHandler, auditService);
     }
 
-    private static WebSocketMessage MakeMessage(string command, string id = "test-1", JObject parms = null)
+    private static WebSocketMessage MakeMessage(string command, string id = "test-1", JObject? parms = null)
     {
         return new WebSocketMessage
         {

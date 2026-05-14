@@ -15,9 +15,9 @@ public class TrayIcon : IDisposable
     private readonly NotifyIcon _notifyIcon;
     private readonly HttpServer _server;
 
-    public event Action OnShowMainWindow;
-    public event Action OnRestartServer;
-    public event Action OnExit;
+    public event Action? OnShowMainWindow;
+    public event Action? OnRestartServer;
+    public event Action? OnExit;
 
     public TrayIcon(HttpServer server)
     {

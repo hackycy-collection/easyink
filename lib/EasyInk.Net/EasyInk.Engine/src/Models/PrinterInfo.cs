@@ -10,7 +10,7 @@ public class PrinterInfo
     /// <summary>
     /// 打印机名称
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = default!;
 
     /// <summary>
     /// 是否为默认打印机
@@ -20,7 +20,7 @@ public class PrinterInfo
     /// <summary>
     /// 打印机状态
     /// </summary>
-    public PrinterStatus Status { get; set; }
+    public PrinterStatus Status { get; set; } = default!;
 
     /// <summary>
     /// 支持的纸张尺寸列表

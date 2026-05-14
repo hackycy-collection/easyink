@@ -13,12 +13,12 @@ public class PrinterStatus
     /// <summary>
     /// 状态码
     /// </summary>
-    public string StatusCode { get; set; }
+    public string StatusCode { get; set; } = default!;
 
     /// <summary>
     /// 状态消息
     /// </summary>
-    public string Message { get; set; }
+    public string Message { get; set; } = default!;
 
     /// <summary>
     /// 是否在线
@@ -38,5 +38,5 @@ public class PrinterStatus
     /// <summary>
     /// 打印机详细状态描述（WMI PrinterState）
     /// </summary>
-    public string PrinterState { get; set; }
+    public string PrinterState { get; set; } = default!;
 }
