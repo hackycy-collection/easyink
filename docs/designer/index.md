@@ -105,76 +105,19 @@ const preferenceProvider = {
 
 ## 自定义物料
 
-通过 `setupStore` 回调注册自定义物料。
+通过 `setupStore` 回调可以接入自定义物料。
 
-```ts
-import { registerMaterialBundle } from '@easyink/designer'
+这属于高级二次开发：不仅涉及 Designer 注册，还会同时涉及 Schema、Viewer 渲染、数据绑定和调试。
 
-function onSetupStore(store: DesignerStore) {
-  registerMaterialBundle(store, {
-    materials: [{
-      type: 'my-widget',
-      name: 'My Widget',
-      icon: 'widget',
-      category: 'basic',
-      capabilities: { resizable: true, bindable: true },
-      createDefaultNode: (input) => ({
-        id: generateId(),
-        type: 'my-widget',
-        x: 0, y: 0, width: 100, height: 50,
-        ...input,
-      }),
-      factory: (ctx) => ({ /* DesignerExtension */ }),
-    }],
-    quickMaterialTypes: ['my-widget'],
-    groupedCatalog: [{ type: 'my-widget', group: 'utility' }],
-  })
-}
-```
+完整流程见 [进阶 / 自定义物料开发](/advanced/custom-materials)。
 
 ## 贡献扩展
 
-通过 `Contribution` API 向设计器注入自定义面板、工具栏按钮和命令，无需修改设计器源码。
+通过 `Contribution` API，宿主可以向设计器注入自定义面板、工具栏动作、命令和诊断订阅，而不用修改 Designer 源码。
 
-```ts
-import type { Contribution } from '@easyink/designer'
+这同样属于高级自定义能力。真正要落地时，关键不只是 `activate()` 怎么写，而是命令、面板、工具栏和宿主业务之间的职责划分。
 
-const myContribution: Contribution = {
-  id: 'my-plugin',
-  activate(ctx) {
-    // 注册自定义面板
-    ctx.registerPanel({
-      id: 'my-panel',
-      component: MyPanelComponent,
-      teleportTarget: '#ei-overlay-root',
-    })
-
-    // 注册工具栏按钮
-    ctx.registerToolbarAction({
-      id: 'my-action',
-      icon: MyIcon,
-      label: 'My Action',
-      onClick: () => { /* ... */ },
-    })
-
-    // 注册命令
-    ctx.registerCommand({
-      id: 'my-command',
-      handler: (args, ctx) => { /* ... */ },
-    })
-
-    // 清理回调
-    ctx.onDispose(() => { /* cleanup */ })
-  },
-}
-```
-
-```vue
-<EasyInkDesigner
-  v-model:schema="schema"
-  :contributions="[myContribution]"
-/>
-```
+完整教程见 [进阶 / 贡献扩展开发](/advanced/contributions)。
 
 ## Store 访问
 

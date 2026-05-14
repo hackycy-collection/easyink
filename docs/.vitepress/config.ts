@@ -46,8 +46,6 @@ export default defineConfig({
             { text: '键盘快捷键', link: '/designer/keyboard-shortcuts' },
             { text: '数据绑定', link: '/designer/data-binding' },
             { text: '自动保存', link: '/designer/auto-save' },
-            { text: '自定义物料', link: '/designer/materials' },
-            { text: '贡献扩展', link: '/designer/contributions' },
           ],
         },
       ],
@@ -58,7 +56,6 @@ export default defineConfig({
             { text: '概述', link: '/viewer/' },
             { text: 'Host 模式', link: '/viewer/viewer-hosts' },
             { text: '打印与导出', link: '/viewer/print-export' },
-            { text: '自定义物料', link: '/viewer/custom-materials' },
             { text: '诊断', link: '/viewer/diagnostics' },
           ],
         },
@@ -142,6 +139,8 @@ export default defineConfig({
         {
           text: '进阶',
           items: [
+            { text: '自定义物料开发', link: '/advanced/custom-materials' },
+            { text: '贡献扩展开发', link: '/advanced/contributions' },
             { text: '自定义打印驱动', link: '/advanced/print-drivers' },
             { text: '自定义导出插件', link: '/advanced/exporters' },
             { text: 'Schema 参考', link: '/advanced/schema' },

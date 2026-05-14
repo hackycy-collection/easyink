@@ -158,9 +158,11 @@ viewer.destroy()
 ### 自定义物料渲染器
 
 ```ts
+import { trustedViewerHtml } from '@easyink/core'
+
 viewer.registerMaterial('my-widget', {
   render(node, context) {
-    return { html: '<div class="my-widget">...</div>' }
+    return { html: trustedViewerHtml('<div class="my-widget">...</div>') }
   },
   measure(node, context) {
     return { width: node.width, height: 100 }
@@ -168,6 +170,8 @@ viewer.registerMaterial('my-widget', {
   pageAware: false,
 })
 ```
+
+完整的自定义物料开发还涉及 Designer 注册、属性面板、数据绑定和调试，见 [进阶 / 自定义物料开发](/advanced/custom-materials)。
 
 ### 自定义导出插件
 
