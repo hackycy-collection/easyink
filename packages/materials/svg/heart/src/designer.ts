@@ -8,11 +8,12 @@ export function createSvgHeartExtension(_context: MaterialExtensionContext): Mat
   return {
     renderContent(nodeSignal, container) {
       function render() {
+        const node = nodeSignal.get()
         const props = {
           ...SVG_HEART_DEFAULTS,
-          ...getNodeProps<SvgHeartProps>(nodeSignal.get()),
+          ...getNodeProps<SvgHeartProps>(node),
         }
-        container.innerHTML = buildSvgHeartMarkup(props)
+        container.innerHTML = buildSvgHeartMarkup(props, { width: node.width, height: node.height })
       }
 
       render()
