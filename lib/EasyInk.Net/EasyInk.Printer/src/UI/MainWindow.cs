@@ -660,7 +660,7 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_Display"),
             Dock = DockStyle.Top,
-            Height = 96,
+            Height = 140,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -681,6 +681,33 @@ public class MainWindow : Form
             Checked = _config.StartMinimized,
             Padding = new Padding(4, 2, 4, 2)
         };
+
+        var langPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 32,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(4, 4, 4, 0)
+        };
+        var lblLang = new Label
+        {
+            Text = LangManager.Get("Settings_Language"),
+            AutoSize = true,
+            Margin = new Padding(0, 2, 8, 0)
+        };
+        var cmbLang = new ComboBox
+        {
+            Width = 120,
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        cmbLang.Items.Add(LangManager.Get("Settings_LanguageChinese"));
+        cmbLang.Items.Add(LangManager.Get("Settings_LanguageEnglish"));
+        cmbLang.SelectedIndex = _config.Language == "en-US" ? 1 : 0;
+        langPanel.Controls.Add(lblLang);
+        langPanel.Controls.Add(cmbLang);
+
+        grpDisplay.Controls.Add(langPanel);
         grpDisplay.Controls.Add(chkStartMinimized);
         grpDisplay.Controls.Add(chkMinimizeToTray);
 
@@ -864,6 +891,7 @@ public class MainWindow : Form
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
             _config.StartMinimized = chkStartMinimized.Checked;
             _config.TrustAllOrigins = chkTrustAllOrigins.Checked;
+            _config.Language = cmbLang.SelectedIndex == 1 ? "en-US" : "";
             var apiKeyValue = (txtApiKey.ForeColor == SystemColors.GrayText || string.IsNullOrWhiteSpace(txtApiKey.Text))
                 ? null : txtApiKey.Text.Trim();
             _config.ApiKey = apiKeyValue;

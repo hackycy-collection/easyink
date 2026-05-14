@@ -36,6 +36,7 @@ public class HostConfig
     public string CrashLogDir { get; set; }
     public bool TrustAllOrigins { get; set; } = true;
     public string ApiKey { get; set; }
+    public string Language { get; set; } = "";
 
     public int MaxWebSocketConnections
     {

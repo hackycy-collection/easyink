@@ -16,6 +16,9 @@ public class PrinterService : IPrinterService
     private const int WmiTimeoutMs = 5_000;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// 初始化打印机服务
+    /// </summary>
     public PrinterService(ILogger logger = null)
     {
         _logger = logger ?? new NullLogger();

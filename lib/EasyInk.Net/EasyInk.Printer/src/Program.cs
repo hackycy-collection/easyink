@@ -62,7 +62,7 @@ static class Program
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
         var config = HostConfig.Load();
-        LangManager.Initialize();
+        LangManager.Initialize(string.IsNullOrEmpty(config.Language) ? null : config.Language);
 
         var resolvedDbPath = HostConfig.ResolveDbPath(config.DbPath);
         var logDir = Path.GetDirectoryName(resolvedDbPath);

@@ -19,12 +19,18 @@ public class PdfiumPrintService : IPrintService
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// 初始化 Pdfium 打印服务
+    /// </summary>
     public PdfiumPrintService(IPrinterService printerService, ILogger logger = null)
     {
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
         _logger = logger ?? new NullLogger();
     }
 
+    /// <summary>
+    /// 执行打印任务
+    /// </summary>
     public PrinterResult Print(string requestId, PrintRequestParams request)
     {
         var status = _printerService.GetPrinterStatus(request.PrinterName);
