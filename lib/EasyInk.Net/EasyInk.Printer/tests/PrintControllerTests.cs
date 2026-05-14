@@ -24,7 +24,7 @@ public class PrintControllerTests
     public void Print_WithJsonBody_CallsEngineApi()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         var controller = CreateController(printService: printService);
@@ -38,7 +38,7 @@ public class PrintControllerTests
     public void Print_WithPdfBytes_CallsEngineApi()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         var controller = CreateController(printService: printService);
@@ -62,7 +62,7 @@ public class PrintControllerTests
     public void EnqueuePrint_EnqueuesJob()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         var controller = CreateController(printService: printService);
@@ -85,7 +85,7 @@ public class PrintControllerTests
     public void BatchPrint_ArrayBody_CallsEngineApi()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         var controller = CreateController(printService: printService);

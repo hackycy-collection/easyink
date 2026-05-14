@@ -13,7 +13,7 @@ public class PrintResult
     /// <summary>
     /// 打印状态
     /// </summary>
-    public string Status { get; set; } = JobStatus.Completed;
+    public JobStatus Status { get; set; } = JobStatus.Completed;
 
     /// <summary>
     /// 创建成功结果

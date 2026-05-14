@@ -477,7 +477,7 @@ public class MainWindow : Form
                 {
                     var item = new ListViewItem(job.JobId);
                     item.SubItems.Add(job.PrinterName);
-                    item.SubItems.Add(job.Status);
+                    item.SubItems.Add(job.Status.ToString());
                     item.SubItems.Add(job.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
                     item.SubItems.Add(job.ErrorMessage);
                     listViewCtrl.Items.Add(item);

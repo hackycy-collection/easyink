@@ -1,14 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
-using EasyInk.Printer.Services.Abstractions;
+using Newtonsoft.Json;
 
 namespace EasyInk.Printer.Server;
 
@@ -24,17 +24,83 @@ public class Router
     private readonly WebSocketHandler _wsHandler;
     private readonly bool _trustAllOrigins;
     private readonly string _apiKey;
+    private readonly List<RouteEntry> _routes;
 
-    public Router(EngineApi engineApi, WebSocketHandler wsHandler, HostConfig config, IAuditService auditService)
+    private delegate Task<PrinterResult> RouteHandler(HttpListenerRequest request);
+    private delegate bool PathMatcher(string path);
+
+    private struct RouteEntry
     {
-        _printerController = new PrinterController(engineApi);
-        _printController = new PrintController(engineApi);
-        _jobController = new JobController(engineApi);
-        _logController = new LogController(auditService);
-        _statusController = new StatusController();
+        public string Method;
+        public PathMatcher Match;
+        public RouteHandler Handler;
+    }
+
+    public Router(PrinterController printerController, PrintController printController,
+        JobController jobController, LogController logController, StatusController statusController,
+        WebSocketHandler wsHandler, HostConfig config)
+    {
+        _printerController = printerController;
+        _printController = printController;
+        _jobController = jobController;
+        _logController = logController;
+        _statusController = statusController;
         _wsHandler = wsHandler;
         _trustAllOrigins = config.TrustAllOrigins;
         _apiKey = config.ApiKey;
+
+        _routes = new List<RouteEntry>
+        {
+            // GET routes
+            Route("GET", Exact("/api/status"), _ => Task.FromResult(_statusController.GetStatus())),
+            Route("GET", Exact("/api/status/connections"), _ => Task.FromResult(PrinterResult.Ok("connections", new { count = _wsHandler.ConnectionCount }))),
+            Route("GET", Exact("/api/printers"), _ => Task.FromResult(_printerController.GetPrinters())),
+            Route("GET", MatchPrinterStatus, req => Task.FromResult(HandleGetPrinterStatus(req))),
+            Route("GET", Exact("/api/jobs"), _ => Task.FromResult(_jobController.GetAllJobs())),
+            Route("GET", MatchJobById, req => Task.FromResult(HandleGetJobStatus(req))),
+            Route("GET", Exact("/api/logs"), req => Task.FromResult(_logController.QueryLogs(req.QueryString))),
+
+            // POST routes
+            Route("POST", Exact("/api/print"), HandlePrintRequest),
+            Route("POST", Exact("/api/print/async"), HandleEnqueuePrintRequest),
+            Route("POST", Exact("/api/print/batch"), async req => _printController.BatchPrint(await ReadBodyAsString(req))),
+            Route("POST", Exact("/api/print/batch/async"), async req => _printController.EnqueueBatchPrint(await ReadBodyAsString(req))),
+        };
+    }
+
+    private static RouteEntry Route(string method, PathMatcher match, RouteHandler handler)
+    {
+        return new RouteEntry { Method = method, Match = match, Handler = handler };
+    }
+
+    private static PathMatcher Exact(string path) => p => p == path;
+
+    private static bool MatchPrinterStatus(string path)
+    {
+        return path.StartsWith("/api/printers/") && path.EndsWith("/status")
+            && path.Split('/').Length == 5;
+    }
+
+    private static bool MatchJobById(string path)
+    {
+        return path.StartsWith("/api/jobs/") && path.Length > 10;
+    }
+
+    private PrinterResult HandleGetPrinterStatus(HttpListenerRequest request)
+    {
+        var segments = request.Url.AbsolutePath.TrimEnd('/').Split('/');
+        if (segments.Length != 5 || string.IsNullOrEmpty(segments[3]))
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingPrinterName"));
+        var name = Uri.UnescapeDataString(segments[3]);
+        return _printerController.GetPrinterStatus(name);
+    }
+
+    private PrinterResult HandleGetJobStatus(HttpListenerRequest request)
+    {
+        var id = request.Url.AbsolutePath.TrimEnd('/').Substring(10);
+        if (string.IsNullOrEmpty(id))
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingJobId"));
+        return _jobController.GetJobStatus(id);
     }
 
     public async Task HandleRequest(HttpListenerContext context)
@@ -96,52 +162,11 @@ public class Router
         var path = request.Url.AbsolutePath.TrimEnd('/');
         var method = request.HttpMethod;
 
-        if (method == "GET" && path == "/api/status")
-            return _statusController.GetStatus();
-
-        if (method == "GET" && path == "/api/status/connections")
-            return PrinterResult.Ok("connections", new { count = _wsHandler.ConnectionCount });
-
-        if (method == "GET" && path == "/api/printers")
-            return _printerController.GetPrinters();
-
-        // GET /api/printers/{name}/status
-        if (method == "GET" && path.StartsWith("/api/printers/") && path.EndsWith("/status"))
+        foreach (var route in _routes)
         {
-            var segments = path.Split('/');
-            if (segments.Length == 5 && !string.IsNullOrEmpty(segments[3]))
-            {
-                var name = Uri.UnescapeDataString(segments[3]);
-                return _printerController.GetPrinterStatus(name);
-            }
-            return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingPrinterName"));
+            if (route.Method == method && route.Match(path))
+                return await route.Handler(request);
         }
-
-        if (method == "POST" && path == "/api/print")
-            return await HandlePrintRequest(request);
-
-        if (method == "POST" && path == "/api/print/async")
-            return await HandleEnqueuePrintRequest(request);
-
-        if (method == "POST" && path == "/api/print/batch")
-            return _printController.BatchPrint(await ReadBodyAsString(request));
-
-        if (method == "POST" && path == "/api/print/batch/async")
-            return _printController.EnqueueBatchPrint(await ReadBodyAsString(request));
-
-        if (method == "GET" && path == "/api/jobs")
-            return _jobController.GetAllJobs();
-
-        if (method == "GET" && path.StartsWith("/api/jobs/"))
-        {
-            var id = path.Substring(10);
-            if (string.IsNullOrEmpty(id))
-                return PrinterResult.Error(null, ErrorCode.InvalidParams, LangManager.Get("Api_MissingJobId"));
-            return _jobController.GetJobStatus(id);
-        }
-
-        if (method == "GET" && path == "/api/logs")
-            return _logController.QueryLogs(request.QueryString);
 
         return PrinterResult.Error(null, ErrorCode.NotFound, LangManager.Get("Api_RouteNotFound", method, path));
     }

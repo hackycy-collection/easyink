@@ -65,6 +65,9 @@ public class WebSocketHandler : IDisposable
         }
     }
 
+    // .NET Framework 4.8 WebSocket does not expose Ping frame sending (no WebSocketMessageType.Ping).
+    // Application-level empty binary frame is used as keep-alive instead, which is the pragmatic
+    // alternative on this runtime. Migrate to native Ping frames when targeting .NET Core 3.0+.
     private async Task SendPingAsync(string connectionId, WebSocket ws, byte[] payload)
     {
         try

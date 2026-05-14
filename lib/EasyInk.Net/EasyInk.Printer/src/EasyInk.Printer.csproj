@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
   </ItemGroup>
@@ -61,20 +62,12 @@
     <InternalsVisibleTo Include="EasyInk.Printer.Tests" />
   </ItemGroup>
 
-  <Target Name="CopySQLiteInteropToOutput"
-          AfterTargets="Build"
-          Condition="'@(SQLiteInteropNativeFile)' != '' and '$(OutDir)' != ''">
-    <Copy SourceFiles="@(SQLiteInteropNativeFile)"
-          DestinationFiles="@(SQLiteInteropNativeFile -> '$(OutDir)%(TargetSubDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+  <Target Name="CopySQLiteInteropToOutput" AfterTargets="Build" Condition="'@(SQLiteInteropNativeFile)' != '' and '$(OutDir)' != ''">
+    <Copy SourceFiles="@(SQLiteInteropNativeFile)" DestinationFiles="@(SQLiteInteropNativeFile -> '$(OutDir)%(TargetSubDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="CopySQLiteInteropToPublish"
-          AfterTargets="Publish"
-          Condition="'@(SQLiteInteropNativeFile)' != '' and '$(PublishDir)' != ''">
-    <Copy SourceFiles="@(SQLiteInteropNativeFile)"
-          DestinationFiles="@(SQLiteInteropNativeFile -> '$(PublishDir)%(TargetSubDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+  <Target Name="CopySQLiteInteropToPublish" AfterTargets="Publish" Condition="'@(SQLiteInteropNativeFile)' != '' and '$(PublishDir)' != ''">
+    <Copy SourceFiles="@(SQLiteInteropNativeFile)" DestinationFiles="@(SQLiteInteropNativeFile -> '$(PublishDir)%(TargetSubDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
-using EasyInk.Printer.Models;
-using EasyInk.Printer.UI;
-using EasyInk.Printer.Server;
 using EasyInk.Printer.Config;
-using EasyInk.Printer.Services;
+using EasyInk.Printer.Models;
+using EasyInk.Printer.Server;
 using EasyInk.Printer.Services.Abstractions;
+using EasyInk.Printer.UI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EasyInk.Printer;
 
@@ -79,13 +79,18 @@ static class Program
             e.SetObserved();
         };
 
-        IAuditService auditService = CreateAuditService(config.DbPath);
-        var engineApi = new EngineApi(
-            maxQueueSize: config.MaxQueueSize);
+        var services = ServiceConfig.Configure(config);
+        var engineApi = services.GetRequiredService<EngineApi>();
+        var auditService = services.GetRequiredService<IAuditService>();
+        var httpServer = services.GetRequiredService<HttpServer>();
+        var wsHandler = services.GetRequiredService<WebSocketHandler>();
+        var wsCommandHandler = services.GetRequiredService<WebSocketCommandHandler>();
+        var router = services.GetRequiredService<Router>();
+
+        wsHandler.SetCommandHandler(wsCommandHandler);
 
         engineApi.Log += OnEngineLog;
 
-        // 订阅打印完成事件，写入审计日志
         engineApi.PrintCompleted += (requestId, request, result) =>
         {
             try
@@ -101,7 +106,7 @@ static class Program
                     Dpi = request.Dpi,
                     UserId = request.UserData?.UserId,
                     LabelType = request.UserData?.LabelType,
-                    Status = result.Success ? JobStatus.Completed : JobStatus.Failed,
+                    Status = result.Success ? JobStatus.Completed.ToString() : JobStatus.Failed.ToString(),
                     ErrorMessage = result.ErrorInfo?.Message,
                     JobId = requestId
                 });
@@ -111,11 +116,6 @@ static class Program
                 SimpleLogger.Error("审计日志写入失败", ex);
             }
         };
-        var httpServer = new HttpServer(config.HttpPort, config.MaxConcurrentRequests);
-        var wsHandler = new WebSocketHandler(config.MaxWebSocketConnections);
-        var wsCommandHandler = new WebSocketCommandHandler(engineApi, wsHandler, auditService);
-        wsHandler.SetCommandHandler(wsCommandHandler);
-        var router = new Router(engineApi, wsHandler, config, auditService);
 
         httpServer.OnRequest = context =>
         {
@@ -144,8 +144,8 @@ static class Program
             }
         }
 
-        var trayIcon = new TrayIcon(httpServer);
-        var mainWindow = new MainWindow(httpServer, wsHandler, engineApi, config, auditService);
+        var trayIcon = services.GetRequiredService<TrayIcon>();
+        var mainWindow = services.GetRequiredService<MainWindow>();
 
         mainWindow.OnRestart += () =>
         {
@@ -262,26 +262,6 @@ static class Program
         try { trayIcon.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("托盘图标释放异常", ex); }
     }
 
-    private static IAuditService CreateAuditService(string dbPath)
-    {
-        try
-        {
-            return new AuditService(dbPath);
-        }
-        catch (Exception ex)
-        {
-            SimpleLogger.Error("审计日志初始化失败，已禁用审计功能", ex);
-
-            var logPath = WriteCrashLog(ex, "AuditService.InitializeDatabase");
-            ShowMessage(
-                BuildAuditServiceWarning(ex, logPath),
-                LangManager.Get("App_AuditWarning_Title"),
-                MessageBoxIcon.Warning);
-
-            return new NullAuditService();
-        }
-    }
-
     private static Exception ToException(object exceptionObject)
     {
         if (exceptionObject is Exception exception)
@@ -327,16 +307,6 @@ static class Program
     {
         var sb = new StringBuilder();
         sb.AppendLine(LangManager.Get("App_FatalError_Message"));
-        AppendUserFacingException(sb, ex);
-        AppendSQLiteGuidance(sb, ex);
-        AppendLogPath(sb, logPath);
-        return sb.ToString().TrimEnd();
-    }
-
-    private static string BuildAuditServiceWarning(Exception ex, string logPath)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(LangManager.Get("App_AuditWarning_Message"));
         AppendUserFacingException(sb, ex);
         AppendSQLiteGuidance(sb, ex);
         AppendLogPath(sb, logPath);

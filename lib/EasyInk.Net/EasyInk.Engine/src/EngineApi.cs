@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -97,79 +96,6 @@ public class EngineApi : IDisposable
     }
 
     /// <summary>
-    /// 同步打印（支持 Base64、URL、二进制三种 PDF 来源）
-    /// </summary>
-    public PrinterResult Print(string printerName, string pdfBase64 = null, string pdfUrl = null,
-        byte[] pdfBytes = null, int copies = 1,
-        double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
-        int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null, bool landscape = false, bool forcePaperSize = false)
-    {
-        var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
-        if (error != null)
-            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, error);
-
-        var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
-
-        var requestId = Guid.NewGuid().ToString();
-        var response = _printService.Print(requestId, request);
-        RaisePrintCompleted(requestId, request, response);
-        return response;
-    }
-
-    /// <summary>
-    /// 入队打印（支持 Base64、URL、二进制三种 PDF 来源，立即返回 jobId）
-    /// </summary>
-    public PrinterResult EnqueuePrint(string printerName, string pdfBase64 = null, string pdfUrl = null,
-        byte[] pdfBytes = null, int copies = 1,
-        double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
-        int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
-        string userId = null, string labelType = null, bool landscape = false, bool forcePaperSize = false)
-    {
-        var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
-        if (error != null)
-            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, error);
-
-        var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
-            paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
-
-        try
-        {
-            var jobId = _jobQueue.Enqueue(null, request);
-            return PrinterResult.Ok("unknown", new { jobId, status = JobStatus.Queued });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return PrinterResult.Error("unknown", ErrorCode.QueueFull, ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// 批量同步打印
-    /// </summary>
-    public PrinterResult BatchPrint(string jobsJson)
-    {
-        var jobs = DeserializeJobs(jobsJson);
-        if (jobs == null)
-            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效");
-
-        return ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: false);
-    }
-
-    /// <summary>
-    /// 批量入队打印
-    /// </summary>
-    public PrinterResult EnqueueBatchPrint(string jobsJson)
-    {
-        var jobs = DeserializeJobs(jobsJson);
-        if (jobs == null)
-            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效");
-
-        return ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: true);
-    }
-
-    /// <summary>
     /// 获取打印任务状态
     /// </summary>
     public PrinterResult GetJobStatus(string jobId)
@@ -244,34 +170,6 @@ public class EngineApi : IDisposable
     public void Dispose()
     {
         _jobQueue.Dispose();
-    }
-
-    private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64,
-        string pdfUrl, byte[] pdfBytes, int copies,
-        double? paperWidth, double? paperHeight, string paperUnit, int dpi,
-        double? offsetX, double? offsetY, string offsetUnit, string userId, string labelType,
-        bool landscape, bool forcePaperSize)
-    {
-        return new PrintRequestParams
-        {
-            PrinterName = printerName,
-            PdfBase64 = pdfBase64,
-            PdfUrl = pdfUrl,
-            PdfBytes = pdfBytes,
-            Copies = copies,
-            Dpi = dpi,
-            Landscape = landscape,
-            ForcePaperSize = forcePaperSize,
-            PaperSize = paperWidth.HasValue && paperHeight.HasValue
-                ? new PaperSizeParams { Width = paperWidth.Value, Height = paperHeight.Value, Unit = paperUnit }
-                : null,
-            Offset = offsetX.HasValue || offsetY.HasValue
-                ? new OffsetParams { X = offsetX ?? 0, Y = offsetY ?? 0, Unit = offsetUnit }
-                : null,
-            UserData = !string.IsNullOrEmpty(userId) || !string.IsNullOrEmpty(labelType)
-                ? new UserDataParams { UserId = userId, LabelType = labelType }
-                : null
-        };
     }
 
     private PrinterResult HandleGetPrinterStatus(PrinterCommand request)
@@ -399,43 +297,6 @@ public class EngineApi : IDisposable
         {
             RaiseLog(LogLevel.Error, $"参数 '{key}' 转换失败: {ex.Message}");
             return default;
-        }
-    }
-
-    private static string ValidatePrintParams(string printerName, string pdfBase64,
-        string pdfUrl, byte[] pdfBytes, int copies)
-    {
-        if (string.IsNullOrEmpty(printerName))
-            return "缺少printerName参数";
-
-        int sourceCount = 0;
-        if (!string.IsNullOrEmpty(pdfBase64)) sourceCount++;
-        if (!string.IsNullOrEmpty(pdfUrl)) sourceCount++;
-        if (pdfBytes != null && pdfBytes.Length > 0) sourceCount++;
-
-        if (sourceCount == 0)
-            return "必须提供 PdfBase64、PdfUrl 或 PdfBytes 之一";
-        if (sourceCount > 1)
-            return "只能提供一种 PDF 来源";
-
-        if (copies < 1)
-            return "copies必须大于0";
-        return null;
-    }
-
-    private List<PrintRequestParams> DeserializeJobs(string jobsJson)
-    {
-        if (string.IsNullOrEmpty(jobsJson))
-            return null;
-
-        try
-        {
-            var jobs = JsonConvert.DeserializeObject<List<PrintRequestParams>>(jobsJson, JsonConfig.CamelCase);
-            return (jobs != null && jobs.Count > 0) ? jobs : null;
-        }
-        catch (JsonException)
-        {
-            return null;
         }
     }
 

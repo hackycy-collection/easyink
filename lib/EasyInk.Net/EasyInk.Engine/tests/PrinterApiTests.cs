@@ -90,7 +90,7 @@ public class PrinterApiTests
     public void HandleCommand_PrintAsync_EnqueuesJob()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         var parms = new Dictionary<string, object>
@@ -137,53 +137,36 @@ public class PrinterApiTests
     }
 
     [Fact]
-    public void Print_MissingPrinterName_ReturnsError()
-    {
-        using var api = CreateApi();
-        var result = api.Print(null, "base64data");
-        Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
-    }
-
-    [Fact]
-    public void Print_MissingPdfSource_ReturnsError()
-    {
-        using var api = CreateApi();
-        var result = api.Print("TestPrinter");
-        Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
-    }
-
-    [Fact]
-    public void Print_MultiplePdfSources_ReturnsError()
-    {
-        using var api = CreateApi();
-        var result = api.Print("TestPrinter", pdfBase64: "base64data", pdfUrl: "http://example.com/test.pdf");
-        Assert.False(result.Success);
-        Assert.Equal(ErrorCode.InvalidParams, result.ErrorInfo.Code);
-    }
-
-    [Fact]
-    public void Print_WithPdfUrl_Success()
+    public void HandleCommand_Print_WithPdfUrl_Success()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         using var api = CreateApi(printService: printService);
-        var result = api.Print("TestPrinter", pdfUrl: "http://example.com/test.pdf");
+        var parms = new Dictionary<string, object>
+        {
+            ["printerName"] = "TestPrinter",
+            ["pdfUrl"] = "http://example.com/test.pdf"
+        };
+        var result = api.HandleCommand(MakeCommand("print", parms: parms));
         Assert.True(result.Success);
     }
 
     [Fact]
-    public void Print_WithPdfBytes_Success()
+    public void HandleCommand_Print_WithPdfBytes_Success()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<System.Threading.CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("job-1")));
 
         using var api = CreateApi(printService: printService);
-        var result = api.Print("TestPrinter", pdfBytes: new byte[] { 1, 2, 3 });
+        var parms = new Dictionary<string, object>
+        {
+            ["printerName"] = "TestPrinter",
+            ["pdfBytes"] = new byte[] { 1, 2, 3 }
+        };
+        var result = api.HandleCommand(MakeCommand("print", parms: parms));
         Assert.True(result.Success);
     }
 

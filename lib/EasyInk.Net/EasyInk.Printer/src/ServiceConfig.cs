@@ -1,0 +1,65 @@
+using EasyInk.Engine;
+using EasyInk.Printer.Api;
+using EasyInk.Printer.Config;
+using EasyInk.Printer.Server;
+using EasyInk.Printer.Services;
+using EasyInk.Printer.Services.Abstractions;
+using EasyInk.Printer.UI;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace EasyInk.Printer;
+
+internal static class ServiceConfig
+{
+    public static ServiceProvider Configure(HostConfig config)
+    {
+        var services = new ServiceCollection();
+
+        // Configuration
+        services.AddSingleton(config);
+
+        // Engine
+        services.AddSingleton<EngineApi>(sp =>
+        {
+            var api = new EngineApi(maxQueueSize: config.MaxQueueSize);
+            return api;
+        });
+
+        // Audit
+        services.TryAddAuditService(config);
+
+        // Server
+        services.AddSingleton<HttpServer>(sp =>
+            new HttpServer(config.HttpPort, config.MaxConcurrentRequests));
+        services.AddSingleton<WebSocketHandler>(sp =>
+            new WebSocketHandler(config.MaxWebSocketConnections));
+        services.AddSingleton<WebSocketCommandHandler>();
+        services.AddSingleton<Router>();
+
+        // API Controllers
+        services.AddSingleton<PrinterController>();
+        services.AddSingleton<PrintController>();
+        services.AddSingleton<JobController>();
+        services.AddSingleton<LogController>();
+        services.AddSingleton<StatusController>();
+
+        // UI
+        services.AddSingleton<MainWindow>();
+        services.AddSingleton<TrayIcon>();
+
+        return services.BuildServiceProvider();
+    }
+
+    private static void TryAddAuditService(this IServiceCollection services, HostConfig config)
+    {
+        try
+        {
+            var auditService = new AuditService(config.DbPath);
+            services.AddSingleton<IAuditService>(auditService);
+        }
+        catch
+        {
+            services.AddSingleton<IAuditService>(new NullAuditService());
+        }
+    }
+}

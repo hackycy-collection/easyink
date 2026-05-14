@@ -1,16 +1,20 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 namespace EasyInk.Engine.Models;
 
 /// <summary>
-/// 打印任务状态常量
+/// 打印任务状态
 /// </summary>
-public static class JobStatus
+[JsonConverter(typeof(StringEnumConverter), true)]
+public enum JobStatus
 {
     /// <summary>排队中</summary>
-    public const string Queued = "queued";
+    Queued,
     /// <summary>打印中</summary>
-    public const string Printing = "printing";
+    Printing,
     /// <summary>已完成</summary>
-    public const string Completed = "completed";
+    Completed,
     /// <summary>失败</summary>
-    public const string Failed = "failed";
+    Failed
 }

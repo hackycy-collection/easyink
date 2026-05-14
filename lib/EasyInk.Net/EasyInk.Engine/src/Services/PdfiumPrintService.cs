@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
+using System.Threading;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 using PdfiumViewer;
@@ -31,8 +32,11 @@ public class PdfiumPrintService : IPrintService
     /// <summary>
     /// 执行打印任务
     /// </summary>
-    public PrinterResult Print(string requestId, PrintRequestParams request)
+    public PrinterResult Print(string requestId, PrintRequestParams request, CancellationToken cancellationToken = default)
     {
+        if (cancellationToken.IsCancellationRequested)
+            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, "打印已取消");
+
         var status = _printerService.GetPrinterStatus(request.PrinterName);
         if (!status.IsReady)
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);
@@ -53,9 +57,14 @@ public class PdfiumPrintService : IPrintService
 
         try
         {
-            PrintWithSpooler(requestId, request, pdfBytes);
+            PrintWithSpooler(requestId, request, pdfBytes, cancellationToken);
             _logger.Log(LogLevel.Info, $"打印成功: {request.PrinterName}, jobId={requestId}");
             return PrinterResult.Ok(requestId, PrintResult.Success(requestId));
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogLevel.Info, $"打印已取消: {request.PrinterName}, jobId={requestId}");
+            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, "打印已取消");
         }
         catch (Exception ex)
         {
@@ -64,7 +73,7 @@ public class PdfiumPrintService : IPrintService
         }
     }
 
-    private void PrintWithSpooler(string requestId, PrintRequestParams request, byte[] pdfBytes)
+    private void PrintWithSpooler(string requestId, PrintRequestParams request, byte[] pdfBytes, CancellationToken cancellationToken)
     {
         using var pdfStream = new MemoryStream(pdfBytes);
         using var pdfDoc = PdfDocument.Load(pdfStream);
@@ -112,7 +121,7 @@ public class PdfiumPrintService : IPrintService
         // Render each page on-demand in PrintPage to bound memory to a single bitmap at a time.
         printDoc.PrintPage += (_, e) =>
         {
-            if (pageIndex >= logicalPageCount)
+            if (cancellationToken.IsCancellationRequested || pageIndex >= logicalPageCount)
             {
                 e.HasMorePages = false;
                 return;
@@ -143,7 +152,7 @@ public class PdfiumPrintService : IPrintService
             }
 
             pageIndex++;
-            e.HasMorePages = pageIndex < logicalPageCount;
+            e.HasMorePages = !cancellationToken.IsCancellationRequested && pageIndex < logicalPageCount;
         };
 
         printDoc.Print();

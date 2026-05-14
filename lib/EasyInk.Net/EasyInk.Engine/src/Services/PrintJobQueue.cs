@@ -140,7 +140,7 @@ public class PrintJobQueue : IDisposable
             PrinterResult response = null;
             try
             {
-                response = _printService.Print(requestId, request);
+                response = _printService.Print(requestId, request, _cts.Token);
                 lock (_jobLock)
                 {
                     jobInfo.Result = response;

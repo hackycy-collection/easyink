@@ -13,7 +13,7 @@ public class BatchJobResult
     /// <summary>
     /// 任务状态
     /// </summary>
-    public string Status { get; set; }
+    public JobStatus Status { get; set; }
 
     /// <summary>
     /// 错误信息

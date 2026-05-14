@@ -1,4 +1,5 @@
-﻿using EasyInk.Engine.Models;
+﻿using System.Threading;
+using EasyInk.Engine.Models;
 
 namespace EasyInk.Engine.Services.Abstractions;
 
@@ -12,5 +13,6 @@ public interface IPrintService
     /// </summary>
     /// <param name="requestId">请求ID</param>
     /// <param name="request">打印请求参数</param>
-    PrinterResult Print(string requestId, PrintRequestParams request);
+    /// <param name="cancellationToken">取消令牌，用于取消正在进行的打印</param>
+    PrinterResult Print(string requestId, PrintRequestParams request, CancellationToken cancellationToken = default);
 }

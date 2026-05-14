@@ -13,7 +13,7 @@ public class PrintJobQueueTests
     private static PrintJobQueue CreateQueue(Mock<IPrintService> printService = null)
     {
         printService ??= new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<CancellationToken>()))
             .Returns(PrinterResult.Ok("test", PrintResult.Success("done")));
         return new PrintJobQueue(printService.Object);
     }
@@ -49,7 +49,7 @@ public class PrintJobQueueTests
     {
         var gate = new ManualResetEventSlim(false);
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<CancellationToken>()))
             .Returns(() => { gate.Wait(); return PrinterResult.Ok("test", PrintResult.Success("done")); });
 
         using var queue = new PrintJobQueue(printService.Object);
@@ -97,7 +97,7 @@ public class PrintJobQueueTests
     public void Enqueue_PrintFailure_SetsFailedStatus()
     {
         var printService = new Mock<IPrintService>();
-        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>()))
+        printService.Setup(s => s.Print(It.IsAny<string>(), It.IsAny<PrintRequestParams>(), It.IsAny<CancellationToken>()))
             .Returns(PrinterResult.Error("test", ErrorCode.PrintFailed, "boom"));
 
         using var queue = new PrintJobQueue(printService.Object);
