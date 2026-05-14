@@ -4,6 +4,7 @@ import type { DocumentSchema, ViewerDiagnosticEvent, ViewerHost, ViewerPageMetri
 import { createDomPdfExportPlugin } from '@easyink/export-plugin-dom-pdf'
 import { createExportRuntime } from '@easyink/export-runtime'
 import { IconChevronLeft, IconChevronRight, IconClose, IconDown, IconMinimize, IconPlus } from '@easyink/icons'
+import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from '@easyink/print-core'
 import { createCustomViewerHost, createIframeViewerHost, createViewer, resolvePrintPolicy } from '@easyink/viewer'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
@@ -22,7 +23,6 @@ import { createEasyInkPrintDriver } from './drivers/easyink-print-driver'
 import { createHiPrintDriver } from './drivers/hiprint-print-driver'
 import { useEasyInkPrint } from './hooks/useEasyInkPrint'
 import { usePrinter } from './hooks/useHiPrint'
-import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintSize, toMillimeters } from './utils/viewer-output'
 
 const props = defineProps<{
   schema: DocumentSchema

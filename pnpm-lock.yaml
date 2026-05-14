@@ -807,6 +807,9 @@ importers:
       '@easyink/icons':
         specifier: workspace:*
         version: link:../packages/icons
+      '@easyink/print-core':
+        specifier: workspace:*
+        version: link:../packages/print/core
       '@easyink/print-easyink':
         specifier: workspace:*
         version: link:../packages/print/easyink

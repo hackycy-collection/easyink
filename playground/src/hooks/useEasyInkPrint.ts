@@ -74,12 +74,18 @@ watch(config, (val) => {
   if (saveTimer)
     clearTimeout(saveTimer)
   saveTimer = setTimeout(persistConfig, 200, { ...val })
+  const reconnect = val.serviceUrl !== client.serviceUrl || val.apiKey !== client.apiKey
   client.configure({
     serviceUrl: val.serviceUrl,
     apiKey: val.apiKey,
     printerName: val.printerName,
     defaultCopies: val.copies,
   })
+  if (reconnect) {
+    syncState()
+    if (val.enabled)
+      connect().catch(() => { /* surfaced via state */ })
+  }
 }, { deep: true })
 
 function syncState() {

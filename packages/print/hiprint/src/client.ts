@@ -98,7 +98,16 @@ export class HiPrintClient {
     return this.connectionState === 'connected'
   }
 
-  configure(options: Partial<HiPrintClientOptions>): void {
+  configure(options: Partial<HiPrintClientOptions>): boolean {
+    const endpointChanged = (options.serviceUrl !== undefined && options.serviceUrl !== this.serviceUrl)
+      || (options.namespace !== undefined && options.namespace !== this.namespace)
+
+    if (endpointChanged) {
+      this.disconnect()
+      this.devices = []
+      this.lastError = ''
+    }
+
     if (options.serviceUrl !== undefined)
       this.serviceUrl = options.serviceUrl
     if (options.namespace !== undefined)
@@ -109,6 +118,8 @@ export class HiPrintClient {
       this.defaultCopies = options.defaultCopies
     if (options.forcePageSizeByDevice !== undefined)
       this.forcePageSizeByDevice = { ...options.forcePageSizeByDevice }
+
+    return endpointChanged
   }
 
   connect(): Promise<void> {
@@ -165,22 +176,26 @@ export class HiPrintClient {
     if (this.connectionState !== 'connected')
       await this.connect()
 
-    const devices = await new Promise<HiPrintDevice[]>((resolve) => {
+    const devices = await new Promise<HiPrintDevice[]>((resolve, reject) => {
       let done = false
-      const timer = setTimeout(() => {
-        done = true
-        resolve([])
-      }, this.refreshDelayMs + this.refreshTimeoutMs)
-
-      setTimeout(() => {
+      let timeout: ReturnType<typeof setTimeout>
+      const refreshTimer = setTimeout(() => {
+        if (done)
+          return
         hiprint.refreshPrinterList((result: HiPrintDevice[]) => {
           if (done)
             return
           done = true
-          clearTimeout(timer)
+          clearTimeout(timeout)
           resolve(Array.isArray(result) ? result : [])
         })
       }, this.refreshDelayMs)
+      timeout = setTimeout(() => {
+        done = true
+        clearTimeout(refreshTimer)
+        this.lastError = '刷新 HiPrint 打印机列表超时'
+        reject(new EasyInkPrintError(this.lastError, 'HIPRINT_PRINTER_REFRESH_TIMEOUT'))
+      }, this.refreshDelayMs + this.refreshTimeoutMs)
     })
 
     const list = devices.length > 0 ? devices : hiprint.printers ?? []
@@ -256,7 +271,7 @@ export class HiPrintClient {
     for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       await this.printHtml({
         ...options,
-        html: pages[pageIndex]!.innerHTML,
+        html: serializeViewerPage(pages[pageIndex]!),
       })
       onProgress?.({ current: pageIndex + 1, total: pages.length })
     }
@@ -350,4 +365,9 @@ function normalizeHiPrintDevices(devices: HiPrintDevice[]): HiPrintDevice[] {
       isDefault: Boolean(device.isDefault),
     }))
     .filter(device => device.name.length > 0)
+}
+
+function serializeViewerPage(page: HTMLElement): string {
+  const clone = page.cloneNode(true) as HTMLElement
+  return clone.outerHTML
 }

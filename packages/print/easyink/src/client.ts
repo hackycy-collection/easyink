@@ -96,7 +96,17 @@ export class EasyInkPrinterClient {
     return this.connectionState === 'connected' && this.ws?.readyState === WebSocket.OPEN
   }
 
-  configure(options: Partial<EasyInkPrinterClientOptions>): void {
+  configure(options: Partial<EasyInkPrinterClientOptions>): boolean {
+    const endpointChanged = (options.serviceUrl !== undefined && options.serviceUrl !== this.serviceUrl)
+      || (options.apiKey !== undefined && options.apiKey !== this.apiKey)
+
+    if (endpointChanged) {
+      this.disconnect()
+      this.devices = []
+      this.jobs.clear()
+      this.lastError = ''
+    }
+
     if (options.serviceUrl !== undefined)
       this.serviceUrl = options.serviceUrl
     if (options.apiKey !== undefined)
@@ -105,6 +115,8 @@ export class EasyInkPrinterClient {
       this.defaultCopies = options.defaultCopies
     if (options.printerName !== undefined)
       this.printerName = options.printerName
+
+    return endpointChanged
   }
 
   async connect(): Promise<void> {
@@ -190,17 +202,32 @@ export class EasyInkPrinterClient {
   }
 
   async refreshPrinters(): Promise<EasyInkPrinterDevice[]> {
-    const response = await fetch(`${this.httpUrl()}/api/printers`, {
-      headers: this.httpHeaders(),
-    })
-    if (!response.ok)
-      throw new EasyInkPrintError(`获取打印机列表失败: HTTP ${response.status}`, 'PRINTER_LIST_FAILED')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), this.responseTimeoutMs)
 
-    const payload = await response.json() as { data?: unknown }
-    const devices = normalizePrinterDevices(payload.data ?? payload)
-    this.devices = devices
-    this.ensureSelectedPrinter(devices)
-    return devices
+    try {
+      const response = await fetch(`${this.httpUrl()}/api/printers`, {
+        headers: this.httpHeaders(),
+        signal: controller.signal,
+      })
+      if (!response.ok)
+        throw new EasyInkPrintError(`获取打印机列表失败: HTTP ${response.status}`, 'PRINTER_LIST_FAILED')
+
+      const payload = await response.json() as { data?: unknown }
+      const devices = normalizePrinterDevices(payload.data ?? payload)
+      this.devices = devices
+      this.ensureSelectedPrinter(devices)
+      return devices
+    }
+    catch (cause) {
+      if (cause instanceof EasyInkPrintError)
+        throw cause
+      const code = isAbortError(cause) ? 'PRINTER_LIST_TIMEOUT' : 'PRINTER_LIST_FAILED'
+      throw new EasyInkPrintError('获取打印机列表失败', code, cause)
+    }
+    finally {
+      clearTimeout(timeout)
+    }
   }
 
   listPrinters(): Promise<EasyInkPrinterDevice[]> {
@@ -326,7 +353,14 @@ export class EasyInkPrinterClient {
       }, this.responseTimeoutMs)
 
       this.pendingRequests.set(id, { resolve: data => resolve(data as T), reject, timer })
-      this.ws.send(JSON.stringify({ command, id, params }))
+      try {
+        this.ws.send(JSON.stringify({ command, id, params }))
+      }
+      catch (cause) {
+        clearTimeout(timer)
+        this.pendingRequests.delete(id)
+        reject(new EasyInkPrintError(`发送打印请求失败: ${command}`, 'PRINTER_SEND_FAILED', cause))
+      }
     })
   }
 
@@ -344,7 +378,14 @@ export class EasyInkPrinterClient {
       }, this.responseTimeoutMs)
 
       this.pendingRequests.set(id, { resolve: data => resolve(data as T), reject, timer })
-      this.ws.send(encodeBinaryCommand(command, id, params, payload))
+      try {
+        this.ws.send(encodeBinaryCommand(command, id, params, payload))
+      }
+      catch (cause) {
+        clearTimeout(timer)
+        this.pendingRequests.delete(id)
+        reject(new EasyInkPrintError(`发送打印请求失败: ${command}`, 'PRINTER_SEND_FAILED', cause))
+      }
     })
   }
 
@@ -460,6 +501,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function toOptionalString(value: unknown): string | undefined {
   return value === undefined || value === null ? undefined : String(value)
+}
+
+function isAbortError(value: unknown): boolean {
+  return value instanceof DOMException && value.name === 'AbortError'
 }
 
 function createId(): string {

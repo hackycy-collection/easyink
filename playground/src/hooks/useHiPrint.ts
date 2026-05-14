@@ -83,12 +83,18 @@ watch(config, (val) => {
   if (saveTimer)
     clearTimeout(saveTimer)
   saveTimer = setTimeout(persistConfig, 200, { ...val })
+  const reconnect = (val.printerServiceUrl ?? DEFAULT_PRINTER_HOST) !== client.serviceUrl
   client.configure({
     serviceUrl: val.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
     printerName: val.printerDevice,
     defaultCopies: val.printCopies ?? DEFAULT_PRINTER_COPIES,
     forcePageSizeByDevice: val.forcePageSizeByDevice ?? {},
   })
+  if (reconnect) {
+    syncState()
+    if (val.enablePrinterService)
+      connect().catch(() => { /* surfaced via state */ })
+  }
 }, { deep: true })
 
 function syncState() {

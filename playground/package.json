@@ -13,6 +13,7 @@
     "@easyink/export-plugin-dom-pdf": "workspace:*",
     "@easyink/export-runtime": "workspace:*",
     "@easyink/icons": "workspace:*",
+    "@easyink/print-core": "workspace:*",
     "@easyink/print-easyink": "workspace:*",
     "@easyink/print-hiprint": "workspace:*",
     "@easyink/samples": "workspace:*",
