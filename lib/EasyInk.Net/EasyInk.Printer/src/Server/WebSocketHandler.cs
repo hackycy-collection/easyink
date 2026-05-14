@@ -203,35 +203,45 @@ public class WebSocketHandler : IDisposable
 
     public async Task Broadcast(string message)
     {
+        var bytes = Encoding.UTF8.GetBytes(message);
+        var segment = new ArraySegment<byte>(bytes);
+
+        KeyValuePair<string, WebSocket>[] snapshot;
         await _broadcastLock.WaitAsync();
         try
         {
-            var bytes = Encoding.UTF8.GetBytes(message);
-            var segment = new ArraySegment<byte>(bytes);
-
-            foreach (var kvp in _connections)
-            {
-                try
-                {
-                    if (kvp.Value.State == WebSocketState.Open)
-                    {
-                        using var bcastCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, bcastCts.Token);
-                    }
-                }
-                catch (WebSocketException)
-                {
-                    _connections.TryRemove(kvp.Key, out _);
-                }
-                catch (IOException)
-                {
-                    _connections.TryRemove(kvp.Key, out _);
-                }
-            }
+            snapshot = _connections.ToArray();
         }
         finally
         {
             _broadcastLock.Release();
+        }
+
+        var tasks = new List<Task>(snapshot.Length);
+        foreach (var kvp in snapshot)
+        {
+            tasks.Add(SendToConnection(kvp.Key, kvp.Value, segment));
+        }
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task SendToConnection(string connectionId, WebSocket ws, ArraySegment<byte> segment)
+    {
+        try
+        {
+            if (ws.State == WebSocketState.Open)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await ws.SendAsync(segment, WebSocketMessageType.Text, true, cts.Token);
+            }
+        }
+        catch (WebSocketException)
+        {
+            _connections.TryRemove(connectionId, out _);
+        }
+        catch (IOException)
+        {
+            _connections.TryRemove(connectionId, out _);
         }
     }
 

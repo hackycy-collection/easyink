@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using Newtonsoft.Json;
 
@@ -13,6 +14,7 @@ public static class LangManager
 {
     private static readonly Dictionary<string, string> _zhCN = new();
     private static Dictionary<string, string> _current;
+    private static readonly ReaderWriterLockSlim _lock = new();
 
     static LangManager()
     {
@@ -31,20 +33,37 @@ public static class LangManager
                 culture = "zh-CN";
         }
 
-        if (culture == "en-US")
-            _current = LoadEmbedded("EasyInk.Printer.i18n.en-US.json");
-        else
-            _current = _zhCN;
+        var target = culture == "en-US"
+            ? LoadEmbedded("EasyInk.Printer.i18n.en-US.json")
+            : _zhCN;
 
-        CurrentCulture = culture;
+        _lock.EnterWriteLock();
+        try
+        {
+            _current = target;
+            CurrentCulture = culture;
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
     }
 
     public static string Get(string key)
     {
-        if (_current.TryGetValue(key, out var value))
-            return value;
-        if (_zhCN.TryGetValue(key, out value))
-            return value;
+        _lock.EnterReadLock();
+        try
+        {
+            if (_current.TryGetValue(key, out var value))
+                return value;
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+
+        if (_zhCN.TryGetValue(key, out var fallback))
+            return fallback;
         return key;
     }
 

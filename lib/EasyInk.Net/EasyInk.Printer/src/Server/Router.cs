@@ -27,7 +27,7 @@ public class Router
     private readonly List<RouteEntry> _routes;
 
     private delegate Task<PrinterResult> RouteHandler(HttpListenerRequest request);
-    private delegate bool PathMatcher(string path);
+    internal delegate bool PathMatcher(string path);
 
     private struct RouteEntry
     {
@@ -73,15 +73,15 @@ public class Router
         return new RouteEntry { Method = method, Match = match, Handler = handler };
     }
 
-    private static PathMatcher Exact(string path) => p => p == path;
+    internal static PathMatcher Exact(string path) => p => p == path;
 
-    private static bool MatchPrinterStatus(string path)
+    internal static bool MatchPrinterStatus(string path)
     {
         return path.StartsWith("/api/printers/") && path.EndsWith("/status")
             && path.Split('/').Length == 5;
     }
 
-    private static bool MatchJobById(string path)
+    internal static bool MatchJobById(string path)
     {
         return path.StartsWith("/api/jobs/") && path.Length > 10;
     }

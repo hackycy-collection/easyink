@@ -37,7 +37,7 @@ public static class NetworkHelper
                     result.Add(FormatMac(mac));
             }
         }
-        catch { }
+        catch (Exception ex) { SimpleLogger.Debug("获取MAC地址异常", ex); }
         return result;
     }
 
@@ -63,7 +63,7 @@ public static class NetworkHelper
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { SimpleLogger.Debug("获取LAN IPv4地址异常", ex); }
         return result;
     }
 
