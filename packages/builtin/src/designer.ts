@@ -5,6 +5,7 @@ import {
   IconContainer,
   IconDataTable,
   IconEllipse,
+  IconHeart,
   IconImage,
   IconLine,
   IconPageNumber,
@@ -258,7 +259,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     {
       type: SVG_HEART_TYPE,
       name: '心形',
-      icon: IconSvg,
+      icon: IconHeart,
       category: 'svg',
       capabilities: SVG_HEART_CAPABILITIES,
       createDefaultNode: createSvgHeartNode,

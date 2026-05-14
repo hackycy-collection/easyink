@@ -45,6 +45,7 @@ export {
   GripVertical as IconGripVertical,
   Group as IconGroup,
   Hash as IconHash,
+  Heart as IconHeart,
   EyeOff as IconHidden,
   History as IconHistory,
   Image as IconImage,
