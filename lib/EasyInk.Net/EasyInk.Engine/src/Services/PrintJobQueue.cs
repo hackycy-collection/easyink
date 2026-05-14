@@ -66,7 +66,7 @@ public class PrintJobQueue : IDisposable
         {
             _jobs[jobId] = (job, request);
         }
-        if (!_queue.TryAdd((jobId, request), TimeSpan.FromSeconds(5)))
+        if (!_queue.TryAdd((jobId, request)))
         {
             lock (_jobLock) { _jobs.Remove(jobId); }
             throw new InvalidOperationException("打印队列已满，请稍后重试");

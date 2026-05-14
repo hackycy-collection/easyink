@@ -80,7 +80,8 @@ public class Router
         }
         catch (Exception ex)
         {
-            result = PrinterResult.Error(null, ErrorCode.InternalError, ex.Message);
+            SimpleLogger.Error("请求处理异常", ex);
+            result = PrinterResult.Error(null, ErrorCode.InternalError, LangManager.Get("Api_InternalError"));
         }
 
         var buffer = Encoding.UTF8.GetBytes(SerializeResult(result));

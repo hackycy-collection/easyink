@@ -159,6 +159,7 @@
   "Api_BodyTooLarge": "Request body too large: {0}MB, limit {1}MB",
   "Api_MissingBody": "Missing request body",
   "Api_JobsMustBeArray": "jobs must be an array",
+  "Api_InternalError": "Internal server error",
 
   "Ws_ConnectionLimit": "WebSocket connection limit reached",
   "Ws_MessageTooLarge": "Message too large",
@@ -186,6 +187,7 @@
   "Ws_BinaryMessageTooShort": "Binary message too short",
   "Ws_InvalidMetadataLength": "Invalid metadata length",
   "Ws_ChunkTotalSizeExceeded": "Chunk total size exceeds declared PDF size",
+  "Ws_InternalError": "Internal server error",
 
   "Config_PathNotEmpty": "Path cannot be empty",
   "Config_PathInvalidChars": "Path contains invalid characters",

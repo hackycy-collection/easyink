@@ -159,6 +159,7 @@
   "Api_BodyTooLarge": "请求体过大: {0}MB，上限 {1}MB",
   "Api_MissingBody": "缺少请求体",
   "Api_JobsMustBeArray": "jobs 必须是数组",
+  "Api_InternalError": "服务器内部错误",
 
   "Ws_ConnectionLimit": "WebSocket 连接数已达上限",
   "Ws_MessageTooLarge": "消息体过大",
@@ -186,6 +187,7 @@
   "Ws_BinaryMessageTooShort": "二进制消息过短",
   "Ws_InvalidMetadataLength": "无效的元数据长度",
   "Ws_ChunkTotalSizeExceeded": "切片总大小超过声明的 PDF 大小",
+  "Ws_InternalError": "服务器内部错误",
 
   "Config_PathNotEmpty": "路径不能为空",
   "Config_PathInvalidChars": "路径包含非法字符",

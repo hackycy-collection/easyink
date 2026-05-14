@@ -55,7 +55,8 @@ public class WebSocketCommandHandler
         }
         catch (Exception ex)
         {
-            result = PrinterResult.Error(message.Id, ErrorCode.InternalError, ex.Message);
+            SimpleLogger.Error("WebSocket命令处理异常", ex);
+            result = PrinterResult.Error(message.Id, ErrorCode.InternalError, LangManager.Get("Ws_InternalError"));
         }
 
         await SendResponse(ws, result);
@@ -109,7 +110,7 @@ public class WebSocketCommandHandler
                 completed = upload.IsComplete
             });
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return PrinterResult.Error(message.Id, ErrorCode.InvalidChunk, ex.Message);
         }
@@ -132,7 +133,7 @@ public class WebSocketCommandHandler
         {
             pdfBytes = upload.Assemble();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return PrinterResult.Error(message.Id, ErrorCode.UploadIncomplete, ex.Message);
         }
@@ -232,7 +233,7 @@ public class WebSocketCommandHandler
 
     private async Task SendResponse(WebSocket ws, PrinterResult result)
     {
-        if (ws.State != WebSocketState.Open)
+        if (ws == null || ws.State != WebSocketState.Open)
             return;
 
         var json = JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
@@ -242,7 +243,7 @@ public class WebSocketCommandHandler
         await ws.SendAsync(segment, WebSocketMessageType.Text, true, cts.Token);
     }
 
-    private sealed class PdfUploadSession
+    internal sealed class PdfUploadSession
     {
         private readonly object _lock = new object();
         private readonly byte[][] _chunks;

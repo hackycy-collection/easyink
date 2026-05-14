@@ -34,7 +34,7 @@ public class HostConfig
     public bool StartMinimized { get; set; } = true;
     public string DbPath { get; set; }
     public string CrashLogDir { get; set; }
-    public bool TrustAllOrigins { get; set; } = true;
+    public bool TrustAllOrigins { get; set; } = false;
     public string ApiKey { get; set; }
     public string Language { get; set; } = "";
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing.Printing;
 using System.Management;
+using System.Threading;
 using System.Threading.Tasks;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
@@ -66,40 +67,44 @@ public class PrinterService : IPrinterService
         var map = new Dictionary<string, PrinterStatus>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            var task = Task.Run(() =>
+            using (var cts = new CancellationTokenSource(WmiTimeoutMs))
             {
-                using (var searcher = new ManagementObjectSearcher("SELECT Name, PrinterStatus, PrinterState, WorkOffline, PrinterPaperOutOfPaper FROM Win32_Printer"))
+                var task = Task.Factory.StartNew(() =>
                 {
-                    foreach (ManagementObject printer in searcher.Get())
+                    using (var searcher = new ManagementObjectSearcher("SELECT Name, PrinterStatus, PrinterState, WorkOffline, PrinterPaperOutOfPaper FROM Win32_Printer"))
                     {
-                        try
+                        foreach (ManagementObject printer in searcher.Get())
                         {
-                            var name = printer["Name"] as string;
-                            if (string.IsNullOrEmpty(name)) continue;
+                            cts.Token.ThrowIfCancellationRequested();
+                            try
+                            {
+                                var name = printer["Name"] as string;
+                                if (string.IsNullOrEmpty(name)) continue;
 
-                            var printerStatus = GetUInt32(printer, "PrinterStatus");
-                            var printerState = GetUInt32(printer, "PrinterState");
-                            var isOffline = GetBool(printer, "WorkOffline");
-                            var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
+                                var printerStatus = GetUInt32(printer, "PrinterStatus");
+                                var printerState = GetUInt32(printer, "PrinterState");
+                                var isOffline = GetBool(printer, "WorkOffline");
+                                var paperOut = GetBool(printer, "PrinterPaperOutOfPaper");
 
-                            map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
-                        }
-                        finally
-                        {
-                            printer.Dispose();
+                                map[name] = MapPrinterStatus(printerStatus, printerState, isOffline, paperOut);
+                            }
+                            finally
+                            {
+                                printer.Dispose();
+                            }
                         }
                     }
-                }
-            });
+                }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-            if (!task.Wait(WmiTimeoutMs))
-            {
-                _logger.Log(LogLevel.Error, $"批量查询打印机状态超时({WmiTimeoutMs}ms)");
+                if (!task.Wait(WmiTimeoutMs))
+                {
+                    _logger.Log(LogLevel.Error, $"批量查询打印机状态超时({WmiTimeoutMs}ms)");
+                }
             }
         }
-        catch (AggregateException ex) when (ex.InnerException is TimeoutException)
+        catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
         {
-            _logger.Log(LogLevel.Error, $"批量查询打印机状态超时");
+            _logger.Log(LogLevel.Error, "批量查询打印机状态超时");
         }
         catch (Exception ex)
         {
@@ -134,11 +139,12 @@ public class PrinterService : IPrinterService
         }
         catch (Exception ex)
         {
+            _logger.Log(LogLevel.Error, $"获取打印机 {printerName} 状态失败: {ex}");
             return new PrinterStatus
             {
                 IsReady = false,
                 StatusCode = PrinterStatusCode.PrinterError,
-                Message = ex.Message,
+                Message = "打印机状态查询失败",
                 IsOnline = false,
                 HasPaper = false,
                 IsPaperJam = false
@@ -150,16 +156,29 @@ public class PrinterService : IPrinterService
     {
         try
         {
-            var task = Task.Run(() => QuerySingleWmiStatus(printerName));
-            if (task.Wait(WmiTimeoutMs))
-                return task.Result;
+            using (var cts = new CancellationTokenSource(WmiTimeoutMs))
+            {
+                var task = Task.Factory.StartNew(
+                    () => QuerySingleWmiStatus(printerName),
+                    cts.Token,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
 
-            _logger.Log(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
-            return ErrorStatus(PrinterStatusCode.PrinterError, $"WMI 查询超时({WmiTimeoutMs}ms)");
+                if (task.Wait(WmiTimeoutMs))
+                    return task.Result;
+
+                _logger.Log(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
+                return ErrorStatus(PrinterStatusCode.PrinterError, $"WMI 查询超时({WmiTimeoutMs}ms)");
+            }
         }
         catch (AggregateException ex)
         {
             var inner = ex.InnerException;
+            if (inner is OperationCanceledException)
+            {
+                _logger.Log(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
+                return ErrorStatus(PrinterStatusCode.PrinterError, $"WMI 查询超时({WmiTimeoutMs}ms)");
+            }
             if (inner is ManagementException)
                 return WmiUnavailableStatus();
             return ErrorStatus(PrinterStatusCode.PrinterError, inner?.Message ?? ex.Message);

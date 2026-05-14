@@ -59,8 +59,8 @@ public class PdfiumPrintService : IPrintService
         }
         catch (Exception ex)
         {
-            _logger.Log(LogLevel.Error, $"打印失败: {request.PrinterName}, jobId={requestId}, {ex.Message}");
-            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, ex.Message);
+            _logger.Log(LogLevel.Error, $"打印失败: {request.PrinterName}, jobId={requestId}, {ex}");
+            return PrinterResult.Error(requestId, ErrorCode.PrintFailed, "打印失败，请检查打印机状态后重试");
         }
     }
 
@@ -75,7 +75,6 @@ public class PdfiumPrintService : IPrintService
 
         float dpi = request.Dpi > 0 ? request.Dpi : 300f;
 
-        // Determine paper dimensions
         float paperWidthMm, paperHeightMm;
         if (request.ForcePaperSize && request.PaperSize != null)
         {
@@ -84,7 +83,6 @@ public class PdfiumPrintService : IPrintService
         }
         else
         {
-            // Use PDF's native page dimensions (MediaBox in points → mm)
             var pageSize = pdfDoc.PageSizes[0];
             paperWidthMm = (float)(pageSize.Width / 72.0 * 25.4);
             paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
@@ -93,34 +91,12 @@ public class PdfiumPrintService : IPrintService
         int renderWidth = (int)Math.Round(paperWidthMm / 25.4 * dpi);
         int renderHeight = (int)Math.Round(paperHeightMm / 25.4 * dpi);
 
-        // Render all pages at the target DPI with correct pixel dimensions
-        var pageImages = new Image[pageCount];
-        try
-        {
-            for (int i = 0; i < pageCount; i++)
-            {
-                pageImages[i] = pdfDoc.Render(i, renderWidth, renderHeight, (int)dpi, (int)dpi,
-                    PdfRenderFlags.ForPrinting);
-            }
-
-            PrintImages(request, paperWidthMm, paperHeightMm, pageImages);
-        }
-        finally
-        {
-            foreach (var img in pageImages)
-                img?.Dispose();
-        }
-    }
-
-    private static void PrintImages(PrintRequestParams request, float paperWidthMm, float paperHeightMm, Image[] pageImages)
-    {
         using var printDoc = new PrintDocument();
         printDoc.PrinterSettings.PrinterName = request.PrinterName;
 
         var paperWidthHundredths = (int)Math.Round(paperWidthMm / 25.4 * 100.0);
         var paperHeightHundredths = (int)Math.Round(paperHeightMm / 25.4 * 100.0);
 
-        // Find matching paper size from printer or use custom
         var paperSize = FindPaperSize(printDoc.PrinterSettings, paperWidthHundredths, paperHeightHundredths)
             ?? new PaperSize("Custom", paperWidthHundredths, paperHeightHundredths);
 
@@ -129,12 +105,11 @@ public class PdfiumPrintService : IPrintService
         printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
         printDoc.OriginAtMargins = false;
 
-        // Manual copies: repeat pages in PrintPage handler.
-        // Avoids spooler-level copies which are unreliable for continuous-paper thermal printers.
         short copies = (short)Math.Max(request.Copies, 1);
-        int logicalPageCount = pageImages.Length * copies;
+        int logicalPageCount = pageCount * copies;
         int pageIndex = 0;
 
+        // Render each page on-demand in PrintPage to bound memory to a single bitmap at a time.
         printDoc.PrintPage += (_, e) =>
         {
             if (pageIndex >= logicalPageCount)
@@ -143,28 +118,29 @@ public class PdfiumPrintService : IPrintService
                 return;
             }
 
-            var img = pageImages[pageIndex % pageImages.Length];
-            var bounds = e.MarginBounds;
+            int pdfPageIndex = pageIndex % pageCount;
+            using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, (int)dpi, (int)dpi,
+                PdfRenderFlags.ForPrinting))
+            {
+                var bounds = e.MarginBounds;
+                e.Graphics.PageUnit = GraphicsUnit.Display;
 
-            // Set page unit to hundredths of an inch (same as MarginBounds)
-            e.Graphics.PageUnit = GraphicsUnit.Display;
+                float scaleX = (float)bounds.Width / img.Width;
+                float scaleY = (float)bounds.Height / img.Height;
+                float scale = Math.Min(scaleX, scaleY);
 
-            // Scale image to fit printable area preserving aspect ratio
-            float scaleX = (float)bounds.Width / img.Width;
-            float scaleY = (float)bounds.Height / img.Height;
-            float scale = Math.Min(scaleX, scaleY);
+                int drawW = (int)(img.Width * scale);
+                int drawH = (int)(img.Height * scale);
+                int drawX = bounds.Left + (bounds.Width - drawW) / 2;
+                int drawY = bounds.Top + (bounds.Height - drawH) / 2;
 
-            int drawW = (int)(img.Width * scale);
-            int drawH = (int)(img.Height * scale);
-            int drawX = bounds.Left + (bounds.Width - drawW) / 2;
-            int drawY = bounds.Top + (bounds.Height - drawH) / 2;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+                e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
 
-            e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
-
-            e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
+                e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
+            }
 
             pageIndex++;
             e.HasMorePages = pageIndex < logicalPageCount;
