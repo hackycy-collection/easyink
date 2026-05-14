@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ public class HttpServer
 {
     private readonly int _port;
     private readonly SemaphoreSlim _concurrency;
+    private readonly ConcurrentDictionary<Guid, Task> _inFlight = new();
     private HttpListener _listener;
     private CancellationTokenSource _cts;
     private Task _listenTask;
@@ -64,12 +66,21 @@ public class HttpServer
         IsRunning = false;
         _cts?.Cancel();
         try { _listener?.Stop(); }
-        catch (Exception ex) { EasyInk.Printer.SimpleLogger.Error("停止监听器异常", ex); }
+        catch (Exception ex) { SimpleLogger.Error("停止监听器异常", ex); }
         try { _listenTask?.Wait(TimeSpan.FromSeconds(3)); }
-        catch (Exception ex) { EasyInk.Printer.SimpleLogger.Error("等待监听任务异常", ex); }
+        catch (Exception ex) { SimpleLogger.Error("等待监听任务异常", ex); }
         _cts?.Dispose();
         _listener?.Close();
         _listener = null;
+
+        // 等待正在执行的请求完成
+        var remaining = _inFlight.Values.ToArray();
+        if (remaining.Length > 0)
+        {
+            try { Task.WaitAll(remaining, TimeSpan.FromSeconds(10)); }
+            catch (Exception ex) { SimpleLogger.Error("等待进行中的请求超时", ex); }
+        }
+        _inFlight.Clear();
     }
 
     private async Task ListenLoop()
@@ -83,7 +94,8 @@ public class HttpServer
                 if (handler != null)
                 {
                     await _concurrency.WaitAsync(_cts.Token);
-                    _ = Task.Run(async () =>
+                    var requestId = Guid.NewGuid();
+                    var task = Task.Run(async () =>
                     {
                         try
                         {
@@ -91,19 +103,21 @@ public class HttpServer
                         }
                         catch (Exception ex)
                         {
-                            EasyInk.Printer.SimpleLogger.Error("请求处理异常", ex);
+                            SimpleLogger.Error("请求处理异常", ex);
                             try
                             {
                                 context.Response.StatusCode = 500;
                                 context.Response.Close();
                             }
-                            catch { }
+                            catch (Exception closeEx) { SimpleLogger.Debug("错误响应关闭异常", closeEx); }
                         }
                         finally
                         {
                             _concurrency.Release();
+                            _inFlight.TryRemove(requestId, out _);
                         }
                     });
+                    _inFlight[requestId] = task;
                 }
             }
             catch (HttpListenerException) { break; }
@@ -111,7 +125,7 @@ public class HttpServer
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
-                EasyInk.Printer.SimpleLogger.Error("监听异常", ex);
+                SimpleLogger.Error("监听异常", ex);
             }
         }
     }

@@ -17,10 +17,12 @@ namespace EasyInk.Engine.Services;
 public class PdfiumPrintService : IPrintService
 {
     private readonly IPrinterService _printerService;
+    private readonly ILogger _logger;
 
-    public PdfiumPrintService(IPrinterService printerService)
+    public PdfiumPrintService(IPrinterService printerService, ILogger logger = null)
     {
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
+        _logger = logger ?? new NullLogger();
     }
 
     public PrinterResult Print(string requestId, PrintRequestParams request)
@@ -46,12 +48,12 @@ public class PdfiumPrintService : IPrintService
         try
         {
             PrintWithSpooler(requestId, request, pdfBytes);
-            EngineApi.RaiseLog(LogLevel.Info, $"打印成功: {request.PrinterName}, jobId={requestId}");
+            _logger.Log(LogLevel.Info, $"打印成功: {request.PrinterName}, jobId={requestId}");
             return PrinterResult.Ok(requestId, PrintResult.Success(requestId));
         }
         catch (Exception ex)
         {
-            EngineApi.RaiseLog(LogLevel.Error, $"打印失败: {request.PrinterName}, jobId={requestId}, {ex.Message}");
+            _logger.Log(LogLevel.Error, $"打印失败: {request.PrinterName}, jobId={requestId}, {ex.Message}");
             return PrinterResult.Error(requestId, ErrorCode.PrintFailed, ex.Message);
         }
     }

@@ -1,10 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Models;
 using EasyInk.Printer.Services.Abstractions;
 using Moq;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace EasyInk.Printer.Tests;
@@ -19,13 +19,13 @@ public class LogControllerTests
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<int>(), It.IsAny<int>()))
-            .Returns(new System.Collections.Generic.List<PrintAuditLog>());
+            .Returns(new List<PrintAuditLog>());
 
         var controller = new LogController(auditService.Object);
         var query = new NameValueCollection();
-        var result = JObject.Parse(controller.QueryLogs(query));
+        var result = controller.QueryLogs(query);
 
-        Assert.True(result["success"].ToObject<bool>());
+        Assert.True(result.Success);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class LogControllerTests
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<int>(), It.IsAny<int>()))
-            .Returns(new System.Collections.Generic.List<PrintAuditLog>());
+            .Returns(new List<PrintAuditLog>());
 
         var controller = new LogController(auditService.Object);
         var query = new NameValueCollection

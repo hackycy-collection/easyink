@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -16,37 +16,37 @@ public class PrintController
         _api = api;
     }
 
-    public string Print(string body)
+    public PrinterResult Print(string body)
     {
         return ExecuteCommand("print", body);
     }
 
-    public string Print(string body, byte[] pdfBytes)
+    public PrinterResult Print(string body, byte[] pdfBytes)
     {
         return ExecuteCommandWithBlob("print", body, pdfBytes);
     }
 
-    public string EnqueuePrint(string body)
+    public PrinterResult EnqueuePrint(string body)
     {
         return ExecuteCommand("printAsync", body);
     }
 
-    public string EnqueuePrint(string body, byte[] pdfBytes)
+    public PrinterResult EnqueuePrint(string body, byte[] pdfBytes)
     {
         return ExecuteCommandWithBlob("printAsync", body, pdfBytes);
     }
 
-    public string BatchPrint(string body)
+    public PrinterResult BatchPrint(string body)
     {
         return ExecuteBatchCommand("batchPrint", body);
     }
 
-    public string EnqueueBatchPrint(string body)
+    public PrinterResult EnqueueBatchPrint(string body)
     {
         return ExecuteBatchCommand("batchPrintAsync", body);
     }
 
-    private string ExecuteCommand(string command, string body)
+    private PrinterResult ExecuteCommand(string command, string body)
     {
         var cmd = new PrinterCommand
         {
@@ -54,11 +54,10 @@ public class PrintController
             Id = Guid.NewGuid().ToString(),
             Params = ParseBodyToDictionary(body)
         };
-        var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
+        return _api.HandleCommand(cmd);
     }
 
-    private string ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
+    private PrinterResult ExecuteCommandWithBlob(string command, string body, byte[] pdfBytes)
     {
         var parms = ParseBodyToDictionary(body) ?? new Dictionary<string, object>();
         if (pdfBytes != null)
@@ -70,17 +69,13 @@ public class PrintController
             Id = Guid.NewGuid().ToString(),
             Params = parms
         };
-        var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
+        return _api.HandleCommand(cmd);
     }
 
-    private string ExecuteBatchCommand(string command, string body)
+    private PrinterResult ExecuteBatchCommand(string command, string body)
     {
         if (string.IsNullOrEmpty(body))
-        {
-            return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "缺少请求体"), JsonConfig.CamelCase);
-        }
+            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "缺少请求体");
 
         var token = JToken.Parse(body);
         JArray jobs;
@@ -89,10 +84,7 @@ public class PrintController
         else if (token is JObject obj && obj["jobs"] is JArray jArr)
             jobs = jArr;
         else
-        {
-            return JsonConvert.SerializeObject(PrinterResult.Error(
-                Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "jobs 必须是数组"), JsonConfig.CamelCase);
-        }
+            return PrinterResult.Error(Guid.NewGuid().ToString(), ErrorCode.InvalidParams, "jobs 必须是数组");
 
         var cmd = new PrinterCommand
         {
@@ -100,8 +92,7 @@ public class PrintController
             Id = Guid.NewGuid().ToString(),
             Params = new Dictionary<string, object> { ["jobs"] = jobs }
         };
-        var result = _api.HandleCommand(cmd);
-        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
+        return _api.HandleCommand(cmd);
     }
 
     private static Dictionary<string, object> ParseBodyToDictionary(string body)
@@ -118,5 +109,4 @@ public class PrintController
         }
         return null;
     }
-
 }

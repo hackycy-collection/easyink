@@ -17,6 +17,8 @@ public class PrintJobQueue : IDisposable
     private const int DefaultMaxQueueSize = 100;
 
     private readonly IPrintService _printService;
+    private readonly ILogger _logger;
+    private readonly Action<string, PrintRequestParams, PrinterResult> _onPrintCompleted;
     private readonly Dictionary<string, (PrintJob Job, PrintRequestParams Request)> _jobs = new();
     private readonly BlockingCollection<(string requestId, PrintRequestParams request)> _queue;
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
@@ -28,10 +30,16 @@ public class PrintJobQueue : IDisposable
     /// </summary>
     /// <param name="printService">打印服务</param>
     /// <param name="maxQueueSize">队列最大容量</param>
-    public PrintJobQueue(IPrintService printService, int maxQueueSize = DefaultMaxQueueSize)
+    /// <param name="logger">日志记录器</param>
+    /// <param name="onPrintCompleted">打印完成回调</param>
+    public PrintJobQueue(IPrintService printService, int maxQueueSize = DefaultMaxQueueSize,
+        ILogger logger = null, Action<string, PrintRequestParams, PrinterResult> onPrintCompleted = null)
     {
         _printService = printService;
+        _logger = logger ?? new NullLogger();
+        _onPrintCompleted = onPrintCompleted;
         _queue = new BlockingCollection<(string, PrintRequestParams)>(maxQueueSize);
+        // LongRunning: 打印队列需要专用线程以避免阻塞线程池
         _worker = Task.Factory.StartNew(
             ProcessQueue,
             _cts.Token,
@@ -149,7 +157,7 @@ public class PrintJobQueue : IDisposable
                     jobInfo.ErrorMessage = ex.Message;
                 }
                 response = PrinterResult.Error(requestId, ErrorCode.InternalError, ex.Message);
-                EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"打印任务 {requestId} 失败: {ex.Message}");
+                _logger.Log(LogLevel.Error, $"打印任务 {requestId} 失败: {ex.Message}");
             }
             finally
             {
@@ -157,7 +165,7 @@ public class PrintJobQueue : IDisposable
             }
 
             if (response != null)
-                EngineApi.RaisePrintCompleted(requestId, request, response);
+                _onPrintCompleted?.Invoke(requestId, request, response);
 
             if (++processedCount % 100 == 0)
                 PurgeExpiredJobs();
@@ -187,6 +195,8 @@ public class PrintJobQueue : IDisposable
         _cts.Cancel();
         try { _worker.Wait(TimeSpan.FromSeconds(30)); }
         catch (Exception) { }
+        if (_worker.IsFaulted)
+            _logger.Log(LogLevel.Error, $"打印队列工作线程异常: {_worker.Exception?.InnerException?.Message}");
         _cts.Dispose();
         _queue.Dispose();
     }

@@ -3,7 +3,6 @@ using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 using EasyInk.Printer.Api;
 using Moq;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace EasyInk.Printer.Tests;
@@ -25,18 +24,18 @@ public class JobControllerTests
     public void GetJobStatus_NotFound_ReturnsError()
     {
         var controller = CreateController();
-        var result = JObject.Parse(controller.GetJobStatus("nonexistent"));
+        var result = controller.GetJobStatus("nonexistent");
 
-        Assert.False(result["success"].ToObject<bool>());
-        Assert.Equal(ErrorCode.JobNotFound, result["errorInfo"]["code"].ToString());
+        Assert.False(result.Success);
+        Assert.Equal(ErrorCode.JobNotFound, result.ErrorInfo.Code);
     }
 
     [Fact]
     public void GetAllJobs_ReturnsSuccess()
     {
         var controller = CreateController();
-        var result = JObject.Parse(controller.GetAllJobs());
+        var result = controller.GetAllJobs();
 
-        Assert.True(result["success"].ToObject<bool>());
+        Assert.True(result.Success);
     }
 }

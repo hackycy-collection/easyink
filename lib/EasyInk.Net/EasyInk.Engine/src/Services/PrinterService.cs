@@ -14,6 +14,12 @@ namespace EasyInk.Engine.Services;
 public class PrinterService : IPrinterService
 {
     private const int WmiTimeoutMs = 5_000;
+    private readonly ILogger _logger;
+
+    public PrinterService(ILogger logger = null)
+    {
+        _logger = logger ?? new NullLogger();
+    }
 
     // WMI Win32_Printer.PrinterStatus enum values
     private const uint WmiPrinterStatus_Other = 1;
@@ -85,16 +91,16 @@ public class PrinterService : IPrinterService
 
             if (!task.Wait(WmiTimeoutMs))
             {
-                EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"批量查询打印机状态超时({WmiTimeoutMs}ms)");
+                _logger.Log(LogLevel.Error, $"批量查询打印机状态超时({WmiTimeoutMs}ms)");
             }
         }
         catch (AggregateException ex) when (ex.InnerException is TimeoutException)
         {
-            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"批量查询打印机状态超时");
+            _logger.Log(LogLevel.Error, $"批量查询打印机状态超时");
         }
         catch (Exception ex)
         {
-            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"批量查询打印机状态失败: {ex.Message}");
+            _logger.Log(LogLevel.Error, $"批量查询打印机状态失败: {ex.Message}");
         }
         return map;
     }
@@ -145,7 +151,7 @@ public class PrinterService : IPrinterService
             if (task.Wait(WmiTimeoutMs))
                 return task.Result;
 
-            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
+            _logger.Log(LogLevel.Error, $"查询打印机 {printerName} WMI 状态超时({WmiTimeoutMs}ms)");
             return ErrorStatus(PrinterStatusCode.PrinterError, $"WMI 查询超时({WmiTimeoutMs}ms)");
         }
         catch (AggregateException ex)
@@ -192,11 +198,11 @@ public class PrinterService : IPrinterService
     {
         return new PrinterStatus
         {
-            IsReady = true,
+            IsReady = false,
             StatusCode = PrinterStatusCode.WmiUnavailable,
             Message = "WMI 状态不可用，打印机存在但状态未知",
-            IsOnline = true,
-            HasPaper = true,
+            IsOnline = false,
+            HasPaper = false,
             IsPaperJam = false,
             PrinterState = "Unknown"
         };
@@ -306,7 +312,7 @@ public class PrinterService : IPrinterService
         }
         catch (Exception ex)
         {
-            EngineApi.RaiseLog(LogLevel.Error, $"查询打印机 {printerName} 纸型失败: {ex.Message}");
+            _logger.Log(LogLevel.Error, $"查询打印机 {printerName} 纸型失败: {ex.Message}");
         }
 
         return null;
@@ -331,7 +337,7 @@ public class PrinterService : IPrinterService
         }
         catch (Exception ex)
         {
-            EasyInk.Engine.EngineApi.RaiseLog(LogLevel.Error, $"获取打印机 {printerName} 纸张尺寸失败: {ex.Message}");
+            _logger.Log(LogLevel.Error, $"获取打印机 {printerName} 纸张尺寸失败: {ex.Message}");
         }
 
         return sizes;

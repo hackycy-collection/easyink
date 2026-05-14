@@ -61,9 +61,6 @@ static class Program
         var logDir = Path.GetDirectoryName(resolvedDbPath);
         SimpleLogger.Configure(logDir);
 
-        // 订阅 Engine 日志事件，转发到本地日志
-        EngineApi.Log += OnEngineLog;
-
         _crashLogDir = HostConfig.ResolveCrashLogDir(config.CrashLogDir);
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             HandleFatalException(ToException(e.ExceptionObject), "AppDomain.UnhandledException");
@@ -79,8 +76,10 @@ static class Program
         var engineApi = new EngineApi(
             maxQueueSize: config.MaxQueueSize);
 
+        engineApi.Log += OnEngineLog;
+
         // 订阅打印完成事件，写入审计日志
-        EngineApi.PrintCompleted += (requestId, request, result) =>
+        engineApi.PrintCompleted += (requestId, request, result) =>
         {
             try
             {
@@ -219,11 +218,10 @@ static class Program
         if (_disposed) return;
         _disposed = true;
 
-        try { httpServer.Stop(); } catch { }
-        try { wsHandler.Dispose(); } catch { }
-        try { engineApi.Dispose(); } catch { }
-        try { trayIcon.Dispose(); } catch { }
-        EngineApi.ClearEvents();
+        try { httpServer.Stop(); } catch (Exception ex) { SimpleLogger.Debug("HTTP服务器停止异常", ex); }
+        try { wsHandler.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("WebSocket处理器释放异常", ex); }
+        try { engineApi.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("引擎释放异常", ex); }
+        try { trayIcon.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("托盘图标释放异常", ex); }
     }
 
     private static IAuditService CreateAuditService(string dbPath)

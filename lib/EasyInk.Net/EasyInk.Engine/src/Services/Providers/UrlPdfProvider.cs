@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -15,6 +15,7 @@ public class UrlPdfProvider : IPdfProvider
     private const int TimeoutMs = 30_000;
 
     private readonly string _url;
+    private readonly Uri _uri;
 
     /// <summary>
     /// 初始化 URL PDF 提供者
@@ -24,11 +25,11 @@ public class UrlPdfProvider : IPdfProvider
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL 不能为空", nameof(url));
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out _uri))
             throw new ArgumentException("无效的 URL 格式", nameof(url));
-        if (uri.Scheme != "http" && uri.Scheme != "https")
+        if (_uri.Scheme != "http" && _uri.Scheme != "https")
             throw new ArgumentException("仅支持 http/https 协议", nameof(url));
-        ValidateHostNotPrivate(uri.Host);
+        ValidateHostNotPrivate(_uri.Host);
         _url = url;
     }
 
@@ -50,17 +51,11 @@ public class UrlPdfProvider : IPdfProvider
         if (ip.AddressFamily == AddressFamily.InterNetwork)
         {
             var bytes = ip.GetAddressBytes();
-            // 10.0.0.0/8
             if (bytes[0] == 10) return true;
-            // 172.16.0.0/12
             if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
-            // 192.168.0.0/16
             if (bytes[0] == 192 && bytes[1] == 168) return true;
-            // 127.0.0.0/8
             if (bytes[0] == 127) return true;
-            // 169.254.0.0/16 (link-local)
             if (bytes[0] == 169 && bytes[1] == 254) return true;
-            // 0.0.0.0
             if (ip.Equals(IPAddress.Any)) return true;
         }
 
@@ -81,8 +76,14 @@ public class UrlPdfProvider : IPdfProvider
     {
         try
         {
+            // 二次 DNS 解析验证，防御 DNS 重绑定攻击
+            ValidateResolvedIp();
+
             var request = WebRequest.Create(_url);
             request.Timeout = TimeoutMs;
+            // 禁止自动重定向，防止重定向到内网地址绕过检查
+            if (request is HttpWebRequest httpRequest)
+                httpRequest.AllowAutoRedirect = false;
 
             using (var response = request.GetResponse())
             using (var stream = response.GetResponseStream())
@@ -103,5 +104,28 @@ public class UrlPdfProvider : IPdfProvider
         }
         catch (ArgumentException) { throw; }
         catch (WebException) { throw; }
+    }
+
+    private void ValidateResolvedIp()
+    {
+        var host = _uri.Host;
+        // IP 地址直接信任构造时的校验结果
+        if (IPAddress.TryParse(host, out _))
+            return;
+
+        try
+        {
+            var addresses = Dns.GetHostAddresses(host);
+            foreach (var addr in addresses)
+            {
+                if (IsPrivateIp(addr))
+                    throw new ArgumentException($"DNS 解析 {host} 指向内网地址 {addr}，已拦截");
+            }
+        }
+        catch (ArgumentException) { throw; }
+        catch
+        {
+            // DNS 解析失败时使用构造时的校验结果，放行
+        }
     }
 }

@@ -33,32 +33,23 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 日志回调事件，订阅方自行决定如何处理日志（写文件、存数据库等）
     /// </summary>
-    public static event Action<LogLevel, string> Log;
+    public event Action<LogLevel, string> Log;
 
     /// <summary>
     /// 打印完成回调（requestId, 请求参数, 打印结果），用于审计等宿主层需求
     /// </summary>
-    public static event Action<string, PrintRequestParams, PrinterResult> PrintCompleted;
+    public event Action<string, PrintRequestParams, PrinterResult> PrintCompleted;
 
-    internal static void RaiseLog(LogLevel level, string message)
+    internal void RaiseLog(LogLevel level, string message)
     {
         var handler = Log;
         handler?.Invoke(level, message);
     }
 
-    internal static void RaisePrintCompleted(string requestId, PrintRequestParams request, PrinterResult result)
+    internal void RaisePrintCompleted(string requestId, PrintRequestParams request, PrinterResult result)
     {
         var handler = PrintCompleted;
         handler?.Invoke(requestId, request, result);
-    }
-
-    /// <summary>
-    /// 清除所有静态事件订阅，防止进程退出后仍触发回调
-    /// </summary>
-    public static void ClearEvents()
-    {
-        Log = null;
-        PrintCompleted = null;
     }
 
     /// <summary>
@@ -78,40 +69,37 @@ public class EngineApi : IDisposable
         IPrintService printService = null,
         int? maxQueueSize = null)
     {
-        _printerService = printerService ?? new PrinterService();
+        var logger = new EventLogger(this);
+        _printerService = printerService ?? new PrinterService(logger);
         _printService = printService
-            ?? new PdfiumPrintService(_printerService);
-        _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100);
+            ?? new PdfiumPrintService(_printerService, logger);
+        _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100,
+            logger, (requestId, request, result) => RaisePrintCompleted(requestId, request, result));
     }
 
     /// <summary>
     /// 获取打印机列表
     /// </summary>
-    public string GetPrinters()
+    public PrinterResult GetPrinters()
     {
-        var printers = _printerService.GetPrinters();
-        return JsonConvert.SerializeObject(PrinterResult.Ok("printers", printers), JsonConfig.CamelCase);
+        return PrinterResult.Ok("printers", _printerService.GetPrinters());
     }
 
     /// <summary>
     /// 获取打印机状态
     /// </summary>
-    public string GetPrinterStatus(string printerName)
+    public PrinterResult GetPrinterStatus(string printerName)
     {
         if (string.IsNullOrEmpty(printerName))
-        {
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "缺少printerName参数"), JsonConfig.CamelCase);
-        }
+            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, "缺少printerName参数");
 
-        var status = _printerService.GetPrinterStatus(printerName);
-        return JsonConvert.SerializeObject(status, JsonConfig.CamelCase);
+        return PrinterResult.Ok("unknown", _printerService.GetPrinterStatus(printerName));
     }
 
     /// <summary>
     /// 同步打印（支持 Base64、URL、二进制三种 PDF 来源）
     /// </summary>
-    public string Print(string printerName, string pdfBase64 = null, string pdfUrl = null,
+    public PrinterResult Print(string printerName, string pdfBase64 = null, string pdfUrl = null,
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
@@ -119,7 +107,7 @@ public class EngineApi : IDisposable
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, error);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
@@ -127,13 +115,13 @@ public class EngineApi : IDisposable
         var requestId = Guid.NewGuid().ToString();
         var response = _printService.Print(requestId, request);
         RaisePrintCompleted(requestId, request, response);
-        return JsonConvert.SerializeObject(response, JsonConfig.CamelCase);
+        return response;
     }
 
     /// <summary>
     /// 入队打印（支持 Base64、URL、二进制三种 PDF 来源，立即返回 jobId）
     /// </summary>
-    public string EnqueuePrint(string printerName, string pdfBase64 = null, string pdfUrl = null,
+    public PrinterResult EnqueuePrint(string printerName, string pdfBase64 = null, string pdfUrl = null,
         byte[] pdfBytes = null, int copies = 1,
         double? paperWidth = null, double? paperHeight = null, string paperUnit = "mm",
         int dpi = 300, double? offsetX = null, double? offsetY = null, string offsetUnit = "mm",
@@ -141,7 +129,7 @@ public class EngineApi : IDisposable
     {
         var error = ValidatePrintParams(printerName, pdfBase64, pdfUrl, pdfBytes, copies);
         if (error != null)
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.InvalidParams, error), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, error);
 
         var request = BuildPrintRequest(printerName, pdfBase64, pdfUrl, pdfBytes, copies,
             paperWidth, paperHeight, paperUnit, dpi, offsetX, offsetY, offsetUnit, userId, labelType, landscape, forcePaperSize);
@@ -149,69 +137,62 @@ public class EngineApi : IDisposable
         try
         {
             var jobId = _jobQueue.Enqueue(null, request);
-            return JsonConvert.SerializeObject(new { jobId, status = JobStatus.Queued }, JsonConfig.CamelCase);
+            return PrinterResult.Ok("unknown", new { jobId, status = JobStatus.Queued });
         }
         catch (InvalidOperationException ex)
         {
-            return JsonConvert.SerializeObject(PrinterResult.Error("unknown", ErrorCode.QueueFull, ex.Message), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.QueueFull, ex.Message);
         }
     }
 
     /// <summary>
     /// 批量同步打印
     /// </summary>
-    public string BatchPrint(string jobsJson)
+    public PrinterResult BatchPrint(string jobsJson)
     {
         var jobs = DeserializeJobs(jobsJson);
         if (jobs == null)
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效");
 
-        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: false);
-        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
+        return ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: false);
     }
 
     /// <summary>
     /// 批量入队打印
     /// </summary>
-    public string EnqueueBatchPrint(string jobsJson)
+    public PrinterResult EnqueueBatchPrint(string jobsJson)
     {
         var jobs = DeserializeJobs(jobsJson);
         if (jobs == null)
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效"), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.InvalidParams, "jobs参数无效");
 
-        var result = ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: true);
-        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
+        return ExecuteBatchJobs(Guid.NewGuid().ToString(), jobs, enqueue: true);
     }
 
     /// <summary>
     /// 获取打印任务状态
     /// </summary>
-    public string GetJobStatus(string jobId)
+    public PrinterResult GetJobStatus(string jobId)
     {
         var info = _jobQueue.GetJobStatus(jobId);
         if (info == null)
-        {
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error(jobId, ErrorCode.JobNotFound, $"任务不存在: {jobId}"), JsonConfig.CamelCase);
-        }
-        return JsonConvert.SerializeObject(info, JsonConfig.CamelCase);
+            return PrinterResult.Error(jobId, ErrorCode.JobNotFound, $"任务不存在: {jobId}");
+
+        return PrinterResult.Ok(jobId, info);
     }
 
     /// <summary>
     /// 获取所有打印任务
     /// </summary>
-    public string GetAllJobs()
+    public PrinterResult GetAllJobs()
     {
-        var jobs = _jobQueue.GetAllJobs();
-        return JsonConvert.SerializeObject(PrinterResult.Ok("all", jobs), JsonConfig.CamelCase);
+        return PrinterResult.Ok("all", _jobQueue.GetAllJobs());
     }
 
     /// <summary>
     /// 处理 JSON 命令（统一入口）
     /// </summary>
-    public string HandleCommand(string json)
+    public PrinterResult HandleCommand(string json)
     {
         PrinterCommand request;
         try
@@ -220,18 +201,13 @@ public class EngineApi : IDisposable
         }
         catch (JsonException)
         {
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON"), JsonConfig.CamelCase);
+            return PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON");
         }
 
         if (request == null)
-        {
-            return JsonConvert.SerializeObject(
-                PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON"), JsonConfig.CamelCase);
-        }
+            return PrinterResult.Error("unknown", ErrorCode.InvalidJson, "无效的JSON");
 
-        var response = HandleCommand(request);
-        return JsonConvert.SerializeObject(response, JsonConfig.CamelCase);
+        return HandleCommand(request);
     }
 
     /// <summary>
@@ -263,12 +239,11 @@ public class EngineApi : IDisposable
     }
 
     /// <summary>
-    /// 释放资源并清除静态事件订阅，防止内存泄漏
+    /// 释放资源
     /// </summary>
     public void Dispose()
     {
         _jobQueue.Dispose();
-        ClearEvents();
     }
 
     private static PrintRequestParams BuildPrintRequest(string printerName, string pdfBase64,
@@ -500,5 +475,20 @@ public class EngineApi : IDisposable
         });
 
         return PrinterResult.Ok(requestId, new BatchPrintResult { Jobs = new List<BatchJobResult>(syncResults) });
+    }
+
+    private sealed class EventLogger : ILogger
+    {
+        private readonly EngineApi _api;
+
+        public EventLogger(EngineApi api)
+        {
+            _api = api;
+        }
+
+        public void Log(LogLevel level, string message)
+        {
+            _api.RaiseLog(level, message);
+        }
     }
 }

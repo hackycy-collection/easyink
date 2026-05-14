@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
 using EasyInk.Printer.Api;
@@ -65,7 +64,7 @@ public class Router
 
         if (!ValidateApiKey(request))
         {
-            var unauthorized = Encoding.UTF8.GetBytes(ErrorJson(ErrorCode.Unauthorized, "无效的 API Key"));
+            var unauthorized = Encoding.UTF8.GetBytes(SerializeResult(PrinterResult.Error(null, ErrorCode.Unauthorized, "无效的 API Key")));
             response.StatusCode = 401;
             response.ContentType = "application/json; charset=utf-8";
             response.ContentLength64 = unauthorized.Length;
@@ -74,28 +73,24 @@ public class Router
             return;
         }
 
-        string result;
+        PrinterResult result;
         try
         {
             result = await RouteRequest(request);
         }
         catch (Exception ex)
         {
-            result = JsonConvert.SerializeObject(new
-            {
-                success = false,
-                errorInfo = new { code = ErrorCode.InternalError, message = ex.Message }
-            }, JsonConfig.CamelCase);
+            result = PrinterResult.Error(null, ErrorCode.InternalError, ex.Message);
         }
 
-        var buffer = Encoding.UTF8.GetBytes(result);
+        var buffer = Encoding.UTF8.GetBytes(SerializeResult(result));
         response.ContentType = "application/json; charset=utf-8";
         response.ContentLength64 = buffer.Length;
         await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
         response.Close();
     }
 
-    private async Task<string> RouteRequest(HttpListenerRequest request)
+    private async Task<PrinterResult> RouteRequest(HttpListenerRequest request)
     {
         var path = request.Url.AbsolutePath.TrimEnd('/');
         var method = request.HttpMethod;
@@ -104,7 +99,7 @@ public class Router
             return _statusController.GetStatus();
 
         if (method == "GET" && path == "/api/status/connections")
-            return JsonConvert.SerializeObject(new { success = true, data = new { count = _wsHandler.ConnectionCount } }, JsonConfig.CamelCase);
+            return PrinterResult.Ok("connections", new { count = _wsHandler.ConnectionCount });
 
         if (method == "GET" && path == "/api/printers")
             return _printerController.GetPrinters();
@@ -113,13 +108,12 @@ public class Router
         if (method == "GET" && path.StartsWith("/api/printers/") && path.EndsWith("/status"))
         {
             var segments = path.Split('/');
-            // ["", "api", "printers", "{name}", "status"]
             if (segments.Length == 5 && !string.IsNullOrEmpty(segments[3]))
             {
                 var name = Uri.UnescapeDataString(segments[3]);
                 return _printerController.GetPrinterStatus(name);
             }
-            return ErrorJson(ErrorCode.InvalidParams, "缺少打印机名称");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少打印机名称");
         }
 
         if (method == "POST" && path == "/api/print")
@@ -141,31 +135,31 @@ public class Router
         {
             var id = path.Substring(10);
             if (string.IsNullOrEmpty(id))
-                return ErrorJson(ErrorCode.InvalidParams, "缺少任务ID");
+                return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少任务ID");
             return _jobController.GetJobStatus(id);
         }
 
         if (method == "GET" && path == "/api/logs")
             return _logController.QueryLogs(request.QueryString);
 
-        return ErrorJson(ErrorCode.NotFound, $"路由不存在: {method} {path}");
+        return PrinterResult.Error(null, ErrorCode.NotFound, $"路由不存在: {method} {path}");
     }
 
-    private async Task<string> HandlePrintRequest(HttpListenerRequest request)
+    private async Task<PrinterResult> HandlePrintRequest(HttpListenerRequest request)
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return ErrorJson(ErrorCode.InvalidParams, "缺少请求参数");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少请求参数");
         if (pdfBytes != null)
             return _printController.Print(paramsJson, pdfBytes);
         return _printController.Print(paramsJson);
     }
 
-    private async Task<string> HandleEnqueuePrintRequest(HttpListenerRequest request)
+    private async Task<PrinterResult> HandleEnqueuePrintRequest(HttpListenerRequest request)
     {
         var (paramsJson, pdfBytes) = await ReadMultipartOrJson(request);
         if (paramsJson == null)
-            return ErrorJson(ErrorCode.InvalidParams, "缺少请求参数");
+            return PrinterResult.Error(null, ErrorCode.InvalidParams, "缺少请求参数");
         if (pdfBytes != null)
             return _printController.EnqueuePrint(paramsJson, pdfBytes);
         return _printController.EnqueuePrint(paramsJson);
@@ -232,13 +226,9 @@ public class Router
         return result;
     }
 
-    private static string ErrorJson(string code, string message)
+    private static string SerializeResult(PrinterResult result)
     {
-        return JsonConvert.SerializeObject(new
-        {
-            success = false,
-            errorInfo = new { code, message }
-        }, JsonConfig.CamelCase);
+        return JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
     }
 
     private bool ValidateApiKey(HttpListenerRequest request)

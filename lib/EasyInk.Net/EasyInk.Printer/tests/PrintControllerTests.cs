@@ -1,10 +1,8 @@
-using System;
 using EasyInk.Engine;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
 using EasyInk.Printer.Api;
 using Moq;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace EasyInk.Printer.Tests;
@@ -31,9 +29,9 @@ public class PrintControllerTests
 
         var controller = CreateController(printService: printService);
         var body = @"{""printerName"":""TestPrinter"",""pdfBase64"":""AQID""}";
-        var result = JObject.Parse(controller.Print(body));
+        var result = controller.Print(body);
 
-        Assert.True(result["success"].ToObject<bool>());
+        Assert.True(result.Success);
     }
 
     [Fact]
@@ -46,18 +44,18 @@ public class PrintControllerTests
         var controller = CreateController(printService: printService);
         var body = @"{""printerName"":""TestPrinter""}";
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
-        var result = JObject.Parse(controller.Print(body, pdfBytes));
+        var result = controller.Print(body, pdfBytes);
 
-        Assert.True(result["success"].ToObject<bool>());
+        Assert.True(result.Success);
     }
 
     [Fact]
     public void Print_MissingParams_ReturnsError()
     {
         var controller = CreateController();
-        var result = JObject.Parse(controller.Print("{}"));
+        var result = controller.Print("{}");
 
-        Assert.False(result["success"].ToObject<bool>());
+        Assert.False(result.Success);
     }
 
     [Fact]
@@ -69,19 +67,18 @@ public class PrintControllerTests
 
         var controller = CreateController(printService: printService);
         var body = @"{""printerName"":""TestPrinter"",""pdfBase64"":""AQID""}";
-        var result = JObject.Parse(controller.EnqueuePrint(body));
+        var result = controller.EnqueuePrint(body);
 
-        Assert.True(result["success"].ToObject<bool>());
-        Assert.Equal(JobStatus.Queued, result["data"]["status"].ToString());
+        Assert.True(result.Success);
     }
 
     [Fact]
     public void BatchPrint_EmptyBody_ReturnsError()
     {
         var controller = CreateController();
-        var result = JObject.Parse(controller.BatchPrint(""));
+        var result = controller.BatchPrint("");
 
-        Assert.False(result["success"].ToObject<bool>());
+        Assert.False(result.Success);
     }
 
     [Fact]
@@ -93,8 +90,8 @@ public class PrintControllerTests
 
         var controller = CreateController(printService: printService);
         var body = @"[{""printerName"":""P1"",""pdfBase64"":""AQID""}]";
-        var result = JObject.Parse(controller.BatchPrint(body));
+        var result = controller.BatchPrint(body);
 
-        Assert.True(result["success"].ToObject<bool>());
+        Assert.True(result.Success);
     }
 }

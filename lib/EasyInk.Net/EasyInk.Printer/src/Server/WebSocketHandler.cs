@@ -75,7 +75,7 @@ public class WebSocketHandler : IDisposable
         catch
         {
             _connections.TryRemove(connectionId, out _);
-            try { ws.Dispose(); } catch { }
+            try { ws.Dispose(); } catch (Exception disposeEx) { SimpleLogger.Debug("WebSocket ping释放异常", disposeEx); }
         }
     }
 
@@ -119,7 +119,10 @@ public class WebSocketHandler : IDisposable
             try
             {
                 if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                {
+                    using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", closeCts.Token);
+                }
             }
             catch (WebSocketException) { }
             ws.Dispose();
@@ -139,7 +142,8 @@ public class WebSocketHandler : IDisposable
             // 接收完整消息（可能分多个帧）
             while (!endOfMessage)
             {
-                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                using var receiveCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), receiveCts.Token);
 
                 if (result.MessageType == WebSocketMessageType.Close)
                     return;
@@ -190,7 +194,8 @@ public class WebSocketHandler : IDisposable
             errorInfo = new { code, message = errorMessage }
         });
         var bytes = Encoding.UTF8.GetBytes(errorJson);
-        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, sendCts.Token);
     }
 
     public async Task Broadcast(string message)
@@ -206,7 +211,10 @@ public class WebSocketHandler : IDisposable
                 try
                 {
                     if (kvp.Value.State == WebSocketState.Open)
-                        await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    {
+                        using var bcastCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        await kvp.Value.SendAsync(segment, WebSocketMessageType.Text, true, bcastCts.Token);
+                    }
                 }
                 catch (WebSocketException)
                 {
@@ -230,7 +238,7 @@ public class WebSocketHandler : IDisposable
         _cts.Dispose();
         foreach (var kvp in _connections)
         {
-            try { kvp.Value.Dispose(); } catch { }
+            try { kvp.Value.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("WebSocket连接释放异常", ex); }
         }
         _connections.Clear();
         _broadcastLock.Dispose();

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -25,8 +26,8 @@ public class MainWindow : Form
     private readonly IAuditService _auditService;
     private readonly HostConfig _config;
     private TabControl _tabs;
-    private readonly System.Collections.Generic.HashSet<int> _loadedTabs = new();
-    private readonly System.Collections.Generic.HashSet<int> _refreshingTabs = new();
+    private readonly HashSet<int> _loadedTabs = new();
+    private readonly HashSet<int> _refreshingTabs = new();
 
     public event Action OnRestart;
 
@@ -310,19 +311,13 @@ public class MainWindow : Form
     {
         try
         {
-            var json = _api.GetAllJobs();
-            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
-            var data = result["data"] as Newtonsoft.Json.Linq.JArray;
-            var hasActive = data != null && data.Any(j =>
-            {
-                var st = j["status"]?.ToString();
-                return st == JobStatus.Printing || st == JobStatus.Queued;
-            });
+            var result = _api.GetAllJobs();
+            var hasActive = result.Success && result.Data is List<PrintJob> jobs
+                && jobs.Any(j => j.Status == JobStatus.Printing || j.Status == JobStatus.Queued);
 
-            var isBusy = hasActive;
-            lblQueueVal.Text = isBusy ? "忙碌" : "空闲";
-            lblQueueVal.ForeColor = isBusy ? colorBusy : colorIdle;
-            cardQueue.Controls[1].BackColor = isBusy ? colorBusy : colorIdle;
+            lblQueueVal.Text = hasActive ? "忙碌" : "空闲";
+            lblQueueVal.ForeColor = hasActive ? colorBusy : colorIdle;
+            cardQueue.Controls[1].BackColor = hasActive ? colorBusy : colorIdle;
         }
         catch
         {
@@ -434,20 +429,15 @@ public class MainWindow : Form
         _refreshingTabs.Remove(tabIndex);
     }
 
-    private async Task RefreshListViewAsync(ListView listView, int tabIndex, string operationName, Func<string> dataFetcher, Action<ListView, Newtonsoft.Json.Linq.JArray> rowMapper)
+    private async Task RefreshListViewAsync<T>(ListView listView, int tabIndex, string operationName, Func<PrinterResult> dataFetcher, Action<ListView, List<T>> rowMapper)
     {
         if (!TryBeginRefresh(tabIndex)) return;
         try
         {
             listView.Items.Clear();
-            var json = await Task.Run(dataFetcher);
-            var result = Newtonsoft.Json.Linq.JObject.Parse(json);
-            if (result["success"]?.ToObject<bool>() == true)
-            {
-                var data = result["data"] as Newtonsoft.Json.Linq.JArray;
-                if (data != null)
-                    rowMapper(listView, data);
-            }
+            var result = await Task.Run(dataFetcher);
+            if (result.Success && result.Data is List<T> data)
+                rowMapper(listView, data);
         }
         catch (ObjectDisposedException) { }
         catch (Exception ex)
@@ -468,12 +458,11 @@ public class MainWindow : Form
             {
                 foreach (var p in data)
                 {
-                    var item = new ListViewItem(p["name"]?.ToString());
-                    item.SubItems.Add(p["isDefault"]?.ToObject<bool>() == true ? "是" : "");
-                    var status = p["status"];
-                    item.SubItems.Add(status?["message"]?.ToString() ?? "");
-                    item.SubItems.Add(status?["isOnline"]?.ToObject<bool>() == true ? "是" : "否");
-                    item.SubItems.Add(status?["hasPaper"]?.ToObject<bool>() == true ? "是" : "否");
+                    var item = new ListViewItem(p.Name);
+                    item.SubItems.Add(p.IsDefault ? "是" : "");
+                    item.SubItems.Add(p.Status?.Message ?? "");
+                    item.SubItems.Add(p.Status?.IsOnline == true ? "是" : "否");
+                    item.SubItems.Add(p.Status?.HasPaper == true ? "是" : "否");
                     listViewCtrl.Items.Add(item);
                 }
             });
@@ -486,11 +475,11 @@ public class MainWindow : Form
             {
                 foreach (var job in data)
                 {
-                    var item = new ListViewItem(job["jobId"]?.ToString());
-                    item.SubItems.Add(job["printerName"]?.ToString());
-                    item.SubItems.Add(job["status"]?.ToString());
-                    item.SubItems.Add(job["createdAt"]?.ToString());
-                    item.SubItems.Add(job["errorMessage"]?.ToString());
+                    var item = new ListViewItem(job.JobId);
+                    item.SubItems.Add(job.PrinterName);
+                    item.SubItems.Add(job.Status);
+                    item.SubItems.Add(job.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+                    item.SubItems.Add(job.ErrorMessage);
                     listViewCtrl.Items.Add(item);
                 }
             });
@@ -587,24 +576,32 @@ public class MainWindow : Form
 
     private async void RefreshLogs(ListView listView, DateTime from, DateTime to)
     {
-        await RefreshListViewAsync(listView, 3, "查询日志", () =>
+        if (!TryBeginRefresh(3)) return;
+        try
         {
-            var logs = _auditService.QueryLogs(from, to, limit: 200);
-            return Newtonsoft.Json.JsonConvert.SerializeObject(new { success = true, data = logs }, JsonConfig.CamelCase);
-        },
-            (listViewCtrl, data) =>
+            listView.Items.Clear();
+            var logs = await Task.Run(() => _auditService.QueryLogs(from, to, limit: 200));
+            foreach (var log in logs)
             {
-                foreach (var log in data)
-                {
-                    var item = new ListViewItem(log["timestamp"]?.ToString());
-                    item.SubItems.Add(log["printerName"]?.ToString());
-                    item.SubItems.Add(log["status"]?.ToString());
-                    item.SubItems.Add(log["userId"]?.ToString());
-                    item.SubItems.Add(log["jobId"]?.ToString());
-                    item.SubItems.Add(log["errorMessage"]?.ToString());
-                    listViewCtrl.Items.Add(item);
-                }
-            });
+                var item = new ListViewItem(log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"));
+                item.SubItems.Add(log.PrinterName);
+                item.SubItems.Add(log.Status);
+                item.SubItems.Add(log.UserId ?? "");
+                item.SubItems.Add(log.JobId ?? "");
+                item.SubItems.Add(log.ErrorMessage ?? "");
+                listView.Items.Add(item);
+            }
+        }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex)
+        {
+            try { MessageBox.Show($"查询日志失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (ObjectDisposedException) { }
+        }
+        finally
+        {
+            EndRefresh(3);
+        }
     }
 
     private TabPage CreateSettingsTab()

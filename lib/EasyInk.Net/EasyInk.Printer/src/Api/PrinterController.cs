@@ -1,4 +1,5 @@
-﻿using EasyInk.Engine;
+using EasyInk.Engine;
+using EasyInk.Engine.Models;
 
 namespace EasyInk.Printer.Api;
 
@@ -11,12 +12,12 @@ public class PrinterController
         _api = api;
     }
 
-    public string GetPrinters()
+    public PrinterResult GetPrinters()
     {
         return _api.GetPrinters();
     }
 
-    public string GetPrinterStatus(string printerName)
+    public PrinterResult GetPrinterStatus(string printerName)
     {
         return _api.GetPrinterStatus(printerName);
     }

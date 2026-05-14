@@ -32,6 +32,15 @@ public static class SimpleLogger
     }
 
     /// <summary>
+    /// 记录调试日志
+    /// </summary>
+    public static void Debug(string message, Exception ex = null)
+    {
+        var text = ex != null ? $"{message}: {ex}" : message;
+        Write("DEBUG", text);
+    }
+
+    /// <summary>
     /// 记录错误日志
     /// </summary>
     public static void Error(string message, Exception ex = null)
