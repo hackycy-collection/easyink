@@ -268,6 +268,27 @@ describe('viewer runtime print behavior', () => {
     expect(calls[0]!.container).toBe(container)
   })
 
+  it('uses print driver default page size mode when caller only passes driverId', async () => {
+    const container = document.createElement('div')
+    const viewer = createViewer({ container })
+    const calls: ViewerPrintContext[] = []
+
+    viewer.registerPrintDriver({
+      id: 'fixed-default-driver',
+      defaults: { pageSizeMode: 'fixed' },
+      async print(context) {
+        calls.push(context)
+      },
+    })
+
+    await viewer.open({ schema: createFixedSchema() })
+    await viewer.print({ driverId: 'fixed-default-driver' })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.printPolicy.pageSizeMode).toBe('fixed')
+    expect(calls[0]!.printPolicy.sheetSize).toMatchObject({ width: 80, height: 60, unit: 'mm' })
+  })
+
   it('cleans print isolation state when window.print throws', async () => {
     const wrapper = document.createElement('section')
     const container = document.createElement('div')

@@ -684,6 +684,39 @@ importers:
         specifier: catalog:framework
         version: 6.34.0(ws@8.20.0)(zod@3.25.76)
 
+  packages/print/core:
+    dependencies:
+      '@easyink/export-runtime':
+        specifier: workspace:*
+        version: link:../../export/runtime
+      '@easyink/viewer':
+        specifier: workspace:*
+        version: link:../../viewer
+
+  packages/print/easyink-printer:
+    dependencies:
+      '@easyink/export-plugin-dom-pdf':
+        specifier: workspace:*
+        version: link:../../export/plugin/dom-pdf
+      '@easyink/print-core':
+        specifier: workspace:*
+        version: link:../core
+      '@easyink/viewer':
+        specifier: workspace:*
+        version: link:../../viewer
+
+  packages/print/hiprint:
+    dependencies:
+      '@easyink/print-core':
+        specifier: workspace:*
+        version: link:../core
+      '@easyink/viewer':
+        specifier: workspace:*
+        version: link:../../viewer
+      vue-plugin-hiprint:
+        specifier: catalog:testing
+        version: 0.0.60
+
   packages/samples:
     dependencies:
       '@easyink/datasource':
@@ -774,6 +807,12 @@ importers:
       '@easyink/icons':
         specifier: workspace:*
         version: link:../packages/icons
+      '@easyink/print-easyink-printer':
+        specifier: workspace:*
+        version: link:../packages/print/easyink-printer
+      '@easyink/print-hiprint':
+        specifier: workspace:*
+        version: link:../packages/print/hiprint
       '@easyink/samples':
         specifier: workspace:*
         version: link:../packages/samples

@@ -207,24 +207,32 @@ export class ViewerRuntime {
     if (!this._schema)
       throw new Error('No schema loaded')
 
-    const printPolicy = this.createPrintPolicy(options)
+    const shouldUseBrowser = !options.driverId || options.driverId === 'browser'
+    const driver = shouldUseBrowser
+      ? undefined
+      : this._printDrivers.find(item => item.id === options.driverId)
+
+    if (!shouldUseBrowser && !driver) {
+      const err = new Error(`No print driver found for id: ${options.driverId}`)
+      this.emitPrintError(err, options.onDiagnostic, 'NO_PRINT_DRIVER')
+      if (options.throwOnError)
+        throw err
+      return
+    }
+
+    const resolvedOptions = options.pageSizeMode || !driver?.defaults?.pageSizeMode
+      ? options
+      : { ...options, pageSizeMode: driver.defaults.pageSizeMode }
+
+    const printPolicy = this.createPrintPolicy(resolvedOptions)
     if (!printPolicy)
       return
 
-    const shouldUseBrowser = !options.driverId || options.driverId === 'browser'
     if (!shouldUseBrowser) {
-      const driver = this._printDrivers.find(item => item.id === options.driverId)
-      if (!driver) {
-        const err = new Error(`No print driver found for id: ${options.driverId}`)
-        this.emitPrintError(err, options.onDiagnostic, 'NO_PRINT_DRIVER')
-        if (options.throwOnError)
-          throw err
-        return
-      }
-
+      const customDriver = driver!
       try {
-        options.onPhase?.({ phase: 'preparing', message: driver.id })
-        await driver.print({
+        options.onPhase?.({ phase: 'preparing', message: customDriver.id })
+        await customDriver.print({
           schema: this._schema,
           data: this._data,
           entry: 'preview',
@@ -235,7 +243,7 @@ export class ViewerRuntime {
           onProgress: options.onProgress,
           onDiagnostic: event => this.emitTaskDiagnostic(event, options.onDiagnostic),
         })
-        options.onPhase?.({ phase: 'completed', message: driver.id })
+        options.onPhase?.({ phase: 'completed', message: customDriver.id })
       }
       catch (err) {
         this.emitPrintError(err, options.onDiagnostic)

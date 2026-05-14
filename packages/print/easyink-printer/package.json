@@ -1,0 +1,29 @@
+{
+  "name": "@easyink/print-easyink-printer",
+  "type": "module",
+  "version": "0.0.9",
+  "description": "EasyInk Printer client and viewer print driver",
+  "author": "hackycy <hackycy@outlook.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@easyink/export-plugin-dom-pdf": "workspace:*",
+    "@easyink/print-core": "workspace:*",
+    "@easyink/viewer": "workspace:*"
+  }
+}

@@ -21,7 +21,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/getting-started' },
       { text: 'Designer', link: '/designer/' },
       { text: 'Viewer', link: '/viewer/' },
-      { text: '静默打印', link: '/printing/' },
+      { text: 'Printing', link: '/printing/' },
       { text: '进阶', link: '/advanced/print-drivers' },
       { text: 'API', link: '/api/' },
       { text: '在线演示', link: 'https://hackycy.github.io/easyink' },
@@ -65,7 +65,7 @@ export default defineConfig({
       ],
       '/printing/': [
         {
-          text: '静默打印',
+          text: 'Printing',
           items: [
             { text: '概述', link: '/printing/' },
           ],
@@ -90,7 +90,7 @@ export default defineConfig({
       ],
       '/hiprint/': [
         {
-          text: '静默打印',
+          text: 'Printing',
           items: [
             { text: '概述', link: '/printing/' },
           ],
@@ -115,7 +115,7 @@ export default defineConfig({
       ],
       '/dotnet/': [
         {
-          text: '静默打印',
+          text: 'Printing',
           items: [
             { text: '概述', link: '/printing/' },
           ],

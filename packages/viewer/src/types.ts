@@ -163,6 +163,9 @@ export interface ViewerPrintContext extends ViewerExportContext {
 
 export interface PrintDriver {
   id: string
+  defaults?: {
+    pageSizeMode?: ViewerPrintPageSizeMode
+  }
   print: (context: ViewerPrintContext) => Promise<void>
 }
 

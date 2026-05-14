@@ -1,0 +1,353 @@
+import { EasyInkPrintError } from '@easyink/print-core'
+import { hiprint as rawHiPrint } from 'vue-plugin-hiprint'
+
+export const DEFAULT_HIPRINT_URL = 'http://localhost:17521'
+const DEFAULT_CONNECT_TIMEOUT_MS = 4000
+const DEFAULT_REFRESH_DELAY_MS = 300
+const DEFAULT_REFRESH_TIMEOUT_MS = 2500
+
+export interface HiPrintClientOptions {
+  serviceUrl?: string
+  namespace?: string
+  printerName?: string
+  defaultCopies?: number
+  connectTimeoutMs?: number
+  refreshDelayMs?: number
+  refreshTimeoutMs?: number
+  forcePageSizeByDevice?: Record<string, boolean>
+}
+
+export interface HiPrintDevice {
+  description?: string
+  displayName?: string
+  isDefault?: boolean
+  name: string
+  status?: number
+  options?: Record<string, unknown>
+}
+
+export interface PrintHtmlOptions {
+  html: string
+  width: number
+  height: number
+  printerName?: string
+  orientation?: 'auto' | 'portrait' | 'landscape'
+  copies?: number
+  forcePageSize?: boolean
+  paperFooter?: number
+  paperHeader?: number
+}
+
+export interface PrintPagesOptions extends Omit<PrintHtmlOptions, 'html'> {}
+
+export interface HiPrintProgress {
+  current: number
+  total: number
+}
+
+interface HiPrintTemplate {
+  addPrintPanel: (options: Record<string, unknown>) => { addPrintHtml: (options: Record<string, unknown>) => void }
+  on: (event: 'printSuccess' | 'printError', callback: (payload?: unknown) => void) => void
+  print2: (data: Record<string, unknown>, options: Record<string, unknown>) => void
+}
+
+interface HiPrintRuntime {
+  init?: () => void
+  printers?: HiPrintDevice[]
+  refreshPrinterList: (callback?: (devices: HiPrintDevice[]) => void) => void
+  PrintTemplate: new () => HiPrintTemplate
+  hiwebSocket: {
+    setHost: (url: string, namespace: string, callback?: (connected: boolean) => void) => void
+    hasIo?: () => boolean
+    start?: () => void
+    stop?: () => void
+    opened?: boolean
+  }
+}
+
+const hiprint = rawHiPrint as HiPrintRuntime
+
+export class HiPrintClient {
+  serviceUrl: string
+  namespace: string
+  printerName?: string
+  defaultCopies: number
+  forcePageSizeByDevice: Record<string, boolean>
+  connectionState: 'idle' | 'connecting' | 'connected' | 'error' = 'idle'
+  lastError = ''
+  devices: HiPrintDevice[] = []
+
+  private initialized = false
+  private connectPromise: Promise<void> | undefined
+  private readonly connectTimeoutMs: number
+  private readonly refreshDelayMs: number
+  private readonly refreshTimeoutMs: number
+
+  constructor(options: HiPrintClientOptions = {}) {
+    this.serviceUrl = options.serviceUrl ?? DEFAULT_HIPRINT_URL
+    this.namespace = options.namespace ?? 'easyink'
+    this.printerName = options.printerName
+    this.defaultCopies = options.defaultCopies ?? 1
+    this.forcePageSizeByDevice = { ...(options.forcePageSizeByDevice ?? {}) }
+    this.connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS
+    this.refreshDelayMs = options.refreshDelayMs ?? DEFAULT_REFRESH_DELAY_MS
+    this.refreshTimeoutMs = options.refreshTimeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS
+  }
+
+  get isConnected(): boolean {
+    return this.connectionState === 'connected'
+  }
+
+  configure(options: Partial<HiPrintClientOptions>): void {
+    if (options.serviceUrl !== undefined)
+      this.serviceUrl = options.serviceUrl
+    if (options.namespace !== undefined)
+      this.namespace = options.namespace
+    if (options.printerName !== undefined)
+      this.printerName = options.printerName
+    if (options.defaultCopies !== undefined)
+      this.defaultCopies = options.defaultCopies
+    if (options.forcePageSizeByDevice !== undefined)
+      this.forcePageSizeByDevice = { ...options.forcePageSizeByDevice }
+  }
+
+  connect(): Promise<void> {
+    this.ensureInit()
+
+    if (this.connectionState === 'connected')
+      return Promise.resolve()
+    if (this.connectPromise)
+      return this.connectPromise
+
+    this.connectionState = 'connecting'
+    this.lastError = ''
+
+    this.connectPromise = new Promise<void>((resolve, reject) => {
+      let settled = false
+      const url = this.serviceUrl
+      const timer = setTimeout(() => {
+        if (settled)
+          return
+        settled = true
+        this.connectionState = 'error'
+        this.lastError = `连接超时 (${url})`
+        this.connectPromise = undefined
+        this.stopSocket()
+        reject(new EasyInkPrintError(this.lastError, 'HIPRINT_CONNECT_TIMEOUT'))
+      }, this.connectTimeoutMs)
+
+      hiprint.hiwebSocket.setHost(url, `vue-plugin-hiprint-${this.namespace}`, (connected: boolean) => {
+        if (settled || !connected)
+          return
+        settled = true
+        clearTimeout(timer)
+        this.connectionState = 'connected'
+        this.lastError = ''
+        this.connectPromise = undefined
+        this.refreshPrinters().catch(() => { /* surfaced on explicit refresh */ })
+        resolve()
+      })
+
+      if (!hiprint.hiwebSocket.hasIo?.())
+        hiprint.hiwebSocket.start?.()
+    })
+
+    return this.connectPromise
+  }
+
+  disconnect(): void {
+    this.stopSocket()
+    this.connectionState = 'idle'
+    this.connectPromise = undefined
+  }
+
+  async refreshPrinters(): Promise<HiPrintDevice[]> {
+    if (this.connectionState !== 'connected')
+      await this.connect()
+
+    const devices = await new Promise<HiPrintDevice[]>((resolve) => {
+      let done = false
+      const timer = setTimeout(() => {
+        done = true
+        resolve([])
+      }, this.refreshDelayMs + this.refreshTimeoutMs)
+
+      setTimeout(() => {
+        hiprint.refreshPrinterList((result: HiPrintDevice[]) => {
+          if (done)
+            return
+          done = true
+          clearTimeout(timer)
+          resolve(Array.isArray(result) ? result : [])
+        })
+      }, this.refreshDelayMs)
+    })
+
+    const list = devices.length > 0 ? devices : hiprint.printers ?? []
+    this.devices = normalizeHiPrintDevices(list)
+    this.ensureSelectedPrinter(this.devices)
+    return this.devices
+  }
+
+  listPrinters(): Promise<HiPrintDevice[]> {
+    return this.refreshPrinters()
+  }
+
+  async useDefaultPrinter(): Promise<string | undefined> {
+    const devices = this.devices.length > 0 ? this.devices : await this.refreshPrinters()
+    const printer = devices.find(device => device.isDefault) ?? devices[0]
+    this.printerName = printer?.name
+    return this.printerName
+  }
+
+  setPrinter(printerName: string | undefined): void {
+    this.printerName = printerName
+  }
+
+  setForcePageSize(printerName: string, value: boolean): void {
+    if (value)
+      this.forcePageSizeByDevice[printerName] = true
+    else
+      delete this.forcePageSizeByDevice[printerName]
+  }
+
+  isForcePageSize(printerName: string | undefined): boolean {
+    return Boolean(printerName && this.forcePageSizeByDevice[printerName])
+  }
+
+  async printHtml(options: PrintHtmlOptions): Promise<void> {
+    if (this.connectionState !== 'connected')
+      await this.connect()
+
+    const printerName = await this.resolvePrinterName(options.printerName)
+
+    await new Promise<void>((resolve, reject) => {
+      const template = new hiprint.PrintTemplate()
+      const panel = template.addPrintPanel({
+        width: options.width,
+        height: options.height,
+        paperFooter: options.paperFooter ?? 340,
+        paperHeader: options.paperHeader ?? 46,
+        paperNumberDisabled: true,
+      })
+      panel.addPrintHtml({ options: { content: options.html } })
+
+      template.on('printSuccess', () => resolve())
+      template.on('printError', (event: unknown) => {
+        reject(new EasyInkPrintError(event instanceof Error ? event.message : '打印失败', 'HIPRINT_PRINT_FAILED', event))
+      })
+
+      template.print2({}, buildHiPrintOptions({
+        printerName,
+        width: options.width,
+        height: options.height,
+        orientation: options.orientation,
+        copies: options.copies ?? this.defaultCopies,
+        forcePageSize: options.forcePageSize ?? this.isForcePageSize(printerName),
+      }))
+    })
+  }
+
+  async printPages(
+    pages: HTMLElement[],
+    options: PrintPagesOptions,
+    onProgress?: (progress: HiPrintProgress) => void,
+  ): Promise<void> {
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      await this.printHtml({
+        ...options,
+        html: pages[pageIndex]!.innerHTML,
+      })
+      onProgress?.({ current: pageIndex + 1, total: pages.length })
+    }
+  }
+
+  private ensureInit(): void {
+    if (this.initialized)
+      return
+    hiprint.init?.()
+    this.initialized = true
+  }
+
+  private stopSocket(): void {
+    try {
+      if (hiprint.hiwebSocket.hasIo?.())
+        hiprint.hiwebSocket.stop?.()
+    }
+    catch { /* ignore */ }
+  }
+
+  private ensureSelectedPrinter(devices: HiPrintDevice[]): void {
+    if (devices.length === 0) {
+      this.printerName = undefined
+      return
+    }
+    if (this.printerName && devices.some(device => device.name === this.printerName))
+      return
+    this.printerName = devices.find(device => device.isDefault)?.name ?? devices[0]?.name
+  }
+
+  private async resolvePrinterName(printerName: string | undefined): Promise<string> {
+    if (printerName)
+      return printerName
+    if (this.printerName)
+      return this.printerName
+    const selected = await this.useDefaultPrinter()
+    if (selected)
+      return selected
+    throw new EasyInkPrintError('未选择打印机', 'HIPRINT_PRINTER_NOT_SELECTED')
+  }
+}
+
+export function createHiPrintClient(options?: HiPrintClientOptions): HiPrintClient {
+  return new HiPrintClient(options)
+}
+
+function buildHiPrintOptions(options: {
+  printerName: string
+  width: number
+  height: number
+  orientation?: 'auto' | 'portrait' | 'landscape'
+  copies: number
+  forcePageSize: boolean
+}): Record<string, unknown> {
+  const printOptions: Record<string, unknown> = {
+    printer: options.printerName,
+    copies: options.copies,
+    margins: { marginType: 'none' },
+  }
+
+  const explicitLandscape = options.orientation === 'landscape'
+    ? true
+    : options.orientation === 'portrait'
+      ? false
+      : undefined
+  const landscape = explicitLandscape ?? options.width > options.height
+
+  if (explicitLandscape !== undefined)
+    printOptions.landscape = explicitLandscape
+
+  if (options.forcePageSize) {
+    const widthMicrons = Math.round(options.width * 1000)
+    const heightMicrons = Math.round(options.height * 1000)
+    printOptions.pageSize = {
+      width: Math.min(widthMicrons, heightMicrons),
+      height: Math.max(widthMicrons, heightMicrons),
+    }
+    printOptions.landscape = landscape
+    printOptions.scaleFactor = 100
+  }
+
+  return printOptions
+}
+
+function normalizeHiPrintDevices(devices: HiPrintDevice[]): HiPrintDevice[] {
+  return devices
+    .map(device => ({
+      ...device,
+      displayName: device.displayName || device.name,
+      name: String(device.name || ''),
+      isDefault: Boolean(device.isDefault),
+    }))
+    .filter(device => device.name.length > 0)
+}

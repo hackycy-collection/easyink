@@ -14,6 +14,10 @@ easyink/
 │   │   ├── runtime/            # @easyink/export-runtime — 导出任务状态机、插件注册（不绑定具体格式实现）
 │   │   └── plugin/
 │   │       └── dom-pdf/        # @easyink/export-plugin-dom-pdf — 浏览器 DOM 截图转 PDF 插件（html2canvas + jsPDF）
+│   ├── print/
+│   │   ├── core/               # @easyink/print-core — 打印驱动共享纯工具
+│   │   ├── easyink-printer/    # @easyink/print-easyink-printer — EasyInk.Printer 客户端与 Viewer 驱动
+│   │   └── hiprint/            # @easyink/print-hiprint — HiPrint 客户端与 Viewer 驱动
 │   ├── builtin/                # @easyink/builtin — 内置物料注册与清单汇总包（内部装配层）
 │   ├── designer/               # @easyink/designer — 设计器工作台 Vue 组件
 │   ├── ui/                     # @easyink/ui — 面板、表单、工作台基础组件
@@ -86,6 +90,24 @@ easyink/
 - `html2canvas` / `jspdf` 通过动态 `import()` 按需装载，不进入 runtime / core / schema
 - 资源加载失败默认产生 warning 诊断并继续导出，避免静默吞掉问题
 - 后续其他 PDF 链路（服务端渲染、矢量导出等）应作为同级独立 plugin 包发布，不再回灌到 runtime
+
+### `@easyink/print-core`
+
+- 打印驱动共享纯工具层，不绑定具体打印服务或 UI 框架
+- 提供 Viewer 页面提取、打印尺寸解析、单位转换、方向/偏移解析和诊断桥接
+- 被官方打印驱动包消费，宿主通常不直接依赖
+
+### `@easyink/print-easyink-printer`
+
+- EasyInk.Printer 官方前端客户端和 Viewer PrintDriver
+- 封装 HTTP/WebSocket、PDF 分块上传、任务查询、默认打印机选择和 Viewer DOM 转 PDF
+- 驱动默认 `pageSizeMode: 'fixed'`
+
+### `@easyink/print-hiprint`
+
+- HiPrint 官方前端客户端和 Viewer PrintDriver
+- 封装 electron-hiprint 连接、打印机发现、逐页 HTML 打印和按设备开启的 `pageSize` 策略
+- 驱动默认 `pageSizeMode: 'driver'`
 
 ### `@easyink/designer`
 
@@ -162,6 +184,9 @@ designer ─── builtin + core + datasource + schema + shared + ui + icons + 
 viewer ─── builtin + core + datasource + schema + shared
 export-runtime ─── shared
 export-plugin-dom-pdf ─── export-runtime + shared + html2canvas + jspdf
+print-core ─── viewer + export-runtime
+print-easyink-printer ─── print-core + viewer + export-plugin-dom-pdf
+print-hiprint ─── print-core + viewer + vue-plugin-hiprint
   ↑
 ai ──────── designer (仅类型) + datasource + schema + schema-tools + shared + vue + @modelcontextprotocol/sdk
 
@@ -177,6 +202,9 @@ playground ── designer + ai + viewer + export-runtime + samples + schema
 - `viewer` 依赖 `builtin`、`core`、`schema`、`shared`，默认启用内置物料；调用方可通过 `viewer.registerMaterial()` 继续扩展或覆盖。`viewer` 不依赖 `datasource`，不消费 Designer 的数据源描述符
 - `export-runtime` 仅依赖 `shared`，不绑定任何导出格式实现，不依赖 `viewer`、`designer` 或 Vue
 - `export-plugin-dom-pdf` 依赖 `export-runtime`、`shared` 与按需装载的 `html2canvas` / `jspdf`；任何具体导出链路一律走独立 plugin 包，不再回灌到 runtime
+- `print-core` 只承接打印驱动共享逻辑；具体打印通道放在 `packages/print/*` 下独立包中
+- `print-easyink-printer` 依赖 `print-core`、`viewer` 与 `export-plugin-dom-pdf`；负责 EasyInk.Printer 通道的协议和 Viewer 驱动
+- `print-hiprint` 依赖 `print-core`、`viewer` 与 `vue-plugin-hiprint`；负责 HiPrint 通道的协议和 Viewer 驱动
 - `builtin` 依赖全部内置 `material-*` 包，集中维护 Designer / Viewer / MCP Server 三侧共享的默认物料清单
 - `ui` 依赖 `icons` 和 `shared`，不依赖 `designer`；方向为 designer 依赖 ui
 - `samples` 依赖 `datasource`、`schema`、`shared`，不依赖 `designer`
