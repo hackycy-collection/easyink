@@ -963,7 +963,8 @@ public class MainWindow : Form
 
             _config.DefaultMarginMm = (double)numMargin.Value;
             _config.RawPrinterNames = (txtRawPrinters.Text ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
                 .Where(s => s.Length > 0)
                 .ToList();
             _config.HttpPort = (int)numPort.Value;
