@@ -110,16 +110,12 @@ public class EscPosRawPrintService : IPrintService
             g.DrawImage(pageImg, 0, i * renderHeight);
         }
 
-        // xParam: Epson标准=bytesPerRow=(w+7)/8, 国产=dots=w
-        int bytesPerRow = (renderWidth + 7) / 8;
-        int xParam = bytesPerRow; // 按已验证可用的 Epson 标准(bytes)
-        var bands = BitmapToEscPos.ConvertToBands(fullImage, xParam, bandHeightDots: 200);
+        // ESC * m=33: 24-dot double-density, column-major
+        var strips = BitmapToEscPos.ConvertToStrips(fullImage);
         _logger.Log(LogLevel.Info,
-            $"[RawPrint] w={renderWidth} xParam={xParam}(bytes) bands={bands.Count} " +
-            $"firstBandH=200 totalH={renderHeight * pageCount}");
+            $"[RawPrint] w={renderWidth} strips={strips.Count} " +
+            $"totalH={renderHeight * pageCount} method=ESC_*_33");
 
-        // DIAGNOSTIC: 仅发前 200 行，验证基本尺寸
-        // 预期: 宽度应占纸宽 ~90%, 高度 ~25mm
-        return new System.Collections.Generic.List<byte[]> { bands[0] };
+        return strips;
     }
 }
