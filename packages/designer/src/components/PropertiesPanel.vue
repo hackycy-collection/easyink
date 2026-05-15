@@ -335,6 +335,7 @@ const GROUP_LABELS: Record<string, string> = {
   'typography': 'designer.property.typography',
   'appearance': 'designer.property.appearance',
   'border': 'designer.property.border',
+  'shape': 'designer.property.shape',
   'layout': 'designer.property.layout',
   'pagination': 'designer.property.pagination',
   'general': 'designer.property.style',

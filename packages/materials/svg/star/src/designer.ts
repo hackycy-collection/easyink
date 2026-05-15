@@ -74,11 +74,11 @@ function createStarSelectionType(): SelectionType<SvgStarControlSelection> {
 
 function createStarSubPropertySchema(_selection: Selection<SvgStarControlSelection>, node: MaterialNode): SubPropertySchema {
   const schemas = [
-    { key: 'starInnerRatio', label: '星角大小', type: 'number', group: 'shape', min: 0.08, max: 0.95, step: 0.01 },
+    { key: 'starInnerRatio', label: 'designer.property.starInnerRatio', type: 'number', group: 'shape', min: 0.08, max: 0.95, step: 0.01 },
   ]
 
   return {
-    title: '星星编辑',
+    title: 'designer.property.svgStarEdit',
     schemas,
     read(key) {
       const props = {
@@ -169,7 +169,7 @@ function createStarHandleBehavior(): BehaviorRegistration {
   }
 }
 
-function createStarDecorationComponent() {
+function createStarDecorationComponent(context: MaterialExtensionContext) {
   return defineComponent({
     name: 'SvgStarDecoration',
     props: {
@@ -286,7 +286,7 @@ function createStarDecorationComponent() {
             pointerEvents: 'none',
           },
         }, guide.handles.map((_, index) =>
-          renderHandle('inner-radius', index, `调整内角比例 ${index + 1}`),
+          renderHandle('inner-radius', index, `${context.t('designer.property.starInnerRatio')} ${index + 1}`),
         ))]))
 
         return h('div', {}, overlays)
@@ -295,7 +295,7 @@ function createStarDecorationComponent() {
   })
 }
 
-export function createSvgStarExtension(_context: MaterialExtensionContext): MaterialDesignerExtension {
+export function createSvgStarExtension(context: MaterialExtensionContext): MaterialDesignerExtension {
   return {
     renderContent(nodeSignal, container) {
       function render() {
@@ -317,7 +317,7 @@ export function createSvgStarExtension(_context: MaterialExtensionContext): Mate
     ],
     decorations: [{
       selectionTypes: [STAR_CONTROL_SELECTION_TYPE],
-      component: createStarDecorationComponent(),
+      component: createStarDecorationComponent(context),
       layer: 'above-handles',
     }],
   }

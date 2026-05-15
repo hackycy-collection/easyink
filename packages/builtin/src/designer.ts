@@ -221,7 +221,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     },
     {
       type: SVG_CUSTOM_TYPE,
-      name: '自定义',
+      name: 'designer.toolbar.svgCustom',
       icon: IconSvg,
       category: 'svg',
       capabilities: SVG_CUSTOM_CAPABILITIES,
@@ -231,7 +231,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     },
     {
       type: SVG_STAR_TYPE,
-      name: '星星',
+      name: 'designer.toolbar.svgStar',
       icon: IconStar,
       category: 'svg',
       capabilities: SVG_STAR_CAPABILITIES,
@@ -241,7 +241,7 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     },
     {
       type: SVG_HEART_TYPE,
-      name: '心形',
+      name: 'designer.toolbar.svgHeart',
       icon: IconHeart,
       category: 'svg',
       capabilities: SVG_HEART_CAPABILITIES,

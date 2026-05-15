@@ -62,13 +62,13 @@ describe('renderSvgHeart', () => {
     expect(html).not.toContain('fill="transparent"')
   })
 
-  it('uses border/content wording in the designer schema', () => {
+  it('uses locale keys in the designer schema', () => {
     expect(svgHeartDesignerPropSchemas.map(item => item.label)).toEqual([
-      '内容填充色',
-      '边框宽度',
-      '边框填充色',
-      '凹口深度',
-      '肩宽',
+      'designer.property.fillColor',
+      'designer.property.borderWidth',
+      'designer.property.borderColor',
+      'designer.property.heartCleftDepth',
+      'designer.property.heartShoulderWidth',
     ])
   })
 })
