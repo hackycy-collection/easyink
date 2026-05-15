@@ -44,6 +44,12 @@ public class HostConfig
     /// </summary>
     public double DefaultMarginMm { get; set; }
 
+    /// <summary>
+    /// 使用 Raw ESC/POS 直发模式的打印机名称列表（模糊匹配，忽略大小写）。
+    /// 热敏小票机推荐使用此模式以绕过 Windows 驱动的边距/缩放问题。
+    /// </summary>
+    public List<string> RawPrinterNames { get; set; } = new();
+
     public int MaxWebSocketConnections
     {
         get => _maxWebSocketConnections;

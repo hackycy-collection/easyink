@@ -55,26 +55,37 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 初始化打印引擎（使用默认服务实现：Pdfium + Windows Print Spooler）
     /// </summary>
-    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0)
-        : this(null, null, maxQueueSize, defaultMarginMm)
+    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0, System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null)
+        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames)
     {
     }
 
     /// <summary>
     /// 初始化打印引擎。
-    /// 传入 printService 可替换实现。
+    /// 传入 printService 可替换实现。若指定 rawPrinterNames，则对列表中的打印机使用 ESC/POS raw 路径。
     /// </summary>
     public EngineApi(
         IPrinterService? printerService = null,
         IPrintService? printService = null,
         int? maxQueueSize = null,
-        double defaultMarginMm = 0)
+        double defaultMarginMm = 0,
+        System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null)
     {
         _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
         _printerService = printerService ?? new PrinterService(logger);
-        _printService = printService
-            ?? new PdfiumPrintService(_printerService, logger);
+
+        if (printService != null)
+        {
+            _printService = printService;
+        }
+        else
+        {
+            var gdiService = new PdfiumPrintService(_printerService, logger);
+            var rawService = new EscPosRawPrintService(_printerService, logger);
+            _printService = new RoutingPrintService(gdiService, rawService, rawPrinterNames ?? Array.Empty<string>());
+        }
+
         _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100,
             logger, (requestId, request, result) => RaisePrintCompleted(requestId, request, result));
     }

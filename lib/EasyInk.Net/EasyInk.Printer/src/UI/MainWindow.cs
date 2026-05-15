@@ -785,7 +785,7 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_PrinterCompat"),
             Dock = DockStyle.Top,
-            Height = 155,
+            Height = 320,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -793,14 +793,17 @@ public class MainWindow : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 2,
+            RowCount = 4,
             Padding = new Padding(4)
         };
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // margin label + value
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // margin description
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // raw printer label
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));  // raw printer text + description
 
+        // Margin row
         var lblMargin = new Label { Text = LangManager.Get("Settings_MarginLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var pnlMargin = new Panel { Dock = DockStyle.Fill, Height = 28 };
         var numMargin = new NumericUpDown
@@ -825,10 +828,30 @@ public class MainWindow : Form
             ForeColor = System.Drawing.SystemColors.GrayText
         };
 
+        // Raw printer names row
+        var lblRawPrinters = new Label { Text = LangManager.Get("Settings_RawPrinterLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+        var txtRawPrinters = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Text = string.Join(", ", _config.RawPrinterNames),
+            PlaceholderText = "XP-80, 热敏"
+        };
+        var lblRawPrintersDesc = new Label
+        {
+            Text = LangManager.Get("Settings_RawPrinterDescription"),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft,
+            ForeColor = System.Drawing.SystemColors.GrayText
+        };
+
         compatPanel.Controls.Add(lblMargin, 0, 0);
         compatPanel.Controls.Add(pnlMargin, 1, 0);
         compatPanel.Controls.Add(lblMarginDesc, 0, 1);
         compatPanel.SetColumnSpan(lblMarginDesc, 2);
+        compatPanel.Controls.Add(lblRawPrinters, 0, 2);
+        compatPanel.Controls.Add(txtRawPrinters, 1, 2);
+        compatPanel.Controls.Add(lblRawPrintersDesc, 0, 3);
+        compatPanel.SetColumnSpan(lblRawPrintersDesc, 2);
         grpPrinterCompat.Controls.Add(compatPanel);
 
         // 路径设置组
@@ -940,6 +963,10 @@ public class MainWindow : Form
             }
 
             _config.DefaultMarginMm = (double)numMargin.Value;
+            _config.RawPrinterNames = (txtRawPrinters.Text ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(s => s.Length > 0)
+                .ToList();
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;

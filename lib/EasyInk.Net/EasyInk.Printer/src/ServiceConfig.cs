@@ -1,4 +1,5 @@
 using EasyInk.Engine;
+using EasyInk.Engine.Services;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
 using EasyInk.Printer.Server;
@@ -18,10 +19,13 @@ internal static class ServiceConfig
         // Configuration
         services.AddSingleton(config);
 
-        // Engine
+        // Engine — with routing between GDI and Raw print paths
         services.AddSingleton<EngineApi>(sp =>
         {
-            var api = new EngineApi(maxQueueSize: config.MaxQueueSize, defaultMarginMm: config.DefaultMarginMm);
+            var api = new EngineApi(
+                maxQueueSize: config.MaxQueueSize,
+                defaultMarginMm: config.DefaultMarginMm,
+                rawPrinterNames: config.RawPrinterNames);
             return api;
         });
 
