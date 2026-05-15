@@ -67,7 +67,6 @@ export interface EasyInkPrinterPrintPdfOptions {
   copies?: number
   paperSize?: EasyInkPrinterPaperSize
   forcePageSize?: boolean
-  forcePaperSize?: boolean
   landscape?: boolean
   offset?: EasyInkPrinterOffset
   dpi?: number
@@ -309,7 +308,6 @@ export class EasyInkPrinterClient {
     await this.connect()
 
     const printerName = await this.resolvePrinterName(options.printerName)
-    const forcePageSize = options.forcePageSize ?? options.forcePaperSize
     const uploadId = createId()
     const totalBytes = pdfBlob.size
     const totalChunks = Math.ceil(totalBytes / PDF_CHUNK_SIZE_BYTES)
@@ -331,7 +329,7 @@ export class EasyInkPrinterClient {
       printerName,
       copies: options.copies ?? this.defaultCopies,
       paperSize: options.paperSize,
-      forcePaperSize: forcePageSize,
+      forcePaperSize: options.forcePageSize,
       landscape: options.landscape,
       offset: options.offset,
       dpi: options.dpi,

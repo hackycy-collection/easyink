@@ -43,9 +43,8 @@ Known cleanup from the upstream audit:
 
 - `hiprint.printers` is not an upstream field. Printer fallback now reads
   `hiprint.hiwebSocket.printerList`.
-- `setForcePageSize(printerName, value)` looked like a per-device API but
-  HiPrint receives page size per print job. The public method is now global:
-  `setForcePageSize(value)`.
+- HiPrint receives page size per print job. The public page-size toggle is
+  `forcePageSize` / `setForcePageSize(value)`.
 - Raw `addPrintHtml({ options: { content } })` creates a default 90pt element
   in HiPrint. EasyInk now sets `top`, `left`, `width`, and `height` so rendered
   Viewer pages occupy the requested paper size.

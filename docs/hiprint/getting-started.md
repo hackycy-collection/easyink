@@ -137,6 +137,6 @@ Playground 已使用官方包集成：
 
 **未发现打印机**：先确认系统打印机已正常安装，再调用 `hiPrint.refreshPrinters()`；如果这里拿不到设备，问题通常不在 Viewer。
 
-**标签内容缩印到 A4**：只对该标签机调用 `hiPrint.setForcePageSize(name, true)`，不要直接全局开启。
+**标签内容缩印到 A4**：确认当前打印任务需要显式纸张尺寸时，调用 `hiPrint.setForcePageSize(true)` 或在驱动配置里传 `forcePageSize`。
 
 **第一张单应该怎么验收**：最小验收标准不是前端 Promise resolve，而是设备确实打印出预期尺寸的纸张，且没有被驱动缩放到默认 A4。

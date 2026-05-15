@@ -20,8 +20,6 @@ export interface HiPrintClientOptions {
   refreshDelayMs?: number
   refreshTimeoutMs?: number
   forcePageSize?: boolean
-  /** @deprecated HiPrint only supports per-job print options here. Use forcePageSize instead. */
-  forcePageSizeByDevice?: Record<string, boolean>
 }
 
 /**
@@ -134,7 +132,7 @@ export class HiPrintClient {
     this.namespace = options.namespace ?? 'easyink'
     this.printerName = options.printerName
     this.defaultCopies = options.defaultCopies ?? 1
-    this.forcePageSize = normalizeForcePageSize(options.forcePageSize, options.forcePageSizeByDevice)
+    this.forcePageSize = options.forcePageSize ?? false
     this.connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS
     this.refreshDelayMs = options.refreshDelayMs ?? DEFAULT_REFRESH_DELAY_MS
     this.refreshTimeoutMs = options.refreshTimeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS
@@ -172,9 +170,8 @@ export class HiPrintClient {
       this.printerName = options.printerName
     if (options.defaultCopies !== undefined)
       this.defaultCopies = options.defaultCopies
-    if (options.forcePageSize !== undefined || options.forcePageSizeByDevice !== undefined) {
-      this.forcePageSize = normalizeForcePageSize(options.forcePageSize, options.forcePageSizeByDevice, this.forcePageSize)
-    }
+    if (options.forcePageSize !== undefined)
+      this.forcePageSize = options.forcePageSize
 
     return endpointChanged
   }
@@ -477,16 +474,4 @@ function normalizeHiPrintDevices(devices: HiPrintDevice[]): HiPrintDevice[] {
 function serializeViewerPage(page: HTMLElement): string {
   const clone = page.cloneNode(true) as HTMLElement
   return clone.outerHTML
-}
-
-function normalizeForcePageSize(
-  forcePageSize: boolean | undefined,
-  forcePageSizeByDevice?: Record<string, boolean>,
-  fallback = false,
-): boolean {
-  if (forcePageSize !== undefined)
-    return forcePageSize
-  if (forcePageSizeByDevice)
-    return Object.values(forcePageSizeByDevice).some(Boolean)
-  return fallback
 }

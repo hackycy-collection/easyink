@@ -28,10 +28,6 @@ export interface PrinterConfig {
   forcePageSize?: boolean
 }
 
-type StoredPrinterConfig = Partial<PrinterConfig> & {
-  forcePageSizeByDevice?: Record<string, boolean>
-}
-
 export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error'
 
 function defaultConfig(): PrinterConfig {
@@ -49,13 +45,13 @@ function loadConfig(): PrinterConfig {
     const stored = localStorage.getItem(PRINTER_CONFIG_KEY)
     if (!stored)
       return defaultConfig()
-    const parsed = JSON.parse(stored) as StoredPrinterConfig
+    const parsed = JSON.parse(stored) as Partial<PrinterConfig>
     return {
       enablePrinterService: parsed.enablePrinterService ?? false,
       printerDevice: parsed.printerDevice,
       printCopies: parsed.printCopies ?? DEFAULT_PRINTER_COPIES,
       printerServiceUrl: parsed.printerServiceUrl ?? DEFAULT_PRINTER_HOST,
-      forcePageSize: parsed.forcePageSize ?? Object.values(parsed.forcePageSizeByDevice ?? {}).some(Boolean),
+      forcePageSize: parsed.forcePageSize ?? false,
     }
   }
   catch {

@@ -102,9 +102,9 @@ export function usePrintService() {
 
 因为目标不是“把浏览器 DOM 打出去”，而是“把页面以稳定、可控、与浏览器缩放无关的形式交给 Windows 打印管线”。PDF 是这里最稳定的交换格式。
 
-### 为什么 HiPrint 可能需要按设备决定 `forcePageSize`
+### 为什么 HiPrint 有时需要 `forcePageSize`
 
-部分驱动对自定义纸张支持有限，强制设置 page size 反而会导致缩放、留白或打印失败。所以 `forcePageSize` 更适合作为“按打印机型号配置”的策略，而不是单个全局布尔值。
+部分驱动在未收到显式 page size 时会按 A4 或默认介质缩放输出，这时可以为当前打印配置开启 `forcePageSize`。如果开启后出现留白、缩放或打印失败，就保持关闭，让驱动使用当前介质。
 
 ## 排错顺序
 

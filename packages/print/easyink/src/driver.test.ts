@@ -61,24 +61,4 @@ describe('easy ink driver', () => {
     }))
     expect(client.waitForJob).toHaveBeenCalledWith('job-12345678')
   })
-
-  it('still accepts the legacy forcePaperSize alias', async () => {
-    const client = {
-      printPdf: vi.fn(async () => 'job-legacy'),
-      waitForJob: vi.fn(async () => ({ jobId: 'job-legacy', status: 'completed' })),
-    }
-    const driver = createEasyInkPrinterDriver({
-      client: client as never,
-      forcePaperSize: true,
-      waitForCompletion: false,
-    })
-
-    await driver.print(createContext())
-
-    expect(client.printPdf).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({
-      forcePageSize: true,
-      paperSize: { width: 80, height: 60, unit: 'mm' },
-    }))
-    expect(client.waitForJob).not.toHaveBeenCalled()
-  })
 })

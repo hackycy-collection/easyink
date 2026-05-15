@@ -1,4 +1,4 @@
-import type { PrintDriverBaseOptions, PrintDriverValue } from '@easyink/print-core'
+import type { PrintDriverBaseOptions } from '@easyink/print-core'
 import type { PrintDriver, ViewerPrintContext } from '@easyink/viewer'
 import type { EasyInkPrinterClient, EasyInkPrinterPrintPdfOptions } from './client'
 import { renderPagesToPdfBlob } from '@easyink/export-plugin-dom-pdf'
@@ -8,10 +8,6 @@ import { exportDiagnosticToViewerEvent, getViewerPages, resolvePrintDriverValue,
  * Configures the official Viewer print driver for EasyInk Printer.
  */
 export interface EasyInkPrinterDriverOptions extends PrintDriverBaseOptions<EasyInkPrinterClient, EasyInkPrinterPrintPdfOptions> {
-  /** @deprecated Use forcePageSize instead. */
-  forcePaperSize?: PrintDriverValue<boolean>
-  /** @deprecated Prefer resolveRequestOptions for backend-specific settings. */
-  dpi?: PrintDriverValue<number>
   waitForCompletion?: boolean
 }
 
@@ -32,7 +28,6 @@ export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions)
       const printerName = resolvePrintDriverValue(options.printerName)
       const copies = resolvePrintDriverValue(options.copies)
       const forcePageSize = resolvePrintDriverValue(options.forcePageSize)
-        ?? resolvePrintDriverValue(options.forcePaperSize)
 
       context.onPhase?.({ phase: 'preparing', message: '生成 PDF 中' })
       const pdfBlob = await renderPagesToPdfBlob({
@@ -63,7 +58,6 @@ export function createEasyInkPrinterDriver(options: EasyInkPrinterDriverOptions)
         forcePageSize,
         landscape,
         offset: resolvePrintOffset(context.printPolicy.offset),
-        dpi: resolvePrintDriverValue(options.dpi),
         ...requestOptions,
       }
 
