@@ -17,7 +17,7 @@
     "dev": "turbo dev --filter='./packages/**' --concurrency 50",
     "play": "pnpm -F ./playground dev",
     "lint": "eslint --cache .",
-    "release": "node ./scripts/release-changeset.mjs",
+    "release": "node ./scripts/release.mjs",
     "sync:logos": "node ./scripts/sync-logos.mjs",
     "prepublishOnly": "pnpm build",
     "test": "vitest run --dom",
