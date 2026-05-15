@@ -140,13 +140,13 @@ public class PdfiumPrintService : IPrintService
             using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, (int)dpi, (int)dpi,
                 PdfRenderFlags.ForPrinting))
             {
-                // 1:1 映射：DPI 像素 → 打印机单位 (1/100 英寸)
                 float unitsPerPixel = 100f / dpi;
                 float imgWUnits = img.Width * unitsPerPixel;
                 float imgHUnits = img.Height * unitsPerPixel;
 
                 // 等比缩放到可打印区域内，适配打印机硬边距
                 var bounds = e.MarginBounds;
+                var pageBounds = e.PageBounds;
                 float scaleX = (float)bounds.Width / imgWUnits;
                 float scaleY = (float)bounds.Height / imgHUnits;
                 float scale = Math.Min(scaleX, scaleY);
@@ -155,6 +155,22 @@ public class PdfiumPrintService : IPrintService
                 float drawH = imgHUnits * scale;
                 float drawX = bounds.X + ((float)bounds.Width - drawW) / 2f + offsetXUnits;
                 float drawY = bounds.Y + ((float)bounds.Height - drawH) / 2f + offsetYUnits;
+
+                // 仅首页打印诊断信息，确认驱动报告的边距和缩放
+                if (pageIndex < pageCount)
+                {
+                    var ps = e.PageSettings;
+                    _logger.Log(LogLevel.Info,
+                        $"[PrintDiag] page={pdfPageIndex}" +
+                        $" paperWH=({paperWidthMm:F1}x{paperHeightMm:F1}mm)" +
+                        $" pageBounds=({pageBounds.Width},{pageBounds.Height})" +
+                        $" marginBounds=({bounds.X},{bounds.Y} {bounds.Width}x{bounds.Height})" +
+                        $" hardMargin=({ps.HardMarginX},{ps.HardMarginY})" +
+                        $" printableArea=({ps.PrintableArea.Width}x{ps.PrintableArea.Height})" +
+                        $" imgUnits=({imgWUnits:F1}x{imgHUnits:F1})" +
+                        $" scale=({scaleX:F3}x{scaleY:F3}->{scale:F3})" +
+                        $" draw=({drawX:F1},{drawY:F1} {drawW:F1}x{drawH:F1})");
+                }
 
                 e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
