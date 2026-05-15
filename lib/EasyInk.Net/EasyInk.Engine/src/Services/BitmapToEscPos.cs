@@ -32,11 +32,11 @@ internal static class BitmapToEscPos
     }
 
     public static byte[] CmdInit() => new byte[] { ESC, 0x40, ESC, 0x33, 0x00 };
-    public static byte[] CmdCut() => new byte[] { GS, 0x56, 0x42, 0x00 };
+    public static byte[] CmdCut() => new byte[] { GS, 0x56, 0x01 };
 
     private static byte[] BuildBand(Bitmap src, int w, int bytesPerRow, int startY, int bandHeight)
     {
-        // GS v 0 header: xL/xH = width in DOTS, yL/yH = height in DOTS
+        // GS v 0 header: xL/xH = bytes per row, yL/yH = height in DOTS
         const int headerLen = 8;
         int dataLen = bytesPerRow * bandHeight;
         var result = new byte[headerLen + dataLen];
@@ -44,8 +44,8 @@ internal static class BitmapToEscPos
         result[1] = 0x76;
         result[2] = 0x30;
         result[3] = 0;
-        result[4] = (byte)(w & 0xFF);
-        result[5] = (byte)((w >> 8) & 0xFF);
+        result[4] = (byte)(bytesPerRow & 0xFF);
+        result[5] = (byte)((bytesPerRow >> 8) & 0xFF);
         result[6] = (byte)(bandHeight & 0xFF);
         result[7] = (byte)((bandHeight >> 8) & 0xFF);
 
