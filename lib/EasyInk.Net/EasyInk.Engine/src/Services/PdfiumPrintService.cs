@@ -19,6 +19,8 @@ public class PdfiumPrintService : IPrintService
 {
     private const int DefaultRenderDpi = 600;
     private const int MaxRenderDpi = 1200;
+    private const int LowDpiNativeRenderThreshold = 360;
+    private const int MinKnownPrinterDpi = 150;
 
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
@@ -143,29 +145,27 @@ public class PdfiumPrintService : IPrintService
             var pb = e.PageBounds;
             var printable = GetEffectiveDrawingArea(ps, pb, softMarginUnits);
 
-            int renderDpi = GetRenderDpi(request, ps);
             float contentWUnits = contentWidthMm / 25.4f * 100f;
             float contentHUnits = contentHeightMm / 25.4f * 100f;
             float targetScale = Math.Min(printable.Width / contentWUnits, printable.Height / contentHUnits);
-            int renderWidth = Math.Max(1, (int)Math.Round(contentWUnits / 100f * renderDpi * targetScale));
-            int renderHeight = Math.Max(1, (int)Math.Round(contentHUnits / 100f * renderDpi * targetScale));
+            float drawW = contentWUnits * targetScale;
+            float drawH = contentHUnits * targetScale;
+            float drawX = printable.X + (printable.Width - drawW) / 2f + offsetXUnits;
+            float drawY = printable.Y + (printable.Height - drawH) / 2f + offsetYUnits;
 
-            using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, renderDpi, renderDpi,
+            var renderResolution = GetRenderResolution(request, ps, e.Graphics);
+            var drawRect = new RectangleF(drawX, drawY, drawW, drawH);
+            if (renderResolution.MapsToDevicePixels)
+                drawRect = SnapToDevicePixels(drawRect, renderResolution.X, renderResolution.Y);
+
+            int renderWidth = Math.Max(1, (int)Math.Round(drawRect.Width / 100f * renderResolution.X));
+            int renderHeight = Math.Max(1, (int)Math.Round(drawRect.Height / 100f * renderResolution.Y));
+
+            using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, renderResolution.X, renderResolution.Y,
                 PdfRenderFlags.ForPrinting))
             {
-                float unitsPerPixel = 100f / renderDpi;
-                float imgWUnits = img.Width * unitsPerPixel;
-                float imgHUnits = img.Height * unitsPerPixel;
-
-                // 等比缩放适配
-                float scaleX = printable.Width / imgWUnits;
-                float scaleY = printable.Height / imgHUnits;
-                float scale = Math.Min(scaleX, scaleY);
-
-                float drawW = imgWUnits * scale;
-                float drawH = imgHUnits * scale;
-                float drawX = printable.X + (printable.Width - drawW) / 2f + offsetXUnits;
-                float drawY = printable.Y + (printable.Height - drawH) / 2f + offsetYUnits;
+                var bitmap = img as Bitmap;
+                bitmap?.SetResolution(renderResolution.X, renderResolution.Y);
 
                 if (pageIndex < pageCount)
                 {
@@ -178,18 +178,15 @@ public class PdfiumPrintService : IPrintService
                         $" hardMargin=({ps.HardMarginX},{ps.HardMarginY})" +
                         $" softMargin={softMarginUnits:F1}" +
                         $" effectiveDrawing=({printable.X:F1},{printable.Y:F1} {printable.Width:F1}x{printable.Height:F1})" +
-                        $" img=({imgWUnits:F1}x{imgHUnits:F1})" +
-                        $" render=({renderWidth}x{renderHeight}@{renderDpi}dpi)" +
-                        $" scale=({scaleX:F3}x{scaleY:F3}->{scale:F3})" +
-                        $" draw=({drawX:F1},{drawY:F1} {drawW:F1}x{drawH:F1})");
+                        $" render=({renderWidth}x{renderHeight}@{renderResolution.X}x{renderResolution.Y}dpi/{renderResolution.Source})" +
+                        $" targetScale={targetScale:F3}" +
+                        $" draw=({drawRect.X:F1},{drawRect.Y:F1} {drawRect.Width:F1}x{drawRect.Height:F1})" +
+                        $" deviceSnap={renderResolution.MapsToDevicePixels}");
                 }
 
-                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-                e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
+                ConfigureGraphicsQuality(e.Graphics, renderResolution.MapsToDevicePixels);
 
-                e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
+                e.Graphics.DrawImage(img, drawRect.X, drawRect.Y, drawRect.Width, drawRect.Height);
             }
 
             pageIndex++;
@@ -199,12 +196,85 @@ public class PdfiumPrintService : IPrintService
         printDoc.Print();
     }
 
-    private static int GetRenderDpi(PrintRequestParams request, PageSettings pageSettings)
+    private static RenderResolution GetRenderResolution(PrintRequestParams request, PageSettings pageSettings, Graphics graphics)
     {
         int requestedDpi = request.Dpi > 0 ? request.Dpi : DefaultRenderDpi;
-        int printerDpi = Math.Max(pageSettings.PrinterResolution.X, pageSettings.PrinterResolution.Y);
-        int dpi = Math.Max(requestedDpi, printerDpi > 0 ? printerDpi : DefaultRenderDpi);
+        int deviceDpiX = GetKnownDeviceDpi(pageSettings.PrinterResolution.X, graphics.DpiX);
+        int deviceDpiY = GetKnownDeviceDpi(pageSettings.PrinterResolution.Y, graphics.DpiY);
+        int maxDeviceDpi = Math.Max(deviceDpiX, deviceDpiY);
+
+        // Thermal/receipt printers usually expose their real dot density (203/300 dpi).
+        // Rendering at 600 dpi and letting GDI downsample softens text, so use native dots by default.
+        if (maxDeviceDpi > 0 && maxDeviceDpi <= LowDpiNativeRenderThreshold && requestedDpi <= DefaultRenderDpi)
+        {
+            return new RenderResolution(
+                ClampDpi(deviceDpiX > 0 ? deviceDpiX : maxDeviceDpi),
+                ClampDpi(deviceDpiY > 0 ? deviceDpiY : maxDeviceDpi),
+                true,
+                "native-low-dpi");
+        }
+
+        int renderDpiX = Math.Max(requestedDpi, deviceDpiX > 0 ? deviceDpiX : DefaultRenderDpi);
+        int renderDpiY = Math.Max(requestedDpi, deviceDpiY > 0 ? deviceDpiY : DefaultRenderDpi);
+        renderDpiX = ClampDpi(renderDpiX);
+        renderDpiY = ClampDpi(renderDpiY);
+
+        bool mapsToDevicePixels = deviceDpiX > 0 && deviceDpiY > 0 &&
+                                  renderDpiX == deviceDpiX && renderDpiY == deviceDpiY;
+        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested");
+    }
+
+    private static int GetKnownDeviceDpi(int settingsDpi, float graphicsDpi)
+    {
+        if (settingsDpi >= MinKnownPrinterDpi)
+            return ClampDpi(settingsDpi);
+
+        int roundedGraphicsDpi = (int)Math.Round(graphicsDpi);
+        return roundedGraphicsDpi >= MinKnownPrinterDpi ? ClampDpi(roundedGraphicsDpi) : 0;
+    }
+
+    private static int ClampDpi(int dpi)
+    {
         return Math.Max(72, Math.Min(dpi, MaxRenderDpi));
+    }
+
+    private static RectangleF SnapToDevicePixels(RectangleF rect, int dpiX, int dpiY)
+    {
+        float x = SnapUnitToPixel(rect.X, dpiX);
+        float y = SnapUnitToPixel(rect.Y, dpiY);
+        float right = SnapUnitToPixel(rect.Right, dpiX);
+        float bottom = SnapUnitToPixel(rect.Bottom, dpiY);
+
+        float minWidth = 100f / dpiX;
+        float minHeight = 100f / dpiY;
+
+        return new RectangleF(
+            x,
+            y,
+            Math.Max(minWidth, right - x),
+            Math.Max(minHeight, bottom - y));
+    }
+
+    private static float SnapUnitToPixel(float value, int dpi)
+    {
+        return (float)(Math.Round(value / 100f * dpi) * 100.0 / dpi);
+    }
+
+    private static void ConfigureGraphicsQuality(Graphics graphics, bool mapsToDevicePixels)
+    {
+        if (mapsToDevicePixels)
+        {
+            graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+            graphics.PixelOffsetMode = PixelOffsetMode.Half;
+            graphics.SmoothingMode = SmoothingMode.None;
+            graphics.CompositingQuality = CompositingQuality.HighSpeed;
+            return;
+        }
+
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        graphics.SmoothingMode = SmoothingMode.HighQuality;
+        graphics.CompositingQuality = CompositingQuality.HighQuality;
     }
 
     private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
@@ -250,5 +320,21 @@ public class PdfiumPrintService : IPrintService
         return string.Equals(unit, "inch", StringComparison.OrdinalIgnoreCase)
             ? (float)(value * 25.4)
             : (float)value;
+    }
+
+    private readonly struct RenderResolution
+    {
+        public RenderResolution(int x, int y, bool mapsToDevicePixels, string source)
+        {
+            X = x;
+            Y = y;
+            MapsToDevicePixels = mapsToDevicePixels;
+            Source = source;
+        }
+
+        public int X { get; }
+        public int Y { get; }
+        public bool MapsToDevicePixels { get; }
+        public string Source { get; }
     }
 }

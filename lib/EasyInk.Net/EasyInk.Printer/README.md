@@ -80,7 +80,7 @@ EasyInk.Printer 调用 EasyInk.Engine 执行打印，当前默认链路是：
 - 普通打印机默认使用 Windows 打印机首选项里的纸张和方向。
 - 请求默认不应设置 `ForcePaperSize=true`，除非明确知道要覆盖驱动纸张。
 - UI 中的“默认软件边距”只作为高级兼容选项，默认保持 0。优先依赖驱动 `PrintableArea`，不要用手动边距做通用修复。
-- 打印质量由 PDFium 位图渲染 DPI 决定，默认 600，并会参考驱动分辨率，上限 1200。
+- 打印质量由 PDFium 位图渲染 DPI 决定，默认 600，并会参考驱动分辨率，上限 1200；对 360 DPI 及以下的小票/热敏类低分辨率设备，默认贴合驱动原生 DPI 渲染，减少 GDI/驱动下采样造成的模糊。
 
 可配置 SumatraPDF fallback：
 
