@@ -141,20 +141,27 @@ public class PdfiumPrintService : IPrintService
                 PdfRenderFlags.ForPrinting))
             {
                 // 1:1 映射：DPI 像素 → 打印机单位 (1/100 英寸)
-                // 不干预缩放，硬边距裁切由 spooler + 驱动处理
                 float unitsPerPixel = 100f / dpi;
-                var pageBounds = e.PageBounds;
+                float imgWUnits = img.Width * unitsPerPixel;
+                float imgHUnits = img.Height * unitsPerPixel;
+
+                // 等比缩放到可打印区域内，适配打印机硬边距
+                var bounds = e.MarginBounds;
+                float scaleX = (float)bounds.Width / imgWUnits;
+                float scaleY = (float)bounds.Height / imgHUnits;
+                float scale = Math.Min(scaleX, scaleY);
+
+                float drawW = imgWUnits * scale;
+                float drawH = imgHUnits * scale;
+                float drawX = bounds.X + ((float)bounds.Width - drawW) / 2f + offsetXUnits;
+                float drawY = bounds.Y + ((float)bounds.Height - drawH) / 2f + offsetYUnits;
 
                 e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
                 e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
 
-                e.Graphics.DrawImage(img,
-                    pageBounds.X + offsetXUnits,
-                    pageBounds.Y + offsetYUnits,
-                    img.Width * unitsPerPixel,
-                    img.Height * unitsPerPixel);
+                e.Graphics.DrawImage(img, drawX, drawY, drawW, drawH);
             }
 
             pageIndex++;
