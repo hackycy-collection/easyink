@@ -78,13 +78,6 @@ import {
   svgCustomDesignerPropSchemas,
 } from '@easyink/material-svg-custom'
 import {
-  createSvgEllipseExtension,
-  createSvgEllipseNode,
-  SVG_ELLIPSE_CAPABILITIES,
-  SVG_ELLIPSE_TYPE,
-  svgEllipseDesignerPropSchemas,
-} from '@easyink/material-svg-ellipse'
-import {
   createSvgHeartExtension,
   createSvgHeartNode,
   SVG_HEART_CAPABILITIES,
@@ -247,16 +240,6 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
       propSchemas: svgStarDesignerPropSchemas,
     },
     {
-      type: SVG_ELLIPSE_TYPE,
-      name: '椭圆',
-      icon: IconEllipse,
-      category: 'svg',
-      capabilities: SVG_ELLIPSE_CAPABILITIES,
-      createDefaultNode: createSvgEllipseNode,
-      factory: createSvgEllipseExtension,
-      propSchemas: svgEllipseDesignerPropSchemas,
-    },
-    {
       type: SVG_HEART_TYPE,
       name: '心形',
       icon: IconHeart,
@@ -291,7 +274,6 @@ export const builtinDesignerMaterialBundle: BuiltinDesignerMaterialBundle = {
     { type: CONTAINER_TYPE, group: 'data' },
     { type: CHART_TYPE, group: 'chart' },
     { type: SVG_STAR_TYPE, group: 'svg' },
-    { type: SVG_ELLIPSE_TYPE, group: 'svg' },
     { type: SVG_HEART_TYPE, group: 'svg' },
     { type: SVG_CUSTOM_TYPE, group: 'svg' },
     { type: PAGE_NUMBER_TYPE, group: 'utility' },

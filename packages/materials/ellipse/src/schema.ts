@@ -19,6 +19,12 @@ export const ELLIPSE_DEFAULTS: EllipseProps = {
 
 export function createEllipseNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
   const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
+  const partialNode = partial ? { ...partial } : undefined
+  const partialProps = (partial?.props ?? {}) as Partial<EllipseProps>
+
+  if (partialNode)
+    delete partialNode.props
+
   return {
     id: generateId('ell'),
     type: ELLIPSE_TYPE,
@@ -29,8 +35,9 @@ export function createEllipseNode(partial?: Partial<MaterialNode>, unit?: string
     props: {
       ...ELLIPSE_DEFAULTS,
       borderWidth: c(ELLIPSE_DEFAULTS.borderWidth),
+      ...partialProps,
     },
-    ...partial,
+    ...partialNode,
   }
 }
 

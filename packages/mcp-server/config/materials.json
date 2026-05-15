@@ -356,24 +356,6 @@
       "schemaRules": [],
       "examples": []
     },
-    "svg-ellipse": {
-      "description": "Ellipse SVG material with inset and stroke controls.",
-      "properties": [
-        "fillColor",
-        "borderWidth",
-        "borderColor",
-        "ellipseInset"
-      ],
-      "requiredProps": [
-        "fillColor"
-      ],
-      "binding": "none",
-      "usage": [
-        "Use this material for ellipse-like SVG graphics in the SVG catalog."
-      ],
-      "schemaRules": [],
-      "examples": []
-    },
     "svg-heart": {
       "description": "Heart SVG material with editable cleft depth and shoulder width.",
       "properties": [

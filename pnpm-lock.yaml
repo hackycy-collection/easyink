@@ -339,9 +339,6 @@ importers:
       '@easyink/material-svg-custom':
         specifier: workspace:*
         version: link:../materials/svg/custom
-      '@easyink/material-svg-ellipse':
-        specifier: workspace:*
-        version: link:../materials/svg/ellipse
       '@easyink/material-svg-heart':
         specifier: workspace:*
         version: link:../materials/svg/heart
@@ -581,18 +578,6 @@ importers:
         version: link:../../shared
 
   packages/materials/svg/custom:
-    dependencies:
-      '@easyink/core':
-        specifier: workspace:*
-        version: link:../../../core
-      '@easyink/schema':
-        specifier: workspace:*
-        version: link:../../../schema
-      '@easyink/shared':
-        specifier: workspace:*
-        version: link:../../../shared
-
-  packages/materials/svg/ellipse:
     dependencies:
       '@easyink/core':
         specifier: workspace:*
