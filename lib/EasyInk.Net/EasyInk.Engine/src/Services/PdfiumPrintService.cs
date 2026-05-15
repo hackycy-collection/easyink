@@ -87,21 +87,18 @@ public class PdfiumPrintService : IPrintService
 
         float dpi = request.Dpi > 0 ? request.Dpi : 300f;
 
-        float paperWidthMm, paperHeightMm;
+        var pdfPageSize = pdfDoc.PageSizes[0];
+        float contentWidthMm = (float)(pdfPageSize.Width / 72.0 * 25.4);
+        float contentHeightMm = (float)(pdfPageSize.Height / 72.0 * 25.4);
+
         if (request.ForcePaperSize && request.PaperSize != null)
         {
-            paperWidthMm = ToMm(request.PaperSize.Width, request.PaperSize.Unit);
-            paperHeightMm = ToMm(request.PaperSize.Height, request.PaperSize.Unit);
-        }
-        else
-        {
-            var pageSize = pdfDoc.PageSizes[0];
-            paperWidthMm = (float)(pageSize.Width / 72.0 * 25.4);
-            paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
+            contentWidthMm = ToMm(request.PaperSize.Width, request.PaperSize.Unit);
+            contentHeightMm = ToMm(request.PaperSize.Height, request.PaperSize.Unit);
         }
 
-        int renderWidth = (int)Math.Round(paperWidthMm / 25.4 * dpi);
-        int renderHeight = (int)Math.Round(paperHeightMm / 25.4 * dpi);
+        int renderWidth = Math.Max(1, (int)Math.Round(contentWidthMm / 25.4 * dpi));
+        int renderHeight = Math.Max(1, (int)Math.Round(contentHeightMm / 25.4 * dpi));
 
         float offsetXUnits = 0, offsetYUnits = 0;
         if (request.Offset != null)
@@ -118,12 +115,14 @@ public class PdfiumPrintService : IPrintService
         using var printDoc = new PrintDocument();
         printDoc.PrinterSettings.PrinterName = request.PrinterName;
 
-        var paperWidthHundredths = (int)Math.Round(paperWidthMm / 25.4 * 100.0);
-        var paperHeightHundredths = (int)Math.Round(paperHeightMm / 25.4 * 100.0);
+        if (request.ForcePaperSize && request.PaperSize != null)
+        {
+            var paperWidthHundredths = (int)Math.Round(contentWidthMm / 25.4 * 100.0);
+            var paperHeightHundredths = (int)Math.Round(contentHeightMm / 25.4 * 100.0);
+            printDoc.DefaultPageSettings.PaperSize = new PaperSize("EasyInk Custom",
+                paperWidthHundredths, paperHeightHundredths);
+        }
 
-        var paperSize = new PaperSize("Custom", paperWidthHundredths, paperHeightHundredths);
-
-        printDoc.DefaultPageSettings.PaperSize = paperSize;
         printDoc.DefaultPageSettings.Landscape = request.Landscape;
         printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
         printDoc.OriginAtMargins = false;
@@ -149,40 +148,31 @@ public class PdfiumPrintService : IPrintService
                 float imgWUnits = img.Width * unitsPerPixel;
                 float imgHUnits = img.Height * unitsPerPixel;
 
-                // 有效边距：取驱动报告的硬边距和软件边距的较大值
                 var ps = e.PageSettings;
                 var pb = e.PageBounds;
-                float marginLeft = Math.Max(ps.HardMarginX, softMarginUnits);
-                float marginTop = Math.Max(ps.HardMarginY, softMarginUnits);
-                float marginRight = marginLeft;
-                float marginBottom = marginTop;
-
-                // 有效可打印区域
-                float printableX = pb.X + marginLeft;
-                float printableY = pb.Y + marginTop;
-                float printableW = pb.Width - marginLeft - marginRight;
-                float printableH = pb.Height - marginTop - marginBottom;
+                var printable = GetEffectiveDrawingArea(ps, pb, softMarginUnits);
 
                 // 等比缩放适配
-                float scaleX = printableW / imgWUnits;
-                float scaleY = printableH / imgHUnits;
+                float scaleX = printable.Width / imgWUnits;
+                float scaleY = printable.Height / imgHUnits;
                 float scale = Math.Min(scaleX, scaleY);
 
                 float drawW = imgWUnits * scale;
                 float drawH = imgHUnits * scale;
-                float drawX = printableX + (printableW - drawW) / 2f + offsetXUnits;
-                float drawY = printableY + (printableH - drawH) / 2f + offsetYUnits;
+                float drawX = printable.X + (printable.Width - drawW) / 2f + offsetXUnits;
+                float drawY = printable.Y + (printable.Height - drawH) / 2f + offsetYUnits;
 
                 if (pageIndex < pageCount)
                 {
                     _logger.Log(LogLevel.Info,
                         $"[PrintDiag] page={pdfPageIndex}" +
-                        $" paper=({paperWidthMm:F1}x{paperHeightMm:F1}mm)" +
+                        $" content=({contentWidthMm:F1}x{contentHeightMm:F1}mm)" +
+                        $" driverPaper=({ps.PaperSize.Width}x{ps.PaperSize.Height})" +
                         $" pageBounds=({pb.Width},{pb.Height})" +
+                        $" printableArea=({ps.PrintableArea.X},{ps.PrintableArea.Y} {ps.PrintableArea.Width}x{ps.PrintableArea.Height})" +
                         $" hardMargin=({ps.HardMarginX},{ps.HardMarginY})" +
                         $" softMargin={softMarginUnits:F1}" +
-                        $" effectiveMargins=({marginLeft:F1},{marginTop:F1})" +
-                        $" printable=({printableW:F1}x{printableH:F1})" +
+                        $" effectiveDrawing=({printable.X:F1},{printable.Y:F1} {printable.Width:F1}x{printable.Height:F1})" +
                         $" img=({imgWUnits:F1}x{imgHUnits:F1})" +
                         $" scale=({scaleX:F3}x{scaleY:F3}->{scale:F3})" +
                         $" draw=({drawX:F1},{drawY:F1} {drawW:F1}x{drawH:F1})");
@@ -201,6 +191,44 @@ public class PdfiumPrintService : IPrintService
         };
 
         printDoc.Print();
+    }
+
+    private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
+    {
+        var printable = pageSettings.PrintableArea;
+        float width;
+        float height;
+
+        if (printable.Width > 0 && printable.Height > 0)
+        {
+            // With OriginAtMargins=false the Graphics origin is normally already
+            // translated to the printable area's top-left. Use printable size,
+            // not printable X/Y, to avoid applying the hard margin twice.
+            width = pageSettings.Landscape ? printable.Height : printable.Width;
+            height = pageSettings.Landscape ? printable.Width : printable.Height;
+        }
+        else
+        {
+            float marginLeft = Math.Max(pageSettings.HardMarginX, softMarginUnits);
+            float marginTop = Math.Max(pageSettings.HardMarginY, softMarginUnits);
+            float marginRight = marginLeft;
+            float marginBottom = marginTop;
+
+            width = pageBounds.Width - marginLeft - marginRight;
+            height = pageBounds.Height - marginTop - marginBottom;
+        }
+
+        width = Math.Max(1f, Math.Min(width, pageBounds.Width));
+        height = Math.Max(1f, Math.Min(height, pageBounds.Height));
+
+        if (softMarginUnits <= 0)
+            return new RectangleF(0, 0, width, height);
+
+        return new RectangleF(
+            softMarginUnits,
+            softMarginUnits,
+            Math.Max(1f, width - softMarginUnits * 2f),
+            Math.Max(1f, height - softMarginUnits * 2f));
     }
 
     private static float ToMm(double value, string unit)
