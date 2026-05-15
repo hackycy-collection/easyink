@@ -780,6 +780,57 @@ public class MainWindow : Form
         securityPanel.Controls.Add(txtApiKey, 1, 1);
         grpSecurity.Controls.Add(securityPanel);
 
+        // 打印兼容性设置组
+        var grpPrinterCompat = new GroupBox
+        {
+            Text = LangManager.Get("Settings_PrinterCompat"),
+            Dock = DockStyle.Top,
+            Height = 135,
+            Padding = new Padding(12, 8, 12, 12)
+        };
+
+        var compatPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 2,
+            Padding = new Padding(4)
+        };
+        compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+        compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var lblMargin = new Label { Text = LangManager.Get("Settings_MarginLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+        var pnlMargin = new Panel { Dock = DockStyle.Fill, Height = 28 };
+        var numMargin = new NumericUpDown
+        {
+            Width = 100,
+            Minimum = 0,
+            Maximum = 10,
+            DecimalPlaces = 1,
+            Increment = 0.5m,
+            Value = (decimal)_config.DefaultMarginMm,
+            Anchor = AnchorStyles.Left
+        };
+        var lblMarginUnit = new Label { Text = "mm", Left = 108, Top = 4, Width = 30, Anchor = AnchorStyles.Left };
+        pnlMargin.Controls.Add(numMargin);
+        pnlMargin.Controls.Add(lblMarginUnit);
+
+        var lblMarginDesc = new Label
+        {
+            Text = LangManager.Get("Settings_MarginDescription"),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft,
+            ForeColor = System.Drawing.SystemColors.GrayText
+        };
+
+        compatPanel.Controls.Add(lblMargin, 0, 0);
+        compatPanel.Controls.Add(pnlMargin, 1, 0);
+        compatPanel.Controls.Add(lblMarginDesc, 0, 1);
+        compatPanel.SetColumnSpan(lblMarginDesc, 2);
+        grpPrinterCompat.Controls.Add(compatPanel);
+
         // 路径设置组
         var grpPath = new GroupBox
         {
@@ -888,6 +939,7 @@ public class MainWindow : Form
                 return;
             }
 
+            _config.DefaultMarginMm = (double)numMargin.Value;
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;
@@ -933,6 +985,7 @@ public class MainWindow : Form
 
         panel.Controls.Add(btnSave);
         panel.Controls.Add(grpPath);
+        panel.Controls.Add(grpPrinterCompat);
         panel.Controls.Add(grpSecurity);
         panel.Controls.Add(grpDisplay);
         panel.Controls.Add(grpBasic);

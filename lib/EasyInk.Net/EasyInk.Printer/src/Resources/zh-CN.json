@@ -192,5 +192,9 @@
   "Config_PathNotEmpty": "路径不能为空",
   "Config_PathInvalidChars": "路径包含非法字符",
   "Config_PathInvalidFormat": "路径格式无效",
-  "Config_PathNoDrive": "路径必须包含盘符（如 C:\\）"
+  "Config_PathNoDrive": "路径必须包含盘符（如 C:\\）",
+
+  "Settings_PrinterCompat": "打印兼容性",
+  "Settings_MarginLabel": "默认软件边距",
+  "Settings_MarginDescription": "部分打印机驱动通过传统 GDI 路径时不报告物理硬边距，导致内容被裁切。\n（例如热敏小票机 XP-80C，驱动报告边距为 0，但实际有不可打印边缘。）\n\n设为此类打印机增加软件边距（推荐 2.0 mm），内容将等比缩放到扣除边距后的可打印区域内。\n设为 0 则不启用。\n\n注：Chrome/Edge 等浏览器打印不受影响，因为它们使用 XPS 打印路径，驱动会正确报告边距信息。"
 }

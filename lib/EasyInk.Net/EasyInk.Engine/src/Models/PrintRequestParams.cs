@@ -55,6 +55,12 @@ public class PrintRequestParams
     public OffsetParams? Offset { get; set; }
 
     /// <summary>
+    /// 软件边距(mm)。当打印机驱动不报告硬边距时，用此值补偿物理不可打印区域。
+    /// 相当于四边各缩进指定距离。默认 0。
+    /// </summary>
+    public double Margin { get; set; }
+
+    /// <summary>
     /// 用户数据（用于审计日志）
     /// </summary>
     public UserDataParams? UserData { get; set; }

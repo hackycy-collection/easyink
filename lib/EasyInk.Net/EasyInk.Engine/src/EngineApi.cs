@@ -28,6 +28,7 @@ public class EngineApi : IDisposable
     private readonly IPrinterService _printerService;
     private readonly IPrintService _printService;
     private readonly PrintJobQueue _jobQueue;
+    private readonly double _defaultMarginMm;
 
     /// <summary>
     /// 日志回调事件，订阅方自行决定如何处理日志（写文件、存数据库等）
@@ -54,8 +55,8 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 初始化打印引擎（使用默认服务实现：Pdfium + Windows Print Spooler）
     /// </summary>
-    public EngineApi(int? maxQueueSize = null)
-        : this(null, null, maxQueueSize)
+    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0)
+        : this(null, null, maxQueueSize, defaultMarginMm)
     {
     }
 
@@ -66,8 +67,10 @@ public class EngineApi : IDisposable
     public EngineApi(
         IPrinterService? printerService = null,
         IPrintService? printService = null,
-        int? maxQueueSize = null)
+        int? maxQueueSize = null,
+        double defaultMarginMm = 0)
     {
+        _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
         _printerService = printerService ?? new PrinterService(logger);
         _printService = printService
@@ -192,6 +195,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
+        ApplyDefaultMargin(printParams);
         var result = _printService.Print(request.Id, printParams);
         RaisePrintCompleted(request.Id, printParams, result);
         return result;
@@ -205,6 +209,7 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
+        ApplyDefaultMargin(printParams);
         try
         {
             var jobId = _jobQueue.Enqueue(request.Id, printParams);
@@ -214,6 +219,12 @@ public class EngineApi : IDisposable
         {
             return PrinterResult.Error(request.Id, ErrorCode.QueueFull, ex.Message);
         }
+    }
+
+    private void ApplyDefaultMargin(PrintRequestParams printParams)
+    {
+        if (_defaultMarginMm > 0 && printParams.Margin <= 0)
+            printParams.Margin = _defaultMarginMm;
     }
 
     private PrinterResult HandleGetJobStatus(PrinterCommand request)

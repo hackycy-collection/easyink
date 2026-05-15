@@ -192,5 +192,9 @@
   "Config_PathNotEmpty": "Path cannot be empty",
   "Config_PathInvalidChars": "Path contains invalid characters",
   "Config_PathInvalidFormat": "Invalid path format",
-  "Config_PathNoDrive": "Path must include a drive letter (e.g. C:\\)"
+  "Config_PathNoDrive": "Path must include a drive letter (e.g. C:\\)",
+
+  "Settings_PrinterCompat": "Printer Compatibility",
+  "Settings_MarginLabel": "Default software margin",
+  "Settings_MarginDescription": "Some printer drivers do not report physical hard margins through the legacy GDI print path, causing content to be clipped. (e.g. thermal receipt printers like XP-80C report zero margins but have unprintable edges.)\n\nSet a software margin for such printers (2.0 mm recommended). Content will be scaled proportionally to fit within the margin-adjusted printable area. Set to 0 to disable.\n\nNote: Chrome/Edge and other browsers are unaffected because they use the XPS print path, where drivers correctly report margin information."
 }

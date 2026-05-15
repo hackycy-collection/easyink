@@ -21,7 +21,7 @@ internal static class ServiceConfig
         // Engine
         services.AddSingleton<EngineApi>(sp =>
         {
-            var api = new EngineApi(maxQueueSize: config.MaxQueueSize);
+            var api = new EngineApi(maxQueueSize: config.MaxQueueSize, defaultMarginMm: config.DefaultMarginMm);
             return api;
         });
 

@@ -110,6 +110,11 @@ public class PdfiumPrintService : IPrintService
             offsetYUnits = (float)(ToMm(request.Offset.Y, request.Offset.Unit) / 25.4 * 100.0);
         }
 
+        // 软件边距：补偿驱动不报告的物理硬边距（如 XP-80C 热敏打印机）
+        float softMarginUnits = request.Margin > 0
+            ? (float)(request.Margin / 25.4 * 100.0)
+            : 0;
+
         using var printDoc = new PrintDocument();
         printDoc.PrinterSettings.PrinterName = request.PrinterName;
 
@@ -144,30 +149,41 @@ public class PdfiumPrintService : IPrintService
                 float imgWUnits = img.Width * unitsPerPixel;
                 float imgHUnits = img.Height * unitsPerPixel;
 
-                // 等比缩放到可打印区域内，适配打印机硬边距
-                var bounds = e.MarginBounds;
-                var pageBounds = e.PageBounds;
-                float scaleX = (float)bounds.Width / imgWUnits;
-                float scaleY = (float)bounds.Height / imgHUnits;
+                // 有效边距：取驱动报告的硬边距和软件边距的较大值
+                var ps = e.PageSettings;
+                var pb = e.PageBounds;
+                float marginLeft = Math.Max(ps.HardMarginX, softMarginUnits);
+                float marginTop = Math.Max(ps.HardMarginY, softMarginUnits);
+                float marginRight = marginLeft;
+                float marginBottom = marginTop;
+
+                // 有效可打印区域
+                float printableX = pb.X + marginLeft;
+                float printableY = pb.Y + marginTop;
+                float printableW = pb.Width - marginLeft - marginRight;
+                float printableH = pb.Height - marginTop - marginBottom;
+
+                // 等比缩放适配
+                float scaleX = printableW / imgWUnits;
+                float scaleY = printableH / imgHUnits;
                 float scale = Math.Min(scaleX, scaleY);
 
                 float drawW = imgWUnits * scale;
                 float drawH = imgHUnits * scale;
-                float drawX = bounds.X + ((float)bounds.Width - drawW) / 2f + offsetXUnits;
-                float drawY = bounds.Y + ((float)bounds.Height - drawH) / 2f + offsetYUnits;
+                float drawX = printableX + (printableW - drawW) / 2f + offsetXUnits;
+                float drawY = printableY + (printableH - drawH) / 2f + offsetYUnits;
 
-                // 仅首页打印诊断信息，确认驱动报告的边距和缩放
                 if (pageIndex < pageCount)
                 {
-                    var ps = e.PageSettings;
                     _logger.Log(LogLevel.Info,
                         $"[PrintDiag] page={pdfPageIndex}" +
-                        $" paperWH=({paperWidthMm:F1}x{paperHeightMm:F1}mm)" +
-                        $" pageBounds=({pageBounds.Width},{pageBounds.Height})" +
-                        $" marginBounds=({bounds.X},{bounds.Y} {bounds.Width}x{bounds.Height})" +
+                        $" paper=({paperWidthMm:F1}x{paperHeightMm:F1}mm)" +
+                        $" pageBounds=({pb.Width},{pb.Height})" +
                         $" hardMargin=({ps.HardMarginX},{ps.HardMarginY})" +
-                        $" printableArea=({ps.PrintableArea.Width}x{ps.PrintableArea.Height})" +
-                        $" imgUnits=({imgWUnits:F1}x{imgHUnits:F1})" +
+                        $" softMargin={softMarginUnits:F1}" +
+                        $" effectiveMargins=({marginLeft:F1},{marginTop:F1})" +
+                        $" printable=({printableW:F1}x{printableH:F1})" +
+                        $" img=({imgWUnits:F1}x{imgHUnits:F1})" +
                         $" scale=({scaleX:F3}x{scaleY:F3}->{scale:F3})" +
                         $" draw=({drawX:F1},{drawY:F1} {drawW:F1}x{drawH:F1})");
                 }
