@@ -36,6 +36,14 @@ internal static class NativePrintApi
 
     public static void SendRaw(string printerName, byte[] data, string jobName)
     {
+        SendRawBatched(printerName, new[] { data }, jobName, 0);
+    }
+
+    /// <summary>
+    /// 分批发送 RAW 数据，每批之间延时避免打印机 buffer 溢出。
+    /// </summary>
+    public static void SendRawBatched(string printerName, byte[][] batches, string jobName, int delayMs)
+    {
         var di = new DOC_INFO_1
         {
             pDocName = jobName,
@@ -54,8 +62,15 @@ internal static class NativePrintApi
             if (!StartPagePrinter(hPrinter))
                 throw new InvalidOperationException("StartPagePrinter 失败");
 
-            if (!WritePrinter(hPrinter, data, data.Length, out _))
-                throw new InvalidOperationException("WritePrinter 失败");
+            for (int i = 0; i < batches.Length; i++)
+            {
+                var batch = batches[i];
+                if (!WritePrinter(hPrinter, batch, batch.Length, out _))
+                    throw new InvalidOperationException($"WritePrinter 失败 (batch {i})");
+
+                if (delayMs > 0 && i < batches.Length - 1)
+                    System.Threading.Thread.Sleep(delayMs);
+            }
 
             EndPagePrinter(hPrinter);
             EndDocPrinter(hPrinter);

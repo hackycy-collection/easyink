@@ -49,17 +49,18 @@ public class EscPosRawPrintService : IPrintService
 
         try
         {
-            var rawData = RenderPdfToEscPos(pdfBytes, cancellationToken);
+            var bands = RenderPdfToEscPosBands(pdfBytes, cancellationToken);
             var init = BitmapToEscPos.CmdInit();
             var cut = BitmapToEscPos.CmdCut();
 
-            // ESC @ + 行距清零 + 位图数据 + 切纸
-            var fullData = new byte[init.Length + rawData.Length + cut.Length];
-            Buffer.BlockCopy(init, 0, fullData, 0, init.Length);
-            Buffer.BlockCopy(rawData, 0, fullData, init.Length, rawData.Length);
-            Buffer.BlockCopy(cut, 0, fullData, init.Length + rawData.Length, cut.Length);
+            // init + [band0, band1, ...] + cut，逐批发送，band 间延时 80ms
+            var batches = new byte[1 + bands.Count + 1][];
+            batches[0] = init;
+            for (int i = 0; i < bands.Count; i++) batches[1 + i] = bands[i];
+            batches[batches.Length - 1] = cut;
 
-            NativePrintApi.SendRaw(request.PrinterName, fullData, $"EasyInk-{requestId.Substring(0, Math.Min(8, requestId.Length))}");
+            NativePrintApi.SendRawBatched(request.PrinterName, batches,
+                $"EasyInk-{requestId.Substring(0, Math.Min(8, requestId.Length))}", delayMs: 80);
 
             _logger.Log(LogLevel.Info, $"Raw 打印成功: {request.PrinterName}, jobId={requestId}");
             return PrinterResult.Ok(requestId, PrintResult.Success(requestId));
@@ -76,7 +77,7 @@ public class EscPosRawPrintService : IPrintService
         }
     }
 
-    private byte[] RenderPdfToEscPos(byte[] pdfBytes, CancellationToken cancellationToken)
+    private System.Collections.Generic.List<byte[]> RenderPdfToEscPosBands(byte[] pdfBytes, CancellationToken cancellationToken)
     {
         using var pdfStream = new MemoryStream(pdfBytes);
         using var pdfDoc = PdfDocument.Load(pdfStream);
@@ -85,12 +86,10 @@ public class EscPosRawPrintService : IPrintService
         if (pageCount == 0)
             throw new InvalidOperationException("PDF 无页面");
 
-        // 取首页尺寸，计算等比例渲染宽度
         var pageSize = pdfDoc.PageSizes[0];
         float paperWidthMm = (float)(pageSize.Width / 72.0 * 25.4);
         float paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
 
-        // 按热敏打印机可打印宽度等比缩放
         float scale = (float)_maxDotsWidth / (paperWidthMm / 25.4f * _dpi);
         int renderWidth = _maxDotsWidth;
         int renderHeight = (int)Math.Round(paperHeightMm / 25.4f * _dpi * scale);
@@ -111,6 +110,6 @@ public class EscPosRawPrintService : IPrintService
             g.DrawImage(pageImg, 0, i * renderHeight);
         }
 
-        return BitmapToEscPos.Convert(fullImage);
+        return BitmapToEscPos.ConvertToBands(fullImage);
     }
 }

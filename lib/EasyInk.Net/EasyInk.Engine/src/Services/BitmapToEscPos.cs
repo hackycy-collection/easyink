@@ -9,13 +9,13 @@ internal static class BitmapToEscPos
 {
     private const byte ESC = 0x1B;
     private const byte GS = 0x1D;
-    private const int BAND_HEIGHT_DOTS = 200; // 每个 band 高度，避免超出打印机 buffer
+    private const int BAND_HEIGHT_DOTS = 960; // 每个 band 高度，匹配 python-escpos 默认值
 
     /// <summary>
-    /// 灰度位图 → ESC/POS GS v 0 位图指令序列。
-    /// 行主序，MSB=最左。xL/xH = 宽度点数，yL/yH = 高度点数。按 band 分片发送。
+    /// 灰度位图 → ESC/POS GS v 0 位图指令序列（按 band 分片，每片独立发送）。
+    /// 行主序，MSB=最左。xL/xH = 每行字节数，yL/yH = 高度点数。
     /// </summary>
-    public static byte[] Convert(Bitmap grayBitmap)
+    public static List<byte[]> ConvertToBands(Bitmap grayBitmap)
     {
         int w = grayBitmap.Width;
         int h = grayBitmap.Height;
@@ -28,7 +28,7 @@ internal static class BitmapToEscPos
             bands.Add(BuildBand(grayBitmap, w, bytesPerRow, startY, bandH));
         }
 
-        return Concat(bands);
+        return bands;
     }
 
     public static byte[] CmdInit() => new byte[] { ESC, 0x40, ESC, 0x33, 0x00 };
@@ -79,17 +79,4 @@ internal static class BitmapToEscPos
         return result;
     }
 
-    private static byte[] Concat(List<byte[]> arrays)
-    {
-        int totalLen = 0;
-        foreach (var a in arrays) totalLen += a.Length;
-        var result = new byte[totalLen];
-        int offset = 0;
-        foreach (var a in arrays)
-        {
-            Buffer.BlockCopy(a, 0, result, offset, a.Length);
-            offset += a.Length;
-        }
-        return result;
-    }
 }
