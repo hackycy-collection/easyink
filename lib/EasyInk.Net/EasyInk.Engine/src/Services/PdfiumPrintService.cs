@@ -37,9 +37,6 @@ public class PdfiumPrintService : IPrintService
         if (cancellationToken.IsCancellationRequested)
             return PrinterResult.Error(requestId, ErrorCode.PrintFailed, "打印已取消");
 
-        // IsReady 仅在确知打印机不可用时为 false（离线、卡纸、缺纸、已停止）。
-        // WMI 查询失败/超时/不可用时 IsReady 必须为 true —— 状态未知不等于不可用，
-        // 误拦截会导致实际可用的打印机无法打印。
         var status = _printerService.GetPrinterStatus(request.PrinterName);
         if (!status.IsReady)
             return PrinterResult.Error(requestId, status.StatusCode, status.Message);
