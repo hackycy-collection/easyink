@@ -608,7 +608,7 @@ public class MainWindow : Form
     {
         var tab = new TabPage(LangManager.Get("Settings_Tab"));
 
-        var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
+        var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16), AutoScroll = true };
 
         // 基本设置组
         var grpBasic = new GroupBox
@@ -785,7 +785,7 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_PrinterCompat"),
             Dock = DockStyle.Top,
-            Height = 135,
+            Height = 155,
             Padding = new Padding(12, 8, 12, 12)
         };
 
