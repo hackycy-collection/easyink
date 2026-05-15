@@ -27,7 +27,11 @@ internal static class ServiceConfig
                 defaultMarginMm: config.DefaultMarginMm,
                 rawPrinterNames: config.RawPrinterNames,
                 rawPrintDpi: config.RawPrintDpi,
-                rawPrintMaxDotsWidth: config.RawPrintMaxDotsWidth);
+                rawPrintMaxDotsWidth: config.RawPrintMaxDotsWidth,
+                sumatraPdfPath: config.SumatraPdfPath,
+                sumatraPrinterNames: config.SumatraPrinterNames,
+                sumatraPrintSettings: config.SumatraPrintSettings,
+                sumatraTimeoutSeconds: config.SumatraTimeoutSeconds);
             return api;
         });
 

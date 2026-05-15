@@ -12,7 +12,11 @@ if defined VERSION (
     if errorlevel 1 exit /b 1
 )
 
-echo [1/2] Publishing...
+echo [1/3] Preparing bundled SumatraPDF...
+call :ensure_sumatra
+if errorlevel 1 exit /b 1
+
+echo [2/3] Publishing...
 dotnet publish "%PROJECT_DIR%\EasyInk.Printer.csproj" -c Release --nologo %DOTNET_VERSION_ARGS%
 if errorlevel 1 (
     echo Publish failed
@@ -22,7 +26,7 @@ if errorlevel 1 (
 call :verify_sqlite_interop "%PROJECT_DIR%\bin\Release\net48\publish"
 if errorlevel 1 exit /b 1
 
-echo [2/2] Packaging portable...
+echo [3/3] Packaging portable...
 if exist "%OUTPUT_DIR%\%ZIP_NAME%.zip" del "%OUTPUT_DIR%\%ZIP_NAME%.zip"
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
@@ -35,6 +39,15 @@ if errorlevel 1 (
 echo.
 echo Done: output\%ZIP_NAME%.zip
 echo Run EasyInk.Printer.exe directly after extract
+exit /b 0
+
+:ensure_sumatra
+if exist "%PROJECT_DIR%\SumatraPDF\SumatraPDF.exe" exit /b 0
+powershell -ExecutionPolicy Bypass -File "%~dp0tools\download-sumatra.ps1"
+if errorlevel 1 (
+    echo Failed to prepare bundled SumatraPDF
+    exit /b 1
+)
 exit /b 0
 
 :verify_sqlite_interop
@@ -53,6 +66,11 @@ if not exist "%PUBLISH_DIR%\x64\pdfium.dll" (
 )
 if not exist "%PUBLISH_DIR%\x86\pdfium.dll" (
     echo Missing pdfium native dependency: %PUBLISH_DIR%\x86\pdfium.dll
+    exit /b 1
+)
+if not exist "%PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe" (
+    echo Missing bundled SumatraPDF: %PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe
+    echo Place SumatraPDF.exe under %PROJECT_DIR%\SumatraPDF before packaging.
     exit /b 1
 )
 exit /b 0
