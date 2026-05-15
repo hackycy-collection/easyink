@@ -55,7 +55,7 @@ public class EscPosRawPrintService : IPrintService
             Buffer.BlockCopy(initCut, 0, fullData, 0, initCut.Length);
             Buffer.BlockCopy(rawData, 0, fullData, initCut.Length, rawData.Length);
 
-            NativePrintApi.SendRaw(request.PrinterName, fullData, $"EasyInk-{requestId[..8]}");
+            NativePrintApi.SendRaw(request.PrinterName, fullData, $"EasyInk-{requestId.Substring(0, Math.Min(8, requestId.Length))}");
 
             _logger.Log(LogLevel.Info, $"Raw 打印成功: {request.PrinterName}, jobId={requestId}");
             return PrinterResult.Ok(requestId, PrintResult.Success(requestId));

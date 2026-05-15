@@ -39,7 +39,7 @@ internal static class NativePrintApi
         var di = new DOC_INFO_1
         {
             pDocName = jobName,
-            pOutputFile = null,
+            pOutputFile = null!,
             pDataType = "RAW"
         };
 

@@ -833,8 +833,7 @@ public class MainWindow : Form
         var txtRawPrinters = new TextBox
         {
             Dock = DockStyle.Fill,
-            Text = string.Join(", ", _config.RawPrinterNames),
-            PlaceholderText = "XP-80, 热敏"
+            Text = string.Join(", ", _config.RawPrinterNames)
         };
         var lblRawPrintersDesc = new Label
         {
