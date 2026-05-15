@@ -47,7 +47,7 @@ public class PrintRequestParams
     /// <summary>
     /// DPI（每英寸点数）
     /// </summary>
-    public int Dpi { get; set; } = 300;
+    public int Dpi { get; set; } = 600;
 
     /// <summary>
     /// 打印偏移

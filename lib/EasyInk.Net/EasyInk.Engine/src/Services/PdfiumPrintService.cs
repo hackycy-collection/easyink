@@ -17,6 +17,9 @@ namespace EasyInk.Engine.Services;
 /// </summary>
 public class PdfiumPrintService : IPrintService
 {
+    private const int DefaultRenderDpi = 600;
+    private const int MaxRenderDpi = 1200;
+
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
 
@@ -85,8 +88,6 @@ public class PdfiumPrintService : IPrintService
         if (pageCount == 0)
             throw new InvalidOperationException("PDF 无页面");
 
-        float dpi = request.Dpi > 0 ? request.Dpi : 300f;
-
         var pdfPageSize = pdfDoc.PageSizes[0];
         float contentWidthMm = (float)(pdfPageSize.Width / 72.0 * 25.4);
         float contentHeightMm = (float)(pdfPageSize.Height / 72.0 * 25.4);
@@ -96,9 +97,6 @@ public class PdfiumPrintService : IPrintService
             contentWidthMm = ToMm(request.PaperSize.Width, request.PaperSize.Unit);
             contentHeightMm = ToMm(request.PaperSize.Height, request.PaperSize.Unit);
         }
-
-        int renderWidth = Math.Max(1, (int)Math.Round(contentWidthMm / 25.4 * dpi));
-        int renderHeight = Math.Max(1, (int)Math.Round(contentHeightMm / 25.4 * dpi));
 
         float offsetXUnits = 0, offsetYUnits = 0;
         if (request.Offset != null)
@@ -141,16 +139,23 @@ public class PdfiumPrintService : IPrintService
             }
 
             int pdfPageIndex = pageIndex % pageCount;
-            using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, (int)dpi, (int)dpi,
+            var ps = e.PageSettings;
+            var pb = e.PageBounds;
+            var printable = GetEffectiveDrawingArea(ps, pb, softMarginUnits);
+
+            int renderDpi = GetRenderDpi(request, ps);
+            float contentWUnits = contentWidthMm / 25.4f * 100f;
+            float contentHUnits = contentHeightMm / 25.4f * 100f;
+            float targetScale = Math.Min(printable.Width / contentWUnits, printable.Height / contentHUnits);
+            int renderWidth = Math.Max(1, (int)Math.Round(contentWUnits / 100f * renderDpi * targetScale));
+            int renderHeight = Math.Max(1, (int)Math.Round(contentHUnits / 100f * renderDpi * targetScale));
+
+            using (var img = pdfDoc.Render(pdfPageIndex, renderWidth, renderHeight, renderDpi, renderDpi,
                 PdfRenderFlags.ForPrinting))
             {
-                float unitsPerPixel = 100f / dpi;
+                float unitsPerPixel = 100f / renderDpi;
                 float imgWUnits = img.Width * unitsPerPixel;
                 float imgHUnits = img.Height * unitsPerPixel;
-
-                var ps = e.PageSettings;
-                var pb = e.PageBounds;
-                var printable = GetEffectiveDrawingArea(ps, pb, softMarginUnits);
 
                 // 等比缩放适配
                 float scaleX = printable.Width / imgWUnits;
@@ -174,6 +179,7 @@ public class PdfiumPrintService : IPrintService
                         $" softMargin={softMarginUnits:F1}" +
                         $" effectiveDrawing=({printable.X:F1},{printable.Y:F1} {printable.Width:F1}x{printable.Height:F1})" +
                         $" img=({imgWUnits:F1}x{imgHUnits:F1})" +
+                        $" render=({renderWidth}x{renderHeight}@{renderDpi}dpi)" +
                         $" scale=({scaleX:F3}x{scaleY:F3}->{scale:F3})" +
                         $" draw=({drawX:F1},{drawY:F1} {drawW:F1}x{drawH:F1})");
                 }
@@ -191,6 +197,14 @@ public class PdfiumPrintService : IPrintService
         };
 
         printDoc.Print();
+    }
+
+    private static int GetRenderDpi(PrintRequestParams request, PageSettings pageSettings)
+    {
+        int requestedDpi = request.Dpi > 0 ? request.Dpi : DefaultRenderDpi;
+        int printerDpi = Math.Max(pageSettings.PrinterResolution.X, pageSettings.PrinterResolution.Y);
+        int dpi = Math.Max(requestedDpi, printerDpi > 0 ? printerDpi : DefaultRenderDpi);
+        return Math.Max(72, Math.Min(dpi, MaxRenderDpi));
     }
 
     private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
