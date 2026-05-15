@@ -12,11 +12,7 @@ if defined VERSION (
     if errorlevel 1 exit /b 1
 )
 
-echo [1/3] Preparing bundled SumatraPDF...
-call :ensure_sumatra
-if errorlevel 1 exit /b 1
-
-echo [2/3] Publishing...
+echo [1/2] Publishing...
 dotnet publish "%PROJECT_DIR%\EasyInk.Printer.csproj" -c Release --nologo %DOTNET_VERSION_ARGS%
 if errorlevel 1 (
     echo Publish failed
@@ -26,7 +22,7 @@ if errorlevel 1 (
 call :verify_sqlite_interop "%PROJECT_DIR%\bin\Release\net48\publish"
 if errorlevel 1 exit /b 1
 
-echo [3/3] Building installer...
+echo [2/2] Building installer...
 set "ISCC="
 where iscc >nul 2>&1 && set "ISCC=iscc"
 if not defined ISCC if exist "E:\Program Files (x86)\Inno Setup 6\iscc.exe" set "ISCC=E:\Program Files (x86)\Inno Setup 6\iscc.exe"
@@ -48,15 +44,6 @@ echo.
 echo Done: output\EasyInkPrinter-Setup.exe
 exit /b 0
 
-:ensure_sumatra
-if exist "%PROJECT_DIR%\SumatraPDF\SumatraPDF.exe" exit /b 0
-powershell -ExecutionPolicy Bypass -File "%~dp0tools\download-sumatra.ps1"
-if errorlevel 1 (
-    echo Failed to prepare bundled SumatraPDF
-    exit /b 1
-)
-exit /b 0
-
 :verify_sqlite_interop
 set PUBLISH_DIR=%~1
 if not exist "%PUBLISH_DIR%\x64\SQLite.Interop.dll" (
@@ -73,11 +60,6 @@ if not exist "%PUBLISH_DIR%\x64\pdfium.dll" (
 )
 if not exist "%PUBLISH_DIR%\x86\pdfium.dll" (
     echo Missing pdfium native dependency: %PUBLISH_DIR%\x86\pdfium.dll
-    exit /b 1
-)
-if not exist "%PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe" (
-    echo Missing bundled SumatraPDF: %PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe
-    echo Place SumatraPDF.exe under %PROJECT_DIR%\SumatraPDF before packaging.
     exit /b 1
 )
 exit /b 0

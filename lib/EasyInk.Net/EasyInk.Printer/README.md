@@ -82,7 +82,7 @@ EasyInk.Printer 调用 EasyInk.Engine 执行打印，当前默认链路是：
 - UI 中的“默认软件边距”只作为高级兼容选项，默认保持 0。优先依赖驱动 `PrintableArea`，不要用手动边距做通用修复。
 - 打印质量由 PDFium 位图渲染 DPI 决定，默认 600，并会参考驱动分辨率，上限 1200。
 
-可配置 SumatraPDF fallback：
+后续可接入 SumatraPDF fallback：
 
 ```
 浏览器上传 PDF
@@ -99,16 +99,8 @@ EasyInk.Printer 调用 EasyInk.Engine 执行打印，当前默认链路是：
 接入约束：
 
 - `fit` 会按驱动当前默认纸张的 printable area 缩放，纸张首选项必须正确。
-- 打包产物内置 `SumatraPDF\SumatraPDF.exe`，设置页默认路径指向该文件。
-- Win7 环境需要随包固定一个实测可用的 SumatraPDF portable 版本，不要自动追最新版。
+- Win7 环境需要随包固定一个实测可用的 SumatraPDF portable 版本。
 - 该链路应做成按打印机配置的 fallback，不建议无条件替换默认链路。
-
-配置方式：
-
-- 在设置页确认 `SumatraPDF.exe` 路径，默认是程序目录下的 `SumatraPDF\SumatraPDF.exe`。
-- 在“PDF兼容打印机 / PDF fallback printers”中填写需要走 SumatraPDF 的打印机名称片段，多个用逗号分隔。
-- 打印参数默认 `fit`，超时默认 60 秒。
-- 保存后重启服务生效。
 
 ### 技术栈
 
@@ -277,15 +269,6 @@ dotnet build EasyInk.Printer/src
 
 - `build-portable.bat`：生成便携包 zip
 - `build-installer.bat`：生成 Inno Setup 安装包 exe
-
-打包脚本会自动准备内置 SumatraPDF；也可以手动运行：
-
-```powershell
-cd lib\EasyInk.Net\EasyInk.Printer
-powershell -ExecutionPolicy Bypass -File tools\download-sumatra.ps1
-```
-
-脚本会下载固定版本的 32-bit portable SumatraPDF 到 `src\SumatraPDF\SumatraPDF.exe`。发布和安装包构建会校验该文件是否存在，并把它复制到最终产物的 `SumatraPDF\SumatraPDF.exe`。
 
 默认情况下，脚本使用 `EasyInk.Printer.csproj` 和 `EasyInk.Engine.csproj` 中的默认版本。传入第一个参数时，会把同一个版本注入到：
 

@@ -29,11 +29,6 @@ public class HostConfig
         "EasyInk.Printer",
         "data");
 
-    private static readonly string DefaultBundledSumatraPdfPath = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory,
-        "SumatraPDF",
-        "SumatraPDF.exe");
-
     public int HttpPort { get; set; } = 18080;
     public bool AutoStart { get; set; } = false;
     public bool MinimizeToTray { get; set; } = true;
@@ -65,26 +60,6 @@ public class HostConfig
     /// </summary>
     public int RawPrintMaxDotsWidth { get; set; } = 576;
 
-    /// <summary>
-    /// SumatraPDF.exe 路径。为空时不启用 SumatraPDF fallback。
-    /// </summary>
-    public string? SumatraPdfPath { get; set; } = DefaultBundledSumatraPdfPath;
-
-    /// <summary>
-    /// 使用 SumatraPDF fallback 的打印机名称列表（模糊匹配，忽略大小写）。
-    /// </summary>
-    public List<string> SumatraPrinterNames { get; set; } = new();
-
-    /// <summary>
-    /// SumatraPDF -print-settings 参数，默认 fit。
-    /// </summary>
-    public string SumatraPrintSettings { get; set; } = "fit";
-
-    /// <summary>
-    /// SumatraPDF 打印进程超时时间（秒）。
-    /// </summary>
-    public int SumatraTimeoutSeconds { get; set; } = 60;
-
     public int MaxWebSocketConnections
     {
         get => _maxWebSocketConnections;
@@ -112,8 +87,6 @@ public class HostConfig
     public static string DefaultDbPath => Path.Combine(DefaultDataDir, "audit.db");
 
     public static string DefaultCrashLogDir => Path.Combine(DefaultDataDir, "crash");
-
-    public static string DefaultSumatraPdfPath => DefaultBundledSumatraPdfPath;
 
     public static string ResolveDbPath(string dbPath)
     {

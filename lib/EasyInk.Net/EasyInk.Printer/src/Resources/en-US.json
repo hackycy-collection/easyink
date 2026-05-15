@@ -198,12 +198,5 @@
   "Settings_MarginLabel": "Default software margin",
   "Settings_MarginDescription": "Some printer drivers do not report physical hard margins through the legacy GDI print path, causing content to be clipped. (e.g. thermal receipt printers like XP-80C report zero margins but have unprintable edges.)\n\nSet a software margin for such printers (2.0 mm recommended). Content will be scaled proportionally to fit within the margin-adjusted printable area. Set to 0 to disable.\n\nNote: Chrome/Edge and other browsers are unaffected because they use the XPS print path, where drivers correctly report margin information.",
   "Settings_RawPrinterLabel": "Raw ESC/POS printers",
-  "Settings_RawPrinterDescription": "Printers in this list will bypass the Windows print driver and receive raw ESC/POS commands directly.\nIdeal for thermal receipt printers (XP-80C, Epson, Xprinter, etc.), completely eliminating driver margin issues.\nSeparate multiple names with commas; matching is case-insensitive.\n\nLeave empty to use the standard print path for all printers.",
-  "Settings_SumatraPathLabel": "SumatraPDF",
-  "Settings_SumatraPrintersLabel": "PDF fallback printers",
-  "Settings_SumatraSettingsLabel": "Print settings",
-  "Settings_SumatraTimeoutLabel": "Timeout (sec)",
-  "Settings_SumatraDescription": "Matching printers will use SumatraPDF command-line printing: -silent -exit-on-print -print-to \"Printer\" -print-settings \"fit\".\nUse this for regular PDF printers where the built-in PDFium/GDI path still shifts, clips, or blurs output, while Chrome printing is correct.\nSet both SumatraPDF.exe path and printer names; restart the service after saving. For Win7, ship a fixed portable version that has been tested.",
-  "Dialog_SumatraPdfPath": "Select SumatraPDF.exe",
-  "Dialog_ExeFileFilter": "Executable files (*.exe)|*.exe|All files (*.*)|*.*"
+  "Settings_RawPrinterDescription": "Printers in this list will bypass the Windows print driver and receive raw ESC/POS commands directly.\nIdeal for thermal receipt printers (XP-80C, Epson, Xprinter, etc.), completely eliminating driver margin issues.\nSeparate multiple names with commas; matching is case-insensitive.\n\nLeave empty to use the standard print path for all printers."
 }

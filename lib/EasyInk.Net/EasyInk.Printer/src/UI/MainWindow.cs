@@ -785,7 +785,7 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_PrinterCompat"),
             Dock = DockStyle.Top,
-            Height = 430,
+            Height = 320,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -793,19 +793,15 @@ public class MainWindow : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 8,
+            RowCount = 4,
             Padding = new Padding(4)
         };
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // margin label + value
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));  // margin description
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // margin description
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // raw printer label
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));  // raw printer description
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // Sumatra path
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // Sumatra printers
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // Sumatra settings
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));  // Sumatra description
+        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));  // raw printer text + description
 
         // Margin row
         var lblMargin = new Label { Text = LangManager.Get("Settings_MarginLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
@@ -847,91 +843,6 @@ public class MainWindow : Form
             ForeColor = System.Drawing.SystemColors.GrayText
         };
 
-        var lblSumatraPath = new Label { Text = LangManager.Get("Settings_SumatraPathLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-        var pnlSumatraPath = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0)
-        };
-        pnlSumatraPath.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        pnlSumatraPath.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        var txtSumatraPath = new TextBox
-        {
-            Dock = DockStyle.Fill,
-            Text = string.IsNullOrWhiteSpace(_config.SumatraPdfPath)
-                ? HostConfig.DefaultSumatraPdfPath
-                : _config.SumatraPdfPath
-        };
-        var btnBrowseSumatra = new Button
-        {
-            Text = LangManager.Get("Common_Browse"),
-            Dock = DockStyle.Fill
-        };
-        btnBrowseSumatra.Click += (s, e) =>
-        {
-            using var dlg = new OpenFileDialog
-            {
-                Title = LangManager.Get("Dialog_SumatraPdfPath"),
-                Filter = LangManager.Get("Dialog_ExeFileFilter"),
-                FileName = "SumatraPDF.exe",
-                InitialDirectory = string.IsNullOrWhiteSpace(txtSumatraPath.Text)
-                    ? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
-                    : Path.GetDirectoryName(txtSumatraPath.Text)
-            };
-            if (dlg.ShowDialog() == DialogResult.OK)
-                txtSumatraPath.Text = dlg.FileName;
-        };
-        pnlSumatraPath.Controls.Add(txtSumatraPath, 0, 0);
-        pnlSumatraPath.Controls.Add(btnBrowseSumatra, 1, 0);
-
-        var lblSumatraPrinters = new Label { Text = LangManager.Get("Settings_SumatraPrintersLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-        var txtSumatraPrinters = new TextBox
-        {
-            Dock = DockStyle.Fill,
-            Text = string.Join(", ", _config.SumatraPrinterNames)
-        };
-
-        var lblSumatraSettings = new Label { Text = LangManager.Get("Settings_SumatraSettingsLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-        var pnlSumatraSettings = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0)
-        };
-        var txtSumatraSettings = new TextBox
-        {
-            Width = 180,
-            Text = string.IsNullOrWhiteSpace(_config.SumatraPrintSettings) ? "fit" : _config.SumatraPrintSettings
-        };
-        var lblSumatraTimeout = new Label
-        {
-            Text = LangManager.Get("Settings_SumatraTimeoutLabel"),
-            AutoSize = true,
-            Margin = new Padding(12, 6, 4, 0)
-        };
-        var numSumatraTimeout = new NumericUpDown
-        {
-            Width = 70,
-            Minimum = 5,
-            Maximum = 300,
-            Value = Math.Max(5, Math.Min(300, _config.SumatraTimeoutSeconds)),
-            Anchor = AnchorStyles.Left
-        };
-        pnlSumatraSettings.Controls.Add(txtSumatraSettings);
-        pnlSumatraSettings.Controls.Add(lblSumatraTimeout);
-        pnlSumatraSettings.Controls.Add(numSumatraTimeout);
-
-        var lblSumatraDesc = new Label
-        {
-            Text = LangManager.Get("Settings_SumatraDescription"),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
-            ForeColor = System.Drawing.SystemColors.GrayText
-        };
-
         compatPanel.Controls.Add(lblMargin, 0, 0);
         compatPanel.Controls.Add(pnlMargin, 1, 0);
         compatPanel.Controls.Add(lblMarginDesc, 0, 1);
@@ -940,14 +851,6 @@ public class MainWindow : Form
         compatPanel.Controls.Add(txtRawPrinters, 1, 2);
         compatPanel.Controls.Add(lblRawPrintersDesc, 0, 3);
         compatPanel.SetColumnSpan(lblRawPrintersDesc, 2);
-        compatPanel.Controls.Add(lblSumatraPath, 0, 4);
-        compatPanel.Controls.Add(pnlSumatraPath, 1, 4);
-        compatPanel.Controls.Add(lblSumatraPrinters, 0, 5);
-        compatPanel.Controls.Add(txtSumatraPrinters, 1, 5);
-        compatPanel.Controls.Add(lblSumatraSettings, 0, 6);
-        compatPanel.Controls.Add(pnlSumatraSettings, 1, 6);
-        compatPanel.Controls.Add(lblSumatraDesc, 0, 7);
-        compatPanel.SetColumnSpan(lblSumatraDesc, 2);
         grpPrinterCompat.Controls.Add(compatPanel);
 
         // 路径设置组
@@ -1064,18 +967,6 @@ public class MainWindow : Form
                 .Select(s => s.Trim())
                 .Where(s => s.Length > 0)
                 .ToList();
-            _config.SumatraPdfPath = string.IsNullOrWhiteSpace(txtSumatraPath.Text)
-                ? HostConfig.DefaultSumatraPdfPath
-                : txtSumatraPath.Text.Trim();
-            _config.SumatraPrinterNames = (txtSumatraPrinters.Text ?? "")
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .Where(s => s.Length > 0)
-                .ToList();
-            _config.SumatraPrintSettings = string.IsNullOrWhiteSpace(txtSumatraSettings.Text)
-                ? "fit"
-                : txtSumatraSettings.Text.Trim();
-            _config.SumatraTimeoutSeconds = (int)numSumatraTimeout.Value;
             _config.HttpPort = (int)numPort.Value;
             _config.AutoStart = chkAutoStart.Checked;
             _config.MinimizeToTray = chkMinimizeToTray.Checked;

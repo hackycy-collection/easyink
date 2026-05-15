@@ -9,36 +9,19 @@ namespace EasyInk.Engine.Services;
 
 /// <summary>
 /// 打印路由服务：根据打印机名称判断走哪种打印路径。
-/// SumatraPDF fallback → Raw ESC/POS → PrintDocument (GDI)。
+/// 热敏打印机 → Raw ESC/POS；普通打印机 → PrintDocument (GDI)。
 /// </summary>
 public class RoutingPrintService : IPrintService
 {
     private readonly IPrintService _gdiService;
     private readonly IPrintService _rawService;
-    private readonly IPrintService? _sumatraService;
     private readonly List<string> _rawPrinterPatterns;
-    private readonly List<string> _sumatraPrinterPatterns;
 
     public RoutingPrintService(IPrintService gdiService, IPrintService rawService, IEnumerable<string> rawPrinterNames)
-        : this(gdiService, rawService, rawPrinterNames, null, null)
-    {
-    }
-
-    public RoutingPrintService(
-        IPrintService gdiService,
-        IPrintService rawService,
-        IEnumerable<string> rawPrinterNames,
-        IPrintService? sumatraService,
-        IEnumerable<string>? sumatraPrinterNames)
     {
         _gdiService = gdiService ?? throw new ArgumentNullException(nameof(gdiService));
         _rawService = rawService ?? throw new ArgumentNullException(nameof(rawService));
-        _sumatraService = sumatraService;
         _rawPrinterPatterns = (rawPrinterNames ?? Array.Empty<string>())
-            .Select(s => s.Trim())
-            .Where(s => s.Length > 0)
-            .ToList();
-        _sumatraPrinterPatterns = (sumatraPrinterNames ?? Array.Empty<string>())
             .Select(s => s.Trim())
             .Where(s => s.Length > 0)
             .ToList();
@@ -53,11 +36,6 @@ public class RoutingPrintService : IPrintService
     {
         if (string.IsNullOrEmpty(printerName))
             return _gdiService;
-
-        if (_sumatraService != null &&
-            _sumatraPrinterPatterns.Any(p => printerName.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))
-            return _sumatraService;
-
         return _rawPrinterPatterns.Any(p => printerName.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0)
             ? _rawService
             : _gdiService;

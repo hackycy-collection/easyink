@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -58,13 +57,8 @@ public class EngineApi : IDisposable
     /// </summary>
     public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0,
         System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
-        int rawPrintDpi = 203, int rawPrintMaxDotsWidth = 576,
-        string? sumatraPdfPath = null,
-        System.Collections.Generic.IEnumerable<string>? sumatraPrinterNames = null,
-        string? sumatraPrintSettings = null,
-        int sumatraTimeoutSeconds = 60)
-        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth,
-            sumatraPdfPath, sumatraPrinterNames, sumatraPrintSettings, sumatraTimeoutSeconds)
+        int rawPrintDpi = 203, int rawPrintMaxDotsWidth = 576)
+        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth)
     {
     }
 
@@ -79,11 +73,7 @@ public class EngineApi : IDisposable
         double defaultMarginMm = 0,
         System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
         int rawPrintDpi = 203,
-        int rawPrintMaxDotsWidth = 576,
-        string? sumatraPdfPath = null,
-        System.Collections.Generic.IEnumerable<string>? sumatraPrinterNames = null,
-        string? sumatraPrintSettings = null,
-        int sumatraTimeoutSeconds = 60)
+        int rawPrintMaxDotsWidth = 576)
     {
         _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
@@ -97,25 +87,7 @@ public class EngineApi : IDisposable
         {
             var gdiService = new PdfiumPrintService(_printerService, logger);
             var rawService = new EscPosRawPrintService(_printerService, logger, rawPrintDpi, rawPrintMaxDotsWidth);
-            IPrintService? sumatraService = null;
-            if (!string.IsNullOrWhiteSpace(sumatraPdfPath) &&
-                sumatraPrinterNames != null &&
-                sumatraPrinterNames.Any(s => !string.IsNullOrWhiteSpace(s)))
-            {
-                sumatraService = new SumatraPdfPrintService(
-                    _printerService,
-                    sumatraPdfPath!,
-                    sumatraPrintSettings,
-                    Math.Max(sumatraTimeoutSeconds, 1) * 1000,
-                    logger);
-            }
-
-            _printService = new RoutingPrintService(
-                gdiService,
-                rawService,
-                rawPrinterNames ?? Array.Empty<string>(),
-                sumatraService,
-                sumatraPrinterNames ?? Array.Empty<string>());
+            _printService = new RoutingPrintService(gdiService, rawService, rawPrinterNames ?? Array.Empty<string>());
         }
 
         _jobQueue = new PrintJobQueue(_printService, maxQueueSize ?? 100,

@@ -23,7 +23,7 @@ EasyInk.Engine.dll           ← 打印引擎：Pdfium 渲染 + Windows Print Sp
 
 ## 打印链路说明
 
-EasyInk 当前保留两条 PDF 打印链路，默认使用内置链路，SumatraPDF 可作为按打印机启用的兼容 fallback。修改打印逻辑前先确认问题属于哪条链路，避免再次用手动边距覆盖驱动能力。
+EasyInk 当前保留两条 PDF 打印链路，默认使用内置链路，SumatraPDF 作为后续可接入的兼容 fallback。修改打印逻辑前先确认问题属于哪条链路，避免再次用手动边距覆盖驱动能力。
 
 ### 1. 默认链路：PDFium + PrintDocument + PrintableArea
 
@@ -52,7 +52,7 @@ PDF
 - 该链路本质是 `PDF → bitmap → GDI print`，文字和矢量图不会像 Chrome/Edge 原生 PDF 打印那样完整保留矢量路径。
 - 如果打印机驱动报告的默认纸张、可打印区域或分辨率不准，仍可能出现偏移、缩放异常或轻微模糊。
 
-### 2. 可配置 fallback：SumatraPDF 命令行打印
+### 2. 可选 fallback：SumatraPDF 命令行打印
 
 ```
 PDF 临时文件
@@ -76,10 +76,7 @@ SumatraPDF.exe -silent -exit-on-print -print-to "PrinterName" -print-settings "f
 
 - `fit` 表示把 PDF 页面缩放到驱动纸张的 printable area 内。
 - SumatraPDF 依赖打印机驱动当前默认纸张和首选项；默认纸张不正确时，仍会按错误纸张适配。
-- 通过 `SumatraPdfPath` 和 `SumatraPrinterNames` 按打印机启用，不要无条件替换默认链路。
-- `SumatraPdfPath` 默认指向程序目录下的 `SumatraPDF\SumatraPDF.exe`，Printer 打包产物必须内置该文件。
-- `SumatraPrintSettings` 默认 `fit`，可按需配置为 SumatraPDF 支持的打印参数组合。
-- `SumatraTimeoutSeconds` 默认 60 秒。
+- 建议作为按打印机配置的 fallback，而不是无条件替换默认链路。
 - Win7 场景需要固定并随包分发一个实测可用的 SumatraPDF portable 版本，不要自动追最新版。
 
 ## 目录结构
@@ -165,8 +162,6 @@ cd lib\EasyInk.Net\EasyInk.Printer
 build-portable.bat 1.2.3
 build-installer.bat 1.2.3-beta.1
 ```
-
-`build-portable.bat` 和 `build-installer.bat` 会在发布前自动准备内置 `src\SumatraPDF\SumatraPDF.exe`；也可以手动运行 `powershell -ExecutionPolicy Bypass -File tools\download-sumatra.ps1` 预先下载固定版本的 32-bit portable SumatraPDF。
 
 版本参数规则：
 

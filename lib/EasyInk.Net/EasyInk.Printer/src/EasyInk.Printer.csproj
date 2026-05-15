@@ -55,13 +55,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="SumatraPDF\SumatraPDF.exe" Condition="Exists('SumatraPDF\SumatraPDF.exe')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\EasyInk.Engine\src\EasyInk.Engine.csproj" />
   </ItemGroup>
 
