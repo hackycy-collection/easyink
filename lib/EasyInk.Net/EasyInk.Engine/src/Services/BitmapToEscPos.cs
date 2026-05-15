@@ -36,19 +36,18 @@ internal static class BitmapToEscPos
 
     private static byte[] BuildBand(Bitmap src, int w, int bytesPerRow, int startY, int bandHeight)
     {
-        // ESC 3 0 + GS v 0 header: xL/xH = width in DOTS, yL/yH = height in DOTS
-        const int headerLen = 3 + 8; // ESC 3 0 + GS v 0 header
+        // GS v 0 header: xL/xH = width in DOTS, yL/yH = height in DOTS
+        const int headerLen = 8;
         int dataLen = bytesPerRow * bandHeight;
         var result = new byte[headerLen + dataLen];
-        result[0] = ESC; result[1] = 0x33; result[2] = 0x00; // ESC 3 0
-        result[3] = GS;
-        result[4] = 0x76;
-        result[5] = 0x30;
-        result[6] = 0;
-        result[7] = (byte)(w & 0xFF);
-        result[8] = (byte)((w >> 8) & 0xFF);
-        result[9] = (byte)(bandHeight & 0xFF);
-        result[10] = (byte)((bandHeight >> 8) & 0xFF);
+        result[0] = GS;
+        result[1] = 0x76;
+        result[2] = 0x30;
+        result[3] = 0;
+        result[4] = (byte)(w & 0xFF);
+        result[5] = (byte)((w >> 8) & 0xFF);
+        result[6] = (byte)(bandHeight & 0xFF);
+        result[7] = (byte)((bandHeight >> 8) & 0xFF);
 
         var bmpData = src.LockBits(
             new Rectangle(0, startY, w, bandHeight),
