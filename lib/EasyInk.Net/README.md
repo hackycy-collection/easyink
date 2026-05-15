@@ -21,6 +21,64 @@ EasyInk.Printer              ← 完整应用：HTTP 服务 + 系统托盘 + 桌
 EasyInk.Engine.dll           ← 打印引擎：Pdfium 渲染 + Windows Print Spooler
 ```
 
+## 打印链路说明
+
+EasyInk 当前保留两条 PDF 打印链路，默认使用内置链路，SumatraPDF 作为后续可接入的兼容 fallback。修改打印逻辑前先确认问题属于哪条链路，避免再次用手动边距覆盖驱动能力。
+
+### 1. 默认链路：PDFium + PrintDocument + PrintableArea
+
+```
+PDF
+  → PdfiumViewer 按目标输出尺寸渲染为位图
+  → System.Drawing.Printing.PrintDocument
+  → Windows Print Spooler
+  → 打印机驱动
+```
+
+适用场景：
+
+- 普通办公打印机、A4/A5 激光/喷墨、Windows 默认打印机驱动。
+- 需要 Win7 SP1 兼容，且不希望额外带外部 PDF 打印程序。
+
+关键约定：
+
+- 默认 `ForcePaperSize=false`，由打印机驱动使用当前默认纸张。
+- 打印区域优先使用驱动返回的 `PageSettings.PrintableArea`，内容等比缩放并居中到可打印区域内，效果接近浏览器的 fit 行为。
+- `Margin` / `DefaultMarginMm` 只作为高级兼容补丁，默认应为 `0`。不要把手动边距作为通用修复方案。
+- 默认渲染 DPI 为 600，并参考驱动分辨率，最高限制到 1200，避免位图过大导致内存或打印耗时异常。
+
+已知边界：
+
+- 该链路本质是 `PDF → bitmap → GDI print`，文字和矢量图不会像 Chrome/Edge 原生 PDF 打印那样完整保留矢量路径。
+- 如果打印机驱动报告的默认纸张、可打印区域或分辨率不准，仍可能出现偏移、缩放异常或轻微模糊。
+
+### 2. 可选 fallback：SumatraPDF 命令行打印
+
+```
+PDF 临时文件
+  → SumatraPDF.exe -print-to "PrinterName" -print-settings "fit"
+  → Windows Print Spooler
+  → 打印机驱动
+```
+
+推荐命令形态：
+
+```bat
+SumatraPDF.exe -silent -exit-on-print -print-to "PrinterName" -print-settings "fit" "file.pdf"
+```
+
+适用场景：
+
+- 某些打印机在默认链路下仍然错位、裁切或模糊，但 Chrome/浏览器打印正常。
+- 希望让外部 PDF 打印器处理纸张适配和可打印区域 fit。
+
+关键约定：
+
+- `fit` 表示把 PDF 页面缩放到驱动纸张的 printable area 内。
+- SumatraPDF 依赖打印机驱动当前默认纸张和首选项；默认纸张不正确时，仍会按错误纸张适配。
+- 建议作为按打印机配置的 fallback，而不是无条件替换默认链路。
+- Win7 场景需要固定并随包分发一个实测可用的 SumatraPDF portable 版本，不要自动追最新版。
+
 ## 目录结构
 
 ```

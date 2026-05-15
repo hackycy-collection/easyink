@@ -16,7 +16,7 @@ EngineApi (公共入口)
 ├── IPrinterService          ← 打印机枚举/状态查询
 │   └── PrinterService       ← 默认实现：WMI 查询
 ├── IPrintService            ← 打印执行
-│   └── PdfiumPrintService   ← 默认实现：Pdfium 渲染 + Windows Print Spooler
+│   └── PdfiumPrintService   ← 默认实现：Pdfium 位图渲染 + Windows Print Spooler
 ├── PrintJobQueue            ← 异步队列（BlockingCollection + 后台线程）
 └── IPdfProvider             ← PDF 数据源策略
     ├── Base64PdfProvider
@@ -93,13 +93,48 @@ using var api = new EngineApi(printerService, printService);
 | PdfBytes | byte[] | 二进制 PDF |
 | Copies | int | 份数，默认 1 |
 | Landscape | bool | 横向打印 |
-| Dpi | int | 分辨率，默认 300 |
+| Dpi | int | 渲染分辨率，默认 600 |
 | PaperSize | PaperSizeParams | PDF/模板纸张尺寸 |
 | ForcePaperSize | bool | 是否强制把 PaperSize 下发为驱动纸张参数，默认 false |
 | Offset | OffsetParams | 打印偏移 |
 | UserData | UserDataParams | 自定义数据（用户ID、标签类型） |
 
 三种 PDF 来源互斥，只能提供其一。
+
+## 打印适配策略
+
+### 默认 PDFium/Spooler 链路
+
+当前默认链路是：
+
+```
+PDF → PdfiumViewer 渲染为位图 → PrintDocument → Windows Spooler → 打印机驱动
+```
+
+该链路的目标是兼容 Win7 SP1，并尽量接近 Chrome 打印时的自动适配行为：
+
+- 默认不强制自定义纸张。`ForcePaperSize=false` 时，驱动使用打印机当前默认纸张。
+- 每页打印时读取 `PageSettings.PrintableArea`，把 PDF 内容等比缩放并居中到驱动报告的可打印区域内。
+- `Margin` 只用于极少数驱动不报告可打印区域/硬边距的高级补偿，默认应保持 `0`。
+- 渲染 DPI 默认 600，并参考驱动 `PrinterResolution`，最高限制到 1200。
+
+不要为了修复某一台打印机的边距问题，把 `ForcePaperSize` 或手动 `Margin` 改成全局默认值。优先确认该打印机的 Windows 默认纸张、方向和驱动设置是否正确。
+
+### SumatraPDF fallback 链路
+
+对于默认链路仍然偏移、裁切或模糊，而 Chrome/浏览器打印正常的打印机，可按打印机配置外部 PDF 打印 fallback：
+
+```bat
+SumatraPDF.exe -silent -exit-on-print -print-to "PrinterName" -print-settings "fit" "file.pdf"
+```
+
+`fit` 由 SumatraPDF 负责将 PDF 页面缩放到驱动当前纸张的 printable area 内。该链路不是当前默认实现，但后续接入时应作为 `IPrintService` 的另一种实现，并由路由配置按打印机选择。
+
+注意事项：
+
+- SumatraPDF 依赖 Windows 打印机首选项中的默认纸张；纸张设错时，fit 也会按错误纸张计算。
+- Win7 需要固定一个经过实测的 portable 版本随包分发。
+- 它适合普通 PDF/办公打印机 fallback，不替代 ESC/POS、ZPL、TSPL 等原生命令打印。
 
 ### PrinterStatus
 
