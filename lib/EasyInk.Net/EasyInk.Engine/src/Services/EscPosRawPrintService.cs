@@ -48,12 +48,14 @@ public class EscPosRawPrintService : IPrintService
         try
         {
             var rawData = RenderPdfToEscPos(pdfBytes, cancellationToken);
-            var initCut = BitmapToEscPos.InitAndCut();
+            var init = BitmapToEscPos.CmdInit();
+            var cut = BitmapToEscPos.CmdCut();
 
-            // ESC @ 初始化 + 位图数据 + 切纸
-            var fullData = new byte[initCut.Length + rawData.Length];
-            Buffer.BlockCopy(initCut, 0, fullData, 0, initCut.Length);
-            Buffer.BlockCopy(rawData, 0, fullData, initCut.Length, rawData.Length);
+            // ESC @ + 行距清零 + 位图数据 + 切纸
+            var fullData = new byte[init.Length + rawData.Length + cut.Length];
+            Buffer.BlockCopy(init, 0, fullData, 0, init.Length);
+            Buffer.BlockCopy(rawData, 0, fullData, init.Length, rawData.Length);
+            Buffer.BlockCopy(cut, 0, fullData, init.Length + rawData.Length, cut.Length);
 
             NativePrintApi.SendRaw(request.PrinterName, fullData, $"EasyInk-{requestId.Substring(0, Math.Min(8, requestId.Length))}");
 
