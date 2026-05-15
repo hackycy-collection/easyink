@@ -103,14 +103,20 @@ public class PdfiumPrintService : IPrintService
         int renderWidth = (int)Math.Round(paperWidthMm / 25.4 * dpi);
         int renderHeight = (int)Math.Round(paperHeightMm / 25.4 * dpi);
 
+        float offsetXUnits = 0, offsetYUnits = 0;
+        if (request.Offset != null)
+        {
+            offsetXUnits = (float)(ToMm(request.Offset.X, request.Offset.Unit) / 25.4 * 100.0);
+            offsetYUnits = (float)(ToMm(request.Offset.Y, request.Offset.Unit) / 25.4 * 100.0);
+        }
+
         using var printDoc = new PrintDocument();
         printDoc.PrinterSettings.PrinterName = request.PrinterName;
 
         var paperWidthHundredths = (int)Math.Round(paperWidthMm / 25.4 * 100.0);
         var paperHeightHundredths = (int)Math.Round(paperHeightMm / 25.4 * 100.0);
 
-        var paperSize = FindPaperSize(printDoc.PrinterSettings, paperWidthHundredths, paperHeightHundredths)
-            ?? new PaperSize("Custom", paperWidthHundredths, paperHeightHundredths);
+        var paperSize = new PaperSize("Custom", paperWidthHundredths, paperHeightHundredths);
 
         printDoc.DefaultPageSettings.PaperSize = paperSize;
         printDoc.DefaultPageSettings.Landscape = request.Landscape;
@@ -145,7 +151,8 @@ public class PdfiumPrintService : IPrintService
                 e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
 
                 e.Graphics.DrawImage(img,
-                    pageBounds.X, pageBounds.Y,
+                    pageBounds.X + offsetXUnits,
+                    pageBounds.Y + offsetYUnits,
                     img.Width * unitsPerPixel,
                     img.Height * unitsPerPixel);
             }
@@ -155,31 +162,6 @@ public class PdfiumPrintService : IPrintService
         };
 
         printDoc.Print();
-    }
-
-    private static PaperSize? FindPaperSize(PrinterSettings settings, int targetWidth, int targetHeight)
-    {
-        PaperSize? bestMatch = null;
-        int bestScore = int.MaxValue;
-
-        foreach (PaperSize size in settings.PaperSizes)
-        {
-            int widthDiff = Math.Abs(size.Width - targetWidth);
-            int heightDiff = Math.Abs(size.Height - targetHeight);
-            int score = widthDiff + heightDiff;
-
-            if (score < bestScore)
-            {
-                bestScore = score;
-                bestMatch = size;
-            }
-        }
-
-        // Only use match if within reasonable tolerance (0.5 inch = 50 hundredths)
-        if (bestMatch != null && bestScore <= 50)
-            return bestMatch;
-
-        return null;
     }
 
     private static float ToMm(double value, string unit)
