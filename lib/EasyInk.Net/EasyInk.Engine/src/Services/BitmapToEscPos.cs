@@ -36,7 +36,8 @@ internal static class BitmapToEscPos
 
     private static byte[] BuildBand(Bitmap src, int w, int bytesPerRow, int startY, int bandHeight)
     {
-        // GS v 0 header: xL/xH = bytes per row, yL/yH = height in DOTS
+        // GS v 0 header: xL/xH = width in DOTS, yL/yH = height in DOTS
+        // 国产热敏打印机（XP-80C 等）按点数解读 x，与 Epson 原厂（字节数）不同
         const int headerLen = 8;
         int dataLen = bytesPerRow * bandHeight;
         var result = new byte[headerLen + dataLen];
@@ -44,8 +45,8 @@ internal static class BitmapToEscPos
         result[1] = 0x76;
         result[2] = 0x30;
         result[3] = 0;
-        result[4] = (byte)(bytesPerRow & 0xFF);
-        result[5] = (byte)((bytesPerRow >> 8) & 0xFF);
+        result[4] = (byte)(w & 0xFF);
+        result[5] = (byte)((w >> 8) & 0xFF);
         result[6] = (byte)(bandHeight & 0xFF);
         result[7] = (byte)((bandHeight >> 8) & 0xFF);
 
