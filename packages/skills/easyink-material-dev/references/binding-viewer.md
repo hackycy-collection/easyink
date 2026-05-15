@@ -76,6 +76,7 @@ When implementing a new measured material:
 - Return document-unit width and height.
 - Report diagnostics through `context.reportDiagnostic`.
 - Ensure `render()` uses the same layout assumptions as `measure()`.
+- Consider `stack` page mode: measured sizes feed page planning and flow layout before final DOM render.
 
 ## Trusted Viewer HTML
 
@@ -101,6 +102,23 @@ Viewer behavior:
 - Label page mode does not support this replication.
 
 Material renderers should read page-aware runtime values from `context.resolvedProps`.
+
+## Exporter and Print Driver Boundary
+
+Export and print layers are downstream of Viewer:
+
+- `ViewerExporter` bridges Viewer context to an export runtime or direct Blob result.
+- `ExportFormatPlugin` should focus on format conversion, not Viewer layout semantics.
+- `PrintDriver` bridges Viewer-rendered pages and `printPolicy` to a device, gateway, SDK, DOM printer, PDF pipeline, or WebSocket protocol.
+- Both should use `context.container?.querySelectorAll('.ei-viewer-page')` and `context.renderedPages` when they need pages.
+
+Material developers should not add export-specific or print-specific rendering branches unless there is a deliberate Viewer output difference. Prefer making the normal Viewer DOM correct and printable.
+
+Diagnostics and feedback matter in downstream validation:
+
+- Export diagnostics should separate `viewer`, `exporter`, and runtime/plugin failures.
+- Print drivers should call `onPhase`, `onProgress`, and `onDiagnostic` so material/render failures can be distinguished from device or protocol failures.
+- Unit conversion belongs at the print-driver boundary; material schema sizes remain in document units.
 
 ## Render Size
 

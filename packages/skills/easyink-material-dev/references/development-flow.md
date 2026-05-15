@@ -116,6 +116,17 @@ For a new built-in material:
 9. Run `pnpm -F @easyink/mcp-server build:materials` or `pnpm -F @easyink/mcp-server check:materials` when AI descriptors changed.
 10. Run focused package tests and then `pnpm test` if the change touches shared Designer or Viewer behavior.
 
+## Export and Print Compatibility
+
+Every material change should be checked through Viewer because both export and print consume Viewer output:
+
+- Exporters read `.ei-viewer-page` DOM and `renderedPages`; they should not reinterpret material schema or rerun material layout.
+- Print drivers read `ViewerPrintContext.container`, `renderedPages`, and `printPolicy`; they should not recalculate page layout.
+- If a material depends on fonts, runtime data, page-aware props, or measured height, verify those are reflected in Viewer DOM before debugging exporter or printer code.
+- For formal print paths, confirm material dimensions are stable in the schema unit and convert to the print system unit at the driver boundary.
+
+If export/print fails for a custom material, first confirm Viewer registration and render output. Only then inspect exporter or driver bridge logic.
+
 ## Custom Host Checklist
 
 For a host-owned custom material outside built-ins:
@@ -134,3 +145,5 @@ For a host-owned custom material outside built-ins:
 - Undo groups every pointer move separately: continuous operations need a stable `mergeKey`.
 - Property panel writes to the wrong location: the schema needs custom `read` and `commit`, not a plain props-bag schema.
 - Resize breaks internals: implement a `MaterialResizeAdapter`.
+- Export or print output differs from preview: the material may rely on design-only DOM, unmeasured runtime size, missing Viewer registration, or non-printable external resources.
+- Custom print driver size is wrong: driver skipped unit conversion or ignored `printPolicy` and `renderedPages`.

@@ -25,6 +25,17 @@ If one link is missing, the failure mode is usually direct: no Designer registra
 
 Do not move transient runtime details into Schema. Examples to keep out of Schema: active cell selection, pointer gesture state, virtual preview rows, handle positions, measured layout caches, DOM refs, and active editing metadata.
 
+## Schema Input and Normalization
+
+Host apps may pass a loose `DocumentSchemaInput` into Designer. Required top-level fields, `page`, `guides`, and `elements` may be missing. The framework fills them with `normalizeDocumentSchema()`, and internal Designer, Viewer, autosave, print, and export flows should operate on a complete `DocumentSchema`.
+
+Rules:
+
+- Normalize before assuming `schema.page`, `schema.guides`, and `schema.elements` are complete.
+- Use schema validation for complete internal schemas, not as a replacement for input normalization.
+- Preserve `DocumentSchema.extensions` and `MaterialNode.extensions` for host/plugin-owned serializable data.
+- Keep `compat` fields as compatibility state, not the primary home for new material semantics.
+
 ## Schema Shape
 
 Use `packages/schema/src/types.ts` as source of truth:
@@ -35,6 +46,12 @@ Use `packages/schema/src/types.ts` as source of truth:
 - `TableDataSchema` uses `kind: 'data'`, `topology`, `layout`, and optional `showHeader` or `showFooter`.
 - `TableCellSchema.binding` is for `table-data` repeat-template cells.
 - `TableCellSchema.staticBinding` is for fixed cells such as table-static cells or table-data header/footer cells.
+
+Page-mode implications:
+
+- `fixed`: absolute positioning on fixed pages.
+- `stack`: Viewer may measure content and flow elements by Y position.
+- `label`: page-aware replication is not applied; label layout derives sheet dimensions from label cell width/height plus rows, columns, and gaps.
 
 ## Designer Contract
 
@@ -78,6 +95,23 @@ Built-in materials:
 - Add Viewer registration in `packages/builtin/src/viewer.ts`.
 - Add AI descriptor import and entry in `packages/builtin/src/ai.ts`.
 - Add `@easyink/material-x` dependency to `packages/builtin/package.json`.
+
+## Contribution Boundary
+
+Use Contribution instead of material work when the feature is a host-side extension to Designer:
+
+- Add a panel with `registerPanel()`.
+- Add a toolbar action with `registerToolbarAction()`.
+- Add a cross-module command with `registerCommand()`.
+- Subscribe to diagnostics with `onDiagnostic()`.
+
+Material work should own schema nodes and render/edit behavior. Contribution work should inject business panels, buttons, commands, subscriptions, and host-owned state. If a request says "add a button/panel/workflow around existing materials", start from `docs/advanced/contributions.md` before changing material packages.
+
+Lifecycle rules:
+
+- Register contribution abilities inside `activate(ctx)`.
+- Keep panel open/closed state in the contribution closure or component, not in material schema.
+- Use `ctx.onDispose()` to clear timers, subscriptions, listeners, and temporary contribution state.
 
 ## Catalog and Capabilities
 

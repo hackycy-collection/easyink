@@ -12,6 +12,9 @@ Use this skill to work on EasyInk materials as complete system features, not iso
 Start with the local repo, not memory. Prefer these files:
 
 - `docs/advanced/custom-materials.md` for the public custom material contract.
+- `docs/advanced/schema.md` for `DocumentSchemaInput` normalization, page modes, and persistent schema fields.
+- `docs/advanced/contributions.md` when the request is actually a panel, toolbar action, command, or diagnostic extension instead of a material.
+- `docs/advanced/exporters.md` and `docs/advanced/print-drivers.md` when material output must be validated through export or print paths.
 - `packages/schema/src/types.ts` for `MaterialNode`, `BindingRef`, and table schema shape.
 - `packages/core/src/material-extension.ts` and `packages/core/src/material-viewer.ts` for Designer and Viewer extension contracts.
 - `packages/designer/src/materials/registry.ts` for `registerMaterialBundle`.
@@ -48,6 +51,7 @@ Load only the reference needed for the current task:
 ## Hard Rules
 
 - Keep Schema serializable and stable. Do not store DOM nodes, functions, transient selections, or preview-only rows in Schema.
+- Normalize loose host input with `normalizeDocumentSchema()` before relying on required schema fields.
 - Designer and Viewer must both know the material type. A Designer-only material becomes `[Unknown: type]` in Viewer.
 - Use `convertUnit()` inside default-node factories when default physical sizes are authored in mm.
 - Escape all user-controlled strings before HTML interpolation. Viewer HTML must be wrapped with `trustedViewerHtml()`.
@@ -55,3 +59,4 @@ Load only the reference needed for the current task:
 - Use `tx.run()` for deep-edit mutations so history, patches, and undo work. Use `mergeKey` for continuous drag/resize edits.
 - Keep selection payloads JSON-safe and namespaced, such as `table.cell` or `svg-star.control`.
 - Add or reuse locale keys for anything user-visible in Designer UI, including property labels and history labels.
+- Exporters and print drivers must consume Viewer-rendered pages; do not reimplement material layout in those layers.
