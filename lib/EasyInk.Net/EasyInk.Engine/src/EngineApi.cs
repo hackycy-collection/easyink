@@ -55,8 +55,10 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 初始化打印引擎（使用默认服务实现：Pdfium + Windows Print Spooler）
     /// </summary>
-    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0, System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null)
-        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames)
+    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0,
+        System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
+        int rawPrintDpi = 203, int rawPrintMaxDotsWidth = 576)
+        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth)
     {
     }
 
@@ -69,7 +71,9 @@ public class EngineApi : IDisposable
         IPrintService? printService = null,
         int? maxQueueSize = null,
         double defaultMarginMm = 0,
-        System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null)
+        System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
+        int rawPrintDpi = 203,
+        int rawPrintMaxDotsWidth = 576)
     {
         _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
@@ -82,7 +86,7 @@ public class EngineApi : IDisposable
         else
         {
             var gdiService = new PdfiumPrintService(_printerService, logger);
-            var rawService = new EscPosRawPrintService(_printerService, logger);
+            var rawService = new EscPosRawPrintService(_printerService, logger, rawPrintDpi, rawPrintMaxDotsWidth);
             _printService = new RoutingPrintService(gdiService, rawService, rawPrinterNames ?? Array.Empty<string>());
         }
 

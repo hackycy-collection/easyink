@@ -25,7 +25,9 @@ internal static class ServiceConfig
             var api = new EngineApi(
                 maxQueueSize: config.MaxQueueSize,
                 defaultMarginMm: config.DefaultMarginMm,
-                rawPrinterNames: config.RawPrinterNames);
+                rawPrinterNames: config.RawPrinterNames,
+                rawPrintDpi: config.RawPrintDpi,
+                rawPrintMaxDotsWidth: config.RawPrintMaxDotsWidth);
             return api;
         });
 

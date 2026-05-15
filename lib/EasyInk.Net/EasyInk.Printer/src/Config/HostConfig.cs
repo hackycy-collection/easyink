@@ -47,9 +47,18 @@ public class HostConfig
 
     /// <summary>
     /// 使用 Raw ESC/POS 直发模式的打印机名称列表（模糊匹配，忽略大小写）。
-    /// 热敏小票机推荐使用此模式以绕过 Windows 驱动的边距/缩放问题。
     /// </summary>
     public List<string> RawPrinterNames { get; set; } = new();
+
+    /// <summary>
+    /// Raw 打印 DPI。默认 203（通用热敏打印机分辨率，8 dots/mm）。
+    /// </summary>
+    public int RawPrintDpi { get; set; } = 203;
+
+    /// <summary>
+    /// Raw 打印最大宽度（点数）。默认 576（80mm 纸宽热敏机典型值，72mm 可打印 × 8 dots/mm）。
+    /// </summary>
+    public int RawPrintMaxDotsWidth { get; set; } = 576;
 
     public int MaxWebSocketConnections
     {

@@ -16,14 +16,16 @@ namespace EasyInk.Engine.Services;
 /// </summary>
 public class EscPosRawPrintService : IPrintService
 {
-    private const int THERMAL_DPI = 203;
-    private const int MAX_DOTS_WIDTH = 576; // 80mm 热敏机典型可打印宽度 (72mm × 8 dot/mm)
+    private readonly int _dpi;
+    private readonly int _maxDotsWidth;
 
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
 
-    public EscPosRawPrintService(IPrinterService printerService, ILogger? logger = null)
+    public EscPosRawPrintService(IPrinterService printerService, ILogger? logger = null, int dpi = 203, int maxDotsWidth = 576)
     {
+        _dpi = dpi;
+        _maxDotsWidth = maxDotsWidth;
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
         _logger = logger ?? new NullLogger();
     }
@@ -89,13 +91,13 @@ public class EscPosRawPrintService : IPrintService
         float paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
 
         // 按热敏打印机可打印宽度等比缩放
-        float scale = (float)MAX_DOTS_WIDTH / (paperWidthMm / 25.4f * THERMAL_DPI);
-        int renderWidth = MAX_DOTS_WIDTH;
-        int renderHeight = (int)Math.Round(paperHeightMm / 25.4f * THERMAL_DPI * scale);
+        float scale = (float)_maxDotsWidth / (paperWidthMm / 25.4f * _dpi);
+        int renderWidth = _maxDotsWidth;
+        int renderHeight = (int)Math.Round(paperHeightMm / 25.4f * _dpi * scale);
 
         _logger.Log(LogLevel.Info,
             $"[RawPrint] paper={paperWidthMm:F1}x{paperHeightMm:F1}mm" +
-            $" render={renderWidth}x{renderHeight}px@{THERMAL_DPI}dpi" +
+            $" render={renderWidth}x{renderHeight}px@{_dpi}dpi" +
             $" scale={scale:F3} pages={pageCount}");
 
         using var fullImage = new Bitmap(renderWidth, renderHeight * pageCount, PixelFormat.Format24bppRgb);
@@ -105,7 +107,7 @@ public class EscPosRawPrintService : IPrintService
         for (int i = 0; i < pageCount; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var pageImg = pdfDoc.Render(i, renderWidth, renderHeight, THERMAL_DPI, THERMAL_DPI, PdfRenderFlags.ForPrinting);
+            using var pageImg = pdfDoc.Render(i, renderWidth, renderHeight, _dpi, _dpi, PdfRenderFlags.ForPrinting);
             g.DrawImage(pageImg, 0, i * renderHeight);
         }
 
