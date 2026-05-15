@@ -216,29 +216,34 @@ public class PrinterService : IPrinterService
         }
     }
 
+    // WMI 不可用 ≠ 打印机不可用。IsReady 必须为 true，否则 PdfiumPrintService
+    // 会在打印前拦截（参见 PdfiumPrintService.Print 的 IsReady 守卫），导致
+    // 打印机明明可用却无法打印。真实的硬件错误由 spooler 层面处理。
     private static PrinterStatus WmiUnavailableStatus()
     {
         return new PrinterStatus
         {
-            IsReady = false,
+            IsReady = true,
             StatusCode = PrinterStatusCode.WmiUnavailable,
             Message = "WMI 状态不可用，打印机存在但状态未知",
-            IsOnline = false,
-            HasPaper = false,
+            IsOnline = true,
+            HasPaper = true,
             IsPaperJam = false,
             PrinterState = "Unknown"
         };
     }
 
+    // 与 WmiUnavailableStatus 同理：WMI 查询超时/异常不代表打印机不可用，
+    // IsReady 必须为 true，避免误拦截打印。
     private static PrinterStatus ErrorStatus(string statusCode, string message)
     {
         return new PrinterStatus
         {
-            IsReady = false,
+            IsReady = true,
             StatusCode = statusCode,
             Message = message,
-            IsOnline = false,
-            HasPaper = false,
+            IsOnline = true,
+            HasPaper = true,
             IsPaperJam = false
         };
     }
