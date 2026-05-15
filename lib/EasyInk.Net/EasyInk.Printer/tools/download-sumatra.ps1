@@ -1,5 +1,5 @@
 # Download SumatraPDF portable exe for bundling with EasyInk.Printer.
-# Run before packaging so src\SumatraPDF\SumatraPDF.exe is included in publish output.
+# Run before packaging so src\bin\SumatraPDF\SumatraPDF.exe is included in publish output.
 
 param(
     [string]$Version = "3.5.2"
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $printerDir = Split-Path -Parent $toolsDir
-$targetDir = Join-Path $printerDir "src\SumatraPDF"
+$targetDir = Join-Path $printerDir "src\bin\SumatraPDF"
 $url = "https://www.sumatrapdfreader.org/dl/rel/$Version/SumatraPDF-$Version.zip"
 
 if (!(Test-Path $targetDir)) {
@@ -36,9 +36,9 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $extractDir)
 
-    $downloadedExe = Get-ChildItem -Path $extractDir -Filter "SumatraPDF.exe" -Recurse | Select-Object -First 1
+    $downloadedExe = Get-ChildItem -Path $extractDir -Filter "SumatraPDF*.exe" -Recurse | Select-Object -First 1
     if ($null -eq $downloadedExe) {
-        throw "SumatraPDF.exe not found in downloaded archive"
+        throw "SumatraPDF exe not found in downloaded archive"
     }
 
     Copy-Item $downloadedExe.FullName $targetFile -Force

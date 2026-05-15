@@ -49,7 +49,7 @@ echo Done: output\EasyInkPrinter-Setup.exe
 exit /b 0
 
 :ensure_sumatra
-if exist "%PROJECT_DIR%\SumatraPDF\SumatraPDF.exe" exit /b 0
+if exist "%PROJECT_DIR%\bin\SumatraPDF\SumatraPDF.exe" exit /b 0
 powershell -ExecutionPolicy Bypass -File "%~dp0tools\download-sumatra.ps1"
 if errorlevel 1 (
     echo Failed to prepare bundled SumatraPDF
@@ -77,7 +77,7 @@ if not exist "%PUBLISH_DIR%\x86\pdfium.dll" (
 )
 if not exist "%PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe" (
     echo Missing bundled SumatraPDF: %PUBLISH_DIR%\SumatraPDF\SumatraPDF.exe
-    echo Place SumatraPDF.exe under %PROJECT_DIR%\SumatraPDF before packaging.
+    echo Place SumatraPDF.exe under %PROJECT_DIR%\bin\SumatraPDF before packaging.
     exit /b 1
 )
 exit /b 0

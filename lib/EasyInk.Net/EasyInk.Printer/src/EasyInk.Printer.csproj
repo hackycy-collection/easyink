@@ -55,7 +55,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="SumatraPDF\SumatraPDF.exe" Condition="Exists('SumatraPDF\SumatraPDF.exe')">
+    <Content Include="bin\SumatraPDF\SumatraPDF.exe" Condition="Exists('bin\SumatraPDF\SumatraPDF.exe')">
+      <Link>SumatraPDF\SumatraPDF.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
