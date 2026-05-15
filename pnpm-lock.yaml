@@ -796,6 +796,8 @@ importers:
         specifier: catalog:types
         version: 4.17.12
 
+  packages/skills: {}
+
   packages/ui:
     dependencies:
       '@easyink/icons':

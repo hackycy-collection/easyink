@@ -1,0 +1,136 @@
+# Material Development Flow
+
+## Built-In Material Package Shape
+
+Follow existing packages such as `packages/materials/rect`, `packages/materials/text`, `packages/materials/svg/star`, and `packages/materials/table-data`.
+
+Typical files:
+
+- `package.json`: package name, workspace deps, optional Vue peer dependency when Designer code imports Vue.
+- `tsdown.config.ts`: `entry: ['src/index.ts']`, `dts: true`, `exports: true`, `publint: true`.
+- `src/schema.ts`: type constant, props interface, defaults, capabilities, `createXNode()`.
+- `src/designer.ts`: `createXExtension(context)`.
+- `src/viewer.ts`: render and optional measure functions.
+- `src/prop-schemas.ts`: material-owned property panel additions when needed.
+- `src/ai.ts`: `AIMaterialDescriptor` for AI/MCP generation.
+- `src/index.ts`: export public symbols.
+- `src/*.test.ts`: focused tests for rendering, defaults, deep editing, measure, and schema behavior.
+
+## Schema Factory Rules
+
+In `schema.ts`:
+
+- Export a canonical `TYPE` string and do not rename it after release.
+- Use `generateId(prefix)` from `@easyink/shared` for IDs.
+- Use `convertUnit(value, 'mm', unit)` when defaults are authored in mm and `unit` may differ.
+- Merge defaults before partial props, and do not let `partial.props` accidentally overwrite the entire node before you normalize it.
+- Default nodes must be visible without external data.
+- Capabilities must match actual behavior. Do not mark `bindable`, `multiBinding`, `resizable`, `rotatable`, or `supportsChildren` optimistically.
+
+Pattern:
+
+```ts
+export const X_TYPE = 'x'
+
+export interface XProps {
+  content: string
+}
+
+export const X_DEFAULTS: XProps = {
+  content: 'Preview',
+}
+
+export function createXNode(partial?: Partial<MaterialNode>, unit?: string): MaterialNode {
+  const c = unit && unit !== 'mm' ? (v: number) => convertUnit(v, 'mm', unit) : (v: number) => v
+  const partialProps = (partial?.props ?? {}) as Partial<XProps>
+  const partialNode = partial ? { ...partial } : undefined
+  if (partialNode)
+    delete partialNode.props
+
+  return {
+    id: generateId('x'),
+    type: X_TYPE,
+    x: 0,
+    y: 0,
+    width: c(80),
+    height: c(20),
+    props: { ...X_DEFAULTS, ...partialProps },
+    ...partialNode,
+  }
+}
+```
+
+## Designer Rendering Rules
+
+Use `renderContent(nodeSignal, container)`:
+
+- Render immediately.
+- Subscribe to `nodeSignal` so property changes update the canvas.
+- Return the unsubscribe and any cleanup for DOM listeners or gestures.
+- Escape user-controlled values with `escapeHtml()`.
+- Use `context.t(key)` for placeholders and labels.
+- Use Designer placeholders for empty content when needed, but keep defaults Viewer-renderable.
+
+Simple materials can set `container.innerHTML`. Complex materials can create Vue decorations or DOM manually, but cleanup must be deterministic.
+
+## Viewer Rendering Rules
+
+Use `trustedViewerHtml()` for strings:
+
+- Read `context.resolvedProps` for ordinary element bindings.
+- `renderPages()` passes a `nodeForRender` whose `props` are already projected; direct `getNodeProps(node)` is acceptable when the function is called through the Viewer pipeline, but `context.resolvedProps` communicates intent better.
+- Escape runtime strings before interpolation.
+- Keep Viewer output print/export stable because print and export reuse the Viewer result.
+- Add `measure()` only when runtime content changes physical size.
+
+## Property Panel Rules
+
+Use `propSchemas` for simple `node.props` fields:
+
+- `string`, `text`, `textarea`, `number`, `color`, `switch`, `enum`, `font`, `image`, etc.
+- Nested props can use dotted keys such as `typography.fontSize`.
+- Labels should be i18n keys.
+- Group names should be one of the groups mapped in `PropertiesPanel.vue` or an intentionally visible custom group.
+
+Use a custom `read` and `commit` when the property is outside `node.props` or has side effects. `table-data` `showHeader` and `showFooter` are the model example: they live on `node.table`, flush active edits, potentially exit an editing session, and execute `UpdateTableVisibilityCommand`.
+
+Use `requestPropertyPanel()` or `SelectionType.getPropertySchema()` when:
+
+- The property applies to a sub-selection.
+- A write touches multiple fields.
+- The editor is context-aware or temporary.
+- The data path is not the normal props bag.
+
+## Built-In Registry Checklist
+
+For a new built-in material:
+
+1. Create the package under `packages/materials/...`.
+2. Ensure `pnpm-workspace.yaml` already includes the path pattern. SVG subpackages belong under `packages/materials/svg/*`.
+3. Add package dependency to `packages/builtin/package.json`.
+4. Import and register Designer entry in `packages/builtin/src/designer.ts`.
+5. Import and register Viewer entry in `packages/builtin/src/viewer.ts`.
+6. Import and append the AI descriptor in `packages/builtin/src/ai.ts` when generation should know it.
+7. Add locale keys in `packages/designer/src/locale/zh-CN.ts` and `packages/designer/src/locale/en-US.ts` for toolbar, properties, table commands, history, or placeholders.
+8. Update tests or snapshots affected by built-in type lists.
+9. Run `pnpm -F @easyink/mcp-server build:materials` or `pnpm -F @easyink/mcp-server check:materials` when AI descriptors changed.
+10. Run focused package tests and then `pnpm test` if the change touches shared Designer or Viewer behavior.
+
+## Custom Host Checklist
+
+For a host-owned custom material outside built-ins:
+
+- Register Designer through `setupStore`.
+- Register Viewer through the created Viewer runtime.
+- Keep the same `type` string in both.
+- Ship the default-node factory, Designer factory, Viewer extension, icons, prop schemas, and any host locale messages together.
+- Verify templates using that `type` cannot reach Viewer without the host registration.
+
+## Common Failure Signals
+
+- Designer changes do not repaint: `renderContent()` did not subscribe to `nodeSignal`.
+- Viewer shows `[Unknown: type]`: Viewer registration is missing.
+- Bound values do not change: renderer reads defaults instead of resolved props, or `viewer.open({ data })` data shape does not match `fieldPath`.
+- Undo groups every pointer move separately: continuous operations need a stable `mergeKey`.
+- Property panel writes to the wrong location: the schema needs custom `read` and `commit`, not a plain props-bag schema.
+- Resize breaks internals: implement a `MaterialResizeAdapter`.
