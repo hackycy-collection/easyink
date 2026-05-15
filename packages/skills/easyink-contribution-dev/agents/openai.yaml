@@ -1,0 +1,4 @@
+interface:
+  display_name: EasyInk Contribution Dev
+  short_description: EasyInk 设计器贡献扩展开发指南
+  default_prompt: 'Use $easyink-contribution-dev to implement or review an EasyInk Designer contribution with panels, toolbar actions, commands, diagnostics, and host state.'

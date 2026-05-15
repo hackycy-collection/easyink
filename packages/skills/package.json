@@ -8,6 +8,7 @@
   "license": "MIT",
   "sideEffects": false,
   "files": [
+    "easyink-contribution-dev",
     "easyink-material-dev"
   ]
 }

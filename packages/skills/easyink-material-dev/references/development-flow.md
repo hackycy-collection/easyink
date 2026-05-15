@@ -111,7 +111,7 @@ For a new built-in material:
 4. Import and register Designer entry in `packages/builtin/src/designer.ts`.
 5. Import and register Viewer entry in `packages/builtin/src/viewer.ts`.
 6. Import and append the AI descriptor in `packages/builtin/src/ai.ts` when generation should know it.
-7. Add locale keys in `packages/designer/src/locale/zh-CN.ts` and `packages/designer/src/locale/en-US.ts` for toolbar, properties, table commands, history, or placeholders.
+7. Add locale keys in `packages/designer/src/locale/zh-CN.ts` and `packages/designer/src/locale/en-US.ts` for material catalog labels, material-local toolbars, properties, table-kernel commands, history, or placeholders.
 8. Update tests or snapshots affected by built-in type lists.
 9. Run `pnpm -F @easyink/mcp-server build:materials` or `pnpm -F @easyink/mcp-server check:materials` when AI descriptors changed.
 10. Run focused package tests and then `pnpm test` if the change touches shared Designer or Viewer behavior.

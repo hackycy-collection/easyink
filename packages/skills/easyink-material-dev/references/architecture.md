@@ -98,20 +98,7 @@ Built-in materials:
 
 ## Contribution Boundary
 
-Use Contribution instead of material work when the feature is a host-side extension to Designer:
-
-- Add a panel with `registerPanel()`.
-- Add a toolbar action with `registerToolbarAction()`.
-- Add a cross-module command with `registerCommand()`.
-- Subscribe to diagnostics with `onDiagnostic()`.
-
-Material work should own schema nodes and render/edit behavior. Contribution work should inject business panels, buttons, commands, subscriptions, and host-owned state. If a request says "add a button/panel/workflow around existing materials", start from `docs/advanced/contributions.md` before changing material packages.
-
-Lifecycle rules:
-
-- Register contribution abilities inside `activate(ctx)`.
-- Keep panel open/closed state in the contribution closure or component, not in material schema.
-- Use `ctx.onDispose()` to clear timers, subscriptions, listeners, and temporary contribution state.
+If the request is to add a button, panel, command, diagnostic subscription, or host workflow around existing Designer behavior, switch to `$easyink-contribution-dev` instead of continuing material development.
 
 ## Catalog and Capabilities
 

@@ -28,7 +28,7 @@ Property schemas can store label keys directly because `PropertiesPanel.vue` res
 ## i18n Review Checklist
 
 - No new user-visible Chinese-only strings in built-in material registration unless intentionally not localized.
-- Decoration tooltips, toolbar button titles, property titles, reject labels, placeholders, and history labels are localized.
+- Decoration tooltips, material-local toolbar button titles, property titles, reject labels, placeholders, and history labels are localized.
 - `PropSchema.group` uses an existing group mapped by `GROUP_LABELS` in `PropertiesPanel.vue`, or the visible custom group text is intentional.
 - History panel can display the command label. Prefer stable `designer.history.*` keys for material commands.
 - Custom host-owned materials document how host locale messages are passed via `EasyInkDesigner` `locale`.
