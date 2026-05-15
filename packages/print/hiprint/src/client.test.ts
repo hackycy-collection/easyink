@@ -3,29 +3,36 @@ import { HiPrintClient } from './client'
 
 const runtime = vi.hoisted(() => {
   const addedHtml: Record<string, unknown>[] = []
+  const addedPanels: Record<string, unknown>[] = []
+  const printOptions: Record<string, unknown>[] = []
   let successCallback: (() => void) | undefined
 
   class PrintTemplate {
-    addPrintPanel = vi.fn(() => ({
-      addPrintHtml: vi.fn((options: Record<string, unknown>) => {
-        addedHtml.push(options)
-      }),
-    }))
+    addPrintPanel = vi.fn((options: Record<string, unknown>) => {
+      addedPanels.push(options)
+      return {
+        addPrintHtml: vi.fn((htmlOptions: Record<string, unknown>) => {
+          addedHtml.push(htmlOptions)
+        }),
+      }
+    })
 
     on = vi.fn((event: 'printSuccess' | 'printError', callback: () => void) => {
       if (event === 'printSuccess')
         successCallback = callback
     })
 
-    print2 = vi.fn(() => {
+    print2 = vi.fn((_data: Record<string, unknown>, options: Record<string, unknown>) => {
+      printOptions.push(options)
       successCallback?.()
     })
   }
 
   return {
     addedHtml,
+    addedPanels,
+    printOptions,
     init: vi.fn(),
-    printers: [] as Array<{ name: string, isDefault?: boolean }>,
     refreshPrinterList: vi.fn(),
     PrintTemplate,
     hiwebSocket: {
@@ -33,6 +40,7 @@ const runtime = vi.hoisted(() => {
       hasIo: vi.fn(() => true),
       start: vi.fn(),
       stop: vi.fn(),
+      printerList: [] as Array<{ name: string, isDefault?: boolean }>,
     },
   }
 })
@@ -43,7 +51,9 @@ vi.mock('vue-plugin-hiprint', () => ({
 
 beforeEach(() => {
   runtime.addedHtml.length = 0
-  runtime.printers = []
+  runtime.addedPanels.length = 0
+  runtime.printOptions.length = 0
+  runtime.hiwebSocket.printerList = []
   runtime.init.mockClear()
   runtime.refreshPrinterList.mockReset()
   runtime.hiwebSocket.setHost.mockReset()
@@ -97,7 +107,55 @@ describe('hi print client', () => {
     await client.printPages([page], { width: 80, height: 60, printerName: 'Printer A' })
 
     expect(runtime.addedHtml).toHaveLength(1)
-    expect(runtime.addedHtml[0]).toEqual({ options: { content: expect.stringContaining('class="ei-viewer-page"') } })
+    expect(runtime.addedHtml[0]).toEqual({ options: expect.objectContaining({ content: expect.stringContaining('class="ei-viewer-page"') }) })
     expect(String((runtime.addedHtml[0] as { options: { content: string } }).options.content).startsWith('<section')).toBe(true)
+  })
+
+  it('sizes manual HTML elements to the full page and passes through print2 options', async () => {
+    const client = new HiPrintClient({ printerName: 'Printer A' })
+    client.connectionState = 'connected'
+
+    await client.printHtml({
+      html: '<main>hello</main>',
+      width: 80,
+      height: 60,
+      printerName: 'Printer A',
+      title: 'Job Title',
+      silent: false,
+      margins: { marginType: 'printableArea' },
+    })
+
+    expect(runtime.addedPanels[0]).toEqual(expect.objectContaining({
+      height: 60,
+      paperHeader: 0,
+      width: 80,
+    }))
+    expect(runtime.addedPanels[0]?.paperFooter).toBeCloseTo(170.08, 2)
+    expect(runtime.addedHtml[0]).toEqual({ options: expect.objectContaining({
+      content: '<main>hello</main>',
+      left: 0,
+      top: 0,
+    }) })
+    expect(Number((runtime.addedHtml[0] as { options: { height: number } }).options.height)).toBeCloseTo(170.08, 2)
+    expect(Number((runtime.addedHtml[0] as { options: { width: number } }).options.width)).toBeCloseTo(226.77, 2)
+    expect(runtime.printOptions[0]).toEqual(expect.objectContaining({
+      margins: { marginType: 'printableArea' },
+      printer: 'Printer A',
+      silent: false,
+      title: 'Job Title',
+    }))
+  })
+
+  it('falls back to hiwebSocket printerList when refresh callback returns empty', async () => {
+    const client = new HiPrintClient()
+    client.connectionState = 'connected'
+    runtime.hiwebSocket.printerList = [{ name: 'Cached Printer', isDefault: true }]
+    runtime.refreshPrinterList.mockImplementation((callback: (devices: unknown[]) => void) => callback([]))
+
+    await expect(client.refreshPrinters()).resolves.toEqual([expect.objectContaining({
+      displayName: 'Cached Printer',
+      isDefault: true,
+      name: 'Cached Printer',
+    })])
   })
 })

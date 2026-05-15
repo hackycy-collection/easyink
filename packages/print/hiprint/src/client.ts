@@ -5,6 +5,7 @@ export const DEFAULT_HIPRINT_URL = 'http://localhost:17521'
 const DEFAULT_CONNECT_TIMEOUT_MS = 4000
 const DEFAULT_REFRESH_DELAY_MS = 300
 const DEFAULT_REFRESH_TIMEOUT_MS = 2500
+const PT_PER_MM = 72 / 25.4
 
 /**
  * Configures how the HiPrint client connects to electron-hiprint and how it
@@ -19,7 +20,7 @@ export interface HiPrintClientOptions {
   refreshDelayMs?: number
   refreshTimeoutMs?: number
   forcePageSize?: boolean
-  /** @deprecated Use forcePageSize instead. */
+  /** @deprecated HiPrint only supports per-job print options here. Use forcePageSize instead. */
   forcePageSizeByDevice?: Record<string, boolean>
 }
 
@@ -40,14 +41,38 @@ export interface HiPrintDevice {
  */
 export interface PrintHtmlOptions {
   html: string
+  /** Page width in millimeters. */
   width: number
+  /** Page height in millimeters. */
   height: number
   printerName?: string
   orientation?: 'auto' | 'portrait' | 'landscape'
   copies?: number
   forcePageSize?: boolean
+  /** HiPrint panel footer position in points. Defaults to the full page height. */
   paperFooter?: number
+  /** HiPrint panel header position in points. Defaults to 0. */
   paperHeader?: number
+  client?: string
+  title?: string
+  silent?: boolean
+  printBackground?: boolean
+  color?: boolean
+  scaleFactor?: number
+  pagesPerSheet?: number
+  collate?: boolean
+  pageRanges?: Record<string, unknown>
+  duplexMode?: 'simplex' | 'shortEdge' | 'longEdge'
+  dpi?: number
+  header?: string
+  footer?: string
+  margins?: Record<string, unknown>
+  pageSize?: string | { width: number, height: number }
+  styleHandler?: () => string
+  printByFragments?: boolean
+  fragmentSize?: number
+  sendInterval?: number
+  imgToBase64?: boolean
 }
 
 /**
@@ -71,7 +96,6 @@ interface HiPrintTemplate {
 
 interface HiPrintRuntime {
   init?: () => void
-  printers?: HiPrintDevice[]
   refreshPrinterList: (callback?: (devices: HiPrintDevice[]) => void) => void
   PrintTemplate: new () => HiPrintTemplate
   hiwebSocket: {
@@ -80,6 +104,7 @@ interface HiPrintRuntime {
     start?: () => void
     stop?: () => void
     opened?: boolean
+    printerList?: HiPrintDevice[]
   }
 }
 
@@ -194,8 +219,8 @@ export class HiPrintClient {
         resolve()
       })
 
-      if (!hiprint.hiwebSocket.hasIo?.())
-        hiprint.hiwebSocket.start?.()
+      // setHost() is the vue-plugin-hiprint API that stops the old socket and
+      // starts a new one. Calling start() again would duplicate the connection.
     })
 
     return this.connectPromise
@@ -240,7 +265,7 @@ export class HiPrintClient {
       }, this.refreshDelayMs + this.refreshTimeoutMs)
     })
 
-    const list = devices.length > 0 ? devices : hiprint.printers ?? []
+    const list = devices.length > 0 ? devices : hiprint.hiwebSocket.printerList ?? []
     this.devices = normalizeHiPrintDevices(list)
     this.ensureSelectedPrinter(this.devices)
     return this.devices
@@ -274,20 +299,14 @@ export class HiPrintClient {
   /**
    * Persists whether HiPrint should receive an explicit custom page size.
    */
-  setForcePageSize(value: boolean): void
-  setForcePageSize(_printerName: string, value: boolean): void
-  setForcePageSize(printerNameOrValue: string | boolean, value?: boolean): void {
-    this.forcePageSize = typeof printerNameOrValue === 'boolean'
-      ? printerNameOrValue
-      : Boolean(value)
+  setForcePageSize(value: boolean): void {
+    this.forcePageSize = value
   }
 
   /**
    * Checks whether HiPrint should receive an explicit custom page size.
    */
-  isForcePageSize(): boolean
-  isForcePageSize(_printerName: string | undefined): boolean
-  isForcePageSize(_printerName?: string | undefined): boolean {
+  isForcePageSize(): boolean {
     return this.forcePageSize
   }
 
@@ -305,25 +324,27 @@ export class HiPrintClient {
       const panel = template.addPrintPanel({
         width: options.width,
         height: options.height,
-        paperFooter: options.paperFooter ?? 340,
-        paperHeader: options.paperHeader ?? 46,
+        // Panel width/height are millimeters, but panel internals use points.
+        paperFooter: options.paperFooter ?? mmToPt(options.height),
+        paperHeader: options.paperHeader ?? 0,
         paperNumberDisabled: true,
       })
-      panel.addPrintHtml({ options: { content: options.html } })
+      panel.addPrintHtml({
+        options: {
+          content: options.html,
+          height: mmToPt(options.height),
+          left: 0,
+          top: 0,
+          width: mmToPt(options.width),
+        },
+      })
 
       template.on('printSuccess', () => resolve())
       template.on('printError', (event: unknown) => {
         reject(new EasyInkPrintError(event instanceof Error ? event.message : '打印失败', 'HIPRINT_PRINT_FAILED', event))
       })
 
-      template.print2({}, buildHiPrintOptions({
-        printerName,
-        width: options.width,
-        height: options.height,
-        orientation: options.orientation,
-        copies: options.copies ?? this.defaultCopies,
-        forcePageSize: options.forcePageSize ?? this.isForcePageSize(),
-      }))
+      template.print2({}, buildHiPrintOptions(options, printerName, this.defaultCopies, this.isForcePageSize()))
     })
   }
 
@@ -390,18 +411,27 @@ export function createHiPrintClient(options?: HiPrintClientOptions): HiPrintClie
   return new HiPrintClient(options)
 }
 
-function buildHiPrintOptions(options: {
-  printerName: string
-  width: number
-  height: number
-  orientation?: 'auto' | 'portrait' | 'landscape'
-  copies: number
-  forcePageSize: boolean
-}): Record<string, unknown> {
+function buildHiPrintOptions(
+  options: PrintHtmlOptions,
+  printerName: string,
+  defaultCopies: number,
+  defaultForcePageSize: boolean,
+): Record<string, unknown> {
+  const passthroughOptions: Record<string, unknown> = { ...options }
+  delete passthroughOptions.forcePageSize
+  delete passthroughOptions.height
+  delete passthroughOptions.html
+  delete passthroughOptions.orientation
+  delete passthroughOptions.paperFooter
+  delete passthroughOptions.paperHeader
+  delete passthroughOptions.printerName
+  delete passthroughOptions.width
+
   const printOptions: Record<string, unknown> = {
-    printer: options.printerName,
-    copies: options.copies,
-    margins: { marginType: 'none' },
+    ...passthroughOptions,
+    printer: printerName,
+    copies: options.copies ?? defaultCopies,
+    margins: options.margins ?? { marginType: 'none' },
   }
 
   const explicitLandscape = options.orientation === 'landscape'
@@ -410,11 +440,12 @@ function buildHiPrintOptions(options: {
       ? false
       : undefined
   const landscape = explicitLandscape ?? options.width > options.height
+  const forcePageSize = options.forcePageSize ?? defaultForcePageSize
 
   if (explicitLandscape !== undefined)
     printOptions.landscape = explicitLandscape
 
-  if (options.forcePageSize) {
+  if (forcePageSize) {
     const widthMicrons = Math.round(options.width * 1000)
     const heightMicrons = Math.round(options.height * 1000)
     printOptions.pageSize = {
@@ -426,6 +457,10 @@ function buildHiPrintOptions(options: {
   }
 
   return printOptions
+}
+
+function mmToPt(value: number): number {
+  return value * PT_PER_MM
 }
 
 function normalizeHiPrintDevices(devices: HiPrintDevice[]): HiPrintDevice[] {
