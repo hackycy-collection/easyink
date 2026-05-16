@@ -1,4 +1,5 @@
 using EasyInk.Engine;
+using EasyInk.Engine.Models;
 using EasyInk.Engine.Services;
 using EasyInk.Printer.Api;
 using EasyInk.Printer.Config;
@@ -31,7 +32,8 @@ internal static class ServiceConfig
                 sumatraPdfPath: config.SumatraPdfPath,
                 sumatraPrinterNames: config.SumatraPrinterNames,
                 sumatraPrintSettings: config.SumatraPrintSettings,
-                sumatraTimeoutSeconds: config.SumatraTimeoutSeconds);
+                sumatraTimeoutSeconds: config.SumatraTimeoutSeconds,
+                lowDpiPrintEnhancementMode: ParseLowDpiPrintEnhancement(config.LowDpiPrintEnhancement));
             return api;
         });
 
@@ -71,5 +73,14 @@ internal static class ServiceConfig
         {
             services.AddSingleton<IAuditService>(new NullAuditService());
         }
+    }
+
+    private static LowDpiPrintEnhancementMode ParseLowDpiPrintEnhancement(string? value)
+    {
+        return string.Equals(value, "normal", System.StringComparison.OrdinalIgnoreCase)
+            ? LowDpiPrintEnhancementMode.Normal
+            : string.Equals(value, "monochrome", System.StringComparison.OrdinalIgnoreCase)
+                ? LowDpiPrintEnhancementMode.Monochrome
+                : LowDpiPrintEnhancementMode.Boost;
     }
 }

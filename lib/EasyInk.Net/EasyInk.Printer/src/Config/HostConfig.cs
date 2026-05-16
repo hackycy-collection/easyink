@@ -51,6 +51,11 @@ public class HostConfig
     public double DefaultMarginMm { get; set; }
 
     /// <summary>
+    /// 低 DPI 小票/热敏打印机位图增强模式：normal、boost、monochrome。默认 boost。
+    /// </summary>
+    public string LowDpiPrintEnhancement { get; set; } = "boost";
+
+    /// <summary>
     /// 使用 Raw ESC/POS 直发模式的打印机名称列表（模糊匹配，忽略大小写）。
     /// </summary>
     public List<string> RawPrinterNames { get; set; } = new();

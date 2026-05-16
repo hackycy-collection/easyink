@@ -62,9 +62,11 @@ public class EngineApi : IDisposable
         string? sumatraPdfPath = null,
         System.Collections.Generic.IEnumerable<string>? sumatraPrinterNames = null,
         string? sumatraPrintSettings = null,
-        int sumatraTimeoutSeconds = 60)
+        int sumatraTimeoutSeconds = 60,
+        LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode = LowDpiPrintEnhancementMode.Boost)
         : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth,
-            sumatraPdfPath, sumatraPrinterNames, sumatraPrintSettings, sumatraTimeoutSeconds)
+            sumatraPdfPath, sumatraPrinterNames, sumatraPrintSettings, sumatraTimeoutSeconds,
+            lowDpiPrintEnhancementMode)
     {
     }
 
@@ -83,7 +85,8 @@ public class EngineApi : IDisposable
         string? sumatraPdfPath = null,
         System.Collections.Generic.IEnumerable<string>? sumatraPrinterNames = null,
         string? sumatraPrintSettings = null,
-        int sumatraTimeoutSeconds = 60)
+        int sumatraTimeoutSeconds = 60,
+        LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode = LowDpiPrintEnhancementMode.Boost)
     {
         _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
@@ -95,7 +98,7 @@ public class EngineApi : IDisposable
         }
         else
         {
-            var gdiService = new PdfiumPrintService(_printerService, logger);
+            var gdiService = new PdfiumPrintService(_printerService, logger, lowDpiPrintEnhancementMode);
             var rawService = new EscPosRawPrintService(_printerService, logger, rawPrintDpi, rawPrintMaxDotsWidth);
             IPrintService? sumatraService = null;
             if (!string.IsNullOrWhiteSpace(sumatraPdfPath) &&

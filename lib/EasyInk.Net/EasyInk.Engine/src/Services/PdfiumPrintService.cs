@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Printing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using EasyInk.Engine.Models;
 using EasyInk.Engine.Services.Abstractions;
@@ -24,17 +25,21 @@ public class PdfiumPrintService : IPrintService
     private const int MinKnownPrinterDpi = 150;
     private const float LowDpiTextBoostContrast = 1.28f;
     private const float LowDpiTextBoostBrightness = -0.08f;
+    private const byte LowDpiMonochromeThreshold = 220;
 
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
+    private readonly LowDpiPrintEnhancementMode _lowDpiPrintEnhancementMode;
 
     /// <summary>
     /// 初始化 Pdfium 打印服务
     /// </summary>
-    public PdfiumPrintService(IPrinterService printerService, ILogger? logger = null)
+    public PdfiumPrintService(IPrinterService printerService, ILogger? logger = null,
+        LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode = LowDpiPrintEnhancementMode.Boost)
     {
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
         _logger = logger ?? new NullLogger();
+        _lowDpiPrintEnhancementMode = lowDpiPrintEnhancementMode;
     }
 
     /// <summary>
@@ -156,7 +161,7 @@ public class PdfiumPrintService : IPrintService
             float drawX = printable.X + (printable.Width - drawW) / 2f + offsetXUnits;
             float drawY = printable.Y + (printable.Height - drawH) / 2f + offsetYUnits;
 
-            var renderResolution = GetRenderResolution(request, ps, e.Graphics);
+            var renderResolution = GetRenderResolution(request, ps, e.Graphics, _lowDpiPrintEnhancementMode);
             var drawRect = new RectangleF(drawX, drawY, drawW, drawH);
             if (renderResolution.MapsToDevicePixels)
                 drawRect = SnapToDevicePixels(drawRect, renderResolution.X, renderResolution.Y);
@@ -169,10 +174,12 @@ public class PdfiumPrintService : IPrintService
             {
                 var bitmap = img as Bitmap;
                 bitmap?.SetResolution(renderResolution.X, renderResolution.Y);
-                using var boostedImg = renderResolution.ApplyLowDpiTextBoost
-                    ? CreateLowDpiTextBoostBitmap(img, renderResolution.X, renderResolution.Y)
-                    : null;
-                var printImg = boostedImg ?? img;
+                using var enhancedImg = CreateEnhancedLowDpiBitmap(
+                    img,
+                    renderResolution.X,
+                    renderResolution.Y,
+                    renderResolution.EnhancementMode);
+                var printImg = enhancedImg ?? img;
 
                 if (pageIndex < pageCount)
                 {
@@ -192,7 +199,7 @@ public class PdfiumPrintService : IPrintService
                         $" targetScale={targetScale:F3}" +
                         $" draw=({drawRect.X:F1},{drawRect.Y:F1} {drawRect.Width:F1}x{drawRect.Height:F1})" +
                         $" deviceSnap={renderResolution.MapsToDevicePixels}" +
-                        $" textBoost={renderResolution.ApplyLowDpiTextBoost}");
+                        $" lowDpiEnhancement={renderResolution.EnhancementMode}");
                 }
 
                 ConfigureGraphicsQuality(e.Graphics, renderResolution.MapsToDevicePixels);
@@ -207,7 +214,8 @@ public class PdfiumPrintService : IPrintService
         printDoc.Print();
     }
 
-    private static RenderResolution GetRenderResolution(PrintRequestParams request, PageSettings pageSettings, Graphics graphics)
+    private static RenderResolution GetRenderResolution(PrintRequestParams request, PageSettings pageSettings,
+        Graphics graphics, LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode)
     {
         int requestedDpi = request.Dpi > 0 ? request.Dpi : DefaultRenderDpi;
         int deviceDpiX = GetKnownDeviceDpi(pageSettings.PrinterResolution.X, graphics.DpiX);
@@ -224,7 +232,7 @@ public class PdfiumPrintService : IPrintService
                 true,
                 "native-low-dpi",
                 requestedDpi,
-                true);
+                lowDpiPrintEnhancementMode);
         }
 
         int renderDpiX = Math.Max(requestedDpi, deviceDpiX > 0 ? deviceDpiX : DefaultRenderDpi);
@@ -234,7 +242,8 @@ public class PdfiumPrintService : IPrintService
 
         bool mapsToDevicePixels = deviceDpiX > 0 && deviceDpiY > 0 &&
                                   renderDpiX == deviceDpiX && renderDpiY == deviceDpiY;
-        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested", requestedDpi, false);
+        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested", requestedDpi,
+            LowDpiPrintEnhancementMode.Normal);
     }
 
     private static int GetKnownDeviceDpi(int settingsDpi, float graphicsDpi)
@@ -290,6 +299,20 @@ public class PdfiumPrintService : IPrintService
         graphics.CompositingQuality = CompositingQuality.HighQuality;
     }
 
+    private static Bitmap? CreateEnhancedLowDpiBitmap(Image source, int dpiX, int dpiY,
+        LowDpiPrintEnhancementMode enhancementMode)
+    {
+        switch (enhancementMode)
+        {
+            case LowDpiPrintEnhancementMode.Boost:
+                return CreateLowDpiTextBoostBitmap(source, dpiX, dpiY);
+            case LowDpiPrintEnhancementMode.Monochrome:
+                return CreateLowDpiMonochromeBitmap(source, dpiX, dpiY);
+            default:
+                return null;
+        }
+    }
+
     private static Bitmap CreateLowDpiTextBoostBitmap(Image source, int dpiX, int dpiY)
     {
         var boosted = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb);
@@ -324,6 +347,59 @@ public class PdfiumPrintService : IPrintService
             attributes);
 
         return boosted;
+    }
+
+    private static Bitmap CreateLowDpiMonochromeBitmap(Image source, int dpiX, int dpiY)
+    {
+        using var boosted = CreateLowDpiTextBoostBitmap(source, dpiX, dpiY);
+        var monochrome = new Bitmap(boosted.Width, boosted.Height, PixelFormat.Format24bppRgb);
+        monochrome.SetResolution(dpiX, dpiY);
+
+        var rect = new Rectangle(0, 0, boosted.Width, boosted.Height);
+        var srcData = boosted.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        var dstData = monochrome.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+
+        try
+        {
+            int srcBytes = Math.Abs(srcData.Stride) * boosted.Height;
+            int dstBytes = Math.Abs(dstData.Stride) * monochrome.Height;
+            var src = new byte[srcBytes];
+            var dst = new byte[dstBytes];
+            Marshal.Copy(srcData.Scan0, src, 0, srcBytes);
+
+            for (int y = 0; y < boosted.Height; y++)
+            {
+                int srcRow = GetBitmapRowOffset(y, boosted.Height, srcData.Stride);
+                int dstRow = GetBitmapRowOffset(y, monochrome.Height, dstData.Stride);
+                for (int x = 0; x < boosted.Width; x++)
+                {
+                    int srcOffset = srcRow + x * 3;
+                    int dstOffset = dstRow + x * 3;
+                    byte b = src[srcOffset];
+                    byte g = src[srcOffset + 1];
+                    byte r = src[srcOffset + 2];
+                    int luminance = (r * 299 + g * 587 + b * 114) / 1000;
+                    byte value = luminance < LowDpiMonochromeThreshold ? (byte)0 : (byte)255;
+                    dst[dstOffset] = value;
+                    dst[dstOffset + 1] = value;
+                    dst[dstOffset + 2] = value;
+                }
+            }
+
+            Marshal.Copy(dst, 0, dstData.Scan0, dstBytes);
+        }
+        finally
+        {
+            boosted.UnlockBits(srcData);
+            monochrome.UnlockBits(dstData);
+        }
+
+        return monochrome;
+    }
+
+    private static int GetBitmapRowOffset(int y, int height, int stride)
+    {
+        return stride >= 0 ? y * stride : (height - 1 - y) * -stride;
     }
 
     private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
@@ -374,14 +450,14 @@ public class PdfiumPrintService : IPrintService
     private readonly struct RenderResolution
     {
         public RenderResolution(int x, int y, bool mapsToDevicePixels, string source, int requestedDpi,
-            bool applyLowDpiTextBoost)
+            LowDpiPrintEnhancementMode enhancementMode)
         {
             X = x;
             Y = y;
             MapsToDevicePixels = mapsToDevicePixels;
             Source = source;
             RequestedDpi = requestedDpi;
-            ApplyLowDpiTextBoost = applyLowDpiTextBoost;
+            EnhancementMode = enhancementMode;
         }
 
         public int X { get; }
@@ -389,6 +465,6 @@ public class PdfiumPrintService : IPrintService
         public bool MapsToDevicePixels { get; }
         public string Source { get; }
         public int RequestedDpi { get; }
-        public bool ApplyLowDpiTextBoost { get; }
+        public LowDpiPrintEnhancementMode EnhancementMode { get; }
     }
 }
