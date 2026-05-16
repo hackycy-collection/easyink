@@ -23,7 +23,7 @@ EasyInk.Engine.dll           ← 打印引擎：Pdfium 渲染 + Windows Print Sp
 
 ## 打印链路说明
 
-EasyInk 当前保留两条 PDF 打印链路，默认使用内置链路，SumatraPDF 可作为按打印机启用的兼容 fallback。修改打印逻辑前先确认问题属于哪条链路，避免再次用手动边距覆盖驱动能力。
+EasyInk 当前保留两条 PDF 打印链路，默认使用内置链路，SumatraPDF 可作为按打印机启用的兼容 fallback。修改打印逻辑前先确认问题属于哪条链路，避免用软件层补丁覆盖驱动能力。
 
 ### 1. 默认链路：PDFium + PrintDocument + PrintableArea
 
@@ -44,7 +44,7 @@ PDF
 
 - 默认 `ForcePaperSize=false`，由打印机驱动使用当前默认纸张。
 - 打印区域优先使用驱动返回的 `PageSettings.PrintableArea`，内容等比缩放并居中到可打印区域内，效果接近浏览器的 fit 行为。
-- `Margin` / `DefaultMarginMm` 只作为高级兼容补丁，默认应为 `0`。不要把手动边距作为通用修复方案。
+- 打印区域只使用驱动返回的 `PrintableArea`，不在软件层额外缩进或缩放设计内容。
 - 默认渲染 DPI 为 600，并参考驱动分辨率，最高限制到 1200；对 360 DPI 及以下的小票/热敏类低分辨率设备，默认贴合驱动原生 DPI 渲染，避免 600 DPI 位图再被 GDI/驱动下采样导致文字变软。
 
 已知边界：

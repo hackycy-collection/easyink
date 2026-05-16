@@ -785,7 +785,7 @@ public class MainWindow : Form
         {
             Text = LangManager.Get("Settings_PrinterCompat"),
             Dock = DockStyle.Top,
-            Height = 512,
+            Height = 404,
             Padding = new Padding(12, 8, 12, 12)
         };
 
@@ -793,13 +793,11 @@ public class MainWindow : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 10,
+            RowCount = 8,
             Padding = new Padding(4)
         };
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         compatPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // margin label + value
-        compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));  // margin description
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // low dpi enhancement label
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // low dpi enhancement description
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // raw printer label
@@ -808,31 +806,6 @@ public class MainWindow : Form
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // Sumatra printers
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));  // Sumatra settings
         compatPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));  // Sumatra description
-
-        // Margin row
-        var lblMargin = new Label { Text = LangManager.Get("Settings_MarginLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-        var pnlMargin = new Panel { Dock = DockStyle.Fill, Height = 28 };
-        var numMargin = new NumericUpDown
-        {
-            Width = 100,
-            Minimum = 0,
-            Maximum = 10,
-            DecimalPlaces = 1,
-            Increment = 0.5m,
-            Value = (decimal)_config.DefaultMarginMm,
-            Anchor = AnchorStyles.Left
-        };
-        var lblMarginUnit = new Label { Text = "mm", Left = 108, Top = 4, Width = 30, Anchor = AnchorStyles.Left };
-        pnlMargin.Controls.Add(numMargin);
-        pnlMargin.Controls.Add(lblMarginUnit);
-
-        var lblMarginDesc = new Label
-        {
-            Text = LangManager.Get("Settings_MarginDescription"),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
-            ForeColor = System.Drawing.SystemColors.GrayText
-        };
 
         var lblLowDpiEnhancement = new Label { Text = LangManager.Get("Settings_LowDpiEnhancementLabel"), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
         var cmbLowDpiEnhancement = new ComboBox
@@ -954,25 +927,21 @@ public class MainWindow : Form
             ForeColor = System.Drawing.SystemColors.GrayText
         };
 
-        compatPanel.Controls.Add(lblMargin, 0, 0);
-        compatPanel.Controls.Add(pnlMargin, 1, 0);
-        compatPanel.Controls.Add(lblMarginDesc, 0, 1);
-        compatPanel.SetColumnSpan(lblMarginDesc, 2);
-        compatPanel.Controls.Add(lblLowDpiEnhancement, 0, 2);
-        compatPanel.Controls.Add(cmbLowDpiEnhancement, 1, 2);
-        compatPanel.Controls.Add(lblLowDpiEnhancementDesc, 0, 3);
+        compatPanel.Controls.Add(lblLowDpiEnhancement, 0, 0);
+        compatPanel.Controls.Add(cmbLowDpiEnhancement, 1, 0);
+        compatPanel.Controls.Add(lblLowDpiEnhancementDesc, 0, 1);
         compatPanel.SetColumnSpan(lblLowDpiEnhancementDesc, 2);
-        compatPanel.Controls.Add(lblRawPrinters, 0, 4);
-        compatPanel.Controls.Add(txtRawPrinters, 1, 4);
-        compatPanel.Controls.Add(lblRawPrintersDesc, 0, 5);
+        compatPanel.Controls.Add(lblRawPrinters, 0, 2);
+        compatPanel.Controls.Add(txtRawPrinters, 1, 2);
+        compatPanel.Controls.Add(lblRawPrintersDesc, 0, 3);
         compatPanel.SetColumnSpan(lblRawPrintersDesc, 2);
-        compatPanel.Controls.Add(lblSumatraPath, 0, 6);
-        compatPanel.Controls.Add(pnlSumatraPath, 1, 6);
-        compatPanel.Controls.Add(lblSumatraPrinters, 0, 7);
-        compatPanel.Controls.Add(txtSumatraPrinters, 1, 7);
-        compatPanel.Controls.Add(lblSumatraSettings, 0, 8);
-        compatPanel.Controls.Add(pnlSumatraSettings, 1, 8);
-        compatPanel.Controls.Add(lblSumatraDesc, 0, 9);
+        compatPanel.Controls.Add(lblSumatraPath, 0, 4);
+        compatPanel.Controls.Add(pnlSumatraPath, 1, 4);
+        compatPanel.Controls.Add(lblSumatraPrinters, 0, 5);
+        compatPanel.Controls.Add(txtSumatraPrinters, 1, 5);
+        compatPanel.Controls.Add(lblSumatraSettings, 0, 6);
+        compatPanel.Controls.Add(pnlSumatraSettings, 1, 6);
+        compatPanel.Controls.Add(lblSumatraDesc, 0, 7);
         compatPanel.SetColumnSpan(lblSumatraDesc, 2);
         grpPrinterCompat.Controls.Add(compatPanel);
 
@@ -1084,7 +1053,6 @@ public class MainWindow : Form
                 return;
             }
 
-            _config.DefaultMarginMm = (double)numMargin.Value;
             _config.LowDpiPrintEnhancement = GetLowDpiEnhancementValue(cmbLowDpiEnhancement.SelectedIndex);
             _config.RawPrinterNames = (txtRawPrinters.Text ?? "")
                 .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)

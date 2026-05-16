@@ -29,7 +29,6 @@ public class EngineApi : IDisposable
     private readonly IPrinterService _printerService;
     private readonly IPrintService _printService;
     private readonly PrintJobQueue _jobQueue;
-    private readonly double _defaultMarginMm;
 
     /// <summary>
     /// 日志回调事件，订阅方自行决定如何处理日志（写文件、存数据库等）
@@ -56,7 +55,7 @@ public class EngineApi : IDisposable
     /// <summary>
     /// 初始化打印引擎（使用默认服务实现：Pdfium + Windows Print Spooler）
     /// </summary>
-    public EngineApi(int? maxQueueSize = null, double defaultMarginMm = 0,
+    public EngineApi(int? maxQueueSize = null,
         System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
         int rawPrintDpi = 203, int rawPrintMaxDotsWidth = 576,
         string? sumatraPdfPath = null,
@@ -64,7 +63,7 @@ public class EngineApi : IDisposable
         string? sumatraPrintSettings = null,
         int sumatraTimeoutSeconds = 60,
         LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode = LowDpiPrintEnhancementMode.Boost)
-        : this(null, null, maxQueueSize, defaultMarginMm, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth,
+        : this(null, null, maxQueueSize, rawPrinterNames, rawPrintDpi, rawPrintMaxDotsWidth,
             sumatraPdfPath, sumatraPrinterNames, sumatraPrintSettings, sumatraTimeoutSeconds,
             lowDpiPrintEnhancementMode)
     {
@@ -78,7 +77,6 @@ public class EngineApi : IDisposable
         IPrinterService? printerService = null,
         IPrintService? printService = null,
         int? maxQueueSize = null,
-        double defaultMarginMm = 0,
         System.Collections.Generic.IEnumerable<string>? rawPrinterNames = null,
         int rawPrintDpi = 203,
         int rawPrintMaxDotsWidth = 576,
@@ -88,7 +86,6 @@ public class EngineApi : IDisposable
         int sumatraTimeoutSeconds = 60,
         LowDpiPrintEnhancementMode lowDpiPrintEnhancementMode = LowDpiPrintEnhancementMode.Boost)
     {
-        _defaultMarginMm = defaultMarginMm;
         var logger = new EventLogger(this);
         _printerService = printerService ?? new PrinterService(logger);
 
@@ -241,7 +238,6 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
-        ApplyDefaultMargin(printParams);
         var result = _printService.Print(request.Id, printParams);
         RaisePrintCompleted(request.Id, printParams, result);
         return result;
@@ -255,7 +251,6 @@ public class EngineApi : IDisposable
             return PrinterResult.Error(request.Id, ErrorCode.InvalidParams, "缺少打印参数或格式错误");
         }
 
-        ApplyDefaultMargin(printParams);
         try
         {
             var jobId = _jobQueue.Enqueue(request.Id, printParams);
@@ -265,12 +260,6 @@ public class EngineApi : IDisposable
         {
             return PrinterResult.Error(request.Id, ErrorCode.QueueFull, ex.Message);
         }
-    }
-
-    private void ApplyDefaultMargin(PrintRequestParams printParams)
-    {
-        if (_defaultMarginMm > 0 && printParams.Margin <= 0)
-            printParams.Margin = _defaultMarginMm;
     }
 
     private PrinterResult HandleGetJobStatus(PrinterCommand request)

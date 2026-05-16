@@ -115,11 +115,6 @@ public class PdfiumPrintService : IPrintService
             offsetYUnits = (float)(ToMm(request.Offset.Y, request.Offset.Unit) / 25.4 * 100.0);
         }
 
-        // 软件边距：补偿驱动不报告的物理硬边距（如 XP-80C 热敏打印机）
-        float softMarginUnits = request.Margin > 0
-            ? (float)(request.Margin / 25.4 * 100.0)
-            : 0;
-
         using var printDoc = new PrintDocument();
         printDoc.PrinterSettings.PrinterName = request.PrinterName;
 
@@ -151,7 +146,7 @@ public class PdfiumPrintService : IPrintService
             int pdfPageIndex = pageIndex % pageCount;
             var ps = e.PageSettings;
             var pb = e.PageBounds;
-            var printable = GetEffectiveDrawingArea(ps, pb, softMarginUnits);
+            var printable = GetEffectiveDrawingArea(ps, pb);
 
             float contentWUnits = contentWidthMm / 25.4f * 100f;
             float contentHUnits = contentHeightMm / 25.4f * 100f;
@@ -190,7 +185,6 @@ public class PdfiumPrintService : IPrintService
                         $" pageBounds=({pb.Width},{pb.Height})" +
                         $" printableArea=({ps.PrintableArea.X},{ps.PrintableArea.Y} {ps.PrintableArea.Width}x{ps.PrintableArea.Height})" +
                         $" hardMargin=({ps.HardMarginX},{ps.HardMarginY})" +
-                        $" softMargin={softMarginUnits:F1}" +
                         $" effectiveDrawing=({printable.X:F1},{printable.Y:F1} {printable.Width:F1}x{printable.Height:F1})" +
                         $" render=({renderWidth}x{renderHeight}@{renderResolution.X}x{renderResolution.Y}dpi/{renderResolution.Source})" +
                         $" requestedDpi={renderResolution.RequestedDpi}" +
@@ -402,7 +396,7 @@ public class PdfiumPrintService : IPrintService
         return stride >= 0 ? y * stride : (height - 1 - y) * -stride;
     }
 
-    private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
+    private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds)
     {
         var printable = pageSettings.PrintableArea;
         float width;
@@ -418,8 +412,8 @@ public class PdfiumPrintService : IPrintService
         }
         else
         {
-            float marginLeft = Math.Max(pageSettings.HardMarginX, softMarginUnits);
-            float marginTop = Math.Max(pageSettings.HardMarginY, softMarginUnits);
+            float marginLeft = pageSettings.HardMarginX;
+            float marginTop = pageSettings.HardMarginY;
             float marginRight = marginLeft;
             float marginBottom = marginTop;
 
@@ -430,14 +424,7 @@ public class PdfiumPrintService : IPrintService
         width = Math.Max(1f, Math.Min(width, pageBounds.Width));
         height = Math.Max(1f, Math.Min(height, pageBounds.Height));
 
-        if (softMarginUnits <= 0)
-            return new RectangleF(0, 0, width, height);
-
-        return new RectangleF(
-            softMarginUnits,
-            softMarginUnits,
-            Math.Max(1f, width - softMarginUnits * 2f),
-            Math.Max(1f, height - softMarginUnits * 2f));
+        return new RectangleF(0, 0, width, height);
     }
 
     private static float ToMm(double value, string unit)

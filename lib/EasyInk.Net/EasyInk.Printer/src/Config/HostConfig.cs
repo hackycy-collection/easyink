@@ -45,12 +45,6 @@ public class HostConfig
     public string Language { get; set; } = "";
 
     /// <summary>
-    /// 默认软件边距(mm)。部分打印机驱动不通过 GDI 路径报告物理硬边距（如热敏小票机 XP-80C），
-    /// 此值作为补偿，四边各缩进指定距离后等比适配。0 = 不启用。
-    /// </summary>
-    public double DefaultMarginMm { get; set; }
-
-    /// <summary>
     /// 低 DPI 小票/热敏打印机位图增强模式：normal、boost、monochrome。默认 boost。
     /// </summary>
     public string LowDpiPrintEnhancement { get; set; } = "boost";
