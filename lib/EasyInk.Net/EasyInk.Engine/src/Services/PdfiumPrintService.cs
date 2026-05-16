@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Drawing.Printing;
 using System.IO;
 using System.Threading;
@@ -21,6 +22,8 @@ public class PdfiumPrintService : IPrintService
     private const int MaxRenderDpi = 1200;
     private const int LowDpiNativeRenderThreshold = 360;
     private const int MinKnownPrinterDpi = 150;
+    private const float LowDpiTextBoostContrast = 1.28f;
+    private const float LowDpiTextBoostBrightness = -0.08f;
 
     private readonly IPrinterService _printerService;
     private readonly ILogger _logger;
@@ -166,6 +169,10 @@ public class PdfiumPrintService : IPrintService
             {
                 var bitmap = img as Bitmap;
                 bitmap?.SetResolution(renderResolution.X, renderResolution.Y);
+                using var boostedImg = renderResolution.ApplyLowDpiTextBoost
+                    ? CreateLowDpiTextBoostBitmap(img, renderResolution.X, renderResolution.Y)
+                    : null;
+                var printImg = boostedImg ?? img;
 
                 if (pageIndex < pageCount)
                 {
@@ -184,12 +191,13 @@ public class PdfiumPrintService : IPrintService
                         $" graphicsDpi=({e.Graphics.DpiX:F0},{e.Graphics.DpiY:F0})" +
                         $" targetScale={targetScale:F3}" +
                         $" draw=({drawRect.X:F1},{drawRect.Y:F1} {drawRect.Width:F1}x{drawRect.Height:F1})" +
-                        $" deviceSnap={renderResolution.MapsToDevicePixels}");
+                        $" deviceSnap={renderResolution.MapsToDevicePixels}" +
+                        $" textBoost={renderResolution.ApplyLowDpiTextBoost}");
                 }
 
                 ConfigureGraphicsQuality(e.Graphics, renderResolution.MapsToDevicePixels);
 
-                e.Graphics.DrawImage(img, drawRect.X, drawRect.Y, drawRect.Width, drawRect.Height);
+                e.Graphics.DrawImage(printImg, drawRect.X, drawRect.Y, drawRect.Width, drawRect.Height);
             }
 
             pageIndex++;
@@ -215,7 +223,8 @@ public class PdfiumPrintService : IPrintService
                 ClampDpi(deviceDpiY > 0 ? deviceDpiY : maxDeviceDpi),
                 true,
                 "native-low-dpi",
-                requestedDpi);
+                requestedDpi,
+                true);
         }
 
         int renderDpiX = Math.Max(requestedDpi, deviceDpiX > 0 ? deviceDpiX : DefaultRenderDpi);
@@ -225,7 +234,7 @@ public class PdfiumPrintService : IPrintService
 
         bool mapsToDevicePixels = deviceDpiX > 0 && deviceDpiY > 0 &&
                                   renderDpiX == deviceDpiX && renderDpiY == deviceDpiY;
-        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested", requestedDpi);
+        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested", requestedDpi, false);
     }
 
     private static int GetKnownDeviceDpi(int settingsDpi, float graphicsDpi)
@@ -281,6 +290,42 @@ public class PdfiumPrintService : IPrintService
         graphics.CompositingQuality = CompositingQuality.HighQuality;
     }
 
+    private static Bitmap CreateLowDpiTextBoostBitmap(Image source, int dpiX, int dpiY)
+    {
+        var boosted = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb);
+        boosted.SetResolution(dpiX, dpiY);
+
+        using var graphics = Graphics.FromImage(boosted);
+        graphics.Clear(Color.White);
+        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        graphics.SmoothingMode = SmoothingMode.None;
+        graphics.CompositingQuality = CompositingQuality.HighSpeed;
+
+        using var attributes = new ImageAttributes();
+        float colorOffset = 0.5f - LowDpiTextBoostContrast * 0.5f + LowDpiTextBoostBrightness;
+        attributes.SetColorMatrix(new ColorMatrix(new[]
+        {
+            new[] { LowDpiTextBoostContrast, 0, 0, 0, 0 },
+            new[] { 0, LowDpiTextBoostContrast, 0, 0, 0 },
+            new[] { 0, 0, LowDpiTextBoostContrast, 0, 0 },
+            new[] { 0, 0, 0, 1f, 0 },
+            new[] { colorOffset, colorOffset, colorOffset, 0, 1f }
+        }));
+
+        graphics.DrawImage(
+            source,
+            new Rectangle(0, 0, source.Width, source.Height),
+            0,
+            0,
+            source.Width,
+            source.Height,
+            GraphicsUnit.Pixel,
+            attributes);
+
+        return boosted;
+    }
+
     private static RectangleF GetEffectiveDrawingArea(PageSettings pageSettings, Rectangle pageBounds, float softMarginUnits)
     {
         var printable = pageSettings.PrintableArea;
@@ -328,13 +373,15 @@ public class PdfiumPrintService : IPrintService
 
     private readonly struct RenderResolution
     {
-        public RenderResolution(int x, int y, bool mapsToDevicePixels, string source, int requestedDpi)
+        public RenderResolution(int x, int y, bool mapsToDevicePixels, string source, int requestedDpi,
+            bool applyLowDpiTextBoost)
         {
             X = x;
             Y = y;
             MapsToDevicePixels = mapsToDevicePixels;
             Source = source;
             RequestedDpi = requestedDpi;
+            ApplyLowDpiTextBoost = applyLowDpiTextBoost;
         }
 
         public int X { get; }
@@ -342,5 +389,6 @@ public class PdfiumPrintService : IPrintService
         public bool MapsToDevicePixels { get; }
         public string Source { get; }
         public int RequestedDpi { get; }
+        public bool ApplyLowDpiTextBoost { get; }
     }
 }
