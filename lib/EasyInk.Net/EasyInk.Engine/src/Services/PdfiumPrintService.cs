@@ -179,6 +179,9 @@ public class PdfiumPrintService : IPrintService
                         $" softMargin={softMarginUnits:F1}" +
                         $" effectiveDrawing=({printable.X:F1},{printable.Y:F1} {printable.Width:F1}x{printable.Height:F1})" +
                         $" render=({renderWidth}x{renderHeight}@{renderResolution.X}x{renderResolution.Y}dpi/{renderResolution.Source})" +
+                        $" requestedDpi={renderResolution.RequestedDpi}" +
+                        $" printerDpi=({ps.PrinterResolution.X},{ps.PrinterResolution.Y})" +
+                        $" graphicsDpi=({e.Graphics.DpiX:F0},{e.Graphics.DpiY:F0})" +
                         $" targetScale={targetScale:F3}" +
                         $" draw=({drawRect.X:F1},{drawRect.Y:F1} {drawRect.Width:F1}x{drawRect.Height:F1})" +
                         $" deviceSnap={renderResolution.MapsToDevicePixels}");
@@ -211,7 +214,8 @@ public class PdfiumPrintService : IPrintService
                 ClampDpi(deviceDpiX > 0 ? deviceDpiX : maxDeviceDpi),
                 ClampDpi(deviceDpiY > 0 ? deviceDpiY : maxDeviceDpi),
                 true,
-                "native-low-dpi");
+                "native-low-dpi",
+                requestedDpi);
         }
 
         int renderDpiX = Math.Max(requestedDpi, deviceDpiX > 0 ? deviceDpiX : DefaultRenderDpi);
@@ -221,7 +225,7 @@ public class PdfiumPrintService : IPrintService
 
         bool mapsToDevicePixels = deviceDpiX > 0 && deviceDpiY > 0 &&
                                   renderDpiX == deviceDpiX && renderDpiY == deviceDpiY;
-        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested");
+        return new RenderResolution(renderDpiX, renderDpiY, mapsToDevicePixels, "requested", requestedDpi);
     }
 
     private static int GetKnownDeviceDpi(int settingsDpi, float graphicsDpi)
@@ -324,17 +328,19 @@ public class PdfiumPrintService : IPrintService
 
     private readonly struct RenderResolution
     {
-        public RenderResolution(int x, int y, bool mapsToDevicePixels, string source)
+        public RenderResolution(int x, int y, bool mapsToDevicePixels, string source, int requestedDpi)
         {
             X = x;
             Y = y;
             MapsToDevicePixels = mapsToDevicePixels;
             Source = source;
+            RequestedDpi = requestedDpi;
         }
 
         public int X { get; }
         public int Y { get; }
         public bool MapsToDevicePixels { get; }
         public string Source { get; }
+        public int RequestedDpi { get; }
     }
 }
