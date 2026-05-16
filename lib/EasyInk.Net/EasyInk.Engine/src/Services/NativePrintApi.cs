@@ -65,8 +65,10 @@ internal static class NativePrintApi
             for (int i = 0; i < batches.Length; i++)
             {
                 var batch = batches[i];
-                if (!WritePrinter(hPrinter, batch, batch.Length, out _))
+                if (!WritePrinter(hPrinter, batch, batch.Length, out var written))
                     throw new InvalidOperationException($"WritePrinter 失败 (batch {i})");
+                if (written != batch.Length)
+                    throw new InvalidOperationException($"WritePrinter 写入不完整 (batch {i}, expected={batch.Length}, actual={written})");
 
                 if (delayMs > 0 && i < batches.Length - 1)
                     System.Threading.Thread.Sleep(delayMs);

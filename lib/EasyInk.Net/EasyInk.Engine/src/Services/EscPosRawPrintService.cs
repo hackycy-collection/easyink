@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -11,7 +12,7 @@ namespace EasyInk.Engine.Services;
 
 /// <summary>
 /// 热敏打印机 Raw ESC/POS 打印服务。
-/// PDF → Pdfium 渲染为灰度位图 → 二值化 → ESC/POS GS v 0 位图指令 → WritePrinter 直发。
+/// PDF → Pdfium 渲染为位图 → 二值化 → ESC/POS GS v 0 位图指令 → WritePrinter 直发。
 /// 完全绕过 Windows 打印驱动，消除硬边距/缩放/纸张匹配等问题。
 /// </summary>
 public class EscPosRawPrintService : IPrintService
@@ -24,6 +25,11 @@ public class EscPosRawPrintService : IPrintService
 
     public EscPosRawPrintService(IPrinterService printerService, ILogger? logger = null, int dpi = 203, int maxDotsWidth = 576)
     {
+        if (dpi <= 0)
+            throw new ArgumentOutOfRangeException(nameof(dpi), "DPI must be greater than 0.");
+        if (maxDotsWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxDotsWidth), "Max dots width must be greater than 0.");
+
         _dpi = dpi;
         _maxDotsWidth = maxDotsWidth;
         _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
@@ -50,14 +56,7 @@ public class EscPosRawPrintService : IPrintService
         try
         {
             var bands = RenderPdfToEscPosBands(pdfBytes, cancellationToken);
-            var init = BitmapToEscPos.CmdInit();
-            var cut = BitmapToEscPos.CmdCut();
-
-            // init + [band0, band1, ...] + cut，逐批发送，band 间延时 80ms
-            var batches = new byte[1 + bands.Count + 1][];
-            batches[0] = init;
-            for (int i = 0; i < bands.Count; i++) batches[1 + i] = bands[i];
-            batches[batches.Length - 1] = cut;
+            var batches = BuildPrintBatches(bands, request.Copies);
 
             NativePrintApi.SendRawBatched(request.PrinterName, batches,
                 $"EasyInk-{requestId.Substring(0, Math.Min(8, requestId.Length))}", delayMs: 80);
@@ -77,7 +76,26 @@ public class EscPosRawPrintService : IPrintService
         }
     }
 
-    private System.Collections.Generic.List<byte[]> RenderPdfToEscPosBands(byte[] pdfBytes, CancellationToken cancellationToken)
+    private static byte[][] BuildPrintBatches(IReadOnlyList<byte[]> bands, int copies)
+    {
+        copies = Math.Max(copies, 1);
+
+        var init = BitmapToEscPos.CmdInit();
+        var cut = BitmapToEscPos.CmdCut();
+        var batches = new List<byte[]>(copies * (bands.Count + 2));
+
+        for (int copy = 0; copy < copies; copy++)
+        {
+            batches.Add(init);
+            for (int i = 0; i < bands.Count; i++)
+                batches.Add(bands[i]);
+            batches.Add(cut);
+        }
+
+        return batches.ToArray();
+    }
+
+    private List<byte[]> RenderPdfToEscPosBands(byte[] pdfBytes, CancellationToken cancellationToken)
     {
         using var pdfStream = new MemoryStream(pdfBytes);
         using var pdfDoc = PdfDocument.Load(pdfStream);
@@ -86,36 +104,51 @@ public class EscPosRawPrintService : IPrintService
         if (pageCount == 0)
             throw new InvalidOperationException("PDF 无页面");
 
-        var pageSize = pdfDoc.PageSizes[0];
-        float paperWidthMm = (float)(pageSize.Width / 72.0 * 25.4);
-        float paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
-
-        float scale = (float)_maxDotsWidth / (paperWidthMm / 25.4f * _dpi);
-        int renderWidth = _maxDotsWidth;
-        int renderHeight = (int)Math.Round(paperHeightMm / 25.4f * _dpi * scale);
-
-        _logger.Log(LogLevel.Info,
-            $"[RawPrint] paper={paperWidthMm:F1}x{paperHeightMm:F1}mm" +
-            $" render={renderWidth}x{renderHeight}px@{_dpi}dpi" +
-            $" scale={scale:F3} pages={pageCount}");
-
-        using var fullImage = new Bitmap(renderWidth, renderHeight * pageCount, PixelFormat.Format24bppRgb);
-        using var g = Graphics.FromImage(fullImage);
-        g.Clear(Color.White);
+        var bands = new List<byte[]>();
 
         for (int i = 0; i < pageCount; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            var pageSize = pdfDoc.PageSizes[i];
+            if (pageSize.Width <= 0 || pageSize.Height <= 0)
+                throw new InvalidOperationException($"PDF 第 {i + 1} 页尺寸无效");
+
+            float paperWidthMm = (float)(pageSize.Width / 72.0 * 25.4);
+            float paperHeightMm = (float)(pageSize.Height / 72.0 * 25.4);
+            float scale = _maxDotsWidth / (paperWidthMm / 25.4f * _dpi);
+            int renderWidth = _maxDotsWidth;
+            int renderHeight = Math.Max(1, (int)Math.Round(paperHeightMm / 25.4f * _dpi * scale));
+
             using var pageImg = pdfDoc.Render(i, renderWidth, renderHeight, _dpi, _dpi, PdfRenderFlags.ForPrinting);
-            g.DrawImage(pageImg, 0, i * renderHeight);
+            using var pageBitmap = CreateWhite24BppBitmap(pageImg, renderWidth, renderHeight);
+            var pageBands = BitmapToEscPos.ConvertToRasterBands(pageBitmap);
+            bands.AddRange(pageBands);
+
+            _logger.Log(LogLevel.Info,
+                $"[RawPrint] page={i + 1}/{pageCount}" +
+                $" paper={paperWidthMm:F1}x{paperHeightMm:F1}mm" +
+                $" render={renderWidth}x{renderHeight}px@{_dpi}dpi" +
+                $" scale={scale:F3}" +
+                $" bands={pageBands.Count}" +
+                $" method=GS_v_0");
         }
 
-        // ESC * m=33: 24-dot double-density, column-major
-        var strips = BitmapToEscPos.ConvertToStrips(fullImage);
         _logger.Log(LogLevel.Info,
-            $"[RawPrint] w={renderWidth} strips={strips.Count} " +
-            $"totalH={renderHeight * pageCount} method=ESC_*_33");
+            $"[RawPrint] pages={pageCount} totalBands={bands.Count} method=GS_v_0");
 
-        return strips;
+        return bands;
+    }
+
+    private static Bitmap CreateWhite24BppBitmap(Image source, int width, int height)
+    {
+        var bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+        bitmap.SetResolution(source.HorizontalResolution, source.VerticalResolution);
+
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(Color.White);
+        graphics.DrawImage(source, new Rectangle(0, 0, width, height));
+
+        return bitmap;
     }
 }
