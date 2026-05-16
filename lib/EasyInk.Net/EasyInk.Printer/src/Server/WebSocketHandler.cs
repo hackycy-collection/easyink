@@ -23,6 +23,8 @@ public class WebSocketHandler : IDisposable
     private readonly SemaphoreSlim _broadcastLock = new SemaphoreSlim(1, 1);
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly int _maxConnections;
+    private readonly Task _pingTask;
+    private bool _disposed;
     private WebSocketCommandHandler? _commandHandler;
 
     public int ConnectionCount => _connections.Count;
@@ -32,7 +34,7 @@ public class WebSocketHandler : IDisposable
     public WebSocketHandler(int maxConnections = 100)
     {
         _maxConnections = maxConnections < 10 ? 10 : maxConnections;
-        _ = PingLoop();
+        _pingTask = PingLoop();
     }
 
     public void SetCommandHandler(WebSocketCommandHandler handler)
@@ -42,26 +44,36 @@ public class WebSocketHandler : IDisposable
 
     private async Task PingLoop()
     {
-        var pingPayload = Array.Empty<byte>();
-        while (!_cts.IsCancellationRequested)
+        try
         {
-            try { await Task.Delay(PingInterval, _cts.Token); }
-            catch (OperationCanceledException) { break; }
-
-            var tasks = new List<Task>();
-            foreach (var kvp in _connections)
+            var pingPayload = Array.Empty<byte>();
+            while (!_cts.IsCancellationRequested)
             {
-                if (kvp.Value.State != WebSocketState.Open)
-                {
-                    _connections.TryRemove(kvp.Key, out _);
-                    continue;
-                }
-                tasks.Add(SendPingAsync(kvp.Key, kvp.Value, pingPayload));
-            }
-            await Task.WhenAll(tasks);
+                try { await Task.Delay(PingInterval, _cts.Token); }
+                catch (OperationCanceledException) { break; }
 
-            if (_connections.Count == 0)
-                ConnectionCountChanged?.Invoke();
+                var tasks = new List<Task>();
+                foreach (var kvp in _connections)
+                {
+                    if (kvp.Value.State != WebSocketState.Open)
+                    {
+                        _connections.TryRemove(kvp.Key, out _);
+                        continue;
+                    }
+                    tasks.Add(SendPingAsync(kvp.Key, kvp.Value, pingPayload));
+                }
+                await Task.WhenAll(tasks);
+
+                if (_connections.Count == 0)
+                    RaiseConnectionCountChanged();
+            }
+        }
+        catch (Exception ex) when (IsExpectedDisconnectException(ex) || _cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Error("WebSocket保活循环异常", ex);
         }
     }
 
@@ -106,29 +118,18 @@ public class WebSocketHandler : IDisposable
         var ws = wsContext.WebSocket;
         var connectionId = Guid.NewGuid().ToString();
         _connections[connectionId] = ws;
-        ConnectionCountChanged?.Invoke();
+        RaiseConnectionCountChanged();
 
         try
         {
             await ReceiveLoop(ws);
         }
-        catch (WebSocketException) { }
-        catch (IOException) { }
-        catch (OperationCanceledException) { }
+        catch (Exception ex) when (IsExpectedDisconnectException(ex)) { }
         finally
         {
             _connections.TryRemove(connectionId, out _);
-            ConnectionCountChanged?.Invoke();
-            try
-            {
-                if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
-                {
-                    using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", closeCts.Token);
-                }
-            }
-            catch (WebSocketException) { }
-            ws.Dispose();
+            RaiseConnectionCountChanged();
+            await CloseQuietlyAsync(ws);
         }
     }
 
@@ -158,7 +159,7 @@ public class WebSocketHandler : IDisposable
 
                 if (messageBuffer.Length > MaxBinaryMessageSize)
                 {
-                    await SendError(ws, ErrorCode.MessageTooLarge, LangManager.Get("Ws_MessageTooLarge"));
+                    await SendErrorQuietly(ws, ErrorCode.MessageTooLarge, LangManager.Get("Ws_MessageTooLarge"));
                     return;
                 }
             }
@@ -181,24 +182,37 @@ public class WebSocketHandler : IDisposable
 
                     await _commandHandler.HandleMessage(ws, message);
                 }
+                catch (Exception ex) when (IsExpectedDisconnectException(ex))
+                {
+                    return;
+                }
                 catch (Exception ex)
                 {
-                    await SendError(ws, ErrorCode.InvalidMessage, ex.Message);
+                    await SendErrorQuietly(ws, ErrorCode.InvalidMessage, ex.Message);
                 }
             }
         }
     }
 
-    private static async Task SendError(WebSocket ws, string code, string errorMessage)
+    private static async Task SendErrorQuietly(WebSocket ws, string code, string errorMessage)
     {
-        var errorJson = JsonConvert.SerializeObject(new
+        try
         {
-            success = false,
-            errorInfo = new { code, message = errorMessage }
-        });
-        var bytes = Encoding.UTF8.GetBytes(errorJson);
-        using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, sendCts.Token);
+            if (ws.State != WebSocketState.Open)
+                return;
+
+            var errorJson = JsonConvert.SerializeObject(new
+            {
+                success = false,
+                errorInfo = new { code, message = errorMessage }
+            });
+            var bytes = Encoding.UTF8.GetBytes(errorJson);
+            using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, sendCts.Token);
+        }
+        catch (Exception ex) when (IsExpectedDisconnectException(ex))
+        {
+        }
     }
 
     public async Task Broadcast(string message)
@@ -235,25 +249,87 @@ public class WebSocketHandler : IDisposable
                 await ws.SendAsync(segment, WebSocketMessageType.Text, true, cts.Token);
             }
         }
-        catch (WebSocketException)
-        {
-            _connections.TryRemove(connectionId, out _);
-        }
-        catch (IOException)
+        catch (Exception ex) when (IsExpectedDisconnectException(ex))
         {
             _connections.TryRemove(connectionId, out _);
         }
     }
 
+    internal async Task SendText(WebSocket? ws, string message)
+    {
+        if (ws == null || ws.State != WebSocketState.Open)
+            return;
+
+        var bytes = Encoding.UTF8.GetBytes(message);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token);
+    }
+
+    internal static async Task CloseQuietlyAsync(WebSocket ws)
+    {
+        try
+        {
+            if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+            {
+                using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", closeCts.Token);
+            }
+        }
+        catch (Exception ex) when (IsExpectedDisconnectException(ex))
+        {
+            try { ws.Abort(); } catch (Exception abortEx) when (IsExpectedDisconnectException(abortEx)) { }
+        }
+        finally
+        {
+            try { ws.Dispose(); } catch (Exception ex) when (IsExpectedDisconnectException(ex)) { }
+        }
+    }
+
+    internal static bool IsExpectedDisconnectException(Exception ex)
+    {
+        if (ex is OperationCanceledException ||
+            ex is ObjectDisposedException ||
+            ex is WebSocketException ||
+            ex is IOException ||
+            ex is HttpListenerException)
+        {
+            return true;
+        }
+
+        if (ex is AggregateException aggregateException)
+        {
+            foreach (var inner in aggregateException.InnerExceptions)
+            {
+                if (!IsExpectedDisconnectException(inner))
+                    return false;
+            }
+            return aggregateException.InnerExceptions.Count > 0;
+        }
+
+        return false;
+    }
+
+    private void RaiseConnectionCountChanged()
+    {
+        try { ConnectionCountChanged?.Invoke(); }
+        catch (Exception ex) { SimpleLogger.Debug("WebSocket连接数变更通知异常", ex); }
+    }
+
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _cts.Cancel();
-        _cts.Dispose();
+        try { _pingTask.Wait(TimeSpan.FromSeconds(3)); }
+        catch (AggregateException ex) when (IsExpectedDisconnectException(ex)) { }
+        catch (Exception ex) when (IsExpectedDisconnectException(ex)) { }
         foreach (var kvp in _connections)
         {
             try { kvp.Value.Dispose(); } catch (Exception ex) { SimpleLogger.Debug("WebSocket连接释放异常", ex); }
         }
         _connections.Clear();
+        _cts.Dispose();
         _broadcastLock.Dispose();
     }
 }

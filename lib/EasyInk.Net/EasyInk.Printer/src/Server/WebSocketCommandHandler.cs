@@ -2,8 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -237,10 +235,13 @@ public class WebSocketCommandHandler
             return;
 
         var json = JsonConvert.SerializeObject(result, JsonConfig.CamelCase);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var segment = new ArraySegment<byte>(bytes);
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await ws.SendAsync(segment, WebSocketMessageType.Text, true, cts.Token);
+        try
+        {
+            await _wsHandler.SendText(ws, json);
+        }
+        catch (Exception ex) when (WebSocketHandler.IsExpectedDisconnectException(ex))
+        {
+        }
     }
 
     internal sealed class PdfUploadSession

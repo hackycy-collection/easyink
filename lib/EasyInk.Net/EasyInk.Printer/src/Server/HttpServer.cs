@@ -46,10 +46,10 @@ public class HttpServer
             LastError = null;
 
             _listenTask = Task.Factory.StartNew(
-                ListenLoop,
+                () => ListenLoop(),
                 _cts.Token,
                 TaskCreationOptions.LongRunning,
-                TaskScheduler.Default);
+                TaskScheduler.Default).Unwrap();
 
             return true;
         }
